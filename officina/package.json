@@ -1,0 +1,24 @@
+{
+  "name": "officina",
+  "version": "1.1.1",
+  "private": true,
+  "description": "Officina dell'agenzia: lavora foto, grafiche e video per i workflow n8n (contratto API v1).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --max-old-space-size=512 src/server.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "mutazioni": "node test/mutazioni.mjs",
+    "prepara-whisper": "sh strumenti/prepara-whisper-locale.sh"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^10.1.8",
+    "@resvg/resvg-js": "^2.6.2",
+    "fastify": "^5.12.8",
+    "satori": "^0.63.2",
+    "sharp": "^0.35.5"
+  }
+}

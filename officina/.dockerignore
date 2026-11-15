@@ -1,0 +1,7 @@
+node_modules
+.locale
+test
+*.md
+!LEGGIMI.md
+.git
+npm-debug.log
