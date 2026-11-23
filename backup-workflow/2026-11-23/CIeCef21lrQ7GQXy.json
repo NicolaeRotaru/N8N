@@ -1,0 +1,1071 @@
+{
+ "updatedAt": "2026-11-16T08:05:35.384Z",
+ "createdAt": "2026-11-16T08:05:35.384Z",
+ "id": "CIeCef21lrQ7GQXy",
+ "name": "Retail MyCity · 00 Attiva negozio",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "content": "## Retail MyCity · 00 Attiva negozio (si lancia a mano, una volta per negozio)\n**Prima:** il negozio ha dato all'agenzia l'accesso alla sua Pagina Facebook e al suo Instagram (account professionale collegato alla Pagina), e la riga del negozio esiste nella scheda **Clienti** del foglio «Social Retail MyCity».\n\n1. apri **Dati del cliente** e scrivi il codice del negozio (uguale alla colonna `cliente` della scheda Clienti) e l'ID della sua Pagina Facebook\n2. premi **Execute workflow**\n\nIl flusso legge l'account Instagram collegato alla Pagina, scrive **ig_user_id** e **fb_page_id** nella scheda Clienti (come testo); se la Pagina ha l'indirizzo scrive anche **id_luogo** (se era vuoto) e avvisa su Telegram.\n**Commenti:** il nodo «Iscrivi ai commenti» è spento apposta: la serie retail non ha ancora un flusso commenti, e iscrivere la Pagina manderebbe i commenti del negozio al flusso commenti dell'agenzia.\nLe esecuzioni a mano NON vengono salvate (qui passa il token della Pagina).\nDopo: metti **attivo = si** nella scheda Clienti e fai una prova.",
+    "height": 500,
+    "width": 1180,
+    "color": 7
+   },
+   "id": "d4c75bde-c330-5260-8da7-5270ccbe3f08",
+   "name": "Nota · Come si usa",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -60,
+    -620
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### Controlli → letture da Meta → (iscrizione commenti spenta) → scheda Clienti → Telegram",
+    "height": 460,
+    "width": 3660,
+    "color": 5
+   },
+   "id": "5885ffb6-3d53-5072-887f-9eb7ad279a68",
+   "name": "Nota · Passi",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -60,
+    -100
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "687783f4-5ec8-5458-8e20-98dd51182375",
+   "name": "Avvia a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    40
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "a3482f3e-ac11-5db8-80d5-05dc65976cf7",
+       "name": "GRAPH_VERSION",
+       "value": "v26.0",
+       "type": "string"
+      },
+      {
+       "id": "adcd2bdd-3792-53d0-8b51-2efcba921e89",
+       "name": "SHEET_ID",
+       "value": "INCOLLA_QUI_ID_DEL_FOGLIO_SOCIAL_RETAIL_MYCITY",
+       "type": "string"
+      },
+      {
+       "id": "d0370d5e-0c35-5756-ad52-7dbedf3b1e10",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "INCOLLA_QUI_ID_DELLA_CHAT_DEL_TEAM",
+       "type": "string"
+      },
+      {
+       "id": "91944670-bf83-5d5a-9bb2-8cc3c28e56b6",
+       "name": "R2_BUCKET",
+       "value": "INCOLLA_QUI_NOME_BUCKET",
+       "type": "string"
+      },
+      {
+       "id": "b54cd063-ef90-5682-8445-b94afd33f1ce",
+       "name": "R2_PUBLIC_BASE_URL",
+       "value": "https://media.tuodominio.it",
+       "type": "string"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "options": {}
+   },
+   "id": "665f3923-fc31-5a41-9117-c43636d470f5",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    240,
+    40
+   ],
+   "notes": "Impostazioni del flusso. GRAPH_VERSION = versione delle API di Meta: va tenuta aggiornata all'ultima. v26.0 è l'ultima al 14/11/2026 (uscita il 29/7/2026); Meta ne fa uscire una nuova ogni qualche mese e spegne le vecchie dopo circa 2 anni: quando cambi versione provala prima sull'account di test, poi aggiornala qui e negli altri flussi (stesso valore ovunque). SHEET_ID = la parte lunga dell'indirizzo del foglio «Social Retail MyCity» tra /d/ e /edit. R2_PUBLIC_BASE_URL = dominio pubblico del bucket, senza / finale.",
+   "notesInFlow": false
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "ffdfdcf6-de01-5db2-9063-e1ad98ab9c08",
+       "name": "cliente",
+       "value": "INSERISCI_CODICE_NEGOZIO",
+       "type": "string"
+      },
+      {
+       "id": "9b7573b7-dca3-5c74-b600-b00dedad5866",
+       "name": "fb_page_id",
+       "value": "INSERISCI_ID_PAGINA",
+       "type": "string"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "options": {}
+   },
+   "id": "5db4e4d0-41e4-53cf-bee3-abbb454a4b7c",
+   "name": "Dati del cliente",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    480,
+    40
+   ],
+   "notes": "Scrivi qui la chiave del cliente (uguale alla colonna «cliente» della scheda Clienti) e l'ID della Pagina Facebook (solo cifre: lo trovi nella Pagina → Informazioni → Trasparenza della Pagina, o in Business Suite).",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "3c96f589-d072-5655-9f59-8c71fa4f0f7d",
+       "leftValue": "={{ String($json.cliente ?? '').trim() }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "notEmpty",
+        "singleValue": true
+       }
+      },
+      {
+       "id": "f01c75eb-7d48-5d90-8961-b24076b73b84",
+       "leftValue": "={{ String($json.fb_page_id ?? '').trim() }}",
+       "rightValue": "^\\d{5,}$",
+       "operator": {
+        "type": "string",
+        "operation": "regex"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "b7ec68ae-8e7f-5387-858a-3fd40774ca54",
+   "name": "Dati inseriti?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    720,
+    40
+   ]
+  },
+  {
+   "parameters": {
+    "errorType": "errorMessage",
+    "errorMessage": "Apri il nodo «Dati del cliente» e scrivi il codice del negozio (uguale alla colonna cliente della scheda Clienti del foglio «Social Retail MyCity») e l'ID della sua Pagina Facebook (solo cifre). Poi premi di nuovo «Execute workflow»."
+   },
+   "id": "e83f6737-4030-5050-b65f-c1ec4d7a8cf6",
+   "name": "Mancano i dati",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    960,
+    220
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Clienti",
+     "mode": "name"
+    },
+    "filtersUI": {
+     "values": [
+      {
+       "lookupColumn": "cliente",
+       "lookupValue": "={{ String($('Dati del cliente').first().json.cliente).trim() }}"
+      }
+     ]
+    },
+    "combineFilters": "AND",
+    "options": {
+     "returnFirstMatch": true
+    }
+   },
+   "id": "1f2f753d-3336-5c68-8bf6-2326e5bedf1c",
+   "name": "Cerca cliente",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    960,
+    40
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "SEGNAPOSTO-google-sheets",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "1ac9872c-ac2f-5236-847b-c028171c970b",
+       "leftValue": "={{ String($json.cliente ?? '') }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "notEmpty",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "a1664e7b-7c82-5b26-9bd0-1d8a64c168f7",
+   "name": "Cliente presente?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1200,
+    40
+   ]
+  },
+  {
+   "parameters": {
+    "errorType": "errorMessage",
+    "errorMessage": "={{ \"Nella scheda Clienti non c'è una riga con cliente = «\" + $('Dati del cliente').first().json.cliente + \"». Aggiungila (bastano cliente e nome_negozio, con attivo = no) e riprova.\" }}"
+   },
+   "id": "dfd64964-e29c-51f3-af7c-e789150e6535",
+   "name": "Cliente non trovato",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    1440,
+    220
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ String($('Dati del cliente').first().json.fb_page_id).trim() }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "access_token,name"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "a4be56a7-61cd-53bd-975e-4d7817df8b45",
+   "name": "Token della Pagina",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1440,
+    40
+   ],
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "SEGNAPOSTO-meta-system-user",
+     "name": "Meta - System User"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ String($('Dati del cliente').first().json.fb_page_id).trim() }}",
+    "authentication": "none",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "instagram_business_account,name,location"
+      },
+      {
+       "name": "access_token",
+       "value": "={{ $('Token della Pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "172f4b45-821e-504b-84f8-6c76bebb753b",
+   "name": "Account Instagram della Pagina",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1680,
+    40
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "3778e565-1aaf-5974-aac8-dc5d2b1b7239",
+       "leftValue": "={{ ($json.instagram_business_account || {}).id || '' }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "notEmpty",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "1ad72026-29cf-5772-bb6d-b534271e2bac",
+   "name": "Instagram collegato?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1920,
+    40
+   ]
+  },
+  {
+   "parameters": {
+    "errorType": "errorMessage",
+    "errorMessage": "={{ 'La Pagina «' + $json.name + '» non ha un account Instagram professionale collegato, oppure il System User non lo vede. Il negozio deve: 1) passare Instagram ad account professionale, 2) collegarlo alla Pagina, 3) dare accesso all\\'agenzia anche su Instagram. Poi riprova.' }}"
+   },
+   "id": "57f24a93-7d69-59ba-9c80-c81a7d27eaa8",
+   "name": "Instagram non collegato",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    2160,
+    220
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $json.instagram_business_account.id }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "username,name"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "bdbeac18-985e-56b9-a131-124acc744751",
+   "name": "Profilo Instagram",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2160,
+    40
+   ],
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "SEGNAPOSTO-meta-system-user",
+     "name": "Meta - System User"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ String($('Dati del cliente').first().json.fb_page_id).trim() }}/subscribed_apps",
+    "authentication": "none",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('Token della Pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ subscribed_fields: 'feed' }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "985e6d09-e4f4-5da6-b0b1-3f9f1b734c21",
+   "name": "Iscrivi ai commenti",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2400,
+    40
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "notes": "Iscrive l'app dell'agenzia agli eventi «feed» della Pagina: serve per ricevere i commenti (Facebook e, tramite la Pagina, Instagram).",
+   "notesInFlow": false,
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Decide cosa scrivere in id_luogo nella scheda Clienti.\n// Instagram e Facebook accettano come «luogo» solo una Pagina che ha un indirizzo: di solito la Pagina del cliente stesso.\n// Se id_luogo è già compilato (magari a mano, con un'altra Pagina) non lo tocchiamo.\nconst pagina = $('Account Instagram della Pagina').first().json;\nconst cliente = $('Cerca cliente').first().json;\nconst idPagina = String($('Dati del cliente').first().json.fb_page_id).trim();\nconst loc = pagina.location || {};\nconst haIndirizzo = Boolean(loc.street || loc.city || (loc.latitude !== undefined && loc.longitude !== undefined));\nconst attuale = cliente.id_luogo;\nconst attualeTesto = String(attuale ?? '').trim();\n\nlet esito = 'senza_indirizzo';\nlet idLuogo = attuale ?? '';\n// La lettura filtrata di Google Sheets restituisce tutte le colonne dell'intestazione: se id_luogo\n// non c'è proprio, la colonna manca nel foglio (e Sheets ignorerebbe il valore senza dire niente).\nif (!('id_luogo' in cliente)) esito = 'colonna_mancante';\nelse if (attualeTesto) esito = 'gia_presente';\nelse if (haIndirizzo) {\n  esito = 'scritto';\n  idLuogo = idPagina;\n}\nreturn [{\n  json: {\n    id_luogo: idLuogo,\n    esito_luogo: esito,\n    id_luogo_attuale: attualeTesto,\n    indirizzo: [loc.street, loc.city].filter(Boolean).join(', '),\n  },\n}];\n"
+   },
+   "id": "ae68ce7e-2667-5134-a621-2f11491abab3",
+   "name": "Valuta luogo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    40
+   ],
+   "notes": "La Pagina ha un indirizzo? Allora può fare da «luogo» per Instagram e Facebook: scrive id_luogo = ID della Pagina (se id_luogo è vuoto).",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Clienti",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "cliente": "={{ String($('Dati del cliente').first().json.cliente).trim() }}",
+      "ig_user_id": "={{ $('Account Instagram della Pagina').first().json.instagram_business_account.id }}",
+      "fb_page_id": "={{ String($('Dati del cliente').first().json.fb_page_id).trim() }}",
+      "id_luogo": "={{ $('Valuta luogo').first().json.id_luogo }}"
+     },
+     "matchingColumns": [
+      "cliente"
+     ],
+     "schema": [
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "nome_locale",
+       "displayName": "nome_locale",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "ig_user_id",
+       "displayName": "ig_user_id",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "fb_page_id",
+       "displayName": "fb_page_id",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "attivo",
+       "displayName": "attivo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "risposte_automatiche",
+       "displayName": "risposte_automatiche",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tono_di_voce",
+       "displayName": "tono_di_voce",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "orari",
+       "displayName": "orari",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_prenotazione",
+       "displayName": "link_prenotazione",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "telefono",
+       "displayName": "telefono",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "indirizzo",
+       "displayName": "indirizzo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_menu",
+       "displayName": "link_menu",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "regole_risposte",
+       "displayName": "regole_risposte",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "id_luogo",
+       "displayName": "id_luogo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "account_da_taggare",
+       "displayName": "account_da_taggare",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "hashtag_fissi",
+       "displayName": "hashtag_fissi",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "note_piano",
+       "displayName": "note_piano",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "approvazione_testi",
+       "displayName": "approvazione_testi",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "whatsapp_titolare",
+       "displayName": "whatsapp_titolare",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "approvazione_storie",
+       "displayName": "approvazione_storie",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "esempi_didascalie",
+       "displayName": "esempi_didascalie",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "menu_testo",
+       "displayName": "menu_testo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "cartella_drive",
+       "displayName": "cartella_drive",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "marchio",
+       "displayName": "marchio",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "frasi_storie",
+       "displayName": "frasi_storie",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "row_number",
+       "displayName": "row_number",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "number",
+       "canBeUsedToMatch": true,
+       "readOnly": true,
+       "removed": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW"
+    }
+   },
+   "id": "492210af-ff04-5c18-aab3-586950e00bbd",
+   "name": "Salva ID nel foglio Clienti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2880,
+    40
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "SEGNAPOSTO-google-sheets",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// Messaggio di conferma per il team, con i dati letti da Meta.\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst dati = $('Dati del cliente').first().json;\nconst pagina = $('Account Instagram della Pagina').first().json;\nconst profilo = $('Profilo Instagram').first().json;\nconst luogo = $('Valuta luogo').first().json;\nconst rigaLuogo = {\n  scritto: `Luogo: la Pagina ha l'indirizzo${luogo.indirizzo ? ` (${esc(luogo.indirizzo)})` : ''}, ho scritto id_luogo ✔`,\n  gia_presente: `Luogo: id_luogo era già compilato (${esc(luogo.id_luogo_attuale)}), l'ho lasciato com'è`,\n  senza_indirizzo: \"⚠️ Luogo: la Pagina non ha l'indirizzo: aggiungilo su Facebook per poter mettere il luogo\",\n  colonna_mancante: '⚠️ Luogo: nella scheda Clienti manca la colonna id_luogo: aggiungila in fondo e rilancia questo flusso',\n}[luogo.esito_luogo] || 'Luogo: non controllato';\nconst testo = [\n  `✅ <b>Negozio collegato: ${esc(dati.cliente)}</b>`,\n  `Pagina Facebook: ${esc(pagina.name)} (id ${esc(dati.fb_page_id)})`,\n  `Instagram: @${esc(profilo.username)} (id ${esc(pagina.instagram_business_account.id)})`,\n  'Commenti: iscrizione non fatta (nodo spento: la serie retail non ha ancora il flusso commenti)',\n  rigaLuogo,\n  'Ho scritto ig_user_id e fb_page_id nella scheda Clienti.',\n  'Prossimo passo: metti attivo = si e fai una prova con una storia.',\n].join('\\n');\nreturn [{ json: { testo } }];\n"
+   },
+   "id": "5ca6ce76-3ad0-58b5-9f4a-0f7f82264d78",
+   "name": "Prepara messaggio",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3120,
+    40
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "fbc64cac-360b-5c90-9dcc-bd26eef7243e",
+   "name": "Cliente collegato",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    3360,
+    40
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "SEGNAPOSTO-telegram-bot",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "webhookId": "019caeb7-74cb-453d-91d5-0de3f196c799"
+  }
+ ],
+ "connections": {
+  "Avvia a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Dati del cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dati del cliente": {
+   "main": [
+    [
+     {
+      "node": "Dati inseriti?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dati inseriti?": {
+   "main": [
+    [
+     {
+      "node": "Cerca cliente",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Mancano i dati",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cerca cliente": {
+   "main": [
+    [
+     {
+      "node": "Cliente presente?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cliente presente?": {
+   "main": [
+    [
+     {
+      "node": "Token della Pagina",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Cliente non trovato",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Token della Pagina": {
+   "main": [
+    [
+     {
+      "node": "Account Instagram della Pagina",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Account Instagram della Pagina": {
+   "main": [
+    [
+     {
+      "node": "Instagram collegato?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Instagram collegato?": {
+   "main": [
+    [
+     {
+      "node": "Profilo Instagram",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Instagram non collegato",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Profilo Instagram": {
+   "main": [
+    [
+     {
+      "node": "Iscrivi ai commenti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Iscrivi ai commenti": {
+   "main": [
+    [
+     {
+      "node": "Valuta luogo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Valuta luogo": {
+   "main": [
+    [
+     {
+      "node": "Salva ID nel foglio Clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Salva ID nel foglio Clienti": {
+   "main": [
+    [
+     {
+      "node": "Prepara messaggio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara messaggio": {
+   "main": [
+    [
+     {
+      "node": "Cliente collegato",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": false,
+  "errorWorkflow": "d4pVnzRlkl9uTC5p",
+  "timezone": "Europe/Rome",
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "all",
+  "saveManualExecutions": false,
+  "callerPolicy": "workflowsFromSameOwner"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "b250e889-792f-4170-a35f-011c73e25520",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-16T08:05:35.392Z",
+   "createdAt": "2026-11-16T08:05:35.392Z",
+   "role": "workflow:owner",
+   "workflowId": "CIeCef21lrQ7GQXy",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

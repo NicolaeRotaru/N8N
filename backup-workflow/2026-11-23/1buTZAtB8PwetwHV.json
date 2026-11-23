@@ -1,0 +1,79 @@
+{
+ "updatedAt": "2026-11-22T15:55:45.000Z",
+ "createdAt": "2026-11-22T15:53:55.985Z",
+ "id": "1buTZAtB8PwetwHV",
+ "name": "My workflow 3",
+ "active": false,
+ "isArchived": true,
+ "nodes": [
+  {
+   "parameters": {},
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ],
+   "id": "87b1a30f-861e-4cca-8245-fcdee909e07c",
+   "name": "When clicking ‘Execute workflow’"
+  },
+  {
+   "parameters": {
+    "url": "http://officina.internal:8080/salute",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    224,
+    0
+   ],
+   "id": "5a916c77-f2f6-43de-9aa9-74afa63f6221",
+   "name": "HTTP Request",
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "EHAwE00jwfTG54AP",
+     "name": "Officina - Chiave"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "When clicking ‘Execute workflow’": {
+   "main": [
+    [
+     {
+      "node": "HTTP Request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "1a50d088-9402-4258-affa-3ad44ae7f2a0",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-22T15:53:55.991Z",
+   "createdAt": "2026-11-22T15:53:55.991Z",
+   "role": "workflow:owner",
+   "workflowId": "1buTZAtB8PwetwHV",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

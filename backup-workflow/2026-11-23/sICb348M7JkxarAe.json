@@ -1,0 +1,1014 @@
+{
+ "updatedAt": "2026-11-16T08:44:46.498Z",
+ "createdAt": "2026-11-16T08:44:46.498Z",
+ "id": "sICb348M7JkxarAe",
+ "name": "Retail MyCity · 09 Impara dai numeri",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "months",
+       "monthsInterval": 1,
+       "triggerAtDayOfMonth": 1,
+       "triggerAtHour": 6,
+       "triggerAtMinute": 15
+      }
+     ]
+    }
+   },
+   "id": "87ffed07-ad05-4d2b-a4f0-d0855d7a2e38",
+   "name": "Ogni mese, il giorno 1 alle 6:15",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    160
+   ],
+   "notes": "Ora di Roma (impostazione del workflow).",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {},
+   "id": "8b5b42d1-f055-4b04-af8c-7c891e0be2af",
+   "name": "Avvio a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    340
+   ]
+  },
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "cd3e780d-581e-47d9-a9dd-dacb685e7e73",
+   "name": "Ricevi un cliente da analizzare",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    900
+   ],
+   "notes": "Lo chiama questo stesso workflow: una esecuzione per cliente.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "c989b25e-3340-41b8-aaf2-5eab3437e229",
+       "name": "SHEET_ID",
+       "value": "INCOLLA_QUI_ID_DEL_FOGLIO_SOCIAL_RETAIL_MYCITY",
+       "type": "string"
+      },
+      {
+       "id": "af67befd-c912-46c5-aca2-0bcb71710c18",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "INCOLLA_QUI_ID_CHAT_TELEGRAM",
+       "type": "string"
+      },
+      {
+       "id": "fb72ed1c-6d84-4994-ac6e-0551e716e970",
+       "name": "GRAPH_VERSION",
+       "value": "v26.0",
+       "type": "string"
+      },
+      {
+       "id": "1918b66b-073c-4423-a88b-9e7459b6dfb1",
+       "name": "MIGLIORI_PER_CLIENTE",
+       "value": 5,
+       "type": "number"
+      },
+      {
+       "id": "6e69cb99-fd42-4a5c-aad0-46aa7c73fee8",
+       "name": "MAX_PAGINE",
+       "value": 10,
+       "type": "number"
+      }
+     ]
+    },
+    "includeOtherFields": true,
+    "include": "all",
+    "options": {
+     "stripBinary": false
+    }
+   },
+   "id": "3f97a677-2056-4b43-a87d-7d7490bd87de",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    260,
+    520
+   ],
+   "notes": "Le impostazioni: compila SHEET_ID e TELEGRAM_CHAT_ID.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "mode": "rules",
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "616c57b1-cdc8-413e-a0d0-a1791a383bd7",
+          "leftValue": "={{ $json.fase === 'cliente' ? 'si' : 'no' }}",
+          "rightValue": "si",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "Cliente da analizzare"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "Avvio del mese"
+    }
+   },
+   "id": "8c21b5c7-b870-4194-a395-eb6faf4c8e22",
+   "name": "Da dove arriva?",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    500,
+    520
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Clienti",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "8e446a62-6a38-4c68-aef5-ad96a8c8dc8a",
+   "name": "Leggi i clienti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    760,
+    200
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "SEGNAPOSTO-google-sheets",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Sceglie i clienti da analizzare (attivo = si e con ig_user_id) e calcola il mese precedente, ora di Roma.\n// ── Funzioni di servizio (le stesse in tutti i nodi Code dei workflow 03 e 04) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst taglia = (v, n) => { const s = testo(v); return s.length > n ? s.slice(0, n - 1) + '…' : s; };\n// Telegram usa il \"Markdown semplice\": i caratteri _ * ` [ dei testi vanno neutralizzati,\n// altrimenti Telegram rifiuta il messaggio. Dentro il *grassetto* non si mettono mai testi variabili.\nconst md = (v) => testo(v).replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst unisci = (righe) => righe.filter((r) => r !== null && r !== undefined && r !== false)\n  .join('\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n// «si/no» del foglio: accetta sì, si, yes, true, x… Se la cella è vuota vale «seVuoto».\nconst siNo = (v, seVuoto) => {\n  const t = testo(v).toLowerCase();\n  if (!t) return seVuoto;\n  return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t);\n};\nconst slug = (s) => testo(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')\n  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'senza-nome';\nconst due = (n) => String(n).padStart(2, '0');\nconst GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\nconst MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];\nconst giornoSettimana = (anno, mese, giorno) => new Date(Date.UTC(anno, mese - 1, giorno)).getUTCDay();\nconst giorniNelMese = (anno, mese) => new Date(Date.UTC(anno, mese, 0)).getUTCDate();\n// Oggi a Roma: { anno, mese, giorno, ore, minuti }\nconst oggiRoma = () => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date())) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\n// data_ora del Calendario → { anno, mese, giorno, ore, minuti, chiave: 'AAAA-MM-GG HH:MM', leggibile: 'ven 5/12 ore 19:00' } o null.\n// Accetta il testo scritto dai workflow (2026-12-05 19:30), le date all'italiana e il numero seriale di Google Sheets.\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 86400000));\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  return { anno: a, mese: me, giorno: g, ore: o, minuti: mi, chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`,\n    leggibile: `${GIORNI_BREVI[giornoSettimana(a, me, g)]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// La scheda del cliente dal foglio Clienti, con i campi nuovi già puliti.\nconst schedaCliente = (r) => ({\n  cliente: testo(r.cliente),\n  nome_locale: testo(r.nome_negozio) || testo(r.nome_locale) || testo(r.cliente),\n  attivo: siNo(r.attivo, false),\n  tono_di_voce: testo(r.tono_di_voce),\n  orari: testo(r.orari),\n  link_prenotazione: testo(r.link_prenotazione),\n  telefono: testo(r.telefono),\n  indirizzo: testo(r.indirizzo),\n  link_menu: testo(r.link_negozio) || testo(r.link_menu), // retail: pagina del negozio\n  regole: testo(r.regole_risposte),\n  id_luogo: testo(r.id_luogo),\n  account_da_taggare: testo(r.account_da_taggare),\n  hashtag_fissi: testo(r.hashtag_fissi),\n  note_piano: testo(r.note_piano),\n  approvazione_testi: siNo(r.approvazione_testi, true), // vuoto = si: nel dubbio decide una persona\n  esempi_didascalie: testo(r.esempi_didascalie),\n  menu_testo: testo(r.prodotti_e_prezzi) || testo(r.menu_testo), // retail: prodotti e prezzi veri\n  categoria: testo(r.categoria),\n  affermazioni_confermate: testo(r.affermazioni_confermate),\n});\n// Il testo che arriva dal foglio è un DATO: non deve poter aprire o chiudere i tag del prompt.\nconst datoPulito = (v) => testo(v).replace(/</g, '‹').replace(/>/g, '›');\n// «esempi_didascalie»: da 3 a 5 didascalie separate da una riga con solo «---». Ne tengo al massimo 5.\nconst esempiDiStile = (v) => testo(v).split(/\\r?\\n\\s*-{3,}\\s*(?:\\r?\\n|$)/).map((x) => taglia(x, 1200)).filter(Boolean).slice(0, 5);\n// Le righe della scheda Esempi di un cliente, le più recenti prima (per data, poi per posizione nel foglio).\nconst esempiDelCliente = (righe, cliente, fonti, quanti) => righe\n  .filter((r) => r && testo(r.cliente).toLowerCase() === testo(cliente).toLowerCase() && fonti.includes(testo(r.fonte).toLowerCase()) && testo(r.testo))\n  .map((r) => ({ data: leggiDataOra(r.data_ora), riga: Number(r.row_number) || 0, tipo: testo(r.tipo).toLowerCase(), fonte: testo(r.fonte).toLowerCase(),\n    testo: taglia(r.testo, 800), metriche: taglia(r.metriche, 200) }))\n  .sort((a, b) => ((b.data && b.data.chiave) || '').localeCompare((a.data && a.data.chiave) || '') || b.riga - a.riga)\n  .slice(0, quanti)\n  .map(({ data, riga, ...x }) => ({ ...x, data_ora: data ? data.chiave : '' }));\n// ── fine funzioni di servizio ──\nconst oggi = oggiRoma();\nconst prec = oggi.mese === 1 ? { anno: oggi.anno - 1, mese: 12 } : { anno: oggi.anno, mese: oggi.mese - 1 };\n// Mezzanotte di Roma → istante esatto (tiene conto dell'ora legale).\nconst mezzanotteRoma = (anno, mese, giorno) => {\n  const voluta = Date.UTC(anno, mese - 1, giorno, 0, 0);\n  let t = voluta;\n  for (let i = 0; i < 2; i++) {\n    const p = {};\n    for (const x of new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n      hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(t))) p[x.type] = x.value;\n    t -= Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute)) - voluta;\n  }\n  return t;\n};\nconst inizio = mezzanotteRoma(prec.anno, prec.mese, 1);\nconst fine = mezzanotteRoma(oggi.anno, oggi.mese, 1);\nconst periodo = {\n  anno: prec.anno, mese: prec.mese, nome_mese: MESI[prec.mese - 1],\n  inizio_iso: new Date(inizio).toISOString(), fine_iso: new Date(fine).toISOString(),\n  // Instagram filtra per data con since/until (secondi): un giorno di margine, poi il filtro preciso lo fa il workflow.\n  since: Math.floor(inizio / 1000) - 86400, until: Math.floor(fine / 1000) + 86400,\n};\nconst tutti = $input.all().map((i) => i.json || {}).filter((r) => testo(r.cliente));\nconst clienti = tutti\n  .filter((r) => siNo(r.attivo, false) && /^\\d{5,30}$/.test(testo(r.ig_user_id)))\n  .map((r) => ({ fase: 'cliente', cliente: testo(r.cliente), nome_locale: testo(r.nome_negozio) || testo(r.nome_locale) || testo(r.cliente), ig_user_id: testo(r.ig_user_id), periodo }));\nconst esclusi = tutti.filter((r) => siNo(r.attivo, false) && !/^\\d{5,30}$/.test(testo(r.ig_user_id))).map((r) => testo(r.cliente));\nreturn [{ json: { periodo, clienti, esclusi } }];\n"
+   },
+   "id": "49b0eff9-dab5-429f-a5c5-fb0ba1bf88b0",
+   "name": "Clienti da analizzare",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1000,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "66ec2e78-7cec-4287-ae07-848d7bf6e9c5",
+       "leftValue": "={{ $json.clienti.length > 0 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "6512557b-295b-4c03-ab15-0ebf8ccf85b7",
+   "name": "Ci sono clienti?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1240,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Un elemento per cliente: ognuno viene analizzato in una esecuzione sua.\nreturn $('Clienti da analizzare').first().json.clienti.map((c) => ({ json: c }));\n"
+   },
+   "id": "98ec944f-eb3b-46d4-a75a-dcb3f56b6c6e",
+   "name": "Un cliente per volta",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1480,
+    120
+   ]
+  },
+  {
+   "parameters": {
+    "source": "database",
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $workflow.id }}"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {},
+     "matchingColumns": [],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": true
+    },
+    "mode": "each",
+    "options": {
+     "waitForSubWorkflow": true
+    }
+   },
+   "id": "60607508-7d3b-466c-a06b-e987f30eefeb",
+   "name": "Analizza ogni cliente",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.3,
+   "position": [
+    1720,
+    120
+   ],
+   "onError": "continueRegularOutput",
+   "notes": "Richiama questo workflow per ogni cliente e aspetta il risultato.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Esempi",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "4ce9d86f-5f2c-41b5-a996-6382ddfceebc",
+   "name": "Leggi gli esempi",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    1960,
+    120
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "SEGNAPOSTO-google-sheets",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "executeOnce": true,
+   "onError": "continueRegularOutput",
+   "notes": "Per non scrivere due volte lo stesso post.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Raccoglie i risultati di tutti i clienti: righe nuove per la scheda Esempi (senza doppioni) e riepilogo per Telegram.\n// ── Funzioni di servizio (le stesse in tutti i nodi Code dei workflow 03 e 04) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst taglia = (v, n) => { const s = testo(v); return s.length > n ? s.slice(0, n - 1) + '…' : s; };\n// Telegram usa il \"Markdown semplice\": i caratteri _ * ` [ dei testi vanno neutralizzati,\n// altrimenti Telegram rifiuta il messaggio. Dentro il *grassetto* non si mettono mai testi variabili.\nconst md = (v) => testo(v).replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst unisci = (righe) => righe.filter((r) => r !== null && r !== undefined && r !== false)\n  .join('\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n// «si/no» del foglio: accetta sì, si, yes, true, x… Se la cella è vuota vale «seVuoto».\nconst siNo = (v, seVuoto) => {\n  const t = testo(v).toLowerCase();\n  if (!t) return seVuoto;\n  return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t);\n};\nconst slug = (s) => testo(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')\n  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'senza-nome';\nconst due = (n) => String(n).padStart(2, '0');\nconst GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\nconst MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];\nconst giornoSettimana = (anno, mese, giorno) => new Date(Date.UTC(anno, mese - 1, giorno)).getUTCDay();\nconst giorniNelMese = (anno, mese) => new Date(Date.UTC(anno, mese, 0)).getUTCDate();\n// Oggi a Roma: { anno, mese, giorno, ore, minuti }\nconst oggiRoma = () => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date())) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\n// data_ora del Calendario → { anno, mese, giorno, ore, minuti, chiave: 'AAAA-MM-GG HH:MM', leggibile: 'ven 5/12 ore 19:00' } o null.\n// Accetta il testo scritto dai workflow (2026-12-05 19:30), le date all'italiana e il numero seriale di Google Sheets.\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 86400000));\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  return { anno: a, mese: me, giorno: g, ore: o, minuti: mi, chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`,\n    leggibile: `${GIORNI_BREVI[giornoSettimana(a, me, g)]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// La scheda del cliente dal foglio Clienti, con i campi nuovi già puliti.\nconst schedaCliente = (r) => ({\n  cliente: testo(r.cliente),\n  nome_locale: testo(r.nome_negozio) || testo(r.nome_locale) || testo(r.cliente),\n  attivo: siNo(r.attivo, false),\n  tono_di_voce: testo(r.tono_di_voce),\n  orari: testo(r.orari),\n  link_prenotazione: testo(r.link_prenotazione),\n  telefono: testo(r.telefono),\n  indirizzo: testo(r.indirizzo),\n  link_menu: testo(r.link_negozio) || testo(r.link_menu), // retail: pagina del negozio\n  regole: testo(r.regole_risposte),\n  id_luogo: testo(r.id_luogo),\n  account_da_taggare: testo(r.account_da_taggare),\n  hashtag_fissi: testo(r.hashtag_fissi),\n  note_piano: testo(r.note_piano),\n  approvazione_testi: siNo(r.approvazione_testi, true), // vuoto = si: nel dubbio decide una persona\n  esempi_didascalie: testo(r.esempi_didascalie),\n  menu_testo: testo(r.prodotti_e_prezzi) || testo(r.menu_testo), // retail: prodotti e prezzi veri\n  categoria: testo(r.categoria),\n  affermazioni_confermate: testo(r.affermazioni_confermate),\n});\n// Il testo che arriva dal foglio è un DATO: non deve poter aprire o chiudere i tag del prompt.\nconst datoPulito = (v) => testo(v).replace(/</g, '‹').replace(/>/g, '›');\n// «esempi_didascalie»: da 3 a 5 didascalie separate da una riga con solo «---». Ne tengo al massimo 5.\nconst esempiDiStile = (v) => testo(v).split(/\\r?\\n\\s*-{3,}\\s*(?:\\r?\\n|$)/).map((x) => taglia(x, 1200)).filter(Boolean).slice(0, 5);\n// Le righe della scheda Esempi di un cliente, le più recenti prima (per data, poi per posizione nel foglio).\nconst esempiDelCliente = (righe, cliente, fonti, quanti) => righe\n  .filter((r) => r && testo(r.cliente).toLowerCase() === testo(cliente).toLowerCase() && fonti.includes(testo(r.fonte).toLowerCase()) && testo(r.testo))\n  .map((r) => ({ data: leggiDataOra(r.data_ora), riga: Number(r.row_number) || 0, tipo: testo(r.tipo).toLowerCase(), fonte: testo(r.fonte).toLowerCase(),\n    testo: taglia(r.testo, 800), metriche: taglia(r.metriche, 200) }))\n  .sort((a, b) => ((b.data && b.data.chiave) || '').localeCompare((a.data && a.data.chiave) || '') || b.riga - a.riga)\n  .slice(0, quanti)\n  .map(({ data, riga, ...x }) => ({ ...x, data_ora: data ? data.chiave : '' }));\n// ── fine funzioni di servizio ──\nconst d = $('Clienti da analizzare').first().json;\nconst risultati = $('Analizza ogni cliente').all().map((i) => i.json || {});\n// Post già presenti in Esempi come «migliori_post» (se il workflow gira due volte nello stesso mese non si duplicano).\nconst gia = new Set($input.all().map((i) => i.json || {}).filter((r) => testo(r.fonte).toLowerCase() === 'migliori_post').map((r) => testo(r.id_contenuto)).filter(Boolean));\nconst oggi = oggiRoma();\nconst dataOra = `${oggi.anno}-${due(oggi.mese)}-${due(oggi.giorno)} ${due(oggi.ore)}:${due(oggi.minuti)}`;\nconst p = d.periodo;\nconst n = (x) => (typeof x === 'number' ? x.toLocaleString('it-IT') : '–');\n\nconst righe = [];\nconst blocchi = [];\nlet doppioni = 0;\nfor (const r of risultati) {\n  if (!r.cliente) { blocchi.push(`⚠️ Un cliente non è stato analizzato: ${md(taglia(r.error && (r.error.message || r.error) || 'errore sconosciuto', 200))}`); continue; }\n  const titolo = `🏷️ ${md(r.nome_locale)} · ${r.analizzati} post analizzati`;\n  const voci = [];\n  r.migliori.forEach((m, i) => {\n    if (gia.has(m.permalink)) doppioni++;\n    else righe.push({ data_ora: dataOra, cliente: r.cliente, tipo: m.tipo, fonte: 'migliori_post', testo: m.testo,\n      metriche: JSON.stringify(Object.fromEntries(Object.entries(m.metriche).filter(([, v]) => typeof v === 'number'))), id_contenuto: m.permalink });\n    const giorno = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'numeric' }).format(new Date(m.data));\n    voci.push(`${i + 1}. ${m.tipo} del ${giorno} · punteggio ${n(m.punteggio)} · salvataggi ${n(m.metriche.salvataggi)}, condivisioni ${n(m.metriche.condivisioni)}, commenti ${n(m.metriche.commenti)}, like ${n(m.metriche.like)}\\n«${md(taglia(m.testo, 140))}»`);\n  });\n  blocchi.push(unisci([\n    titolo,\n    ...voci,\n    !r.migliori.length && !r.problema ? 'Nessun post con testo e numeri da mettere tra gli esempi.' : null,\n    r.problema ? `⚠️ ${md(r.problema)}` : null,\n    r.metriche_mancanti ? `(${r.metriche_mancanti} numeri non forniti da Instagram: contano zero)` : null,\n  ]));\n}\nconst testa = unisci([\n  `📈 *I post migliori di ${p.nome_mese} ${p.anno}*`,\n  `${righe.length} esempi nuovi nella scheda Esempi${doppioni ? ` (${doppioni} c'erano già)` : ''}: da adesso li usano il piano del mese e i testi.`,\n  d.esclusi.length ? `Clienti attivi senza ig\\\\_user\\\\_id, saltati: ${md(d.esclusi.join(', '))}.` : null,\n]);\nconst messaggi = [];\nlet corrente = testa;\nfor (const b of blocchi) {\n  if ((corrente + '\\n\\n' + b).length > 3500) { messaggi.push(corrente); corrente = '📈 *Post migliori* (continua)'; }\n  corrente += '\\n\\n' + b;\n}\nmessaggi.push(corrente);\nreturn [{ json: { righe, messaggi } }];\n"
+   },
+   "id": "3faf0abc-2d4f-474c-a215-551c8766dec7",
+   "name": "Prepara le righe e il riepilogo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2200,
+    120
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Una riga della scheda Esempi per ogni post migliore.\nreturn $('Prepara le righe e il riepilogo').first().json.righe.map((riga) => ({ json: riga }));\n"
+   },
+   "id": "7efdd591-522c-4fd5-a338-7e8fdaf1d04d",
+   "name": "Una riga per post",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2440,
+    40
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Esempi",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "autoMapInputData",
+     "value": {},
+     "matchingColumns": [],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true,
+     "handlingExtraData": "insertInNewColumn"
+    }
+   },
+   "id": "6a69c8e8-063d-4e64-afb7-5e5fffca8221",
+   "name": "Scrivi negli esempi",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2680,
+    40
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "SEGNAPOSTO-google-sheets",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "notes": "fonte = migliori_post. RAW = il testo non diventa mai una formula.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Un elemento per ogni messaggio Telegram (il riepilogo si spezza se è lungo).\nreturn $('Prepara le righe e il riepilogo').first().json.messaggi.map((testo) => ({ json: { testo } }));\n"
+   },
+   "id": "d8ba8f12-f023-42f4-a816-cff9e2418336",
+   "name": "Un messaggio per volta",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2440,
+    220
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "Markdown",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "8434a9ab-43f6-41a4-aefa-04ec97783012",
+   "name": "Avvisa il team",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    2680,
+    220
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "SEGNAPOSTO-telegram-bot",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "webhookId": "c04cebc7-8ecf-4ce0-94b3-88b3490c50bc"
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "📈 *Post migliori del mese*\nNessun cliente attivo con ig\\_user\\_id nella scheda Clienti: non c'è niente da analizzare.",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "Markdown",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "44e37c3f-985c-4110-a9ad-3b2c272ce01b",
+   "name": "Avvisa: nessun cliente",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1480,
+    380
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "SEGNAPOSTO-telegram-bot",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "webhookId": "7e1b6714-d6b0-4196-9e1f-f53ad7b6e4bc"
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ encodeURIComponent($json.ig_user_id) }}/media",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "id,permalink,caption,media_type,media_product_type,timestamp"
+      },
+      {
+       "name": "limit",
+       "value": "100"
+      },
+      {
+       "name": "since",
+       "value": "={{ $json.periodo.since }}"
+      },
+      {
+       "name": "until",
+       "value": "={{ $json.periodo.until }}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     },
+     "pagination": {
+      "pagination": {
+       "paginationMode": "responseContainsNextURL",
+       "nextURL": "={{ $response.body.paging.next }}",
+       "paginationCompleteWhen": "other",
+       "completeExpression": "={{ !$response.body || !$response.body.paging || !$response.body.paging.next }}",
+       "limitPagesFetched": true,
+       "maxRequests": "={{ Number($('Config').first().json.MAX_PAGINE) || 10 }}",
+       "requestInterval": 500
+      }
+     },
+     "timeout": 30000
+    }
+   },
+   "id": "ce5a1ddf-260c-4654-a31b-202ddeafc52c",
+   "name": "Elenca i post del mese",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    760,
+    900
+   ],
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "SEGNAPOSTO-meta-system-user",
+     "name": "Meta - System User"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "notes": "Post del mese precedente, pagina per pagina (al massimo MAX_PAGINE).",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Mette insieme le pagine dell'elenco dei post e tiene solo quelli del mese precedente (niente storie).\n// ── Funzioni di servizio (le stesse in tutti i nodi Code dei workflow 03 e 04) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst taglia = (v, n) => { const s = testo(v); return s.length > n ? s.slice(0, n - 1) + '…' : s; };\n// Telegram usa il \"Markdown semplice\": i caratteri _ * ` [ dei testi vanno neutralizzati,\n// altrimenti Telegram rifiuta il messaggio. Dentro il *grassetto* non si mettono mai testi variabili.\nconst md = (v) => testo(v).replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst unisci = (righe) => righe.filter((r) => r !== null && r !== undefined && r !== false)\n  .join('\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n// «si/no» del foglio: accetta sì, si, yes, true, x… Se la cella è vuota vale «seVuoto».\nconst siNo = (v, seVuoto) => {\n  const t = testo(v).toLowerCase();\n  if (!t) return seVuoto;\n  return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t);\n};\nconst slug = (s) => testo(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')\n  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'senza-nome';\nconst due = (n) => String(n).padStart(2, '0');\nconst GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\nconst MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];\nconst giornoSettimana = (anno, mese, giorno) => new Date(Date.UTC(anno, mese - 1, giorno)).getUTCDay();\nconst giorniNelMese = (anno, mese) => new Date(Date.UTC(anno, mese, 0)).getUTCDate();\n// Oggi a Roma: { anno, mese, giorno, ore, minuti }\nconst oggiRoma = () => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date())) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\n// data_ora del Calendario → { anno, mese, giorno, ore, minuti, chiave: 'AAAA-MM-GG HH:MM', leggibile: 'ven 5/12 ore 19:00' } o null.\n// Accetta il testo scritto dai workflow (2026-12-05 19:30), le date all'italiana e il numero seriale di Google Sheets.\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 86400000));\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  return { anno: a, mese: me, giorno: g, ore: o, minuti: mi, chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`,\n    leggibile: `${GIORNI_BREVI[giornoSettimana(a, me, g)]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// La scheda del cliente dal foglio Clienti, con i campi nuovi già puliti.\nconst schedaCliente = (r) => ({\n  cliente: testo(r.cliente),\n  nome_locale: testo(r.nome_negozio) || testo(r.nome_locale) || testo(r.cliente),\n  attivo: siNo(r.attivo, false),\n  tono_di_voce: testo(r.tono_di_voce),\n  orari: testo(r.orari),\n  link_prenotazione: testo(r.link_prenotazione),\n  telefono: testo(r.telefono),\n  indirizzo: testo(r.indirizzo),\n  link_menu: testo(r.link_negozio) || testo(r.link_menu), // retail: pagina del negozio\n  regole: testo(r.regole_risposte),\n  id_luogo: testo(r.id_luogo),\n  account_da_taggare: testo(r.account_da_taggare),\n  hashtag_fissi: testo(r.hashtag_fissi),\n  note_piano: testo(r.note_piano),\n  approvazione_testi: siNo(r.approvazione_testi, true), // vuoto = si: nel dubbio decide una persona\n  esempi_didascalie: testo(r.esempi_didascalie),\n  menu_testo: testo(r.prodotti_e_prezzi) || testo(r.menu_testo), // retail: prodotti e prezzi veri\n  categoria: testo(r.categoria),\n  affermazioni_confermate: testo(r.affermazioni_confermate),\n});\n// Il testo che arriva dal foglio è un DATO: non deve poter aprire o chiudere i tag del prompt.\nconst datoPulito = (v) => testo(v).replace(/</g, '‹').replace(/>/g, '›');\n// «esempi_didascalie»: da 3 a 5 didascalie separate da una riga con solo «---». Ne tengo al massimo 5.\nconst esempiDiStile = (v) => testo(v).split(/\\r?\\n\\s*-{3,}\\s*(?:\\r?\\n|$)/).map((x) => taglia(x, 1200)).filter(Boolean).slice(0, 5);\n// Le righe della scheda Esempi di un cliente, le più recenti prima (per data, poi per posizione nel foglio).\nconst esempiDelCliente = (righe, cliente, fonti, quanti) => righe\n  .filter((r) => r && testo(r.cliente).toLowerCase() === testo(cliente).toLowerCase() && fonti.includes(testo(r.fonte).toLowerCase()) && testo(r.testo))\n  .map((r) => ({ data: leggiDataOra(r.data_ora), riga: Number(r.row_number) || 0, tipo: testo(r.tipo).toLowerCase(), fonte: testo(r.fonte).toLowerCase(),\n    testo: taglia(r.testo, 800), metriche: taglia(r.metriche, 200) }))\n  .sort((a, b) => ((b.data && b.data.chiave) || '').localeCompare((a.data && a.data.chiave) || '') || b.riga - a.riga)\n  .slice(0, quanti)\n  .map(({ data, riga, ...x }) => ({ ...x, data_ora: data ? data.chiave : '' }));\n// ── fine funzioni di servizio ──\nconst d = $('Ricevi un cliente da analizzare').first().json;\nconst pagine = $input.all().map((i) => i.json || {});\nconst inizio = Date.parse(d.periodo.inizio_iso);\nconst fine = Date.parse(d.periodo.fine_iso);\nconst tipoDi = (m) => (testo(m.media_product_type).toUpperCase() === 'REELS' ? 'reel' : testo(m.media_type).toUpperCase() === 'CAROUSEL_ALBUM' ? 'carosello' : 'post');\n\nlet problema = '';\nconst sbagliata = pagine.find((p) => p.statusCode !== 200);\nif (sbagliata) {\n  const e = (sbagliata.body && sbagliata.body.error) || {};\n  problema = typeof sbagliata.statusCode !== 'number' ? 'Meta non raggiungibile'\n    : `Meta ha risposto con un errore (${testo(e.message) || 'HTTP ' + sbagliata.statusCode}${e.code ? ', codice ' + e.code : ''})`;\n}\nconst post = [];\nconst visti = new Set();\nfor (const p of pagine) {\n  for (const m of (p.body && Array.isArray(p.body.data) ? p.body.data : [])) {\n    const quando = Date.parse(testo(m.timestamp).replace(/([+-]\\d{2})(\\d{2})$/, '$1:$2'));\n    if (!(quando >= inizio && quando < fine)) continue;\n    if (testo(m.media_product_type).toUpperCase() === 'STORY') continue;\n    const id = testo(m.id);\n    if (!/^\\d{5,30}$/.test(id) || visti.has(id)) continue;\n    visti.add(id);\n    post.push({ media_id: id, permalink: testo(m.permalink), caption: testo(m.caption), tipo: tipoDi(m), timestamp: new Date(quando).toISOString() });\n  }\n}\nreturn [{ json: { ...d, problema, post } }];\n"
+   },
+   "id": "35a607a6-dbc2-4cf5-a2c4-529a770fbc63",
+   "name": "Scegli i post del mese",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1000,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "bf190682-31e9-4281-a5c3-df4b251785e3",
+       "leftValue": "={{ $json.post.length > 0 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "9453766c-c3ff-4b03-a2b4-46644851635c",
+   "name": "Ci sono post?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1240,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Una chiamata per ogni metrica di ogni post: se Instagram non supporta una metrica per quel post,\n// salta solo quella e le altre arrivano lo stesso.\nconst METRICHE = ['reach', 'saved', 'shares', 'comments', 'likes', 'total_interactions'];\nconst d = $('Scegli i post del mese').first().json;\nreturn d.post.flatMap((p) => METRICHE.map((metrica) => ({ json: { media_id: p.media_id, metrica } })));\n"
+   },
+   "id": "a5cc6458-e203-41a7-ae6f-c9b07a6e424f",
+   "name": "Una chiamata per metrica",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1480,
+    820
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ encodeURIComponent($json.media_id) }}/insights",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "metric",
+       "value": "={{ $json.metrica }}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     },
+     "batching": {
+      "batch": {
+       "batchSize": 10,
+       "batchInterval": 1000
+      }
+     },
+     "timeout": 20000
+    }
+   },
+   "id": "47ab16ce-5db7-44c0-ab91-818b86e583f0",
+   "name": "Leggi le metriche",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1720,
+    820
+   ],
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "SEGNAPOSTO-meta-system-user",
+     "name": "Meta - System User"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000,
+   "onError": "continueRegularOutput",
+   "notes": "10 chiamate al secondo: una metrica non supportata salta da sola.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "jsCode": "// Mette insieme i numeri di ogni post, calcola il punteggio e sceglie i migliori del cliente.\n// punteggio = salvataggi×3 + condivisioni×3 + commenti×2 + like + copertura/100\n// ── Funzioni di servizio (le stesse in tutti i nodi Code dei workflow 03 e 04) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst taglia = (v, n) => { const s = testo(v); return s.length > n ? s.slice(0, n - 1) + '…' : s; };\n// Telegram usa il \"Markdown semplice\": i caratteri _ * ` [ dei testi vanno neutralizzati,\n// altrimenti Telegram rifiuta il messaggio. Dentro il *grassetto* non si mettono mai testi variabili.\nconst md = (v) => testo(v).replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst unisci = (righe) => righe.filter((r) => r !== null && r !== undefined && r !== false)\n  .join('\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\n// «si/no» del foglio: accetta sì, si, yes, true, x… Se la cella è vuota vale «seVuoto».\nconst siNo = (v, seVuoto) => {\n  const t = testo(v).toLowerCase();\n  if (!t) return seVuoto;\n  return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t);\n};\nconst slug = (s) => testo(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')\n  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'senza-nome';\nconst due = (n) => String(n).padStart(2, '0');\nconst GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\nconst MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];\nconst giornoSettimana = (anno, mese, giorno) => new Date(Date.UTC(anno, mese - 1, giorno)).getUTCDay();\nconst giorniNelMese = (anno, mese) => new Date(Date.UTC(anno, mese, 0)).getUTCDate();\n// Oggi a Roma: { anno, mese, giorno, ore, minuti }\nconst oggiRoma = () => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date())) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\n// data_ora del Calendario → { anno, mese, giorno, ore, minuti, chiave: 'AAAA-MM-GG HH:MM', leggibile: 'ven 5/12 ore 19:00' } o null.\n// Accetta il testo scritto dai workflow (2026-12-05 19:30), le date all'italiana e il numero seriale di Google Sheets.\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 86400000));\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  return { anno: a, mese: me, giorno: g, ore: o, minuti: mi, chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`,\n    leggibile: `${GIORNI_BREVI[giornoSettimana(a, me, g)]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// La scheda del cliente dal foglio Clienti, con i campi nuovi già puliti.\nconst schedaCliente = (r) => ({\n  cliente: testo(r.cliente),\n  nome_locale: testo(r.nome_negozio) || testo(r.nome_locale) || testo(r.cliente),\n  attivo: siNo(r.attivo, false),\n  tono_di_voce: testo(r.tono_di_voce),\n  orari: testo(r.orari),\n  link_prenotazione: testo(r.link_prenotazione),\n  telefono: testo(r.telefono),\n  indirizzo: testo(r.indirizzo),\n  link_menu: testo(r.link_negozio) || testo(r.link_menu), // retail: pagina del negozio\n  regole: testo(r.regole_risposte),\n  id_luogo: testo(r.id_luogo),\n  account_da_taggare: testo(r.account_da_taggare),\n  hashtag_fissi: testo(r.hashtag_fissi),\n  note_piano: testo(r.note_piano),\n  approvazione_testi: siNo(r.approvazione_testi, true), // vuoto = si: nel dubbio decide una persona\n  esempi_didascalie: testo(r.esempi_didascalie),\n  menu_testo: testo(r.prodotti_e_prezzi) || testo(r.menu_testo), // retail: prodotti e prezzi veri\n  categoria: testo(r.categoria),\n  affermazioni_confermate: testo(r.affermazioni_confermate),\n});\n// Il testo che arriva dal foglio è un DATO: non deve poter aprire o chiudere i tag del prompt.\nconst datoPulito = (v) => testo(v).replace(/</g, '‹').replace(/>/g, '›');\n// «esempi_didascalie»: da 3 a 5 didascalie separate da una riga con solo «---». Ne tengo al massimo 5.\nconst esempiDiStile = (v) => testo(v).split(/\\r?\\n\\s*-{3,}\\s*(?:\\r?\\n|$)/).map((x) => taglia(x, 1200)).filter(Boolean).slice(0, 5);\n// Le righe della scheda Esempi di un cliente, le più recenti prima (per data, poi per posizione nel foglio).\nconst esempiDelCliente = (righe, cliente, fonti, quanti) => righe\n  .filter((r) => r && testo(r.cliente).toLowerCase() === testo(cliente).toLowerCase() && fonti.includes(testo(r.fonte).toLowerCase()) && testo(r.testo))\n  .map((r) => ({ data: leggiDataOra(r.data_ora), riga: Number(r.row_number) || 0, tipo: testo(r.tipo).toLowerCase(), fonte: testo(r.fonte).toLowerCase(),\n    testo: taglia(r.testo, 800), metriche: taglia(r.metriche, 200) }))\n  .sort((a, b) => ((b.data && b.data.chiave) || '').localeCompare((a.data && a.data.chiave) || '') || b.riga - a.riga)\n  .slice(0, quanti)\n  .map(({ data, riga, ...x }) => ({ ...x, data_ora: data ? data.chiave : '' }));\n// ── fine funzioni di servizio ──\nconst d = $('Scegli i post del mese').first().json;\nconst cfg = $('Config').first().json;\nconst quanti = Math.max(1, Number(cfg.MIGLIORI_PER_CLIENTE) || 5);\nconst numeri = {};\nlet mancanti = 0;\nif ($('Leggi le metriche').isExecuted) {\n  const richieste = $('Una chiamata per metrica').all().map((i) => i.json);\n  const risposte = $('Leggi le metriche').all().map((i) => i.json || {});\n  richieste.forEach((q, i) => {\n    const r = risposte[i] || {};\n    const dati = r.statusCode === 200 && r.body && Array.isArray(r.body.data) ? r.body.data : [];\n    const voce = dati.find((x) => x && x.name === q.metrica) || null;\n    const valore = voce ? (Array.isArray(voce.values) && voce.values[0] ? voce.values[0].value : voce.total_value ? voce.total_value.value : undefined) : undefined;\n    if (typeof valore === 'number' && isFinite(valore)) (numeri[q.media_id] = numeri[q.media_id] || {})[q.metrica] = valore;\n    else mancanti++;\n  });\n}\nconst valutati = d.post.map((p) => {\n  const n = numeri[p.media_id] || {};\n  const v = (k) => Number(n[k]) || 0;\n  return { ...p, numeri: n, punteggio: Math.round((v('saved') * 3 + v('shares') * 3 + v('comments') * 2 + v('likes') + v('reach') / 100) * 10) / 10 };\n});\n// Un esempio serve se ha un testo: i post senza didascalia non insegnano niente.\nconst migliori = valutati.filter((p) => p.caption && Object.keys(p.numeri).length)\n  .sort((a, b) => b.punteggio - a.punteggio || b.timestamp.localeCompare(a.timestamp))\n  .slice(0, quanti);\nreturn [{\n  json: {\n    cliente: d.cliente, nome_locale: d.nome_locale, periodo: d.periodo, problema: d.problema,\n    analizzati: d.post.length, metriche_mancanti: mancanti,\n    migliori: migliori.map((p) => ({ tipo: p.tipo, testo: p.caption, permalink: p.permalink, data: p.timestamp, punteggio: p.punteggio,\n      metriche: { punteggio: p.punteggio, salvataggi: p.numeri.saved, condivisioni: p.numeri.shares, commenti: p.numeri.comments,\n        like: p.numeri.likes, copertura: p.numeri.reach, interazioni: p.numeri.total_interactions } })),\n  },\n}];\n"
+   },
+   "id": "de090022-85e3-4630-a5d8-531fb7ce0121",
+   "name": "Risultato del cliente",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1960,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## Retail MyCity · 09 Impara dai numeri (negozi)\n\n**Cosa fa.** Il giorno 1 di ogni mese alle 6:15 (o a mano, con «Avvio a mano») guarda su Instagram i post del mese prima di ogni negozio attivo. Per ogni post legge copertura, salvataggi, condivisioni, commenti, like e interazioni, calcola un punteggio e mette i **5 migliori** nella scheda **Esempi** (fonte «migliori_post»). «Retail MyCity · 03» e «Retail MyCity · 04» li usano come esempi di quello che funziona. Alla fine manda il riepilogo su Telegram.\n\n**Il punteggio.** salvataggi×3 + condivisioni×3 + commenti×2 + like + copertura/100. Salvataggi e condivisioni pesano di più perché dicono che il post è piaciuto davvero.\n\n**Prima di attivarlo.** Compila **Config** e collega *Meta - System User*, *Google Sheets - Agenzia* e *Telegram - Bot agenzia*. Al token del System User serve il permesso **instagram_manage_insights**. Nel foglio serve la scheda **Esempi** (data_ora · cliente · tipo · fonte · testo · metriche · id_contenuto). «Retail MyCity · 99 Avvisi errori» è già impostato come *Error workflow*.\n\n**Sicurezza.** Legge e basta: non pubblica e non cambia niente su Instagram. Se il workflow gira due volte nello stesso mese non scrive doppioni. Le storie non contano.",
+    "height": 1700,
+    "width": 680,
+    "color": 4
+   },
+   "id": "e6516025-e84a-47d9-a2cd-1ab6e3942cc5",
+   "name": "Nota · Leggimi",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -760,
+    -300
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## Da dove entra il lavoro\n**Ogni mese** e **Avvio a mano** fanno partire il giro del mese. **Ricevi un cliente da analizzare** lo chiama il workflow stesso, una volta per cliente. **Da dove arriva?** manda ognuno sulla sua strada. `GRAPH_VERSION` deve essere uguale negli altri workflow.",
+    "height": 1140,
+    "width": 720,
+    "color": 2
+   },
+   "id": "927f4fc6-2405-4b13-ad25-a9bf72521592",
+   "name": "Nota · Ingresso",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -60,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## ① Il giro del mese\n**Clienti da analizzare**: attivo = si e con `ig_user_id`; calcola il mese precedente, ora di Roma. **Analizza ogni cliente** apre una esecuzione per cliente e aspetta il risultato. **Prepara le righe e il riepilogo** toglie i post già presenti in Esempi, prepara le righe nuove e il messaggio per il team.",
+    "height": 760,
+    "width": 2140,
+    "color": 7
+   },
+   "id": "7daaa517-c497-4f25-abfa-a64172a92485",
+   "name": "Nota · Mese",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    700,
+    -200
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## ② Un cliente\n**Elenca i post del mese**: `/media` pagina per pagina; si tengono solo i post del mese precedente, niente storie. **Leggi le metriche**: una chiamata per ogni metrica di ogni post, così una metrica non supportata salta da sola. **Risultato del cliente**: punteggio e i migliori con un testo.",
+    "height": 500,
+    "width": 1500,
+    "color": 5
+   },
+   "id": "8823510c-3a02-4d51-aafd-c4199057224a",
+   "name": "Nota · Cliente",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    700,
+    640
+   ]
+  }
+ ],
+ "connections": {
+  "Ogni mese, il giorno 1 alle 6:15": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avvio a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ricevi un cliente da analizzare": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Da dove arriva?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Da dove arriva?": {
+   "main": [
+    [
+     {
+      "node": "Elenca i post del mese",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Leggi i clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi i clienti": {
+   "main": [
+    [
+     {
+      "node": "Clienti da analizzare",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Clienti da analizzare": {
+   "main": [
+    [
+     {
+      "node": "Ci sono clienti?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ci sono clienti?": {
+   "main": [
+    [
+     {
+      "node": "Un cliente per volta",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Avvisa: nessun cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Un cliente per volta": {
+   "main": [
+    [
+     {
+      "node": "Analizza ogni cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Analizza ogni cliente": {
+   "main": [
+    [
+     {
+      "node": "Leggi gli esempi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi gli esempi": {
+   "main": [
+    [
+     {
+      "node": "Prepara le righe e il riepilogo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara le righe e il riepilogo": {
+   "main": [
+    [
+     {
+      "node": "Una riga per post",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Un messaggio per volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Una riga per post": {
+   "main": [
+    [
+     {
+      "node": "Scrivi negli esempi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Un messaggio per volta": {
+   "main": [
+    [
+     {
+      "node": "Avvisa il team",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Elenca i post del mese": {
+   "main": [
+    [
+     {
+      "node": "Scegli i post del mese",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scegli i post del mese": {
+   "main": [
+    [
+     {
+      "node": "Ci sono post?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ci sono post?": {
+   "main": [
+    [
+     {
+      "node": "Una chiamata per metrica",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Risultato del cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Una chiamata per metrica": {
+   "main": [
+    [
+     {
+      "node": "Leggi le metriche",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi le metriche": {
+   "main": [
+    [
+     {
+      "node": "Risultato del cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Rome",
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": true,
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "d4pVnzRlkl9uTC5p"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "ec950715-b79b-42b1-81b6-8d87cfc7b224",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-16T08:44:46.506Z",
+   "createdAt": "2026-11-16T08:44:46.506Z",
+   "role": "workflow:owner",
+   "workflowId": "sICb348M7JkxarAe",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

@@ -1,0 +1,1331 @@
+{
+ "updatedAt": "2026-11-21T14:58:14.732Z",
+ "createdAt": "2026-11-21T14:39:26.164Z",
+ "id": "cOPBazHSRcvA8NV9",
+ "name": "13 · Foto pronte",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "40 2 * * *"
+      }
+     ]
+    }
+   },
+   "id": "83179c41-afaa-5406-b360-27f56908ed6f",
+   "name": "Ogni notte alle 2:40",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    100
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "b37bd9d9-007e-5121-af65-c792887dd7cb",
+   "name": "Prova a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "17652eb3-d994-50b6-b59b-100f2654f349",
+       "name": "MODALITA",
+       "value": "prova",
+       "type": "string"
+      },
+      {
+       "id": "95ca8bab-7610-59be-9cfb-4756e1c27bad",
+       "name": "SHEET_ID",
+       "value": "1nOTwzXkqNsfwortRslKBzsBXh2uIz2G2Lyu13Hufmjo",
+       "type": "string"
+      },
+      {
+       "id": "8da78823-80aa-54c0-9509-9918942cbb3c",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "1913003037",
+       "type": "string"
+      },
+      {
+       "id": "c2ab35e2-b036-5a0a-8361-d295b6b06fca",
+       "name": "SCHEDA_CALENDARIO",
+       "value": "Calendario",
+       "type": "string"
+      },
+      {
+       "id": "29e8b408-7aa1-5764-8c7a-7dc92e553a64",
+       "name": "SCHEDA_CLIENTI",
+       "value": "Clienti",
+       "type": "string"
+      },
+      {
+       "id": "8e9574aa-3374-5fc0-ad21-c88f2fcb5eaf",
+       "name": "SOLO_CLIENTE",
+       "value": "tropico-latino",
+       "type": "string"
+      },
+      {
+       "id": "2488773a-604f-57e5-8a53-a006f99ac73f",
+       "name": "MAX_FOTO_PER_NOTTE",
+       "value": 20,
+       "type": "number"
+      },
+      {
+       "id": "855751a7-5591-5ad4-9924-f54337efcbc7",
+       "name": "MB_MASSIMI",
+       "value": 3.75,
+       "type": "number"
+      },
+      {
+       "id": "4de6c2a2-f229-5a3b-8f3f-5a57dd5192d2",
+       "name": "LARGHEZZA_MAX",
+       "value": 1440,
+       "type": "number"
+      },
+      {
+       "id": "dc55da6b-4d36-5881-bd07-ba93cc878a2d",
+       "name": "ALTEZZA_MAX",
+       "value": 1800,
+       "type": "number"
+      },
+      {
+       "id": "467858a2-539d-5ba4-8796-1bdbb56b4c9b",
+       "name": "COLORE_BORDI",
+       "value": "#ffffff",
+       "type": "string"
+      },
+      {
+       "id": "35fee7b4-4eb4-557d-8890-26959760e926",
+       "name": "CARTELLA_MODULO",
+       "value": "Da programmare",
+       "type": "string"
+      },
+      {
+       "id": "cbde4ab7-b9af-597a-a334-9b0011ad18f2",
+       "name": "QUALITA_JPEG",
+       "value": 85,
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "d38bd714-8f18-5bcd-a2a3-280a880ab23b",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    220,
+    200
+   ],
+   "notes": "MODALITA «prova»: solo il riepilogo di cosa farebbe, niente scaricato/caricato/spostato; «vero» solo con l'OK di Nicola. SOLO_CLIENTE = la chiave di un cliente, e quel cliente può essere anche spento."
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CLIENTI }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "0aeb30d6-6160-5e12-bf0b-6fbb874cc806",
+   "name": "Leggi Clienti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    440,
+    200
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CALENDARIO }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "56d636f9-ebb8-571c-98a7-7ce163d40335",
+   "name": "Leggi Calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    660,
+    200
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// I clienti attivi con la cartella Drive, e l'elenco dei file già usati in qualunque riga del Calendario.\n// Un file già in una riga non si tocca mai: la riga punta a lui per id.\nconst cfg = $('Config').first().json;\nconst solo = testo(cfg.SOLO_CLIENTE);\nconst righe = lette('Leggi Calendario');\nif (!righe.length) throw new Error('Foto pronte ferma: il Calendario è vuoto o non si legge. Senza sapere quali file sono già usati non tocco niente.');\nconst clienti = $('Leggi Clienti').all().map((i) => i.json || {}).filter((c) => testo(c.cliente));\nconst visti = new Set();\nconst uscita = [];\nfor (const c of clienti) {\n  const chiave = testo(c.cliente);\n  if (visti.has(chiave)) continue; // il 01 prende la prima riga\n  visti.add(chiave);\n  if (solo ? chiave !== solo : !siNo(c.attivo, false)) continue;\n  const cartella = idDaLink(c.cartella_drive);\n  if (!cartella) continue;\n  uscita.push({ json: { cliente: chiave, cartella_id: cartella,\n    query: `'${cartella}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false` } });\n}\nreturn uscita;\n"
+   },
+   "id": "31a8d634-f12f-53a7-a58c-8dc225399c57",
+   "name": "Cartelle dei clienti",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    880,
+    200
+   ],
+   "notes": "Clienti attivi con cartella_drive. Si ferma se il Calendario non si legge."
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ $json.query }}"
+      },
+      {
+       "name": "fields",
+       "value": "files(id,name)"
+      },
+      {
+       "name": "pageSize",
+       "value": "1000"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000
+    }
+   },
+   "id": "ad39937f-c0ae-55b8-9de0-32cafdca7efc",
+   "name": "Cartelle del cliente",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1100,
+    200
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// Per ogni cliente, la cartella «Da programmare» (figlia diretta della cartella del cliente). Le risposte di Drive\n// arrivano nello stesso ordine dei clienti. Senza la cartella, il cliente si salta.\nconst clienti = $('Cartelle dei clienti').all().map((i) => i.json);\nconst risposte = $('Cartelle del cliente').all().map((i) => i.json || {});\nif (clienti.length && risposte.every((r) => r.error || !Array.isArray(r.files))) {\n  throw new Error('Foto pronte ferma: Drive non risponde su nessuna cartella dei clienti (credenziale Drive da ricollegare?).');\n}\n// stessa regola del 05: nome esatto senza maiuscole, e con due cartelle uguali la prima per id\nconst nome = testo($('Config').first().json.CARTELLA_MODULO) || 'Da programmare';\nconst uscita = [];\nclienti.forEach((c, i) => {\n  const r = risposte[i] || {};\n  if (r.error || !Array.isArray(r.files)) return;\n  const dp = r.files.filter((f) => testo(f.name).toLowerCase() === nome.toLowerCase() && /^[A-Za-z0-9_-]{10,}$/.test(String(f.id || '')))\n    .sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];\n  if (!dp) return;\n  uscita.push({ json: { cliente: c.cliente, dp_id: dp.id, query: `'${dp.id}' in parents and trashed = false` } });\n});\nreturn uscita;\n"
+   },
+   "id": "0cf9394d-c55a-58a3-983e-9a33b5e076a9",
+   "name": "Da programmare",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1320,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ $json.query }}"
+      },
+      {
+       "name": "fields",
+       "value": "files(id,name,mimeType,size,appProperties,imageMediaMetadata(width,height,rotation))"
+      },
+      {
+       "name": "pageSize",
+       "value": "1000"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000
+    }
+   },
+   "id": "6c935fd3-3582-5a71-af91-ca8eeccab8ac",
+   "name": "Elenca Da programmare",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1540,
+    200
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// Decide quali foto sistemare: JPEG o PNG in «Da programmare», non usate in nessuna riga del Calendario, non già\n// copie «_ig», e troppo pesanti, fuori dalle proporzioni di Instagram (da 4:5 a 1,91:1) oppure PNG (il 01 vuole JPEG).\n// Per ognuna calcola le misure della copia: dentro 1440×1800, mai ingrandita, e i bordi per arrivare alla proporzione.\nconst cfg = $('Config').first().json;\n// interruttore: finché MODALITA non è «vero» non si scarica, non si carica e non si sposta niente: solo il riepilogo\nconst prova = testo(cfg.MODALITA).toLowerCase() !== 'vero';\nconst MAX_FOTO = Math.max(1, Number(cfg.MAX_FOTO_PER_NOTTE) || 20);\nconst MAX_BYTE = (Number(cfg.MB_MASSIMI) || 8) * 1048576;\nconst LMAX = Number(cfg.LARGHEZZA_MAX) || 1440;\nconst HMAX = Number(cfg.ALTEZZA_MAX) || 1800;\nconst RMIN = 0.8;\nconst RMAX = 1.91;\nconst usati = new Set();\nfor (const r of lette('Leggi Calendario')) for (const c of [r.media, r.copertina]) for (const v of testo(c).split('|')) { const id = idDaLink(v); if (id) usati.add(id); }\nconst posti = $('Da programmare').all().map((i) => i.json);\nconst risposte = $('Elenca Da programmare').all().map((i) => i.json || {});\nif (posti.length && risposte.every((r) => r.error)) throw new Error('Foto pronte ferma: Drive non risponde su nessuna cartella (credenziale da ricollegare?).');\nconst formato = (f) => {\n  const mime = testo(f.mimeType).toLowerCase();\n  if (mime === 'image/jpeg' || mime === 'image/jpg' || mime === 'image/pjpeg') return 'jpeg';\n  if (mime === 'image/png') return 'png';\n  if (mime === '' || mime === 'application/octet-stream') { const e = testo(f.name).toLowerCase().split('.').pop(); return e === 'jpg' || e === 'jpeg' ? 'jpeg' : e === 'png' ? 'png' : ''; }\n  return '';\n};\nconst base = (nome) => testo(nome).replace(/\\.(?:jpe?g|png)$/i, '');\nconst pari = (n) => Math.max(0, Math.round(n));\nconst previsti = new Set();\nconst uscita = [];\n// si comincia ogni notte da un cliente diverso, così nessuno resta sempre in fondo alla fila\nconst giorno = Math.floor(Date.now() / 86400000);\nconst ordine = posti.map((p, i) => i);\nconst inizio = posti.length ? giorno % posti.length : 0;\nordine.push(...ordine.splice(0, inizio));\nordine.forEach((i) => {\n  const p = posti[i];\n  const r = risposte[i] || {};\n  if (r.error || !Array.isArray(r.files)) return;\n  const nomi = new Set(r.files.map((f) => normale(f.name)));\n  // le copie fatte da questo flusso portano l'id dell'originale (appProperties.origine_ig): così una foto nuova con\n  // lo stesso nome non viene scambiata per una già sistemata\n  const copiaDi = new Set(r.files.map((f) => (f.appProperties || {}).origine_ig).filter(Boolean));\n  const copie = new Set(r.files.filter((f) => (f.appProperties || {}).origine_ig).map((f) => f.id));\n  const foto = r.files.filter((f) => formato(f)).sort((a, b) => testo(a.name).localeCompare(testo(b.name)));\n  for (const f of foto) {\n    if (uscita.length >= MAX_FOTO) break;\n    if (usati.has(f.id) || copie.has(f.id) || /_ig$/i.test(base(f.name))) continue;\n    const im = f.imageMediaMetadata || {};\n    let w = Number(im.width) || 0;\n    let h = Number(im.height) || 0;\n    if (!w || !h) continue; // misure non lette: la si lascia com'è\n    const rot = Number(im.rotation) || 0;\n    if (rot === 1 || rot === 3) [w, h] = [h, w]; // foto dell'iPhone salvata girata: la copia esce dritta\n    const peso = Number(f.size) || 0;\n    const rapporto = w / h;\n    const pesante = peso > MAX_BYTE;\n    const fuori = rapporto < RMIN - 0.001 || rapporto > RMAX + 0.001;\n    const png = formato(f) === 'png';\n    if (!pesante && !fuori && !png) continue;\n    // contenuto ridotto e bordi: la foto resta intera, i bordi completano la proporzione\n    let cw; let ch; let fw; let fh;\n    let bordoW = 0;\n    let bordoH = 0;\n    if (rapporto < RMIN) {\n      ch = Math.min(h, HMAX);\n      do { cw = Math.max(1, pari(ch * rapporto)); bordoW = Math.max(0, Math.ceil((ch * RMIN - cw) / 2)); if (cw + 2 * bordoW > LMAX) ch -= 2; else break; } while (ch > 10);\n    } else if (rapporto > RMAX) {\n      cw = Math.min(w, LMAX); ch = Math.max(1, pari(cw / rapporto)); bordoH = Math.max(0, Math.ceil((cw / RMAX - ch) / 2));\n    } else { const s = Math.min(1, LMAX / w, HMAX / h); cw = pari(w * s); ch = pari(h * s); }\n    fw = cw + 2 * bordoW;\n    fh = ch + 2 * bordoH;\n    // nome unico: se c'è già un file con quel nome (o un'altra copia di stanotte), si aggiunge un pezzo dell'id\n    let nuovo = `${base(f.name)}_ig.jpg`;\n    const giaCopia = copiaDi.has(f.id);\n    if (!giaCopia && (nomi.has(normale(nuovo)) || previsti.has(normale(nuovo)))) nuovo = `${base(f.name)}_${f.id.slice(-4)}_ig.jpg`;\n    previsti.add(normale(nuovo));\n    const motivi = [pesante ? `${(peso / 1048576).toFixed(1).replace('.', ',')} MB` : '', fuori ? `${w}×${h}` : '', png ? 'PNG' : ''].filter(Boolean).join(', ');\n    uscita.push({ json: { cliente: p.cliente, dp_id: p.dp_id, file_id: f.id, nome: testo(f.name), nuovo_nome: nuovo,\n      prova, copia_esiste: giaCopia, larghezza: cw, altezza: ch, tela_w: fw, tela_h: fh, bordo_w: bordoW, bordo_h: bordoH, motivi } });\n  }\n});\nreturn uscita;\n"
+   },
+   "id": "91a7273e-02f3-5b79-bdfe-53c97e91909f",
+   "name": "Foto da sistemare",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1760,
+    200
+   ],
+   "notes": "Solo foto non usate in nessuna riga. Al massimo MAX_FOTO_PER_NOTTE."
+  },
+  {
+   "parameters": {
+    "batchSize": 1,
+    "options": {}
+   },
+   "id": "88cbddb2-1940-5106-b27a-8953c0cd7fb1",
+   "name": "Una foto alla volta",
+   "type": "n8n-nodes-base.splitInBatches",
+   "typeVersion": 3,
+   "position": [
+    1980,
+    200
+   ],
+   "notes": "Una foto per giro: in memoria ce n'è una sola."
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// La foto di questo giro del ciclo: i nodi dopo la ritrovano qui con .first().\nreturn [{ json: $input.first().json }];\n"
+   },
+   "id": "08f4c83a-49ac-54d5-a187-3defcb2b73bc",
+   "name": "Piano della foto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2200,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "e47e8dd7-1e74-584e-9a1d-b775064986a6",
+       "leftValue": "={{ $json.copia_esiste === true || $json.prova === true }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "e36f6ec4-23e8-54b0-bd75-a78063681dbd",
+   "name": "Copia già fatta?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    2420,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "file",
+    "operation": "download",
+    "fileId": {
+     "__rl": true,
+     "value": "={{ $json.file_id }}",
+     "mode": "id"
+    },
+    "options": {
+     "binaryPropertyName": "data"
+    }
+   },
+   "id": "b21b29f9-2528-548d-aeb4-63cd564f4979",
+   "name": "Scarica la foto",
+   "type": "n8n-nodes-base.googleDrive",
+   "typeVersion": 3,
+   "position": [
+    2640,
+    400
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "operation": "resize",
+    "dataPropertyName": "data",
+    "width": "={{ $('Piano della foto').first().json.larghezza }}",
+    "height": "={{ $('Piano della foto').first().json.altezza }}",
+    "resizeOption": "onlyIfLarger",
+    "options": {
+     "format": "png"
+    }
+   },
+   "id": "184f7492-a60e-5710-af9f-dd3f6de88a44",
+   "name": "Riduci la foto",
+   "type": "n8n-nodes-base.editImage",
+   "typeVersion": 1,
+   "position": [
+    2860,
+    400
+   ],
+   "onError": "continueRegularOutput",
+   "notes": "Raddrizza e riduce dentro le misure del piano senza deformare; PNG per tenere la trasparenza."
+  },
+  {
+   "parameters": {
+    "operation": "information",
+    "dataPropertyName": "data"
+   },
+   "id": "423950c4-3fda-531c-a6ae-eb94f8ef4671",
+   "name": "Misura la foto",
+   "type": "n8n-nodes-base.editImage",
+   "typeVersion": 1,
+   "position": [
+    2930,
+    500
+   ],
+   "onError": "continueRegularOutput",
+   "notes": "Le misure vere dopo la riduzione, per centrare la foto sulla tela."
+  },
+  {
+   "parameters": {
+    "operation": "create",
+    "width": "={{ $('Piano della foto').first().json.tela_w }}",
+    "height": "={{ $('Piano della foto').first().json.tela_h }}",
+    "backgroundColor": "={{ $('Config').first().json.COLORE_BORDI || '#ffffff' }}",
+    "options": {
+     "destinationKey": "tela"
+    }
+   },
+   "id": "018b83c0-45c5-5b80-afed-9ca9e8e3a372",
+   "name": "Prepara la tela",
+   "type": "n8n-nodes-base.editImage",
+   "typeVersion": 1,
+   "position": [
+    3000,
+    400
+   ],
+   "onError": "continueRegularOutput",
+   "notes": "Fondo del colore dei bordi, già nella proporzione giusta."
+  },
+  {
+   "parameters": {
+    "operation": "multiStep",
+    "dataPropertyName": "tela",
+    "operations": {
+     "operations": [
+      {
+       "operation": "composite",
+       "dataPropertyNameComposite": "data",
+       "operator": "Over",
+       "positionX": "={{ Math.max(0, Math.round(($('Piano della foto').first().json.tela_w - (Number(($('Misura la foto').first().json.size || {}).width) || $('Piano della foto').first().json.larghezza)) / 2)) }}",
+       "positionY": "={{ Math.max(0, Math.round(($('Piano della foto').first().json.tela_h - (Number(($('Misura la foto').first().json.size || {}).height) || $('Piano della foto').first().json.altezza)) / 2)) }}"
+      }
+     ]
+    },
+    "options": {
+     "format": "jpeg",
+     "quality": "={{ Number($('Config').first().json.QUALITA_JPEG) || 85 }}",
+     "fileName": "={{ $('Piano della foto').first().json.nuovo_nome }}",
+     "destinationKey": "data"
+    }
+   },
+   "id": "d353074e-6b82-564c-b67a-9590dbe2fa9d",
+   "name": "Metti sulla tela",
+   "type": "n8n-nodes-base.editImage",
+   "typeVersion": 1,
+   "position": [
+    3140,
+    400
+   ],
+   "onError": "continueRegularOutput",
+   "notes": "La foto intera al centro della tela, poi JPEG. Mai ritagli."
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "file",
+    "operation": "upload",
+    "inputDataFieldName": "data",
+    "name": "={{ $('Piano della foto').first().json.nuovo_nome }}",
+    "driveId": {
+     "__rl": true,
+     "value": "My Drive",
+     "mode": "list",
+     "cachedResultName": "My Drive"
+    },
+    "folderId": {
+     "__rl": true,
+     "value": "={{ $('Piano della foto').first().json.dp_id }}",
+     "mode": "id"
+    },
+    "options": {
+     "appPropertiesUi": {
+      "appPropertyValues": [
+       {
+        "key": "origine_ig",
+        "value": "={{ $('Piano della foto').first().json.file_id }}"
+       }
+      ]
+     }
+    }
+   },
+   "id": "22ad3393-57cc-596b-9a28-8cad0f68e881",
+   "name": "Carica la copia",
+   "type": "n8n-nodes-base.googleDrive",
+   "typeVersion": 3,
+   "position": [
+    3300,
+    400
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "notes": "La copia porta l'id dell'originale. Nessun nuovo tentativo: un errore di rete potrebbe caricare due copie."
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// La copia è su Drive? Solo allora si sposta l'originale. Se qualcosa è andato storto, l'originale resta dov'è.\nconst p = $('Piano della foto').first().json;\nif (p.prova) return [{ json: { ...p, copia_ok: false, passo: 'prova' } }];\nif (p.copia_esiste) return [{ json: { ...p, copia_ok: true } }];\nconst up = $('Carica la copia').isExecuted ? ($('Carica la copia').first().json || {}) : {};\nconst ok = !up.error && !!testo(up.id);\nreturn [{ json: { ...p, copia_ok: ok, passo: ok ? '' : ($('Scarica la foto').first().json || {}).error ? 'scaricamento' : ($('Metti sulla tela').first().json || {}).error ? 'modifica' : 'caricamento' } }];\n"
+   },
+   "id": "19a0e9d8-0bb4-5570-b58e-04dfcfa8be70",
+   "name": "Copia caricata?",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3520,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "9fe92c96-0c19-5eee-8173-90463d673727",
+       "leftValue": "={{ $json.copia_ok === true }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "26d967af-bd7e-5a50-9476-17abb1e5121d",
+   "name": "Copia ok?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    3740,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ \"'\" + $('Piano della foto').first().json.dp_id + \"' in parents and name = 'Originali' and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}"
+      },
+      {
+       "name": "fields",
+       "value": "files(id,name)"
+      },
+      {
+       "name": "orderBy",
+       "value": "createdTime"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000
+    }
+   },
+   "id": "8c8f2184-f560-53ce-b29f-bf3cdeea72dd",
+   "name": "Cerca Originali",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    3740,
+    200
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "aa45a190-2b9f-58d5-b78c-c34de5d2753d",
+       "leftValue": "={{ !!$json.error || (Array.isArray($json.files) && $json.files.length > 0) }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "3091fc8d-0806-5ede-9476-7326b1dfa658",
+   "name": "Originali c'è?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    3960,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "folder",
+    "operation": "create",
+    "name": "Originali",
+    "driveId": {
+     "__rl": true,
+     "value": "My Drive",
+     "mode": "list",
+     "cachedResultName": "My Drive"
+    },
+    "folderId": {
+     "__rl": true,
+     "value": "={{ $('Piano della foto').first().json.dp_id }}",
+     "mode": "id"
+    },
+    "options": {}
+   },
+   "id": "915b2936-3c44-5b6f-a18b-7120af9da5d7",
+   "name": "Crea Originali",
+   "type": "n8n-nodes-base.googleDrive",
+   "typeVersion": 3,
+   "position": [
+    4180,
+    300
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// La sottocartella «Originali» dentro «Da programmare»: trovata, oppure appena creata.\nconst p = $('Piano della foto').first().json;\nconst cercata = ($('Cerca Originali').first().json || {});\nlet id = '';\nif (cercata.error) id = ''; // Drive non ha risposto: niente cartella nuova, l'originale resta dov'è\nelse if (Array.isArray(cercata.files) && cercata.files.length) id = cercata.files[0].id;\nelse if ($('Crea Originali').isExecuted) { const c = $('Crea Originali').first().json || {}; if (!c.error) id = testo(c.id); }\nreturn [{ json: { ...p, originali_id: id, file_id: p.file_id, aggiungi: id, togli: p.dp_id, corpo: {} } }];\n"
+   },
+   "id": "e1a092db-0222-5ec4-b354-b1f96d414bd6",
+   "name": "Id di Originali",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4400,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "aed4f9ff-4e27-59e6-980e-6730637497b1",
+       "leftValue": "={{ !!$json.originali_id }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "e029833a-e039-52ff-9620-0332f71b8d69",
+   "name": "Cartella pronta?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    4620,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.file_id }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "addParents",
+       "value": "={{ $json.aggiungi }}"
+      },
+      {
+       "name": "removeParents",
+       "value": "={{ $json.togli }}"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "fields",
+       "value": "id,parents"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+    "options": {
+     "timeout": 60000
+    }
+   },
+   "id": "43ee729f-643a-5b99-ae0d-61bb6100c8a4",
+   "name": "Sposta l'originale",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4840,
+    100
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "notes": "Sposta l'originale in «Originali»: l'id non cambia."
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// Com'è andata per questa foto. Si guarda solo l'item arrivato adesso (in un ciclo i nodi dei giri prima risultano\n// «eseguiti»): dalla copia non riuscita, dalla cartella Originali non trovata o dallo spostamento dell'originale.\nconst p = $('Piano della foto').first().json;\nconst j = $input.first().json || {};\nlet esito = 'fatto';\nlet passo = '';\nif (p.prova) esito = 'prova';\nelse if (has(j, 'copia_ok') && !j.copia_ok) { esito = 'errore'; passo = j.passo || 'copia'; }\nelse if (has(j, 'originali_id')) { esito = 'copia fatta, originale non spostato'; passo = 'cartella Originali'; }\nelse if (j.error || !testo(j.id)) { esito = 'copia fatta, originale non spostato'; passo = 'spostamento'; }\nreturn [{ json: { cliente: p.cliente, nome: p.nome, nuovo_nome: p.nuovo_nome, motivi: p.motivi, esito, passo } }];\n"
+   },
+   "id": "1a527d0c-66f7-502f-a8cc-26ba8b63e540",
+   "name": "Esito",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5060,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni di «Foto pronte» ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number'));\nconst normale = (s) => testo(s).toLowerCase().replace(/\\s+/g, ' ');\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/) || t.match(/\\/folders\\/([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\n\n// Su Telegram (HTML) solo se è successo qualcosa: quante copie, per cliente, e cosa non è riuscito.\n// I nomi dei file vengono da Drive (dati nostri, non di Meta): tagliati ed escapati.\nconst esiti = $input.all().map((i) => i.json || {}).filter((e) => e.esito);\nif (!esiti.length) return [];\nconst perCliente = {};\nfor (const e of esiti) (perCliente[e.cliente] = perCliente[e.cliente] || []).push(e);\nconst clientiGuardati = $('Cartelle dei clienti').all().length;\nconst clientiLetti = $('Da programmare').all().length;\nconst righe = ['<b>📷 Foto pronte</b>'];\nif (esiti.some((e) => e.esito === 'prova')) righe[0] = '🧪 <b>PROVA: niente scaricato, caricato o spostato</b>\\n' + righe[0];\nfor (const [cliente, lista] of Object.entries(perCliente)) {\n  const fatte = lista.filter((e) => e.esito === 'fatto');\n  const mezze = lista.filter((e) => e.esito.startsWith('copia fatta'));\n  const errori = lista.filter((e) => e.esito === 'errore');\n  const prove = lista.filter((e) => e.esito === 'prova');\n  if (prove.length) { righe.push(`<b>${esc(corto(cliente, 60))}</b>: avrei sistemato ${prove.length} foto\\n${prove.slice(0, 15).map((e) => `• ${esc(corto(e.nome, 50))} → ${esc(corto(e.nuovo_nome, 50))} (${esc(e.motivi)})`).join('\\n')}`); continue; }\n  righe.push(`<b>${esc(corto(cliente, 60))}</b>: ${fatte.length + mezze.length} copie pronte in «Da programmare»`\n    + (fatte.length ? `\\n${fatte.slice(0, 10).map((e) => `• ${esc(corto(e.nuovo_nome, 50))} (era ${esc(e.motivi)})`).join('\\n')}` : ''));\n  if (mezze.length) righe.push(`⚠️ ${mezze.length} copie fatte ma l'originale è rimasto accanto: spostalo a mano in «Originali», altrimenti il modulo propone tutte e due.`);\n  if (errori.length) righe.push(`⚠️ ${errori.length} foto non sistemate (${esc([...new Set(errori.map((e) => e.passo))].join(', '))}): gli originali restano dove sono, riprovo la notte dopo.`\n    + (errori.some((e) => e.passo === 'caricamento') ? ' Se in «Da programmare» vedi già una copia «_ig» di quella foto, cancellala: potrebbe essere rimasta a metà.' : ''));\n}\nif (clientiLetti < clientiGuardati) righe.push(`⚠️ ${clientiGuardati - clientiLetti} clienti saltati: Drive non ha risposto o manca la cartella «Da programmare».`);\nlet t = righe.join('\\n\\n');\nif (t.length > 3900) t = t.slice(0, 3890).slice(0, t.slice(0, 3890).lastIndexOf('\\n')) + '\\n…';\nreturn [{ json: { testo: t } }];\n"
+   },
+   "id": "bb6bdbae-017f-5be0-801c-4705782140ab",
+   "name": "Riepilogo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2200,
+    0
+   ],
+   "notes": "Solo se è successo qualcosa. Niente dati di Meta."
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "f44f16b8-9b69-5c77-8c13-f42bec106473",
+   "name": "Riepilogo su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    2420,
+    0
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "webhookId": "a4598132-9215-4945-b47a-2febd49342d7"
+  },
+  {
+   "parameters": {
+    "content": "## 13 · Foto pronte\nOgni notte guarda «Da programmare» di ogni cliente attivo. Per le foto JPEG/PNG non usate in nessuna riga e troppo pesanti (oltre 8 MB), fuori da 4:5–1,91:1 o PNG: crea una copia «_ig.jpg» (raddrizzata, dentro 1440×1800, bordi per la proporzione, mai ritagli) e sposta l'originale nella sottocartella «Originali».\nNon tocca Storie, Reel, Post, né il foglio.",
+    "height": 220,
+    "width": 520
+   },
+   "id": "f68d79ea-9d67-5e7b-a155-c84bccf014db",
+   "name": "Nota · Leggimi",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    0,
+    -300
+   ]
+  }
+ ],
+ "connections": {
+  "Ogni notte alle 2:40": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prova a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Leggi Clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Clienti": {
+   "main": [
+    [
+     {
+      "node": "Leggi Calendario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Calendario": {
+   "main": [
+    [
+     {
+      "node": "Cartelle dei clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartelle dei clienti": {
+   "main": [
+    [
+     {
+      "node": "Cartelle del cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartelle del cliente": {
+   "main": [
+    [
+     {
+      "node": "Da programmare",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Da programmare": {
+   "main": [
+    [
+     {
+      "node": "Elenca Da programmare",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Elenca Da programmare": {
+   "main": [
+    [
+     {
+      "node": "Foto da sistemare",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Foto da sistemare": {
+   "main": [
+    [
+     {
+      "node": "Una foto alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Piano della foto": {
+   "main": [
+    [
+     {
+      "node": "Copia già fatta?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scarica la foto": {
+   "main": [
+    [
+     {
+      "node": "Riduci la foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Riduci la foto": {
+   "main": [
+    [
+     {
+      "node": "Misura la foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Misura la foto": {
+   "main": [
+    [
+     {
+      "node": "Prepara la tela",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara la tela": {
+   "main": [
+    [
+     {
+      "node": "Metti sulla tela",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Metti sulla tela": {
+   "main": [
+    [
+     {
+      "node": "Carica la copia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Carica la copia": {
+   "main": [
+    [
+     {
+      "node": "Copia caricata?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Copia caricata?": {
+   "main": [
+    [
+     {
+      "node": "Copia ok?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cerca Originali": {
+   "main": [
+    [
+     {
+      "node": "Originali c'è?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Crea Originali": {
+   "main": [
+    [
+     {
+      "node": "Id di Originali",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Id di Originali": {
+   "main": [
+    [
+     {
+      "node": "Cartella pronta?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sposta l'originale": {
+   "main": [
+    [
+     {
+      "node": "Esito",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Esito": {
+   "main": [
+    [
+     {
+      "node": "Una foto alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Riepilogo": {
+   "main": [
+    [
+     {
+      "node": "Riepilogo su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Una foto alla volta": {
+   "main": [
+    [
+     {
+      "node": "Riepilogo",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Piano della foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Copia già fatta?": {
+   "main": [
+    [
+     {
+      "node": "Copia caricata?",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Scarica la foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Copia ok?": {
+   "main": [
+    [
+     {
+      "node": "Cerca Originali",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Esito",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Originali c'è?": {
+   "main": [
+    [
+     {
+      "node": "Id di Originali",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Crea Originali",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartella pronta?": {
+   "main": [
+    [
+     {
+      "node": "Sposta l'originale",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Esito",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Rome",
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": true,
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "D3Ugm3sc201nteFX"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "e51003c1-f1e9-48d9-acf5-5711d130d69f",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-21T14:39:26.196Z",
+   "createdAt": "2026-11-21T14:39:26.196Z",
+   "role": "workflow:owner",
+   "workflowId": "cOPBazHSRcvA8NV9",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

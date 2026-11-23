@@ -1,0 +1,81 @@
+{
+ "updatedAt": "2026-11-16T10:04:04.000Z",
+ "createdAt": "2026-11-16T10:01:47.983Z",
+ "id": "JAt6IEuNDKGH8kLA",
+ "name": "My workflow 2",
+ "active": false,
+ "isArchived": true,
+ "nodes": [
+  {
+   "parameters": {},
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ],
+   "id": "fc4a0b32-4a5e-438b-b993-5b186dfa097e",
+   "name": "When clicking ‘Execute workflow’"
+  },
+  {
+   "parameters": {
+    "chatId": "1913003037",
+    "text": "Prova Tropico",
+    "additionalFields": {}
+   },
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    224,
+    0
+   ],
+   "id": "904be648-efff-4851-b96a-5e5a914f66e4",
+   "name": "Send a text message",
+   "webhookId": "d4c92823-5a07-425b-9c11-76e742db99df",
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "When clicking ‘Execute workflow’": {
+   "main": [
+    [
+     {
+      "node": "Send a text message",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "f11b9579-b67f-4814-9480-b83964665078",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-16T10:01:47.991Z",
+   "createdAt": "2026-11-16T10:01:47.991Z",
+   "role": "workflow:owner",
+   "workflowId": "JAt6IEuNDKGH8kLA",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

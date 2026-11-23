@@ -1,0 +1,4655 @@
+{
+ "updatedAt": "2026-11-15T02:24:38.000Z",
+ "createdAt": "2026-11-15T02:24:07.764Z",
+ "id": "czHoQlQ8p3UqC8Hn",
+ "name": "01 · Pubblica contenuti (Instagram + Facebook)",
+ "active": false,
+ "isArchived": true,
+ "nodes": [
+  {
+   "parameters": {
+    "content": "## 01 · Pubblica contenuti (Instagram + Facebook)\nOgni **5 minuti** guarda la scheda **Calendario** del foglio «Social Clienti» e pubblica le righe con **stato = approvato** la cui **data_ora** (ora di Roma) è arrivata. Al massimo 5 per giro: le altre al giro dopo.\n\n**Gli stati di una riga**\n- `bozza`, `idea`, `da_scrivere`, `in_scrittura`, `da_approvare` → n8n le ignora\n- `approvato` → verrà pubblicata all'ora scritta in data_ora\n- `in_pubblicazione` → n8n ci sta lavorando adesso: non toccarla\n- `pubblicato` → fatto: i link sono in **link_ig** e **link_fb**\n- `errore` → leggi la colonna **errore** e il messaggio Telegram, correggi e rimetti `approvato`\n\n**Rimettere approvato è sicuro:** se link_ig è già pieno Instagram non viene ripubblicato (lo stesso per Facebook). Per rifare tutto da capo svuota i link.\n\n**Se qualcosa si rompe** il flusso «99 · Avvisi errori» segna la riga in errore e scrive su Telegram.\n\nPrima di pubblicare questo flusso: compila **Config**, ricollega le credenziali e imposta «99 · Avvisi errori» come Error Workflow (vedi LEGGIMI-setup.md).",
+    "height": 920,
+    "width": 1000,
+    "color": 7
+   },
+   "id": "11eefcb7-b6aa-4724-a2af-15ef6eb97ab7",
+   "name": "Nota · Come funziona",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -5056,
+    192
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### 1 · Legge il Calendario e sceglie\nTiene le righe **approvate** con l'ora arrivata, le più vecchie prima, massimo 5. Le righe con problemi (id doppio, data illeggibile, troppo in ritardo, bloccate) vanno nel ramo qui sopra.",
+    "height": 300,
+    "width": 1160,
+    "color": 5
+   },
+   "id": "453878da-e99b-40c5-b8c2-17ea95edcab4",
+   "name": "Nota · 1 Scelta",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -5056,
+    1152
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### Righe da sistemare\nLe segna **errore** con il motivo nella colonna errore e manda un solo messaggio Telegram con l'elenco. Non pubblica niente.",
+    "height": 300,
+    "width": 760,
+    "color": 3
+   },
+   "id": "6b24e49c-31d8-4b6c-ae05-b74a4d308d52",
+   "name": "Nota · Righe con problemi",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -3856,
+    800
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### 2 · Una riga alla volta, prenotata\nRilegge la riga (magari è cambiata), la **prenota** (stato in_pubblicazione + numero di questa esecuzione), aspetta 5 secondi e controlla che la prenotazione sia ancora sua. Così due giri sovrapposti non pubblicano mai due volte la stessa cosa.",
+    "height": 300,
+    "width": 1740,
+    "color": 5
+   },
+   "id": "a8fd9af3-472d-48b0-b153-b619b38edc1a",
+   "name": "Nota · 2 Prenotazione",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -3856,
+    1152
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### 3 · Controlla i dati e prepara i file\nLegge il cliente, controlla che tutto sia completo, compresi tag_persone, collaboratori e luogo (se no: errore + Telegram e passa alla riga dopo). Poi per ogni file: lo scarica da **Google Drive**, controlla che sia **JPG / MP4 / MOV** e lo carica su **Cloudflare R2** in cliente/AAAA-MM/, perché Instagram vuole un indirizzo pubblico.",
+    "height": 560,
+    "width": 2220,
+    "color": 5
+   },
+   "id": "bce8e002-c098-4f16-b018-2e1589102a43",
+   "name": "Nota · 3 Dati e file",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -2176,
+    1152
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### 4 · Instagram\n1. crea il «contenitore» (post, carosello, reel o storia)\n2. aspetta che Instagram abbia elaborato il file: controlla ogni ATTESA_SECONDI, al massimo IG_MAX_TENTATIVI volte\n3. pubblica, legge il link e scrive il primo commento (non per le storie)\n4. salva subito link_ig nella riga: se dopo Facebook va in errore, Instagram non verrà ripubblicato\n\n**Tag, collaboratori, luogo** arrivano già pronti da «Prepara contenuto» (campi ig_extra_…): tag sulla foto del post e sulla prima foto del carosello (con posizione), sul reel e sulla storia (solo nome); collaboratori e luogo su post, carosello e reel.",
+    "height": 1140,
+    "width": 3400,
+    "color": 6
+   },
+   "id": "a47bb82d-fa35-492c-959f-575666c60bcf",
+   "name": "Nota · 4 Instagram",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### 5 · Facebook\nLegge il token della Pagina, poi: **post** = foto pubblicata · **carosello** = foto non pubblicate + un post che le unisce · **reel e storie video** = caricamento in 3 passi e controllo dell'elaborazione · **storia foto** = foto non pubblicata + storia. Primo commento solo su post e carosello. **Luogo** (place) solo su post e carosello; i tag delle persone su Facebook non si possono mettere.",
+    "height": 1500,
+    "width": 3440,
+    "color": 4
+   },
+   "id": "d0febd9b-8fb2-4a24-a4c2-4d3fe0719733",
+   "name": "Nota · 5 Facebook",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    3344,
+    1152
+   ]
+  },
+  {
+   "parameters": {
+    "content": "### 6 · Chiusura\nScrive nella riga: stato **pubblicato**, link_ig, link_fb, pubblicato_il. Se ci sono avvisi (es. primo commento non riuscito) li scrive in «errore» e li manda su Telegram, ma la riga resta pubblicata. Poi torna alla riga successiva.",
+    "height": 500,
+    "width": 1120,
+    "color": 5
+   },
+   "id": "737d0d36-9bcc-4e7c-8b7e-8838f715991c",
+   "name": "Nota · 6 Chiusura",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    6832,
+    944
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes"
+      }
+     ]
+    }
+   },
+   "id": "b92dfffe-c164-4021-9cae-805d8dc37889",
+   "name": "Ogni 5 minuti",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.3,
+   "position": [
+    -5008,
+    1280
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "2a412da4-42a1-5a0b-8fd2-6fec04ab0973",
+       "name": "GRAPH_VERSION",
+       "value": "v26.0",
+       "type": "string"
+      },
+      {
+       "id": "db7e652f-3d6c-528e-8b0a-5a4fefbb3a41",
+       "name": "SHEET_ID",
+       "value": "INCOLLA_QUI_ID_DEL_FOGLIO_SOCIAL_CLIENTI",
+       "type": "string"
+      },
+      {
+       "id": "d9ec8866-6748-5a34-91e6-c778c08581cd",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "INCOLLA_QUI_ID_DELLA_CHAT_DEL_TEAM",
+       "type": "string"
+      },
+      {
+       "id": "04fbc964-0db7-5999-bca1-1bce7420fecb",
+       "name": "R2_BUCKET",
+       "value": "INCOLLA_QUI_NOME_BUCKET",
+       "type": "string"
+      },
+      {
+       "id": "477efd91-6c2c-5cc3-a945-1d5820f07cc9",
+       "name": "R2_PUBLIC_BASE_URL",
+       "value": "https://media.tuodominio.it",
+       "type": "string"
+      },
+      {
+       "id": "6b708867-8f9a-5041-a783-590bfa28fbb7",
+       "name": "MAX_PER_GIRO",
+       "value": 5,
+       "type": "number"
+      },
+      {
+       "id": "f6403526-d8bf-59af-8fbe-551400b8b41c",
+       "name": "MAX_RITARDO_ORE",
+       "value": 6,
+       "type": "number"
+      },
+      {
+       "id": "39d45d06-bcd8-4390-91b6-690ebb970208",
+       "name": "MAX_RITARDO_ORE_STORIE",
+       "value": 2,
+       "type": "number"
+      },
+      {
+       "id": "b85f5fbd-bf6e-55b4-b50f-0894e5536a2e",
+       "name": "ATTESA_SECONDI",
+       "value": 25,
+       "type": "number"
+      },
+      {
+       "id": "f823c8fb-3863-5e86-9976-f70852ac83be",
+       "name": "IG_MAX_TENTATIVI",
+       "value": 20,
+       "type": "number"
+      },
+      {
+       "id": "322e6759-2397-50c3-a057-2277f0e742b9",
+       "name": "FB_MAX_TENTATIVI",
+       "value": 20,
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "256f7612-501a-4bcf-a41f-26476c21db70",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    -4768,
+    1280
+   ],
+   "notesInFlow": false,
+   "notes": "Impostazioni del flusso. GRAPH_VERSION = versione delle API di Meta: va tenuta aggiornata all'ultima. v26.0 è l'ultima al 14/11/2026 (uscita il 29/7/2026); Meta ne fa uscire una nuova ogni qualche mese e spegne le vecchie dopo circa 2 anni: quando cambi versione provala prima sull'account di test, poi aggiornala qui e negli altri flussi (stesso valore ovunque). SHEET_ID = la parte lunga dell'indirizzo del foglio «Social Clienti» tra /d/ e /edit. R2_PUBLIC_BASE_URL = dominio pubblico del bucket, senza / finale."
+  },
+  {
+   "parameters": {
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "a48c9afc-9ba1-4e79-a497-5503f33ba292",
+   "name": "Leggi calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -4528,
+    1280
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Sceglie le righe del Calendario da pubblicare in questo giro.\n// Pubblica: stato = approvato e data_ora già arrivata (ora di Roma). Le più vecchie prima, al massimo MAX_PER_GIRO.\n// Segnala senza pubblicare (diventano «errore» con il motivo scritto nella riga):\n//   - id mancante o usato in più righe (n8n ritrova la riga proprio dall'id)\n//   - data_ora illeggibile\n//   - data_ora passata da più di MAX_RITARDO_ORE (per non pubblicare cose vecchie dopo un fermo del server);\n//     per le storie il limite è MAX_RITARDO_ORE_STORIE, più corto: una storia di ore fa rischia di dire cose superate\n//   - righe rimaste «in_pubblicazione» da troppo tempo (n8n si è fermato a metà)\nconst cfg = $('Config').first().json;\nconst ZONA = 'Europe/Rome';\nconst MAX_PER_GIRO = Number(cfg.MAX_PER_GIRO) || 5;\nconst MAX_RITARDO_ORE = Number(cfg.MAX_RITARDO_ORE) || 6;\nconst MAX_RITARDO_ORE_STORIE = Number(cfg.MAX_RITARDO_ORE_STORIE) || 2;\nconst adesso = DateTime.now().setZone(ZONA);\n\n// Formati accettati per data_ora. Con il foglio in italiano Google può mostrare l'ora con i punti (11.30.00).\nconst FORMATI = [\n  'yyyy-M-d H:mm', 'yyyy-M-d H:mm:ss', \"yyyy-M-d'T'H:mm\", \"yyyy-M-d'T'H:mm:ss\", 'yyyy-M-d H.mm', 'yyyy-M-d H.mm.ss',\n  'd/M/yyyy H:mm', 'd/M/yyyy H:mm:ss', 'd/M/yyyy H.mm', 'd/M/yyyy H.mm.ss',\n  'd-M-yyyy H:mm', 'd.M.yyyy H:mm',\n];\n\nfunction leggiData(valore) {\n  if (typeof valore === 'number' && isFinite(valore)) {\n    // Google Sheets può dare la data come numero seriale (giorni dal 30/12/1899, ora \"da orologio\")\n    const t = DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: 'UTC' })\n      .plus({ milliseconds: Math.round(valore * 86400000) });\n    return DateTime.fromObject(\n      { year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute, second: t.second },\n      { zone: ZONA },\n    );\n  }\n  const testo = String(valore ?? '').trim().replace(/\\s+/g, ' ');\n  if (!testo) return null;\n  for (const formato of FORMATI) {\n    const d = DateTime.fromFormat(testo, formato, { zone: ZONA });\n    if (d.isValid) return d;\n  }\n  const iso = DateTime.fromISO(testo, { zone: ZONA }); // es. 2026-12-01T11:30:00+01:00\n  if (iso.isValid && /\\d{1,2}:\\d{2}/.test(testo)) return iso.setZone(ZONA);\n  return null;\n}\n\nconst righe = $input.all().map((item) => item.json);\n\n// Conta gli id su TUTTO il calendario: due righe con lo stesso id non si possono aggiornare con sicurezza.\nconst quanteVolte = {};\nfor (const r of righe) {\n  const id = String(r.id ?? '').trim();\n  if (id) quanteVolte[id] = (quanteVolte[id] || 0) + 1;\n}\n\nconst daPubblicare = [];\nconst daSegnalare = [];\n\nfor (const r of righe) {\n  const stato = String(r.stato ?? '').trim().toLowerCase();\n  const id = String(r.id ?? '').trim();\n  const base = {\n    id,\n    cliente: String(r.cliente ?? '').trim(),\n    row_number: r.row_number,\n    data_ora_testo: String(r.data_ora ?? ''),\n  };\n\n  if (stato === 'approvato') {\n    if (!id) {\n      daSegnalare.push({ ...base, motivo: \"Manca l'id: dai alla riga un id unico (es. bc-2026-12-01-a) e rimetti approvato.\" });\n      continue;\n    }\n    if (String(r.id) !== id) {\n      // n8n ritrova la riga confrontando l'id carattere per carattere: uno spazio in più la renderebbe introvabile\n      daSegnalare.push({ ...base, motivo: `L'id «${String(r.id).slice(0, 60)}» ha spazi all'inizio o alla fine: toglili e rimetti approvato.` });\n      continue;\n    }\n    if (quanteVolte[id] > 1) {\n      daSegnalare.push({ ...base, motivo: `L'id «${id.slice(0, 60)}» è usato in ${quanteVolte[id]} righe: ogni riga deve avere un id diverso. Cambialo e rimetti approvato.` });\n      continue;\n    }\n    const quando = leggiData(r.data_ora);\n    if (!quando) {\n      daSegnalare.push({ ...base, motivo: `Data e ora illeggibili («${base.data_ora_testo.slice(0, 40)}»): scrivi per esempio 2026-12-01 11:30 e rimetti approvato.` });\n      continue;\n    }\n    if (quando > adesso) continue; // non è ancora il momento: la prenderà un giro successivo\n    const oreDiRitardo = adesso.diff(quando, 'hours').hours;\n    const eStoria = String(r.tipo || '').trim().toLowerCase() === 'storia';\n    const limiteOre = eStoria ? Math.min(MAX_RITARDO_ORE_STORIE, MAX_RITARDO_ORE) : MAX_RITARDO_ORE;\n    if (oreDiRitardo > limiteOre) {\n      daSegnalare.push({ ...base, motivo: eStoria\n        ? `Era una storia programmata per ${quando.toFormat('dd/MM/yyyy HH:mm')}: sono passate più di ${limiteOre} ore e non l'ho pubblicata da sola, perché una storia in ritardo rischia di dire cose superate. Se va ancora bene, aggiorna data_ora e rimetti approvato.`\n        : `Era programmato per ${quando.toFormat('dd/MM/yyyy HH:mm')}: sono passate più di ${limiteOre} ore e non l'ho pubblicato da solo. Se va ancora bene, aggiorna data_ora e rimetti approvato.` });\n      continue;\n    }\n    daPubblicare.push({ ...base, data_ora_iso: quando.toISO(), quando_ms: quando.toMillis() });\n  } else if (stato === 'in_pubblicazione') {\n    // Una pubblicazione dura al massimo qualche decina di minuti. Se la riga è ferma da molto più tempo,\n    // n8n si è interrotto (riavvio, memoria finita...) e nessuno se ne accorgerebbe: la segnalo.\n    const quando = leggiData(r.data_ora);\n    if (quando && adesso.diff(quando, 'hours').hours > MAX_RITARDO_ORE + 1) {\n      daSegnalare.push({ ...base, motivo: `È rimasta «in_pubblicazione» (esecuzione ${r.esecuzione || '?'}): n8n si è fermato a metà. Controlla su Instagram e Facebook se il contenuto è uscito: se sì scrivi pubblicato, se no rimetti approvato.` });\n    }\n  }\n}\n\ndaPubblicare.sort((a, b) => a.quando_ms - b.quando_ms);\nconst scelte = daPubblicare.slice(0, MAX_PER_GIRO);\n\nreturn [\n  ...scelte.map((r) => ({ json: { azione: 'pubblica', ...r } })),\n  ...daSegnalare.map((r) => ({ json: { azione: 'segnala', ...r } })),\n];\n"
+   },
+   "id": "b37d3d1c-a658-4e0b-9762-69e9409eb927",
+   "name": "Scegli cosa pubblicare",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -4288,
+    1280
+   ]
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "ec4f4547-afbc-5aed-b77a-610cb0ad2227",
+          "leftValue": "={{ $json.azione }}",
+          "rightValue": "pubblica",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "da pubblicare"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "f27f6b11-67c5-56de-9481-b408b93b0d42",
+          "leftValue": "={{ $json.azione }}",
+          "rightValue": "segnala",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "da segnalare"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "4b1264d5-061f-49f8-a70c-da4fd031e04c",
+   "name": "Smista righe",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    -4048,
+    1280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "row_number": "={{ $json.row_number }}",
+      "stato": "errore",
+      "errore": "={{ $json.motivo }}"
+     },
+     "matchingColumns": [
+      "row_number"
+     ],
+     "schema": [
+      {
+       "id": "id",
+       "displayName": "id",
+       "required": false,
+       "defaultMatch": true,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tipo",
+       "displayName": "tipo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "piattaforme",
+       "displayName": "piattaforme",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "didascalia",
+       "displayName": "didascalia",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "primo_commento",
+       "displayName": "primo_commento",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "media",
+       "displayName": "media",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "copertina",
+       "displayName": "copertina",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "stato",
+       "displayName": "stato",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "esecuzione",
+       "displayName": "esecuzione",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_ig",
+       "displayName": "link_ig",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_fb",
+       "displayName": "link_fb",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "pubblicato_il",
+       "displayName": "pubblicato_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "errore",
+       "displayName": "errore",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "note",
+       "displayName": "note",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "brief",
+       "displayName": "brief",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tag_persone",
+       "displayName": "tag_persone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "collaboratori",
+       "displayName": "collaboratori",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "luogo",
+       "displayName": "luogo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "row_number",
+       "displayName": "row_number",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "number",
+       "canBeUsedToMatch": true,
+       "readOnly": true,
+       "removed": false
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW"
+    }
+   },
+   "id": "cc2cf33a-6acf-4281-987a-d56bdaea1715",
+   "name": "Segna problema in calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -3808,
+    944
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Prepara UN solo messaggio Telegram con tutte le righe da sistemare trovate in questo giro.\n// Il testo usa l'HTML di Telegram: i caratteri < > & vanno \"protetti\", altrimenti Telegram rifiuta il messaggio.\n// Telegram accetta al massimo 4096 caratteri: se le righe sono tante, il messaggio ne elenca solo una parte.\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst problemi = $('Scegli cosa pubblicare').all().map((i) => i.json).filter((r) => r.azione === 'segnala');\nif (!problemi.length) return [];\n\nconst titolo = problemi.length === 1 ? '1 riga da sistemare' : `${problemi.length} righe da sistemare`;\nconst testa = `⚠️ <b>Calendario social: ${titolo}</b>\\nLe ho messe in stato «errore»: non è stato pubblicato niente.\\n\\n`;\nconst voci = problemi.map((p) =>\n  `• riga ${esc(p.row_number)} · <b>${esc(p.cliente || '?')}</b> · id ${esc(p.id || '—')}\\n  ${esc(p.motivo)}`,\n);\n\nconst LIMITE = 3800;\nlet quante = Math.min(voci.length, 10);\nconst componi = (n) => testa + voci.slice(0, n).join('\\n\\n')\n  + (voci.length > n ? `\\n\\n…e altre ${voci.length - n}: cerca «errore» nel Calendario.` : '');\nwhile (quante > 1 && componi(quante).length > LIMITE) quante--;\nreturn [{ json: { testo: componi(quante).slice(0, 4000) } }];\n"
+   },
+   "id": "3876f085-dd2e-452c-bea4-5e0c9d9e422c",
+   "name": "Prepara avviso problemi",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -3568,
+    944
+   ]
+  },
+  {
+   "parameters": {
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "disable_web_page_preview": true,
+     "parse_mode": "HTML"
+    }
+   },
+   "id": "a3544dd7-0303-4e6e-a437-8958f1b03fb3",
+   "name": "Avvisa problemi",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    -3328,
+    944
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "webhookId": "3fdcfeaa-56df-43c8-84c3-81a98c58ea09",
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "options": {}
+   },
+   "id": "8f783ac0-109f-44ee-9fc4-64caf36700ab",
+   "name": "Uno alla volta",
+   "type": "n8n-nodes-base.splitInBatches",
+   "typeVersion": 3,
+   "position": [
+    -3808,
+    1280
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "7a50a519-1b3c-4c2b-b036-5d6e73ce62fe",
+   "name": "Fine giro",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    -3568,
+    1168
+   ]
+  },
+  {
+   "parameters": {
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "filtersUI": {
+     "values": [
+      {
+       "lookupColumn": "id",
+       "lookupValue": "={{ $json.id }}"
+      }
+     ]
+    },
+    "options": {
+     "returnFirstMatch": true
+    }
+   },
+   "id": "14ac52ff-0ec6-4a96-a9dc-28563322f60e",
+   "name": "Rileggi riga",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -3568,
+    1328
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "7fe9dd4b-24b3-5ae8-b774-60cd8efd5907",
+       "leftValue": "={{ String($json.stato ?? '').trim().toLowerCase() }}",
+       "rightValue": "approvato",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "82ff8c36-31fe-448e-ac74-4821913e93f9",
+   "name": "Ancora da pubblicare?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    -3328,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "id": "={{ $json.id }}",
+      "stato": "in_pubblicazione",
+      "esecuzione": "={{ $execution.id }}",
+      "errore": ""
+     },
+     "matchingColumns": [
+      "id"
+     ],
+     "schema": [
+      {
+       "id": "id",
+       "displayName": "id",
+       "required": false,
+       "defaultMatch": true,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tipo",
+       "displayName": "tipo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "piattaforme",
+       "displayName": "piattaforme",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "didascalia",
+       "displayName": "didascalia",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "primo_commento",
+       "displayName": "primo_commento",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "media",
+       "displayName": "media",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "copertina",
+       "displayName": "copertina",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "stato",
+       "displayName": "stato",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "esecuzione",
+       "displayName": "esecuzione",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "link_ig",
+       "displayName": "link_ig",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_fb",
+       "displayName": "link_fb",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "pubblicato_il",
+       "displayName": "pubblicato_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "errore",
+       "displayName": "errore",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "note",
+       "displayName": "note",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "brief",
+       "displayName": "brief",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tag_persone",
+       "displayName": "tag_persone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "collaboratori",
+       "displayName": "collaboratori",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "luogo",
+       "displayName": "luogo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "row_number",
+       "displayName": "row_number",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "number",
+       "canBeUsedToMatch": true,
+       "readOnly": true,
+       "removed": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW"
+    }
+   },
+   "id": "df80026d-83f0-4ae8-96f4-f9b601173d0b",
+   "name": "Prenota riga",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -3088,
+    1328
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {},
+   "id": "414f79d1-eed0-4d5d-9217-26ce2b4a1756",
+   "name": "Pausa anti-doppione",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    -2848,
+    1328
+   ],
+   "webhookId": "110ce2f5-b0da-5133-a549-f7fe6656f441"
+  },
+  {
+   "parameters": {
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "filtersUI": {
+     "values": [
+      {
+       "lookupColumn": "id",
+       "lookupValue": "={{ String($('Rileggi riga').first().json.id) }}"
+      }
+     ]
+    },
+    "options": {
+     "returnFirstMatch": true
+    }
+   },
+   "id": "3d7fa159-4a0e-44ae-b1d4-31d2a03feda5",
+   "name": "Controlla prenotazione",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -2608,
+    1328
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "e11a1c0c-681f-5a3f-a472-9d4719452b20",
+       "leftValue": "={{ String($json.esecuzione ?? '') }}",
+       "rightValue": "={{ String($execution.id) }}",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      },
+      {
+       "id": "fb5180d8-4da5-52a7-abca-63ad98ccc620",
+       "leftValue": "={{ String($json.stato ?? '').trim().toLowerCase() }}",
+       "rightValue": "in_pubblicazione",
+       "operator": {
+        "type": "string",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "fc0d1b5f-3b6f-4a6e-89f3-404035173ee0",
+   "name": "Prenotata da questo giro?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    -2368,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Clienti",
+     "mode": "name"
+    },
+    "filtersUI": {
+     "values": [
+      {
+       "lookupColumn": "cliente",
+       "lookupValue": "={{ String($json.cliente ?? '').trim() }}"
+      }
+     ]
+    },
+    "options": {
+     "returnFirstMatch": true
+    }
+   },
+   "id": "00351333-933d-4f95-8446-34698f6a5bc4",
+   "name": "Leggi cliente",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -2128,
+    1328
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// Prepara il contenuto da pubblicare partendo dalla riga appena prenotata e dal cliente.\n// Controlla che i dati siano completi. Se manca qualcosa NON si ferma: scrive i problemi in «errori»\n// e il passo «Dati completi?» li segnala nel Calendario e su Telegram, poi passa alla riga successiva.\nconst riga = $('Controlla prenotazione').first().json; // riga fresca, appena prenotata da questo giro\nconst cliente = $input.first().json || {};\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst testo = (v) => String(v ?? '').trim();\nconst slug = (s) => testo(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')\n  .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'senza-nome';\nconst errori = [];\nconst avvisi = [];\n\nconst id = testo(riga.id);\nconst chiaveCliente = testo(riga.cliente);\nconst tipo = testo(riga.tipo).toLowerCase();\nconst didascalia = testo(riga.didascalia);\nconst primoCommento = testo(riga.primo_commento);\n\n// --- tipo ---------------------------------------------------------------\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nif (!TIPI.includes(tipo)) errori.push(`tipo «${testo(riga.tipo)}» non valido: usa post, carosello, reel o storia`);\n\n// --- piattaforme --------------------------------------------------------\nconst voci = testo(riga.piattaforme).toLowerCase().split(/[+,/ ]+/).filter(Boolean);\nconst vuoleIg = voci.some((v) => v === 'ig' || v === 'instagram');\nconst vuoleFb = voci.some((v) => v === 'fb' || v === 'facebook');\nif (!vuoleIg && !vuoleFb) errori.push(`piattaforme «${testo(riga.piattaforme)}» non valide: usa ig, fb oppure ig+fb`);\n\n// Se un link è già pieno, quella piattaforma è già stata fatta (es. Instagram uscito, Facebook andato in errore):\n// rimettendo «approvato» n8n pubblica solo quello che manca, senza doppioni.\nconst linkIg = testo(riga.link_ig);\nconst linkFb = testo(riga.link_fb);\nconst pubblicaIg = vuoleIg && !linkIg;\nconst pubblicaFb = vuoleFb && !linkFb;\nif ((vuoleIg || vuoleFb) && !pubblicaIg && !pubblicaFb) {\n  errori.push('risulta già pubblicata (link_ig/link_fb pieni): per ripubblicarla da capo svuota i link');\n}\n\n// --- file su Google Drive -----------------------------------------------\nfunction idDrive(voce) {\n  const t = testo(voce);\n  if (/\\/folders\\//.test(t)) return { errore: 'è il link di una cartella: serve il link del singolo file' };\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return { id: m[1] };\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return { id: t };\n  return { errore: 'non sembra un link di Google Drive' };\n}\nconst vociMedia = testo(riga.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst mediaIds = [];\nvociMedia.forEach((voce, i) => {\n  const r = idDrive(voce);\n  if (r.id) mediaIds.push(r.id);\n  else errori.push(`media n.${i + 1} ${r.errore} («${voce.slice(0, 60)}»)`);\n});\nif (!vociMedia.length) errori.push('manca il file in «media» (link di Google Drive)');\nif (vociMedia.length) {\n  if (['post', 'reel', 'storia'].includes(tipo) && vociMedia.length !== 1) {\n    errori.push(`un ${tipo} vuole un file solo, ne ho trovati ${vociMedia.length} (separati da « | »)`);\n  }\n  if (tipo === 'carosello' && (vociMedia.length < 2 || vociMedia.length > 10)) {\n    errori.push(`un carosello vuole da 2 a 10 foto, ne ho trovate ${vociMedia.length}`);\n  }\n}\nlet copertinaId = '';\nif (testo(riga.copertina)) {\n  if (tipo === 'reel') {\n    const r = idDrive(riga.copertina);\n    if (r.id) copertinaId = r.id;\n    else errori.push(`copertina ${r.errore}`);\n  } else {\n    avvisi.push('la copertina vale solo per i reel: ignorata');\n  }\n}\n\n// --- testi ----------------------------------------------------------------\nif (tipo === 'storia' && didascalia) avvisi.push('le storie non hanno didascalia: il testo non è stato usato');\nif (pubblicaIg && tipo !== 'storia') {\n  if (didascalia.length > 2200) errori.push(`didascalia troppo lunga per Instagram (${didascalia.length} caratteri, massimo 2200)`);\n  const hashtag = (didascalia.match(/#[\\p{L}\\p{N}_]+/gu) || []).length;\n  if (hashtag > 30) errori.push(`troppi hashtag per Instagram (${hashtag}, massimo 30)`);\n  if (primoCommento.length > 2200) errori.push(`primo commento troppo lungo per Instagram (${primoCommento.length} caratteri, massimo 2200)`);\n}\n\n// --- cliente --------------------------------------------------------------\nfunction idMeta(valore, colonna) {\n  if (typeof valore === 'number') {\n    if (!Number.isSafeInteger(valore)) {\n      errori.push(`${colonna} è salvato come numero e Google Sheets l'ha arrotondato: formatta la colonna come «Testo normale» e rilancia «00 · Attiva cliente»`);\n      return '';\n    }\n    return String(valore);\n  }\n  const t = testo(valore);\n  if (t && !/^\\d+$/.test(t)) {\n    errori.push(`${colonna} «${t}» non è un ID valido (solo cifre)`);\n    return '';\n  }\n  return t;\n}\nlet igUserId = '';\nlet fbPageId = '';\nif (!chiaveCliente) {\n  errori.push('manca il cliente nella riga');\n} else if (!testo(cliente.cliente)) {\n  errori.push(`il cliente «${chiaveCliente}» non c'è nella scheda Clienti`);\n} else {\n  if (!/^(si|sì|yes|true|1|x)$/i.test(testo(cliente.attivo))) {\n    errori.push(`il cliente «${chiaveCliente}» non è attivo (colonna attivo ≠ si)`);\n  }\n  igUserId = idMeta(cliente.ig_user_id, 'ig_user_id');\n  fbPageId = idMeta(cliente.fb_page_id, 'fb_page_id');\n  if (pubblicaIg && !igUserId && !errori.some((e) => e.startsWith('ig_user_id'))) {\n    errori.push('manca ig_user_id del cliente: lancia «00 · Attiva cliente»');\n  }\n  if (pubblicaFb && !fbPageId && !errori.some((e) => e.startsWith('fb_page_id'))) {\n    errori.push('manca fb_page_id del cliente');\n  }\n}\n\n// --- tag delle persone, collaboratori e luogo -------------------------------------------\n// Dove valgono, secondo Meta:\n//   tag_persone   → solo Instagram: post (con posizione), carosello (sulla prima foto), reel e storie (solo il nome)\n//   collaboratori → solo Instagram: post, carosello, reel (non le storie). Al massimo 3.\n//   luogo         → Instagram: post, carosello, reel · Facebook: post e carosello (non reel né storie)\n// Si controllano solo se in QUESTO giro vengono usati: un tag sbagliato non deve bloccare un post solo Facebook.\n// Se un campo è compilato ma nessuna piattaforma lo può usare, si pubblica lo stesso con un avviso.\nconst MAX_TAG = 20;\nconst MAX_COLLABORATORI = 3;\nfunction leggiNomi(valore) {\n  const nomi = [];\n  const sbagliati = [];\n  for (const voce of testo(valore).split(/[|,;\\n]+/).map((s) => s.trim()).filter(Boolean)) {\n    const daLink = voce.match(/instagram\\.com\\/([A-Za-z0-9._]+)/i); // accetta anche il link del profilo\n    const nome = (daLink ? daLink[1] : voce).replace(/^@+/, '').trim();\n    if (!/^[A-Za-z0-9._]{1,30}$/.test(nome)) { sbagliati.push(voce.slice(0, 40)); continue; }\n    if (!nomi.includes(nome.toLowerCase())) nomi.push(nome.toLowerCase());\n  }\n  return { nomi, sbagliati };\n}\nconst motivoNome = 'non è un nome utente Instagram valido (solo lettere, numeri, punto e trattino basso, senza spazi)';\nlet tagUsati = [];\nlet collaboratoriUsati = [];\nif (testo(riga.tag_persone)) {\n  const t = leggiNomi(riga.tag_persone);\n  if (!vuoleIg) {\n    avvisi.push('tag_persone ignorati: su Facebook i tag delle persone non si possono mettere in automatico');\n  } else if (pubblicaIg) {\n    t.sbagliati.forEach((s) => errori.push(`tag_persone: «${s}» ${motivoNome}`));\n    if (t.nomi.length > MAX_TAG) errori.push(`troppi tag_persone (${t.nomi.length}, massimo ${MAX_TAG})`);\n    tagUsati = t.nomi;\n  }\n}\nif (testo(riga.collaboratori)) {\n  const c = leggiNomi(riga.collaboratori);\n  if (!vuoleIg) {\n    avvisi.push('collaboratori ignorati: valgono solo su Instagram');\n  } else if (tipo === 'storia') {\n    avvisi.push('collaboratori ignorati: le storie non hanno collaboratori');\n  } else if (pubblicaIg) {\n    c.sbagliati.forEach((s) => errori.push(`collaboratori: «${s}» ${motivoNome}`));\n    if (c.nomi.length > MAX_COLLABORATORI) errori.push(`troppi collaboratori (${c.nomi.length}, massimo ${MAX_COLLABORATORI})`);\n    collaboratoriUsati = c.nomi;\n  }\n}\n\nconst luogoPerFb = tipo === 'post' || tipo === 'carosello';\nlet luogoId = '';\nconst voceLuogo = testo(riga.luogo).toLowerCase();\nif (voceLuogo && voceLuogo !== 'no') {\n  const valeIg = vuoleIg && tipo !== 'storia';\n  const valeFb = vuoleFb && luogoPerFb;\n  const serveOra = (pubblicaIg && tipo !== 'storia') || (pubblicaFb && luogoPerFb);\n  if (!valeIg && !valeFb) {\n    avvisi.push(tipo === 'storia' ? 'luogo ignorato: le storie non hanno il luogo' : 'luogo ignorato: su Facebook il luogo vale solo per post e caroselli');\n  } else if (serveOra && ['si', 'sì', 'yes'].includes(voceLuogo)) {\n    // «si» = il luogo del cliente (id_luogo nella scheda Clienti). Se manca si pubblica senza luogo, con un avviso.\n    const v = cliente.id_luogo;\n    if (typeof v === 'number' && Number.isSafeInteger(v)) luogoId = String(v);\n    else if (typeof v === 'number') avvisi.push(\"luogo non messo: id_luogo del cliente è salvato come numero arrotondato (formatta la colonna come «Testo normale» e rilancia «00 · Attiva cliente»)\");\n    else if (/^\\d{5,}$/.test(testo(v))) luogoId = testo(v);\n    else if (testo(v)) avvisi.push(`luogo non messo: id_luogo del cliente «${testo(v).slice(0, 30)}» non è un ID valido (solo cifre)`);\n    else avvisi.push(\"luogo non messo: il cliente non ha id_luogo nella scheda Clienti (lancia «00 · Attiva cliente» o scrivi l'ID della Pagina del locale)\");\n  } else if (serveOra) {\n    // ID della Pagina del luogo scritto a mano\n    const v = riga.luogo;\n    if (typeof v === 'number' && Number.isSafeInteger(v)) luogoId = String(v);\n    else if (typeof v === 'number') errori.push(\"luogo è salvato come numero e Google Sheets l'ha arrotondato: formatta la colonna luogo come «Testo normale» e riscrivi l'ID\");\n    else if (/^\\d{5,}$/.test(testo(v))) luogoId = testo(v);\n    else errori.push(`luogo «${testo(v).slice(0, 40)}» non valido: scrivi si, no oppure l'ID numerico della Pagina del luogo`);\n  }\n}\n\n// Posizioni fisse dei tag sulle foto (non sappiamo dove sono le persone): righe da 3 nomi, centrate.\n// x e y vanno da 0 a 1, partendo dall'angolo in alto a sinistra. 1 tag = centro foto.\nfunction posizioni(nomi) {\n  const righe = Math.ceil(nomi.length / 3);\n  return nomi.map((username, i) => {\n    const r = Math.floor(i / 3);\n    const nellaRiga = Math.min(3, nomi.length - r * 3);\n    const x = ((i % 3) + 1) / (nellaRiga + 1);\n    const y = righe === 1 ? 0.5 : 0.15 + (r + 0.5) * (0.7 / righe);\n    return { username, x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };\n  });\n}\nconst soloNomi = (nomi) => nomi.map((username) => ({ username }));\n// Tiene solo i campi pieni: a Meta non arriva mai un campo vuoto.\nconst pieni = (campi) => Object.fromEntries(Object.entries(campi)\n  .filter(([, v]) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)));\nconst luogoIg = tipo !== 'storia' ? luogoId : '';\n\nconst nomeLocale = testo(cliente.nome_locale) || chiaveCliente || '?';\nconst mese = DateTime.now().setZone('Europe/Rome').toFormat('yyyy-MM');\nconst avvisoHtml = errori.length\n  ? `⚠️ <b>${esc(nomeLocale)}</b> · id ${esc(id)} (${esc(tipo || '?')}, riga ${esc(riga.row_number)})\\n`\n    + 'Non pubblicato. Da sistemare nel Calendario:\\n• '\n    + errori.map(esc).join('\\n• ')\n    + '\\n\\nQuando hai corretto, rimetti lo stato su «approvato».'\n  : '';\n\nreturn [{\n  json: {\n    id,\n    cliente: chiaveCliente,\n    nome_locale: nomeLocale,\n    row_number: riga.row_number,\n    tipo,\n    didascalia,\n    primo_commento: primoCommento,\n    pubblica_ig: pubblicaIg,\n    pubblica_fb: pubblicaFb,\n    commento_ig: pubblicaIg && tipo !== 'storia' && primoCommento !== '',\n    commento_fb: pubblicaFb && (tipo === 'post' || tipo === 'carosello') && primoCommento !== '',\n    link_ig: linkIg,\n    link_fb: linkFb,\n    ig_user_id: igUserId,\n    fb_page_id: fbPageId,\n    media_ids: mediaIds,\n    copertina_id: copertinaId,\n    cartella_r2: `${slug(chiaveCliente)}/${mese}`,\n    nome_file_base: slug(id),\n    tag_persone: tagUsati,\n    collaboratori: collaboratoriUsati,\n    luogo_id: luogoId,\n    // campi in più già pronti per ogni chiamata a Meta (vuoti = niente da aggiungere)\n    ig_extra_post: pieni({ user_tags: tagUsati.length ? posizioni(tagUsati) : [], location_id: luogoIg, collaborators: collaboratoriUsati }),\n    ig_tag_prima_foto: tagUsati.length ? posizioni(tagUsati) : [],\n    ig_extra_carosello: pieni({ location_id: luogoIg, collaborators: collaboratoriUsati }),\n    ig_extra_reel: pieni({ user_tags: soloNomi(tagUsati), location_id: luogoIg, collaborators: collaboratoriUsati }),\n    ig_extra_storia: pieni({ user_tags: soloNomi(tagUsati) }),\n    fb_extra_post: pieni({ place: luogoPerFb ? luogoId : '' }),\n    errori: errori.join(' · '),\n    avviso_html: avvisoHtml,\n    avvisi,\n  },\n}];\n"
+   },
+   "id": "27fedee7-57a1-4573-b2e2-4fd19c47a4af",
+   "name": "Prepara contenuto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -1888,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "2b00382f-c666-587a-bfbe-bd7dec69ad58",
+       "leftValue": "={{ $json.errori }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "empty",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "be0d9495-88ef-4ddf-a016-0bc3264b0ce5",
+   "name": "Dati completi?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    -1648,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "id": "={{ $json.id }}",
+      "stato": "errore",
+      "errore": "={{ $json.errori }}"
+     },
+     "matchingColumns": [
+      "id"
+     ],
+     "schema": [
+      {
+       "id": "id",
+       "displayName": "id",
+       "required": false,
+       "defaultMatch": true,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tipo",
+       "displayName": "tipo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "piattaforme",
+       "displayName": "piattaforme",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "didascalia",
+       "displayName": "didascalia",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "primo_commento",
+       "displayName": "primo_commento",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "media",
+       "displayName": "media",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "copertina",
+       "displayName": "copertina",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "stato",
+       "displayName": "stato",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "esecuzione",
+       "displayName": "esecuzione",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_ig",
+       "displayName": "link_ig",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_fb",
+       "displayName": "link_fb",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "pubblicato_il",
+       "displayName": "pubblicato_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "errore",
+       "displayName": "errore",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "note",
+       "displayName": "note",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "brief",
+       "displayName": "brief",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tag_persone",
+       "displayName": "tag_persone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "collaboratori",
+       "displayName": "collaboratori",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "luogo",
+       "displayName": "luogo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "row_number",
+       "displayName": "row_number",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "number",
+       "canBeUsedToMatch": true,
+       "readOnly": true,
+       "removed": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW"
+    }
+   },
+   "id": "6c365791-7790-432c-92e6-adb55c71cf31",
+   "name": "Segna dati incompleti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    -1408,
+    1552
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $('Prepara contenuto').first().json.avviso_html }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "disable_web_page_preview": true,
+     "parse_mode": "HTML"
+    }
+   },
+   "id": "027b85f8-005f-45ea-afb2-4fb8b1eed195",
+   "name": "Avvisa dati incompleti",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    -1168,
+    1552
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "webhookId": "fbd56461-8cd1-42ed-90d9-7bb6de6f259a",
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// Trasforma la lista dei file in un elemento per file: così i passi successivi\n// (scarica da Drive, controlla, carica su R2) lavorano su ogni file, uno dopo l'altro.\nconst c = $input.first().json;\nconst comune = { id: c.id, tipo: c.tipo, cartella_r2: c.cartella_r2, nome_file_base: c.nome_file_base };\nconst file = c.media_ids.map((driveId, i) => ({ json: { ...comune, ruolo: 'media', n: i + 1, drive_id: driveId } }));\nif (c.copertina_id) file.push({ json: { ...comune, ruolo: 'copertina', n: 0, drive_id: c.copertina_id } });\nreturn file;\n"
+   },
+   "id": "a5db8199-917b-4aeb-810c-fe0eee901e86",
+   "name": "Elenca file",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -1408,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "download",
+    "fileId": {
+     "__rl": true,
+     "value": "={{ $json.drive_id }}",
+     "mode": "id"
+    },
+    "options": {}
+   },
+   "id": "83776c6d-2793-4e0e-a88a-3f9ddea790b6",
+   "name": "Scarica da Drive",
+   "type": "n8n-nodes-base.googleDrive",
+   "typeVersion": 3,
+   "position": [
+    -1168,
+    1328
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Controlla ogni file scaricato da Drive e decide il suo nome su R2 (lo usa il nodo «Carica su R2»).\n// Instagram accetta solo foto JPEG e video MP4/MOV: un PNG o un HEIC (foto da iPhone) vengono rifiutati,\n// quindi qui ci fermiamo SUBITO con un messaggio chiaro, prima di toccare Instagram o Facebook.\nconst cfg = $('Config').first().json;\nconst base = String(cfg.R2_PUBLIC_BASE_URL || '').trim().replace(/\\/+$/, '');\nif (!/^https:\\/\\/[^/]+/.test(base)) {\n  throw new Error('Config: R2_PUBLIC_BASE_URL deve essere un indirizzo https:// (il dominio pubblico del bucket R2).');\n}\nconst FORMATI = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/pjpeg': 'jpg', 'video/mp4': 'mp4', 'video/quicktime': 'mov' };\nconst DA_ESTENSIONE = { jpg: 'jpg', jpeg: 'jpg', mp4: 'mp4', mov: 'mov' };\nconst MAX_FOTO_BYTE = 8 * 1024 * 1024; // limite di Instagram per le foto\n\nconst risultato = [];\nfor (const item of $input.all()) {\n  const f = item.json;\n  const etichetta = f.ruolo === 'copertina' ? 'la copertina' : `il file n.${f.n}`;\n  const bin = item.binary && item.binary.data;\n  if (!bin) throw new Error(`Riga ${f.id}: ${etichetta} non è stato scaricato da Google Drive.`);\n\n  const mime = String(bin.mimeType || '').toLowerCase().split(';')[0].trim();\n  const nomeOriginale = bin.fileName || f.drive_id;\n  let ext = FORMATI[mime];\n  if (!ext && (mime === 'application/octet-stream' || mime === '')) {\n    // a volte Drive non dice il tipo: allora guardo l'estensione del nome del file\n    ext = DA_ESTENSIONE[String(nomeOriginale).toLowerCase().split('.').pop()];\n  }\n  if (!ext) {\n    const eFoto = mime.startsWith('image/');\n    throw new Error(\n      `Riga ${f.id} (${f.tipo}): ${etichetta} «${nomeOriginale}» è in formato ${mime || 'sconosciuto'}. `\n      + (eFoto\n        ? 'Instagram accetta solo foto JPG: esporta la foto in JPG, ricaricala su Drive, aggiorna il link e rimetti approvato.'\n        : 'Usa una foto JPG oppure un video MP4 o MOV, poi rimetti approvato.'),\n    );\n  }\n\n  const eVideo = ext !== 'jpg';\n  if (f.ruolo === 'copertina' && eVideo) throw new Error(`Riga ${f.id}: la copertina del reel deve essere una foto JPG, non un video.`);\n  if (f.ruolo === 'media' && (f.tipo === 'post' || f.tipo === 'carosello') && eVideo) {\n    throw new Error(`Riga ${f.id}: ${etichetta} è un video ma il tipo è «${f.tipo}». Per i video usa il tipo reel (i caroselli con video non sono ancora gestiti).`);\n  }\n  if (f.ruolo === 'media' && f.tipo === 'reel' && !eVideo) {\n    throw new Error(`Riga ${f.id}: il reel vuole un video MP4 o MOV, ma «${nomeOriginale}» è una foto.`);\n  }\n  if (!eVideo && typeof bin.bytes === 'number' && bin.bytes > MAX_FOTO_BYTE) {\n    throw new Error(`Riga ${f.id}: ${etichetta} «${nomeOriginale}» pesa ${(bin.bytes / 1048576).toFixed(1)} MB. Instagram accetta foto fino a 8 MB: esportala più leggera (lato lungo 1440 px basta).`);\n  }\n\n  const nomeFile = `${f.nome_file_base}-${f.ruolo === 'copertina' ? 'copertina' : f.n}.${ext}`;\n  risultato.push({\n    json: {\n      ...f,\n      mime,\n      ext,\n      is_video: eVideo,\n      nome_file: nomeFile,\n      chiave_r2: `${f.cartella_r2}/${nomeFile}`,\n      // «?v=» cambia a ogni esecuzione: se rimetti approvato con un file corretto, la cache di Cloudflare\n      // non può ridare a Meta la versione vecchia.\n      url_pubblico: `${base}/${f.cartella_r2}/${nomeFile}?v=${$execution.id}`,\n    },\n    binary: item.binary,\n  });\n}\nreturn risultato;\n"
+   },
+   "id": "2c1053ff-3783-476b-8e32-8fbd1d9ae000",
+   "name": "Controlla formato file",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -928,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "upload",
+    "bucketName": "={{ $('Config').first().json.R2_BUCKET }}",
+    "fileName": "={{ $json.nome_file }}",
+    "additionalFields": {
+     "parentFolderKey": "={{ $json.cartella_r2 }}"
+    }
+   },
+   "id": "59b0e545-00e4-4797-9ac4-a589f48da1ac",
+   "name": "Carica su R2",
+   "type": "n8n-nodes-base.s3",
+   "typeVersion": 1,
+   "position": [
+    -688,
+    1328
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Rimette insieme il contenuto con gli indirizzi pubblici dei file appena caricati su R2.\n// Da qui in poi Instagram e Facebook leggono tutto da questo nodo: «Contenuto pronto».\nconst c = $('Prepara contenuto').first().json;\nconst file = $('Controlla formato file').all().map((i) => i.json);\nconst caricati = $input.all().length;\nif (caricati !== file.length) {\n  throw new Error(`Riga ${c.id}: caricati su R2 ${caricati} file su ${file.length}. Non ho pubblicato niente: rimetti approvato per riprovare.`);\n}\nconst media = file.filter((f) => f.ruolo === 'media').sort((a, b) => a.n - b.n);\nconst copertina = file.find((f) => f.ruolo === 'copertina');\nconst primoVideo = media.length > 0 && media[0].is_video === true;\n\n// Su Facebook reel e storie video seguono la stessa strada (caricamento video in 3 passi).\nlet percorsoFb = c.tipo; // post | carosello\nif (c.tipo === 'reel' || (c.tipo === 'storia' && primoVideo)) percorsoFb = 'video';\nelse if (c.tipo === 'storia') percorsoFb = 'storia_foto';\n\nreturn [{\n  json: {\n    ...c,\n    media_urls: media.map((f) => f.url_pubblico),\n    primo_video: primoVideo,\n    copertina_url: copertina ? copertina.url_pubblico : '',\n    percorso_fb: percorsoFb,\n  },\n}];\n"
+   },
+   "id": "14eadb90-da05-46fe-8adb-3962a1fe7229",
+   "name": "Contenuto pronto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -448,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "e8893816-6444-5ad8-85dc-47383792cb1c",
+       "leftValue": "={{ $json.pubblica_ig }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "ce9bddae-34ed-4606-b253-0e8faa71b419",
+   "name": "Va su Instagram?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    -208,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "645af79c-58f9-590d-9ef5-69660eb21163",
+          "leftValue": "={{ $json.tipo }}",
+          "rightValue": "post",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "post"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "9eb65f2b-c5a3-5cbd-b8c3-fa8280dd509c",
+          "leftValue": "={{ $json.tipo }}",
+          "rightValue": "carosello",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "carosello"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "23b13c20-bfae-5e28-92a3-cd003f38a5b1",
+          "leftValue": "={{ $json.tipo }}",
+          "rightValue": "reel",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "reel"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "5ca51b03-1164-542b-88a6-a9faec1944b0",
+          "leftValue": "={{ $json.tipo }}",
+          "rightValue": "storia",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "storia"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "04dda189-0652-474f-9f61-b85ca7207e66",
+   "name": "IG tipo di contenuto",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    48,
+    592
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.ig_user_id }}/media",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ image_url: $('Contenuto pronto').first().json.media_urls[0] }, $('Contenuto pronto').first().json.didascalia ? { caption: $('Contenuto pronto').first().json.didascalia } : {}, $('Contenuto pronto').first().json.ig_extra_post)) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "e035a4f2-229a-4b20-8d36-14c590f98edf",
+   "name": "IG contenitore foto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1008,
+    240
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Un elemento per ogni foto del carosello: il passo dopo crea un «contenitore» Instagram per ciascuna.\n// I tag delle persone vanno sulla PRIMA foto (luogo e collaboratori invece vanno sul carosello intero).\nconst c = $('Contenuto pronto').first().json;\nconst tagPrimaFoto = Array.isArray(c.ig_tag_prima_foto) && c.ig_tag_prima_foto.length ? c.ig_tag_prima_foto : null;\nreturn c.media_urls.map((url, i) => ({\n  json: Object.assign({ image_url: url, posizione: i + 1 }, i === 0 && tagPrimaFoto ? { user_tags: tagPrimaFoto } : {}),\n}));\n"
+   },
+   "id": "626a351f-5c22-4347-9a9b-9fee66f7cf1d",
+   "name": "IG foto del carosello",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    288,
+    416
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.ig_user_id }}/media",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ image_url: $json.image_url, is_carousel_item: true }, $json.user_tags ? { user_tags: $json.user_tags } : {})) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "92a4ae49-bedb-485f-8d71-ccc65f8f7712",
+   "name": "IG contenitori carosello",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    528,
+    416
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Raccoglie gli ID dei contenitori delle singole foto, nell'ordine del Calendario.\nconst ids = $input.all().map((i) => i.json.id);\nif (ids.length < 2 || ids.some((id) => !id)) {\n  throw new Error(`Instagram non ha creato tutti gli elementi del carosello (${ids.filter(Boolean).length} su ${ids.length}). Non è stato pubblicato niente: rimetti approvato per riprovare.`);\n}\nreturn [{ json: { children: ids.join(',') } }];\n"
+   },
+   "id": "c5b7ab66-a9fb-447e-ba35-8c67ea08c276",
+   "name": "IG unisci carosello",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    768,
+    416
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.ig_user_id }}/media",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ media_type: 'CAROUSEL', children: $json.children }, $('Contenuto pronto').first().json.didascalia ? { caption: $('Contenuto pronto').first().json.didascalia } : {}, $('Contenuto pronto').first().json.ig_extra_carosello)) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "88b32c45-20a4-4e15-ae42-a73a907789d7",
+   "name": "IG contenitore carosello",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1008,
+    416
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.ig_user_id }}/media",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ media_type: 'REELS', video_url: $('Contenuto pronto').first().json.media_urls[0], share_to_feed: true }, $('Contenuto pronto').first().json.didascalia ? { caption: $('Contenuto pronto').first().json.didascalia } : {}, $('Contenuto pronto').first().json.copertina_url ? { cover_url: $('Contenuto pronto').first().json.copertina_url } : {}, $('Contenuto pronto').first().json.ig_extra_reel)) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "4148fe46-60be-419a-831e-18bdbe9579f9",
+   "name": "IG contenitore reel",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1008,
+    592
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.ig_user_id }}/media",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign($('Contenuto pronto').first().json.primo_video ? { media_type: 'STORIES', video_url: $('Contenuto pronto').first().json.media_urls[0] } : { media_type: 'STORIES', image_url: $('Contenuto pronto').first().json.media_urls[0] }, $('Contenuto pronto').first().json.ig_extra_storia)) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "d6a0d9b7-1fd6-4d4d-b34d-076bf5b333ea",
+   "name": "IG contenitore storia",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1008,
+    752
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "7634d4eb-edc4-5ed2-a4e2-093109591595",
+       "name": "container_id",
+       "value": "={{ $json.container_id ?? $json.id }}",
+       "type": "string"
+      },
+      {
+       "id": "b2560977-ee8b-5b53-a5cd-fe493f9558a8",
+       "name": "tentativo",
+       "value": "={{ ($json.tentativo ?? 0) + 1 }}",
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "0b34cdc2-571e-4ff8-a8cb-653f828924a2",
+   "name": "IG conta tentativo",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    1248,
+    592
+   ]
+  },
+  {
+   "parameters": {
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $json.container_id }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "status_code,status"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "59f00cc1-9c38-40e0-8d89-e39a0bec27cb",
+   "name": "IG controlla stato",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1488,
+    592
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "1e8563b9-3b51-5c86-a38f-39672b9edb3d",
+          "leftValue": "={{ $json.status_code }}",
+          "rightValue": "FINISHED",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "pronto"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "dfe9cf1d-a80d-5576-be36-e3addcc6beed",
+          "leftValue": "={{ $json.status_code }}",
+          "rightValue": "ERROR",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         },
+         {
+          "id": "70c78550-a5b3-5a80-b6fe-ff456205087d",
+          "leftValue": "={{ $json.status_code }}",
+          "rightValue": "EXPIRED",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "or"
+       },
+       "renameOutput": true,
+       "outputKey": "fallito"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "in corso"
+    }
+   },
+   "id": "a0e4f643-364b-493e-bd7b-fd25736b2109",
+   "name": "IG stato?",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    1728,
+    592
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.ig_user_id }}/media_publish",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ creation_id: $('IG conta tentativo').first().json.container_id }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "ff930c7e-3deb-4c4c-865a-7bcb812dadc2",
+   "name": "IG pubblica",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1968,
+    384
+   ],
+   "notesInFlow": false,
+   "notes": "Niente «riprova automatica» qui: se la pubblicazione è andata ma la risposta si è persa, riprovare creerebbe un doppione."
+  },
+  {
+   "parameters": {
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $json.id }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "permalink"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "55169868-c865-4271-8e53-3c5ec1327d2d",
+   "name": "IG leggi link",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2208,
+    384
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "9be52569-a384-51de-b451-ca798a96d13a",
+       "leftValue": "={{ $('Contenuto pronto').first().json.commento_ig }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "1bec97dd-eb57-4d08-a02b-be158d7c0bf5",
+   "name": "IG primo commento?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    2448,
+    384
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('IG pubblica').first().json.id }}/comments",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ message: $('Contenuto pronto').first().json.primo_commento }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "fd3cd50f-3cab-4aa2-9ca7-9fab4493e7ce",
+   "name": "IG scrivi primo commento",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2688,
+    224
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// Esito di Instagram: il link del contenuto e gli eventuali avvisi (che non bloccano la pubblicazione).\nconst c = $('Contenuto pronto').first().json;\nconst pubblicato = $('IG pubblica').first().json;\nconst letto = $('IG leggi link').first().json;\nconst avvisi = [];\nlet link = letto.permalink || '';\nif (!link) {\n  link = `pubblicato su Instagram (id ${pubblicato.id}), link non disponibile`;\n  avvisi.push('link Instagram non letto (il contenuto però è uscito)');\n}\n// Se era previsto il primo commento, l'elemento arrivato qui è la risposta del commento.\nif (c.commento_ig && $input.first().json.error) {\n  avvisi.push('primo commento Instagram NON inserito: aggiungilo a mano');\n}\nreturn [{ json: { link_ig: link, avvisi } }];\n"
+   },
+   "id": "7170803c-7f4e-43ab-9e89-5c9f960997a7",
+   "name": "Risultato Instagram",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2928,
+    384
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "id": "={{ $('Prepara contenuto').first().json.id }}",
+      "link_ig": "={{ $json.link_ig }}"
+     },
+     "matchingColumns": [
+      "id"
+     ],
+     "schema": [
+      {
+       "id": "id",
+       "displayName": "id",
+       "required": false,
+       "defaultMatch": true,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tipo",
+       "displayName": "tipo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "piattaforme",
+       "displayName": "piattaforme",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "didascalia",
+       "displayName": "didascalia",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "primo_commento",
+       "displayName": "primo_commento",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "media",
+       "displayName": "media",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "copertina",
+       "displayName": "copertina",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "stato",
+       "displayName": "stato",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "esecuzione",
+       "displayName": "esecuzione",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_ig",
+       "displayName": "link_ig",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "link_fb",
+       "displayName": "link_fb",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "pubblicato_il",
+       "displayName": "pubblicato_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "errore",
+       "displayName": "errore",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "note",
+       "displayName": "note",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "brief",
+       "displayName": "brief",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tag_persone",
+       "displayName": "tag_persone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "collaboratori",
+       "displayName": "collaboratori",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "luogo",
+       "displayName": "luogo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "row_number",
+       "displayName": "row_number",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "number",
+       "canBeUsedToMatch": true,
+       "readOnly": true,
+       "removed": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW"
+    }
+   },
+   "id": "86bc19ef-4884-4327-af28-3ba0a7d9bb53",
+   "name": "Salva link Instagram",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    3168,
+    384
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "errorMessage": "={{ 'Instagram non ha accettato il file (stato ' + $json.status_code + '): ' + ($json.status || 'nessun dettaglio') + '. Non è stato pubblicato niente. Di solito è il file: foto JPG fino a 8 MB con proporzioni tra 4:5 e 1,91:1; reel e storie verticali 9:16 in MP4 o MOV. Sistema il file e rimetti approvato.' }}"
+   },
+   "id": "e2ea9756-7f8c-443d-890c-81e2acf50deb",
+   "name": "IG elaborazione fallita",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    1968,
+    592
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "b139bdb4-4c4b-5c6c-a365-3d5ec64e5618",
+       "leftValue": "={{ $('IG conta tentativo').first().json.tentativo }}",
+       "rightValue": "={{ $('Config').first().json.IG_MAX_TENTATIVI }}",
+       "operator": {
+        "type": "number",
+        "operation": "lt"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "17ec985a-682b-40dc-96ae-36f46c1e699a",
+   "name": "IG altri tentativi?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1968,
+    784
+   ]
+  },
+  {
+   "parameters": {
+    "amount": "={{ $('Config').first().json.ATTESA_SECONDI }}"
+   },
+   "id": "b70bf86e-578c-48fa-8ff9-e25d12eaff29",
+   "name": "IG aspetta",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    2208,
+    784
+   ],
+   "webhookId": "c86872b0-0bc2-5449-9e95-eac1e4ccf15d"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "34d8f69c-076e-5681-86b9-8dd2138c5a15",
+       "name": "container_id",
+       "value": "={{ $('IG conta tentativo').first().json.container_id }}",
+       "type": "string"
+      },
+      {
+       "id": "da5a8dea-f5de-5e02-accb-0ca68b564f15",
+       "name": "tentativo",
+       "value": "={{ $('IG conta tentativo').first().json.tentativo }}",
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "ee2c5ca8-f469-4c1e-b35c-7220bc2d772a",
+   "name": "IG riprova",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    2448,
+    784
+   ]
+  },
+  {
+   "parameters": {
+    "errorMessage": "={{ 'Instagram sta ancora elaborando il file dopo ' + $('IG conta tentativo').first().json.tentativo + ' controlli (circa ' + Math.round($('IG conta tentativo').first().json.tentativo * $('Config').first().json.ATTESA_SECONDI / 60) + ' minuti). Non è stato pubblicato niente: riprova più tardi rimettendo approvato, oppure alleggerisci il video.' }}"
+   },
+   "id": "34a60852-971c-4f7c-b2f7-ce47e9134c50",
+   "name": "IG tempo scaduto",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    2208,
+    960
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "a74791a8-a8a0-5536-97bc-00b8f46117f8",
+       "leftValue": "={{ $('Prepara contenuto').first().json.pubblica_fb }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "0d51d10b-ca1d-46fd-adbc-fff4f7289484",
+   "name": "Va su Facebook?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    3408,
+    1328
+   ]
+  },
+  {
+   "parameters": {
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "access_token"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "e077b718-22b0-419f-9ee5-02ef0236a4c9",
+   "name": "FB token pagina",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    3648,
+    1920
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "notesInFlow": false,
+   "notes": "Legge a ogni giro il token della Pagina (con il token del System User). Non scade finché il System User ha accesso alla Pagina."
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "9630d100-6efd-5bc8-af4b-888bdaef63c2",
+          "leftValue": "={{ $('Contenuto pronto').first().json.percorso_fb }}",
+          "rightValue": "post",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "post"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "3afdd7cf-8ca0-5562-b82c-80510be75462",
+          "leftValue": "={{ $('Contenuto pronto').first().json.percorso_fb }}",
+          "rightValue": "carosello",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "carosello"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "0de6b6e6-ef84-5684-a964-ec6b4b674028",
+          "leftValue": "={{ $('Contenuto pronto').first().json.percorso_fb }}",
+          "rightValue": "storia_foto",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "storia foto"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "2f6844af-4acc-594e-8bde-42e448920034",
+          "leftValue": "={{ $('Contenuto pronto').first().json.percorso_fb }}",
+          "rightValue": "video",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "reel o storia video"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "14641064-545f-434a-8b0f-40c3e83a03de",
+   "name": "FB tipo di contenuto",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    3888,
+    1920
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/photos",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ url: $('Contenuto pronto').first().json.media_urls[0], published: true }, $('Contenuto pronto').first().json.didascalia ? { message: $('Contenuto pronto').first().json.didascalia } : {}, $('Contenuto pronto').first().json.fb_extra_post)) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "4aa584f8-76c4-4713-b9a2-55808806bcd1",
+   "name": "FB pubblica foto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4848,
+    1600
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Un elemento per ogni foto: il passo dopo le carica sulla Pagina come foto «non pubblicate»,\n// che poi diventano un unico post con più foto.\nconst c = $('Contenuto pronto').first().json;\nreturn c.media_urls.map((url, i) => ({ json: { url, posizione: i + 1 } }));\n"
+   },
+   "id": "7d47813d-04c5-4c1d-a30e-3d4a6366f56f",
+   "name": "FB foto del carosello",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4128,
+    1760
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/photos",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ url: $json.url, published: false }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "5d35f48b-d4be-4ea1-9758-cb469f340236",
+   "name": "FB carica foto carosello",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4368,
+    1760
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Raccoglie gli ID delle foto caricate, nell'ordine del Calendario, nel formato che vuole Facebook.\nconst ids = $input.all().map((i) => i.json.id);\nif (ids.length < 2 || ids.some((id) => !id)) {\n  throw new Error(`Facebook non ha caricato tutte le foto del carosello (${ids.filter(Boolean).length} su ${ids.length}). Il post non è stato pubblicato: rimetti approvato per riprovare.`);\n}\nreturn [{ json: { attached_media: ids.map((id) => ({ media_fbid: id })) } }];\n"
+   },
+   "id": "4bc26cab-6f01-43a8-9f1d-654258c132f8",
+   "name": "FB unisci foto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4608,
+    1760
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/feed",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ attached_media: $json.attached_media }, $('Contenuto pronto').first().json.didascalia ? { message: $('Contenuto pronto').first().json.didascalia } : {}, $('Contenuto pronto').first().json.fb_extra_post)) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "aa2da245-1202-408c-9643-5d6efaadfb0b",
+   "name": "FB pubblica post multi-foto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4848,
+    1760
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "74ff26cf-68d8-5016-b070-0f46f883e688",
+       "name": "post_id",
+       "value": "={{ $json.post_id || $json.id }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "d487c1df-13c7-4d52-84d6-1451326c0667",
+   "name": "FB post id",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    5088,
+    1680
+   ]
+  },
+  {
+   "parameters": {
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $json.post_id }}",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "permalink_url"
+      },
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "b1811b1b-c3c6-4b72-8969-76bfd654088a",
+   "name": "FB leggi link post",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    5328,
+    1680
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "bacabc7d-d41c-5bb6-9e26-8fd9b3a78f5e",
+       "leftValue": "={{ $('Contenuto pronto').first().json.commento_fb }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "d9b0105d-2cbe-4fa8-9bef-b456ff7fec2b",
+   "name": "FB primo commento?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    5568,
+    1680
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('FB post id').first().json.post_id }}/comments",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ message: $('Contenuto pronto').first().json.primo_commento }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "cd228ad7-2f33-45f6-949e-876b9dd47a21",
+   "name": "FB scrivi primo commento",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    5808,
+    1520
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/photos",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ url: $('Contenuto pronto').first().json.media_urls[0], published: false }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "00ae4776-d63d-4471-af16-abe3ae250247",
+   "name": "FB storia carica foto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4128,
+    1920
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/photo_stories",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ photo_id: $json.id }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "7001133a-8f0f-4f26-b67a-9aa1f818b0d1",
+   "name": "FB storia pubblica foto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4368,
+    1920
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/{{ $('Contenuto pronto').first().json.tipo === 'reel' ? 'video_reels' : 'video_stories' }}",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ upload_phase: 'start' }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "c8e21ffc-db2a-4dfa-8aac-1e2da6fbabe6",
+   "name": "FB video avvio",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4128,
+    2144
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "notesInFlow": false,
+   "notes": "Apre il caricamento: Facebook risponde con video_id e upload_url."
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.upload_url || ('https://rupload.facebook.com/video-upload/' + $('Config').first().json.GRAPH_VERSION + '/' + $json.video_id) }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "=OAuth {{ $('FB token pagina').first().json.access_token }}"
+      },
+      {
+       "name": "file_url",
+       "value": "={{ $('Contenuto pronto').first().json.media_urls[0] }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "50a4781d-209f-4de8-8ae8-2e80d0deeb2f",
+   "name": "FB video carica",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4368,
+    2144
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "notesInFlow": false,
+   "notes": "Dice a Facebook di scaricare il video dall'indirizzo pubblico su R2 (header file_url)."
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Contenuto pronto').first().json.fb_page_id }}/{{ $('Contenuto pronto').first().json.tipo === 'reel' ? 'video_reels' : 'video_stories' }}",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($('Contenuto pronto').first().json.tipo === 'reel' ? Object.assign({ upload_phase: 'finish', video_id: $('FB video avvio').first().json.video_id, video_state: 'PUBLISHED' }, $('Contenuto pronto').first().json.didascalia ? { description: $('Contenuto pronto').first().json.didascalia } : {}) : { upload_phase: 'finish', video_id: $('FB video avvio').first().json.video_id }) }}",
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "fa765680-2497-4994-b3b2-1055ca14309c",
+   "name": "FB video pubblica",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    4608,
+    2144
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "222b1ea2-5c3a-5c4d-aa5d-f5d708a16177",
+       "name": "video_id",
+       "value": "={{ $json.video_id ?? $('FB video avvio').first().json.video_id }}",
+       "type": "string"
+      },
+      {
+       "id": "92aef9a4-e18b-5bbd-8586-3f50670946a5",
+       "name": "tentativo",
+       "value": "={{ ($json.tentativo ?? 0) + 1 }}",
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "75683123-5252-4904-8824-ddb24db5c954",
+   "name": "FB conta tentativo video",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    4848,
+    2144
+   ]
+  },
+  {
+   "parameters": {
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $json.video_id }}",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "status"
+      },
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "2dd0600d-d8e1-471d-80c4-4c75a55974a1",
+   "name": "FB controlla video",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    5088,
+    2144
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "// Legge lo stato del video su Facebook e lo riduce a una parola: pronto, fallito oppure in_corso.\n// Facebook descrive tre fasi (caricamento, elaborazione, pubblicazione) più uno stato generale.\nconst risposta = $input.first().json;\nconst s = risposta.status || {};\nconst fasi = { caricamento: s.uploading_phase, elaborazione: s.processing_phase, pubblicazione: s.publishing_phase };\nconst conErrore = Object.entries(fasi).filter(([, fase]) => fase && fase.status === 'error');\n\nlet esito = 'in_corso';\nif (['error', 'expired', 'upload_failed'].includes(s.video_status) || conErrore.length) {\n  esito = 'fallito';\n} else if ((s.publishing_phase && s.publishing_phase.status === 'complete') || (!s.publishing_phase && s.video_status === 'ready')) {\n  esito = 'pronto';\n}\n\nconst dettagli = conErrore.map(([nome, fase]) => {\n  const messaggi = (fase.errors || []).map((e) => e.message || e.code).filter(Boolean).join(', ');\n  return `fase ${nome}: ${messaggi || 'errore'}`;\n});\nif (!dettagli.length && s.video_status) dettagli.push(`stato ${s.video_status}`);\n\nreturn [{ json: { esito, dettaglio: dettagli.join(' · ') || 'nessun dettaglio da Facebook', video_id: risposta.id } }];\n"
+   },
+   "id": "fbf251f7-b2d6-4956-b896-34dc4a3609c0",
+   "name": "FB valuta stato video",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5328,
+    2144
+   ]
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "446b57f2-6193-561a-b3eb-37b79aa9199d",
+          "leftValue": "={{ $json.esito }}",
+          "rightValue": "pronto",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "pronto"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": false,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "17b5b169-4a0d-5b95-ad52-cc61b6f14d66",
+          "leftValue": "={{ $json.esito }}",
+          "rightValue": "fallito",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "fallito"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "in corso"
+    }
+   },
+   "id": "3fc91c1a-b2b7-4aa2-abeb-34412e3e2fda",
+   "name": "FB stato video?",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    5568,
+    2144
+   ]
+  },
+  {
+   "parameters": {
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('FB conta tentativo video').first().json.video_id }}",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "permalink_url"
+      },
+      {
+       "name": "access_token",
+       "value": "={{ $('FB token pagina').first().json.access_token }}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 120000
+    }
+   },
+   "id": "4d6b1056-dbe2-417e-817b-4466c77053cf",
+   "name": "FB leggi link video",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    5808,
+    2000
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "errorMessage": "={{ 'Facebook non ha accettato il video: ' + $json.dettaglio + '. Controlla il file: reel verticale 9:16 da 3 a 90 secondi, storia video al massimo 60 secondi, MP4 consigliato. Poi rimetti approvato (se link_ig è già pieno, Instagram non verrà ripubblicato).' }}"
+   },
+   "id": "c0665a41-691f-4a01-8be7-999fa572f5ae",
+   "name": "FB video fallito",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    5808,
+    2192
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "15b9356f-e420-5d6d-ba41-d11fbcd1b2c1",
+       "leftValue": "={{ $('FB conta tentativo video').first().json.tentativo }}",
+       "rightValue": "={{ $('Config').first().json.FB_MAX_TENTATIVI }}",
+       "operator": {
+        "type": "number",
+        "operation": "lt"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "c1efbfe0-e39d-4e27-842d-68fb3f45a47d",
+   "name": "FB altri tentativi video?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    5808,
+    2368
+   ]
+  },
+  {
+   "parameters": {
+    "amount": "={{ $('Config').first().json.ATTESA_SECONDI }}"
+   },
+   "id": "4750d6f3-ad85-4828-8f11-f3b4bae948fb",
+   "name": "FB aspetta video",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    6048,
+    2368
+   ],
+   "webhookId": "9b7b095e-551d-510a-a006-50b3886ee51a"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "26d73de4-feb9-5be2-a018-3214a12e8306",
+       "name": "video_id",
+       "value": "={{ $('FB conta tentativo video').first().json.video_id }}",
+       "type": "string"
+      },
+      {
+       "id": "1313d1f9-f26c-5c89-a4fd-d6e408066b2d",
+       "name": "tentativo",
+       "value": "={{ $('FB conta tentativo video').first().json.tentativo }}",
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "abc8f704-741c-4ea0-900d-cbe4388a7dd4",
+   "name": "FB riprova video",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    6288,
+    2368
+   ]
+  },
+  {
+   "parameters": {
+    "errorMessage": "={{ 'Facebook sta ancora elaborando il video dopo circa ' + Math.round($('FB conta tentativo video').first().json.tentativo * $('Config').first().json.ATTESA_SECONDI / 60) + ' minuti. Spesso poi esce da solo: controlla la Pagina tra 15-30 minuti. Se è uscito scrivi pubblicato e incolla il link in link_fb; se no rimetti approvato.' }}"
+   },
+   "id": "2a10d2c4-4126-4b47-8b3a-8f05a73e1186",
+   "name": "FB video tempo scaduto",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    6048,
+    2544
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Esito di Facebook: il link del contenuto e gli eventuali avvisi (che non bloccano la pubblicazione).\n// Legge solo i nodi del percorso fatto in QUESTO giro (percorso_fb), così non pesca dati di una riga precedente.\nconst c = $('Contenuto pronto').first().json;\nconst pagina = `https://www.facebook.com/${c.fb_page_id}`;\nconst avvisi = [];\nlet link = pagina;\n\nif (c.percorso_fb === 'post' || c.percorso_fb === 'carosello') {\n  const postId = $('FB post id').first().json.post_id;\n  const letto = $('FB leggi link post').first().json;\n  link = letto.permalink_url || `https://www.facebook.com/${postId}`;\n  if (!letto.permalink_url) avvisi.push('link Facebook non letto: ho messo quello generico del post');\n  // Se era previsto il primo commento, l'elemento arrivato qui è la risposta del commento.\n  if (c.commento_fb && $input.first().json.error) avvisi.push('primo commento Facebook NON inserito: aggiungilo a mano');\n} else if (c.percorso_fb === 'video') {\n  const p = String($('FB leggi link video').first().json.permalink_url || '');\n  if (p) link = p.startsWith('http') ? p : `https://www.facebook.com${p.startsWith('/') ? '' : '/'}${p}`;\n  else avvisi.push('link Facebook del video non letto: ho messo quello della Pagina');\n} else {\n  // Le storie non hanno un indirizzo fisso: il link porta alla Pagina, dove la storia resta visibile per 24 ore.\n  link = pagina;\n}\nreturn [{ json: { link_fb: link, avvisi } }];\n"
+   },
+   "id": "aed08f45-0d54-4825-ad20-309bc11045c3",
+   "name": "Risultato Facebook",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    6288,
+    1680
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Prepara i valori da scrivere nella riga a fine pubblicazione.\n// Usa i risultati di Instagram/Facebook solo se in QUESTO giro quella piattaforma era da pubblicare.\nconst c = $('Prepara contenuto').first().json;\nconst esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst ig = c.pubblica_ig ? $('Risultato Instagram').first().json : null;\nconst fb = c.pubblica_fb ? $('Risultato Facebook').first().json : null;\n\nconst linkIg = ig ? ig.link_ig : c.link_ig;\nconst linkFb = fb ? fb.link_fb : c.link_fb;\nconst avvisi = [...(c.avvisi || []), ...((ig && ig.avvisi) || []), ...((fb && fb.avvisi) || [])];\n\nconst link = [linkIg && `Instagram: ${linkIg}`, linkFb && `Facebook: ${linkFb}`].filter(Boolean);\nconst avvisoHtml = avvisi.length\n  ? `ℹ️ <b>${esc(c.nome_locale)}</b> · id ${esc(c.id)} (${esc(c.tipo)}) è uscito, ma:\\n• ${avvisi.map(esc).join('\\n• ')}`\n    + (link.length ? `\\n\\n${link.map(esc).join('\\n')}` : '')\n  : '';\n\nreturn [{\n  json: {\n    id: c.id,\n    link_ig: linkIg || '',\n    link_fb: linkFb || '',\n    pubblicato_il: DateTime.now().setZone('Europe/Rome').toFormat('yyyy-MM-dd HH:mm'),\n    errore: avvisi.length ? `Pubblicato con avvisi: ${avvisi.join(' · ')}` : '',\n    avviso_html: avvisoHtml,\n  },\n}];\n"
+   },
+   "id": "61d461c2-51a9-4beb-837a-4891d6fe1272",
+   "name": "Prepara chiusura",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    7008,
+    1280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "Calendario",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "id": "={{ $json.id }}",
+      "stato": "pubblicato",
+      "link_ig": "={{ $json.link_ig }}",
+      "link_fb": "={{ $json.link_fb }}",
+      "pubblicato_il": "={{ $json.pubblicato_il }}",
+      "errore": "={{ $json.errore }}"
+     },
+     "matchingColumns": [
+      "id"
+     ],
+     "schema": [
+      {
+       "id": "id",
+       "displayName": "id",
+       "required": false,
+       "defaultMatch": true,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tipo",
+       "displayName": "tipo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "piattaforme",
+       "displayName": "piattaforme",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "didascalia",
+       "displayName": "didascalia",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "primo_commento",
+       "displayName": "primo_commento",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "media",
+       "displayName": "media",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "copertina",
+       "displayName": "copertina",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "stato",
+       "displayName": "stato",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "esecuzione",
+       "displayName": "esecuzione",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "link_ig",
+       "displayName": "link_ig",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "link_fb",
+       "displayName": "link_fb",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "pubblicato_il",
+       "displayName": "pubblicato_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "errore",
+       "displayName": "errore",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": false
+      },
+      {
+       "id": "note",
+       "displayName": "note",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "brief",
+       "displayName": "brief",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "tag_persone",
+       "displayName": "tag_persone",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "collaboratori",
+       "displayName": "collaboratori",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "luogo",
+       "displayName": "luogo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true,
+       "removed": true
+      },
+      {
+       "id": "row_number",
+       "displayName": "row_number",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "number",
+       "canBeUsedToMatch": true,
+       "readOnly": true,
+       "removed": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW"
+    }
+   },
+   "id": "2cfa37df-c501-4f16-846a-2453d8f9c297",
+   "name": "Segna pubblicato",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    7248,
+    1280
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": false,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "e714d44c-c4fa-5ff6-8a55-e7cf3123c112",
+       "leftValue": "={{ $('Prepara chiusura').first().json.avviso_html }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "notEmpty",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "95c83f42-4ac8-413d-a675-fb2ec74980c9",
+   "name": "Ci sono avvisi?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    7488,
+    1280
+   ]
+  },
+  {
+   "parameters": {
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $('Prepara chiusura').first().json.avviso_html }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "disable_web_page_preview": true,
+     "parse_mode": "HTML"
+    }
+   },
+   "id": "dfa63646-9be7-496e-8d8c-6fdef942d6d6",
+   "name": "Avvisa avvisi",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    7728,
+    1120
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "webhookId": "075b16fa-5a2d-4b27-8f9a-ee543a4b9b7a",
+   "onError": "continueRegularOutput"
+  }
+ ],
+ "connections": {
+  "Ogni 5 minuti": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Leggi calendario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi calendario": {
+   "main": [
+    [
+     {
+      "node": "Scegli cosa pubblicare",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scegli cosa pubblicare": {
+   "main": [
+    [
+     {
+      "node": "Smista righe",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Smista righe": {
+   "main": [
+    [
+     {
+      "node": "Uno alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Segna problema in calendario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Segna problema in calendario": {
+   "main": [
+    [
+     {
+      "node": "Prepara avviso problemi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara avviso problemi": {
+   "main": [
+    [
+     {
+      "node": "Avvisa problemi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Uno alla volta": {
+   "main": [
+    [
+     {
+      "node": "Fine giro",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Rileggi riga",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rileggi riga": {
+   "main": [
+    [
+     {
+      "node": "Ancora da pubblicare?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ancora da pubblicare?": {
+   "main": [
+    [
+     {
+      "node": "Prenota riga",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Uno alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prenota riga": {
+   "main": [
+    [
+     {
+      "node": "Pausa anti-doppione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pausa anti-doppione": {
+   "main": [
+    [
+     {
+      "node": "Controlla prenotazione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Controlla prenotazione": {
+   "main": [
+    [
+     {
+      "node": "Prenotata da questo giro?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prenotata da questo giro?": {
+   "main": [
+    [
+     {
+      "node": "Leggi cliente",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Uno alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi cliente": {
+   "main": [
+    [
+     {
+      "node": "Prepara contenuto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara contenuto": {
+   "main": [
+    [
+     {
+      "node": "Dati completi?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dati completi?": {
+   "main": [
+    [
+     {
+      "node": "Elenca file",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Segna dati incompleti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Segna dati incompleti": {
+   "main": [
+    [
+     {
+      "node": "Avvisa dati incompleti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avvisa dati incompleti": {
+   "main": [
+    [
+     {
+      "node": "Uno alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Elenca file": {
+   "main": [
+    [
+     {
+      "node": "Scarica da Drive",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scarica da Drive": {
+   "main": [
+    [
+     {
+      "node": "Controlla formato file",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Controlla formato file": {
+   "main": [
+    [
+     {
+      "node": "Carica su R2",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Carica su R2": {
+   "main": [
+    [
+     {
+      "node": "Contenuto pronto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Contenuto pronto": {
+   "main": [
+    [
+     {
+      "node": "Va su Instagram?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Va su Instagram?": {
+   "main": [
+    [
+     {
+      "node": "IG tipo di contenuto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Va su Facebook?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG tipo di contenuto": {
+   "main": [
+    [
+     {
+      "node": "IG contenitore foto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "IG foto del carosello",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "IG contenitore reel",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "IG contenitore storia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG foto del carosello": {
+   "main": [
+    [
+     {
+      "node": "IG contenitori carosello",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG contenitori carosello": {
+   "main": [
+    [
+     {
+      "node": "IG unisci carosello",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG unisci carosello": {
+   "main": [
+    [
+     {
+      "node": "IG contenitore carosello",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG contenitore foto": {
+   "main": [
+    [
+     {
+      "node": "IG conta tentativo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG contenitore carosello": {
+   "main": [
+    [
+     {
+      "node": "IG conta tentativo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG contenitore reel": {
+   "main": [
+    [
+     {
+      "node": "IG conta tentativo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG contenitore storia": {
+   "main": [
+    [
+     {
+      "node": "IG conta tentativo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG conta tentativo": {
+   "main": [
+    [
+     {
+      "node": "IG controlla stato",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG controlla stato": {
+   "main": [
+    [
+     {
+      "node": "IG stato?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG stato?": {
+   "main": [
+    [
+     {
+      "node": "IG pubblica",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "IG elaborazione fallita",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "IG altri tentativi?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG altri tentativi?": {
+   "main": [
+    [
+     {
+      "node": "IG aspetta",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "IG tempo scaduto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG aspetta": {
+   "main": [
+    [
+     {
+      "node": "IG riprova",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG riprova": {
+   "main": [
+    [
+     {
+      "node": "IG conta tentativo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG pubblica": {
+   "main": [
+    [
+     {
+      "node": "IG leggi link",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG leggi link": {
+   "main": [
+    [
+     {
+      "node": "IG primo commento?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG primo commento?": {
+   "main": [
+    [
+     {
+      "node": "IG scrivi primo commento",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Risultato Instagram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IG scrivi primo commento": {
+   "main": [
+    [
+     {
+      "node": "Risultato Instagram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Risultato Instagram": {
+   "main": [
+    [
+     {
+      "node": "Salva link Instagram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Salva link Instagram": {
+   "main": [
+    [
+     {
+      "node": "Va su Facebook?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Va su Facebook?": {
+   "main": [
+    [
+     {
+      "node": "FB token pagina",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Prepara chiusura",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB token pagina": {
+   "main": [
+    [
+     {
+      "node": "FB tipo di contenuto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB tipo di contenuto": {
+   "main": [
+    [
+     {
+      "node": "FB pubblica foto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "FB foto del carosello",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "FB storia carica foto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "FB video avvio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB pubblica foto": {
+   "main": [
+    [
+     {
+      "node": "FB post id",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB foto del carosello": {
+   "main": [
+    [
+     {
+      "node": "FB carica foto carosello",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB carica foto carosello": {
+   "main": [
+    [
+     {
+      "node": "FB unisci foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB unisci foto": {
+   "main": [
+    [
+     {
+      "node": "FB pubblica post multi-foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB pubblica post multi-foto": {
+   "main": [
+    [
+     {
+      "node": "FB post id",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB post id": {
+   "main": [
+    [
+     {
+      "node": "FB leggi link post",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB leggi link post": {
+   "main": [
+    [
+     {
+      "node": "FB primo commento?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB primo commento?": {
+   "main": [
+    [
+     {
+      "node": "FB scrivi primo commento",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Risultato Facebook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB scrivi primo commento": {
+   "main": [
+    [
+     {
+      "node": "Risultato Facebook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB storia carica foto": {
+   "main": [
+    [
+     {
+      "node": "FB storia pubblica foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB storia pubblica foto": {
+   "main": [
+    [
+     {
+      "node": "Risultato Facebook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB video avvio": {
+   "main": [
+    [
+     {
+      "node": "FB video carica",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB video carica": {
+   "main": [
+    [
+     {
+      "node": "FB video pubblica",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB video pubblica": {
+   "main": [
+    [
+     {
+      "node": "FB conta tentativo video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB conta tentativo video": {
+   "main": [
+    [
+     {
+      "node": "FB controlla video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB controlla video": {
+   "main": [
+    [
+     {
+      "node": "FB valuta stato video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB valuta stato video": {
+   "main": [
+    [
+     {
+      "node": "FB stato video?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB stato video?": {
+   "main": [
+    [
+     {
+      "node": "FB leggi link video",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "FB video fallito",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "FB altri tentativi video?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB leggi link video": {
+   "main": [
+    [
+     {
+      "node": "Risultato Facebook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB altri tentativi video?": {
+   "main": [
+    [
+     {
+      "node": "FB aspetta video",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "FB video tempo scaduto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB aspetta video": {
+   "main": [
+    [
+     {
+      "node": "FB riprova video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "FB riprova video": {
+   "main": [
+    [
+     {
+      "node": "FB conta tentativo video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Risultato Facebook": {
+   "main": [
+    [
+     {
+      "node": "Prepara chiusura",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara chiusura": {
+   "main": [
+    [
+     {
+      "node": "Segna pubblicato",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Segna pubblicato": {
+   "main": [
+    [
+     {
+      "node": "Ci sono avvisi?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ci sono avvisi?": {
+   "main": [
+    [
+     {
+      "node": "Avvisa avvisi",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Uno alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avvisa avvisi": {
+   "main": [
+    [
+     {
+      "node": "Uno alla volta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "445fb808-8f4b-4aa3-9da1-7c01782aaec3",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-15T02:24:07.772Z",
+   "createdAt": "2026-11-15T02:24:07.772Z",
+   "role": "workflow:owner",
+   "workflowId": "czHoQlQ8p3UqC8Hn",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

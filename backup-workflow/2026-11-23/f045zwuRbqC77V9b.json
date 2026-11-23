@@ -1,0 +1,762 @@
+{
+ "updatedAt": "2026-11-23T01:35:18.447Z",
+ "createdAt": "2026-11-22T23:14:56.561Z",
+ "id": "f045zwuRbqC77V9b",
+ "name": "Prepara foglio (una tantum)",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {},
+   "id": "bcf33d5d-ff7f-5a33-aca0-05b90c998054",
+   "name": "Avvio a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "3a308f65-b611-5e04-a1b3-70c7611ffe3c",
+       "name": "MODALITA",
+       "value": "prova",
+       "type": "string"
+      },
+      {
+       "id": "05dd6de6-555f-56a5-a5e1-999e7332d959",
+       "name": "SHEET_ID",
+       "value": "1nOTwzXkqNsfwortRslKBzsBXh2uIz2G2Lyu13Hufmjo",
+       "type": "string"
+      },
+      {
+       "id": "957f68c5-b110-54fb-ab15-fd2a68a258e6",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "1913003037",
+       "type": "string"
+      },
+      {
+       "id": "660cd638-32bf-5abd-a6ab-70302faadca9",
+       "name": "GRAPH_VERSION",
+       "value": "v26.0",
+       "type": "string"
+      },
+      {
+       "id": "5b68d854-e3bc-5ac1-abfa-09026d5ea510",
+       "name": "FB_PAGE_ID_2",
+       "value": "139596506086480",
+       "type": "string"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "options": {}
+   },
+   "id": "4fdf6507-f3e5-5cf1-a180-b8a58fa75d07",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    220,
+    0
+   ],
+   "notes": "MODALITA = prova: legge e manda su Telegram cosa farebbe, zero scritture. Scrivi «vero» solo con l'OK di Nicola."
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://graph.facebook.com/{{ $('Config').first().json.GRAPH_VERSION }}/{{ $('Config').first().json.FB_PAGE_ID_2 }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "instagram_business_account{id}"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    }
+   },
+   "id": "c35ba6a9-1268-5c77-a6fd-ed462240496f",
+   "name": "Leggi Meta",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    330,
+    200
+   ],
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "gig54hy1CAmOAj1P",
+     "name": "Meta - System User"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "executeOnce": true
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===== Aiuti comuni di «Prepara foglio (una tantum)» =====\n// Questo blocco è uguale in tutti i nodi Code: si modifica qui e si rigenera con costruisci.mjs.\nconst API = 'https://sheets.googleapis.com/v4/spreadsheets/';\nconst CLIENTI = 'Clienti';\nconst CALENDARIO = 'Calendario';\nconst APPROVAZIONI = 'Approvazioni storie';\nconst NUOVE_CLIENTI = ['ig_user_id_2', 'fb_page_id_2', 'campi_da_confermare'];\nconst NUOVE_CLIENTI_F = ['anteprime_con_persone'];\nconst COLONNE_TESTO = ['ig_user_id_2', 'fb_page_id_2'];\nconst CAL_A_T = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato',\n  'esecuzione', 'link_ig', 'link_fb', 'pubblicato_il', 'errore', 'note', 'brief', 'tag_persone', 'collaboratori', 'luogo'];\nconst CAL_U_Z = ['stato_2', 'esecuzione_2', 'link_ig_2', 'link_fb_2', 'pubblicato_il_2', 'errore_2'];\nconst APP_INTESTAZIONI = ['data_ora', 'chiave', 'id_riga', 'cliente', 'esce_il', 'esito', 'scade_il', 'token', 'dettaglio'];\nconst TROPICO = 'tropico-latino';\nconst FRASI_TROPICO = 'Vi aspettiamo stasera in via Mazzini 77/A | Prenota il tuo tavolo: 0523 335932 | Margarita frozen o classico? | Aperitivo al bancone, si parte! | Due sale, più di 100 posti: portate tutti | Bienvenidos al Tropico! | Fajitas per due: si divide e si assaggia | Nachos e guacamole per cominciare | Anche vegetariano: burrito de verduras | Enchiladas rojas o verdes? Scegli tu | Queso fundido da condividere al tavolo | Venerdì e sabato aperti fino alle 2 | Cucina aperta fino alle 23, nel weekend 23:30 | Per finire in dolcezza: churros | Mousse al cioccolato e peperoncino, da provare';\nconst LINK_TROPICO = 'https://wa.me/393312173684';\nconst PUNTI = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];\nconst ID_NUOVA_SCHEDA = 2026112201; // sheetId scelto da noi, così addSheet e intestazioni stanno in UNA chiamata atomica\n\nconst cfg = () => $('Config').first().json;\nconst modalitaVera = () => String(cfg().MODALITA || '').trim() === 'vero'; // qualunque altro valore = prova\nconst lettera = (i) => { let s = ''; let n = i + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };\nconst intervallo = (titolo, a1) => `'${titolo.replace(/'/g, \"''\")}'` + (a1 ? `!${a1}` : '');\nconst urlFoglio = () => API + encodeURIComponent(cfg().SHEET_ID);\nconst cella = (riga, i) => (riga && riga[i] != null ? String(riga[i]) : '');\nconst vuota = (v) => String(v == null ? '' : v).trim() === '';\nconst virgolette = (v) => '«' + (String(v).length > 30 ? String(v).slice(0, 30) + '…' : String(v)) + '»';\n\n// Le letture: struttura (solo sheets.properties) + valori delle tre schede. Righe intere, mai colonne oltre la griglia.\nfunction letture() {\n  const u = urlFoglio();\n  return [\n    { cosa: 'meta', url: `${u}?fields=sheets.properties` },\n    { cosa: 'clienti', url: `${u}/values/${encodeURIComponent(intervallo(CLIENTI))}` },\n    { cosa: 'calendario', url: `${u}/values/${encodeURIComponent(intervallo(CALENDARIO))}` },\n    { cosa: 'approvazioni', url: `${u}/values/${encodeURIComponent(intervallo(APPROVAZIONI, '1:1'))}` },\n  ];\n}\n\n// Esito di una risposta dell'HTTP Request (fullResponse + neverError, oppure {error} se la rete è caduta).\nfunction esito(r) {\n  if (!r) return { ok: false, errore: 'nessuna risposta' };\n  if (r.error) return { ok: false, errore: 'rete: ' + String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 160) };\n  const sc = Number(r.statusCode);\n  if (sc >= 200 && sc < 300) return { ok: true, body: r.body || {} };\n  const msg = r.body && r.body.error && r.body.error.message ? String(r.body.error.message) : String(r.statusMessage || '');\n  return { ok: false, errore: `HTTP ${sc || '?'}: ${msg.slice(0, 160)}` };\n}\n\n// Mette insieme le risposte delle letture (stesso ordine delle richieste).\nfunction leggiStato(richieste, risposte) {\n  const s = { meta: null, valori: {}, errori: {} };\n  richieste.forEach((q, i) => {\n    const e = esito(risposte[i]);\n    if (!e.ok) { s.errori[q.cosa] = e.errore; s.valori[q.cosa] = null; return; }\n    if (q.cosa === 'meta') {\n      s.meta = {};\n      for (const sh of e.body.sheets || []) { const p = sh.properties || {}; s.meta[p.title] = { sheetId: p.sheetId, colonne: (p.gridProperties || {}).columnCount || 0 }; }\n    } else s.valori[q.cosa] = e.body.values || [];\n  });\n  return s;\n}\n\nconst fermo = (perche, api = false) => ({ stato: 'fermo', perche, api, struttura: [], valori: [] });\nconst aPosto = () => ({ stato: 'gia', struttura: [], valori: [] });\nconst errLettura = (s, cosa) => fermo(`non riesco a leggere (${s.errori[cosa] || s.errori.meta || 'errore'})`, true);\n\n// Colonne nuove di Clienti: a) le 3 colonne, f) anteprime_con_persone. Stanno in fondo, una dopo l'altra:\n// le posizioni si calcolano INSIEME (prima quelle di a, poi f) e la modifica di griglia/formato va in UN solo batchUpdate,\n// sul punto a se ha qualcosa da fare, altrimenti sul punto f. Così due chiamate parallele non si pestano i piedi.\nfunction colonneClienti(s) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  const m = s.meta[CLIENTI];\n  if (!m) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v));\n  const presenti = new Set(int.map((v) => v.trim()));\n  const manca = { a: NUOVE_CLIENTI.filter((n) => !presenti.has(n)), f: NUOVE_CLIENTI_F.filter((n) => !presenti.has(n)) };\n  const tutte = manca.a.concat(manca.f);\n  if (!tutte.length) return { manca };\n  let inizio = 0; int.forEach((v, i) => { if (!vuota(v)) inizio = i + 1; });\n  if (righe.slice(1).some((r) => (r || []).slice(inizio).some((v) => !vuota(v))))\n    return { manca, fermo: fermo(`ci sono dati a destra dell'ultima intestazione (dalla colonna ${lettera(inizio)}): non metto colonne sopra dati esistenti`) };\n  const fine = inizio + tutte.length;\n  const struttura = [];\n  if (fine > m.colonne) struttura.push({ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: fine - m.colonne } });\n  tutte.forEach((n, k) => {\n    if (COLONNE_TESTO.includes(n)) struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n      cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } });\n  });\n  // Le intestazioni entrano nello STESSO batchUpdate (repeatCell con il testo, come in c): griglia, formato e nomi\n  // nascono insieme o per niente. Così alla rilettura le colonne esistono già per nome e il punto g le ritrova.\n  tutte.forEach((n, k) => struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n    cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } }));\n  const allarga = fine > m.colonne ? fine - m.colonne : 0;\n  return { manca, inizio, struttura, allarga, padrone: manca.a.length ? 'a' : 'f' };\n}\n\nfunction puntoColonne(s, p) {\n  const c = colonneClienti(s);\n  if (c.manca && !c.manca[p].length) return aPosto();\n  if (c.fermo) return c.fermo;\n  const da = c.inizio + (p === 'f' ? c.manca.a.length : 0);\n  const nomi = c.manca[p]; const a = da + nomi.length - 1;\n  const mia = c.padrone === p;\n  const descr = `aggiunta di ${nomi.join(', ')} in ${lettera(da)}1${a > da ? '-' + lettera(a) + '1' : ''}`\n    + (nomi.some((n) => COLONNE_TESTO.includes(n)) ? ' (ID in formato testo)' : '')\n    + (p === 'f' ? ' (vuota = no, formato normale)' : '')\n    + (mia && c.allarga ? `, griglia +${c.allarga} colonne` : '');\n  return { stato: 'da_fare', descr, struttura: mia ? c.struttura : [], valori: [], ...(mia ? {} : { dipende: c.padrone }) };\n}\nconst puntoA = (s) => puntoColonne(s, 'a');\nconst puntoF = (s) => puntoColonne(s, 'f');\n\nfunction puntoB(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[CALENDARIO];\n  if (!m) return fermo('la scheda Calendario non esiste');\n  const righe = s.valori.calendario;\n  if (righe == null) return errLettura(s, 'calendario');\n  const int = righe[0] || [];\n  const diverse = CAL_A_T.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  if (diverse.length) return fermo(`A1:T1 non sono le 20 intestazioni attese (${diverse.slice(0, 3).join('; ')}${diverse.length > 3 ? `; e altre ${diverse.length - 3}` : ''})`);\n  const uz = CAL_U_Z.map((n, k) => cella(int, 20 + k));\n  if (uz.every((v, k) => v === CAL_U_Z[k])) return aPosto();\n  if (!uz.every(vuota)) {\n    const altro = uz.map((v, k) => (vuota(v) || v === CAL_U_Z[k] ? null : `${lettera(20 + k)}1 = ${virgolette(v)}`)).filter(Boolean);\n    return fermo(altro.length ? `U1:Z1 contengono altro (${altro.join('; ')}): non scrivo` : 'U1:Z1 sono compilate solo in parte: non scrivo, controlla a mano');\n  }\n  if (righe.slice(1).some((r) => (r || []).slice(20, 26).some((v) => !vuota(v)))) return fermo('ci sono già dati nelle colonne U-Z sotto intestazioni vuote: non scrivo');\n  const struttura = m.colonne < 26 ? [{ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: 26 - m.colonne } }] : [];\n  return { stato: 'da_fare', descr: 'intestazioni stato_2 … errore_2 in U1:Z1' + (struttura.length ? `, griglia +${26 - m.colonne} colonne` : ''),\n    struttura, valori: [{ range: intervallo(CALENDARIO, 'U1:Z1'), values: [CAL_U_Z] }] };\n}\n\nfunction puntoC(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[APPROVAZIONI];\n  if (!m) {\n    let id = ID_NUOVA_SCHEDA; const usati = new Set(Object.values(s.meta).map((x) => x.sheetId));\n    while (usati.has(id)) id += 1;\n    const struttura = [{ addSheet: { properties: { sheetId: id, title: APPROVAZIONI, gridProperties: { rowCount: 1000, columnCount: 26 } } } }]\n      .concat(APP_INTESTAZIONI.map((n, i) => ({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1, startColumnIndex: i, endColumnIndex: i + 1 },\n        cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } })));\n    return { stato: 'da_fare', descr: 'nuova scheda con le 9 intestazioni (data_ora … dettaglio)', struttura, valori: [] };\n  }\n  const righe = s.valori.approvazioni;\n  if (righe == null) return errLettura(s, 'approvazioni');\n  const int = righe[0] || [];\n  const diff = APP_INTESTAZIONI.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  int.slice(9).forEach((v, k) => { if (!vuota(v)) diff.push(`${lettera(9 + k)}1 in più: ${virgolette(v)}`); });\n  if (!diff.length) return aPosto();\n  return fermo(`la scheda esiste già con intestazioni diverse (${diff.slice(0, 4).join('; ')}${diff.length > 4 ? `; e altre ${diff.length - 4}` : ''}): non la tocco`);\n}\n\n// La riga di tropico-latino (una sola) e la colonna per nome, nello stato letto.\nfunction cellaTropico(s, colonna) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  if (!s.meta[CLIENTI]) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v).trim());\n  const quante = (n) => int.filter((v) => v === n).length;\n  if (quante('cliente') !== 1) return { fermo: fermo(quante('cliente') ? 'la colonna cliente compare più volte' : 'manca la colonna cliente') };\n  if (quante(colonna) !== 1) return { fermo: fermo(quante(colonna) ? `la colonna ${colonna} compare più volte` : `manca la colonna ${colonna}`) };\n  const ic = int.indexOf('cliente'); const col = int.indexOf(colonna);\n  const trovate = []; righe.forEach((r, i) => { if (i > 0 && cella(r, ic).trim() === TROPICO) trovate.push(i + 1); });\n  if (!trovate.length) return { fermo: fermo(`nessuna riga con cliente = ${TROPICO}`) };\n  if (trovate.length > 1) return { fermo: fermo(`${TROPICO} compare in ${trovate.length} righe (righe ${trovate.join(', ')}): non so quale scrivere`) };\n  const riga = trovate[0];\n  return { riga, attuale: cella(righe[riga - 1], col), range: intervallo(CLIENTI, `${lettera(col)}${riga}`) };\n}\n\nfunction puntoD(s) {\n  const t = cellaTropico(s, 'frasi_storie');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === FRASI_TROPICO) return aPosto();\n  return { stato: 'da_fare', descr: `nuovo testo in frasi_storie, riga ${t.riga} (prima: ${t.attuale ? t.attuale.length + ' caratteri' : 'vuota'})`,\n    struttura: [], valori: [{ range: t.range, values: [[FRASI_TROPICO]] }] };\n}\n\n// e) link_prenotazione. Il numero non entra MAI nella descrizione: né il vecchio né il nuovo.\nfunction puntoE(s) {\n  const t = cellaTropico(s, 'link_prenotazione');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === LINK_TROPICO) return aPosto();\n  const prima = vuota(t.attuale) ? '(vuoto)' : (/wa\\.me/i.test(t.attuale) ? 'wa.me/… (nascosto)' : '(nascosto)');\n  return { stato: 'da_fare', descr: `link_prenotazione: ${prima} → wa.me/… (nascosto), riga ${t.riga}`,\n    struttura: [], valori: [{ range: t.range, values: [[LINK_TROPICO]] }] };\n}\n\n// g) La lettura da Meta: buona SOLO con status 200 e instagram_business_account.id di sole cifre, 15-20.\n// Il motivo è sempre un testo nostro: il messaggio d'errore di Meta non esce mai (al massimo il codice HTTP).\nfunction letturaMeta() {\n  let r;\n  try { r = $('Leggi Meta').first().json; } catch (e) { return { ok: false, perche: 'lettura da Meta non eseguita' }; }\n  if (!r || r.error) return { ok: false, perche: 'lettura da Meta non riuscita (rete)' };\n  const sc = Number(r.statusCode);\n  if (sc !== 200) return { ok: false, perche: `lettura da Meta non riuscita (codice HTTP ${Number.isFinite(sc) ? sc : '?'})` };\n  const iba = r.body && r.body.instagram_business_account;\n  const id = iba && iba.id;\n  if (typeof id !== 'string') return { ok: false, perche: 'lettura da Meta senza account Instagram collegato (codice HTTP 200)' };\n  if (!/^\\d{15,20}$/.test(id)) return { ok: false, perche: 'lettura da Meta con un ID Instagram di forma inattesa (codice HTTP 200)' };\n  return { ok: true, id };\n}\n\n// g) Scrive ig_user_id_2 (letto) e fb_page_id_2 (da Config) nella riga di tropico-latino. MAI ID nei testi.\nfunction puntoG(s, colonneDiA) {\n  const ig = letturaMeta();\n  if (!ig.ok) return fermo(ig.perche, true);\n  const fb2 = String(cfg().FB_PAGE_ID_2 || '').trim();\n  if (!/^\\d{5,20}$/.test(fb2)) return fermo('FB_PAGE_ID_2 nel Config manca o non è un numero');\n  const prima = {};\n  for (const col of ['ig_user_id', 'fb_page_id']) { const t = cellaTropico(s, col); if (t.fermo) return t.fermo; prima[col] = t.attuale.trim(); }\n  // Se le colonne _2 nascono in questo giro col punto a, oggi sono vuote per definizione.\n  const nasce = colonneDiA.stato === 'da_fare' ? new Set((colonneClienti(s).manca || { a: [] }).a) : new Set();\n  const ora = {}; const range = {}; let riga = null;\n  for (const col of ['ig_user_id_2', 'fb_page_id_2']) {\n    if (nasce.has(col)) { ora[col] = ''; continue; }\n    const t = cellaTropico(s, col); if (t.fermo) return t.fermo;\n    ora[col] = t.attuale; range[col] = t.range; riga = t.riga;\n  }\n  if (ig.id === prima.ig_user_id || ig.id === prima.fb_page_id) return fermo('l\\'ID Instagram letto è uguale a un ID della prima coppia: non scrivo');\n  if (fb2 === prima.fb_page_id || fb2 === prima.ig_user_id) return fermo('la pagina Facebook è uguale a un ID della prima coppia: non scrivo');\n  const voluti = { ig_user_id_2: ig.id, fb_page_id_2: fb2 };\n  if (ora.ig_user_id_2 === voluti.ig_user_id_2 && ora.fb_page_id_2 === voluti.fb_page_id_2) return aPosto();\n  const piene = Object.keys(voluti).filter((k) => !vuota(ora[k]) && ora[k] !== voluti[k]);\n  if (piene.length) return fermo(`${piene.join(' e ')} già ${piene.length > 1 ? 'piene' : 'piena'} con un valore diverso: non sovrascrivo`);\n  const daScrivere = Object.keys(voluti).filter((k) => ora[k] !== voluti[k]);\n  return { stato: 'da_fare', descr: `letto da Meta → ${daScrivere.join(' e ')}${riga ? ` nella riga ${riga}` : ''}, in formato testo`,\n    struttura: [], valori: daScrivere.filter((k) => range[k]).map((k) => ({ range: range[k], values: [[voluti[k]]] })),\n    ...(nasce.size ? { dipende: 'a' } : {}) };\n}\n\nfunction analizza(s) { const a = puntoA(s); return { a, b: puntoB(s), c: puntoC(s), d: puntoD(s), e: puntoE(s), f: puntoF(s), g: puntoG(s, a) }; }\n\nconst json = (items) => items.map((i) => i.json);\n// ===== fine aiuti comuni =====\n\n// Prima lettura: lo stato iniziale del foglio.\nreturn letture().map((l) => ({ json: l }));\n"
+   },
+   "id": "ca6c07db-035f-5f8c-ad03-7904749606f4",
+   "name": "Prepara letture",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    440,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $json.url }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleSheetsOAuth2Api",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    }
+   },
+   "id": "cfd3b09b-c13e-54bd-a36a-df332b8a74c7",
+   "name": "Leggi stato iniziale",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    660,
+    0
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===== Aiuti comuni di «Prepara foglio (una tantum)» =====\n// Questo blocco è uguale in tutti i nodi Code: si modifica qui e si rigenera con costruisci.mjs.\nconst API = 'https://sheets.googleapis.com/v4/spreadsheets/';\nconst CLIENTI = 'Clienti';\nconst CALENDARIO = 'Calendario';\nconst APPROVAZIONI = 'Approvazioni storie';\nconst NUOVE_CLIENTI = ['ig_user_id_2', 'fb_page_id_2', 'campi_da_confermare'];\nconst NUOVE_CLIENTI_F = ['anteprime_con_persone'];\nconst COLONNE_TESTO = ['ig_user_id_2', 'fb_page_id_2'];\nconst CAL_A_T = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato',\n  'esecuzione', 'link_ig', 'link_fb', 'pubblicato_il', 'errore', 'note', 'brief', 'tag_persone', 'collaboratori', 'luogo'];\nconst CAL_U_Z = ['stato_2', 'esecuzione_2', 'link_ig_2', 'link_fb_2', 'pubblicato_il_2', 'errore_2'];\nconst APP_INTESTAZIONI = ['data_ora', 'chiave', 'id_riga', 'cliente', 'esce_il', 'esito', 'scade_il', 'token', 'dettaglio'];\nconst TROPICO = 'tropico-latino';\nconst FRASI_TROPICO = 'Vi aspettiamo stasera in via Mazzini 77/A | Prenota il tuo tavolo: 0523 335932 | Margarita frozen o classico? | Aperitivo al bancone, si parte! | Due sale, più di 100 posti: portate tutti | Bienvenidos al Tropico! | Fajitas per due: si divide e si assaggia | Nachos e guacamole per cominciare | Anche vegetariano: burrito de verduras | Enchiladas rojas o verdes? Scegli tu | Queso fundido da condividere al tavolo | Venerdì e sabato aperti fino alle 2 | Cucina aperta fino alle 23, nel weekend 23:30 | Per finire in dolcezza: churros | Mousse al cioccolato e peperoncino, da provare';\nconst LINK_TROPICO = 'https://wa.me/393312173684';\nconst PUNTI = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];\nconst ID_NUOVA_SCHEDA = 2026112201; // sheetId scelto da noi, così addSheet e intestazioni stanno in UNA chiamata atomica\n\nconst cfg = () => $('Config').first().json;\nconst modalitaVera = () => String(cfg().MODALITA || '').trim() === 'vero'; // qualunque altro valore = prova\nconst lettera = (i) => { let s = ''; let n = i + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };\nconst intervallo = (titolo, a1) => `'${titolo.replace(/'/g, \"''\")}'` + (a1 ? `!${a1}` : '');\nconst urlFoglio = () => API + encodeURIComponent(cfg().SHEET_ID);\nconst cella = (riga, i) => (riga && riga[i] != null ? String(riga[i]) : '');\nconst vuota = (v) => String(v == null ? '' : v).trim() === '';\nconst virgolette = (v) => '«' + (String(v).length > 30 ? String(v).slice(0, 30) + '…' : String(v)) + '»';\n\n// Le letture: struttura (solo sheets.properties) + valori delle tre schede. Righe intere, mai colonne oltre la griglia.\nfunction letture() {\n  const u = urlFoglio();\n  return [\n    { cosa: 'meta', url: `${u}?fields=sheets.properties` },\n    { cosa: 'clienti', url: `${u}/values/${encodeURIComponent(intervallo(CLIENTI))}` },\n    { cosa: 'calendario', url: `${u}/values/${encodeURIComponent(intervallo(CALENDARIO))}` },\n    { cosa: 'approvazioni', url: `${u}/values/${encodeURIComponent(intervallo(APPROVAZIONI, '1:1'))}` },\n  ];\n}\n\n// Esito di una risposta dell'HTTP Request (fullResponse + neverError, oppure {error} se la rete è caduta).\nfunction esito(r) {\n  if (!r) return { ok: false, errore: 'nessuna risposta' };\n  if (r.error) return { ok: false, errore: 'rete: ' + String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 160) };\n  const sc = Number(r.statusCode);\n  if (sc >= 200 && sc < 300) return { ok: true, body: r.body || {} };\n  const msg = r.body && r.body.error && r.body.error.message ? String(r.body.error.message) : String(r.statusMessage || '');\n  return { ok: false, errore: `HTTP ${sc || '?'}: ${msg.slice(0, 160)}` };\n}\n\n// Mette insieme le risposte delle letture (stesso ordine delle richieste).\nfunction leggiStato(richieste, risposte) {\n  const s = { meta: null, valori: {}, errori: {} };\n  richieste.forEach((q, i) => {\n    const e = esito(risposte[i]);\n    if (!e.ok) { s.errori[q.cosa] = e.errore; s.valori[q.cosa] = null; return; }\n    if (q.cosa === 'meta') {\n      s.meta = {};\n      for (const sh of e.body.sheets || []) { const p = sh.properties || {}; s.meta[p.title] = { sheetId: p.sheetId, colonne: (p.gridProperties || {}).columnCount || 0 }; }\n    } else s.valori[q.cosa] = e.body.values || [];\n  });\n  return s;\n}\n\nconst fermo = (perche, api = false) => ({ stato: 'fermo', perche, api, struttura: [], valori: [] });\nconst aPosto = () => ({ stato: 'gia', struttura: [], valori: [] });\nconst errLettura = (s, cosa) => fermo(`non riesco a leggere (${s.errori[cosa] || s.errori.meta || 'errore'})`, true);\n\n// Colonne nuove di Clienti: a) le 3 colonne, f) anteprime_con_persone. Stanno in fondo, una dopo l'altra:\n// le posizioni si calcolano INSIEME (prima quelle di a, poi f) e la modifica di griglia/formato va in UN solo batchUpdate,\n// sul punto a se ha qualcosa da fare, altrimenti sul punto f. Così due chiamate parallele non si pestano i piedi.\nfunction colonneClienti(s) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  const m = s.meta[CLIENTI];\n  if (!m) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v));\n  const presenti = new Set(int.map((v) => v.trim()));\n  const manca = { a: NUOVE_CLIENTI.filter((n) => !presenti.has(n)), f: NUOVE_CLIENTI_F.filter((n) => !presenti.has(n)) };\n  const tutte = manca.a.concat(manca.f);\n  if (!tutte.length) return { manca };\n  let inizio = 0; int.forEach((v, i) => { if (!vuota(v)) inizio = i + 1; });\n  if (righe.slice(1).some((r) => (r || []).slice(inizio).some((v) => !vuota(v))))\n    return { manca, fermo: fermo(`ci sono dati a destra dell'ultima intestazione (dalla colonna ${lettera(inizio)}): non metto colonne sopra dati esistenti`) };\n  const fine = inizio + tutte.length;\n  const struttura = [];\n  if (fine > m.colonne) struttura.push({ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: fine - m.colonne } });\n  tutte.forEach((n, k) => {\n    if (COLONNE_TESTO.includes(n)) struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n      cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } });\n  });\n  // Le intestazioni entrano nello STESSO batchUpdate (repeatCell con il testo, come in c): griglia, formato e nomi\n  // nascono insieme o per niente. Così alla rilettura le colonne esistono già per nome e il punto g le ritrova.\n  tutte.forEach((n, k) => struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n    cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } }));\n  const allarga = fine > m.colonne ? fine - m.colonne : 0;\n  return { manca, inizio, struttura, allarga, padrone: manca.a.length ? 'a' : 'f' };\n}\n\nfunction puntoColonne(s, p) {\n  const c = colonneClienti(s);\n  if (c.manca && !c.manca[p].length) return aPosto();\n  if (c.fermo) return c.fermo;\n  const da = c.inizio + (p === 'f' ? c.manca.a.length : 0);\n  const nomi = c.manca[p]; const a = da + nomi.length - 1;\n  const mia = c.padrone === p;\n  const descr = `aggiunta di ${nomi.join(', ')} in ${lettera(da)}1${a > da ? '-' + lettera(a) + '1' : ''}`\n    + (nomi.some((n) => COLONNE_TESTO.includes(n)) ? ' (ID in formato testo)' : '')\n    + (p === 'f' ? ' (vuota = no, formato normale)' : '')\n    + (mia && c.allarga ? `, griglia +${c.allarga} colonne` : '');\n  return { stato: 'da_fare', descr, struttura: mia ? c.struttura : [], valori: [], ...(mia ? {} : { dipende: c.padrone }) };\n}\nconst puntoA = (s) => puntoColonne(s, 'a');\nconst puntoF = (s) => puntoColonne(s, 'f');\n\nfunction puntoB(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[CALENDARIO];\n  if (!m) return fermo('la scheda Calendario non esiste');\n  const righe = s.valori.calendario;\n  if (righe == null) return errLettura(s, 'calendario');\n  const int = righe[0] || [];\n  const diverse = CAL_A_T.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  if (diverse.length) return fermo(`A1:T1 non sono le 20 intestazioni attese (${diverse.slice(0, 3).join('; ')}${diverse.length > 3 ? `; e altre ${diverse.length - 3}` : ''})`);\n  const uz = CAL_U_Z.map((n, k) => cella(int, 20 + k));\n  if (uz.every((v, k) => v === CAL_U_Z[k])) return aPosto();\n  if (!uz.every(vuota)) {\n    const altro = uz.map((v, k) => (vuota(v) || v === CAL_U_Z[k] ? null : `${lettera(20 + k)}1 = ${virgolette(v)}`)).filter(Boolean);\n    return fermo(altro.length ? `U1:Z1 contengono altro (${altro.join('; ')}): non scrivo` : 'U1:Z1 sono compilate solo in parte: non scrivo, controlla a mano');\n  }\n  if (righe.slice(1).some((r) => (r || []).slice(20, 26).some((v) => !vuota(v)))) return fermo('ci sono già dati nelle colonne U-Z sotto intestazioni vuote: non scrivo');\n  const struttura = m.colonne < 26 ? [{ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: 26 - m.colonne } }] : [];\n  return { stato: 'da_fare', descr: 'intestazioni stato_2 … errore_2 in U1:Z1' + (struttura.length ? `, griglia +${26 - m.colonne} colonne` : ''),\n    struttura, valori: [{ range: intervallo(CALENDARIO, 'U1:Z1'), values: [CAL_U_Z] }] };\n}\n\nfunction puntoC(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[APPROVAZIONI];\n  if (!m) {\n    let id = ID_NUOVA_SCHEDA; const usati = new Set(Object.values(s.meta).map((x) => x.sheetId));\n    while (usati.has(id)) id += 1;\n    const struttura = [{ addSheet: { properties: { sheetId: id, title: APPROVAZIONI, gridProperties: { rowCount: 1000, columnCount: 26 } } } }]\n      .concat(APP_INTESTAZIONI.map((n, i) => ({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1, startColumnIndex: i, endColumnIndex: i + 1 },\n        cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } })));\n    return { stato: 'da_fare', descr: 'nuova scheda con le 9 intestazioni (data_ora … dettaglio)', struttura, valori: [] };\n  }\n  const righe = s.valori.approvazioni;\n  if (righe == null) return errLettura(s, 'approvazioni');\n  const int = righe[0] || [];\n  const diff = APP_INTESTAZIONI.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  int.slice(9).forEach((v, k) => { if (!vuota(v)) diff.push(`${lettera(9 + k)}1 in più: ${virgolette(v)}`); });\n  if (!diff.length) return aPosto();\n  return fermo(`la scheda esiste già con intestazioni diverse (${diff.slice(0, 4).join('; ')}${diff.length > 4 ? `; e altre ${diff.length - 4}` : ''}): non la tocco`);\n}\n\n// La riga di tropico-latino (una sola) e la colonna per nome, nello stato letto.\nfunction cellaTropico(s, colonna) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  if (!s.meta[CLIENTI]) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v).trim());\n  const quante = (n) => int.filter((v) => v === n).length;\n  if (quante('cliente') !== 1) return { fermo: fermo(quante('cliente') ? 'la colonna cliente compare più volte' : 'manca la colonna cliente') };\n  if (quante(colonna) !== 1) return { fermo: fermo(quante(colonna) ? `la colonna ${colonna} compare più volte` : `manca la colonna ${colonna}`) };\n  const ic = int.indexOf('cliente'); const col = int.indexOf(colonna);\n  const trovate = []; righe.forEach((r, i) => { if (i > 0 && cella(r, ic).trim() === TROPICO) trovate.push(i + 1); });\n  if (!trovate.length) return { fermo: fermo(`nessuna riga con cliente = ${TROPICO}`) };\n  if (trovate.length > 1) return { fermo: fermo(`${TROPICO} compare in ${trovate.length} righe (righe ${trovate.join(', ')}): non so quale scrivere`) };\n  const riga = trovate[0];\n  return { riga, attuale: cella(righe[riga - 1], col), range: intervallo(CLIENTI, `${lettera(col)}${riga}`) };\n}\n\nfunction puntoD(s) {\n  const t = cellaTropico(s, 'frasi_storie');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === FRASI_TROPICO) return aPosto();\n  return { stato: 'da_fare', descr: `nuovo testo in frasi_storie, riga ${t.riga} (prima: ${t.attuale ? t.attuale.length + ' caratteri' : 'vuota'})`,\n    struttura: [], valori: [{ range: t.range, values: [[FRASI_TROPICO]] }] };\n}\n\n// e) link_prenotazione. Il numero non entra MAI nella descrizione: né il vecchio né il nuovo.\nfunction puntoE(s) {\n  const t = cellaTropico(s, 'link_prenotazione');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === LINK_TROPICO) return aPosto();\n  const prima = vuota(t.attuale) ? '(vuoto)' : (/wa\\.me/i.test(t.attuale) ? 'wa.me/… (nascosto)' : '(nascosto)');\n  return { stato: 'da_fare', descr: `link_prenotazione: ${prima} → wa.me/… (nascosto), riga ${t.riga}`,\n    struttura: [], valori: [{ range: t.range, values: [[LINK_TROPICO]] }] };\n}\n\n// g) La lettura da Meta: buona SOLO con status 200 e instagram_business_account.id di sole cifre, 15-20.\n// Il motivo è sempre un testo nostro: il messaggio d'errore di Meta non esce mai (al massimo il codice HTTP).\nfunction letturaMeta() {\n  let r;\n  try { r = $('Leggi Meta').first().json; } catch (e) { return { ok: false, perche: 'lettura da Meta non eseguita' }; }\n  if (!r || r.error) return { ok: false, perche: 'lettura da Meta non riuscita (rete)' };\n  const sc = Number(r.statusCode);\n  if (sc !== 200) return { ok: false, perche: `lettura da Meta non riuscita (codice HTTP ${Number.isFinite(sc) ? sc : '?'})` };\n  const iba = r.body && r.body.instagram_business_account;\n  const id = iba && iba.id;\n  if (typeof id !== 'string') return { ok: false, perche: 'lettura da Meta senza account Instagram collegato (codice HTTP 200)' };\n  if (!/^\\d{15,20}$/.test(id)) return { ok: false, perche: 'lettura da Meta con un ID Instagram di forma inattesa (codice HTTP 200)' };\n  return { ok: true, id };\n}\n\n// g) Scrive ig_user_id_2 (letto) e fb_page_id_2 (da Config) nella riga di tropico-latino. MAI ID nei testi.\nfunction puntoG(s, colonneDiA) {\n  const ig = letturaMeta();\n  if (!ig.ok) return fermo(ig.perche, true);\n  const fb2 = String(cfg().FB_PAGE_ID_2 || '').trim();\n  if (!/^\\d{5,20}$/.test(fb2)) return fermo('FB_PAGE_ID_2 nel Config manca o non è un numero');\n  const prima = {};\n  for (const col of ['ig_user_id', 'fb_page_id']) { const t = cellaTropico(s, col); if (t.fermo) return t.fermo; prima[col] = t.attuale.trim(); }\n  // Se le colonne _2 nascono in questo giro col punto a, oggi sono vuote per definizione.\n  const nasce = colonneDiA.stato === 'da_fare' ? new Set((colonneClienti(s).manca || { a: [] }).a) : new Set();\n  const ora = {}; const range = {}; let riga = null;\n  for (const col of ['ig_user_id_2', 'fb_page_id_2']) {\n    if (nasce.has(col)) { ora[col] = ''; continue; }\n    const t = cellaTropico(s, col); if (t.fermo) return t.fermo;\n    ora[col] = t.attuale; range[col] = t.range; riga = t.riga;\n  }\n  if (ig.id === prima.ig_user_id || ig.id === prima.fb_page_id) return fermo('l\\'ID Instagram letto è uguale a un ID della prima coppia: non scrivo');\n  if (fb2 === prima.fb_page_id || fb2 === prima.ig_user_id) return fermo('la pagina Facebook è uguale a un ID della prima coppia: non scrivo');\n  const voluti = { ig_user_id_2: ig.id, fb_page_id_2: fb2 };\n  if (ora.ig_user_id_2 === voluti.ig_user_id_2 && ora.fb_page_id_2 === voluti.fb_page_id_2) return aPosto();\n  const piene = Object.keys(voluti).filter((k) => !vuota(ora[k]) && ora[k] !== voluti[k]);\n  if (piene.length) return fermo(`${piene.join(' e ')} già ${piene.length > 1 ? 'piene' : 'piena'} con un valore diverso: non sovrascrivo`);\n  const daScrivere = Object.keys(voluti).filter((k) => ora[k] !== voluti[k]);\n  return { stato: 'da_fare', descr: `letto da Meta → ${daScrivere.join(' e ')}${riga ? ` nella riga ${riga}` : ''}, in formato testo`,\n    struttura: [], valori: daScrivere.filter((k) => range[k]).map((k) => ({ range: range[k], values: [[voluti[k]]] })),\n    ...(nasce.size ? { dipende: 'a' } : {}) };\n}\n\nfunction analizza(s) { const a = puntoA(s); return { a, b: puntoB(s), c: puntoC(s), d: puntoD(s), e: puntoE(s), f: puntoF(s), g: puntoG(s, a) }; }\n\nconst json = (items) => items.map((i) => i.json);\n// ===== fine aiuti comuni =====\n\n// Legge lo stato iniziale e decide. Scritture di struttura (batchUpdate) solo in modalità «vero», una chiamata per punto.\nconst stato = leggiStato(json($('Prepara letture').all()), json($input.all()));\nconst analisi = analizza(stato);\nconst vero = modalitaVera();\nconst base = { analisi, vero, errori_lettura: stato.errori };\nconst out = [];\nif (vero) for (const p of PUNTI) {\n  if (analisi[p].stato === 'da_fare' && analisi[p].struttura.length)\n    out.push({ punto: p, url: `${urlFoglio()}:batchUpdate`, body: { requests: analisi[p].struttura } });\n}\nif (!out.length) return [{ json: { nulla: true, ...base } }];\nreturn out.map((o, i) => ({ json: i === 0 ? { ...o, ...base } : o }));\n"
+   },
+   "id": "4370ac2a-daac-5dea-aa9f-e5f19393ba85",
+   "name": "Piano struttura",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    880,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "17b360fa-45d0-55c8-a3bc-aa7039969fb8",
+       "leftValue": "={{ $json.nulla !== true }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "e75f0de2-6eb7-52d3-a1f7-1689363fa1fa",
+   "name": "Struttura da scrivere?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1100,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.url }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleSheetsOAuth2Api",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    }
+   },
+   "id": "38a69adb-97c9-5ad2-a3a3-152db6666a33",
+   "name": "Scrivi struttura",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1320,
+    -120
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===== Aiuti comuni di «Prepara foglio (una tantum)» =====\n// Questo blocco è uguale in tutti i nodi Code: si modifica qui e si rigenera con costruisci.mjs.\nconst API = 'https://sheets.googleapis.com/v4/spreadsheets/';\nconst CLIENTI = 'Clienti';\nconst CALENDARIO = 'Calendario';\nconst APPROVAZIONI = 'Approvazioni storie';\nconst NUOVE_CLIENTI = ['ig_user_id_2', 'fb_page_id_2', 'campi_da_confermare'];\nconst NUOVE_CLIENTI_F = ['anteprime_con_persone'];\nconst COLONNE_TESTO = ['ig_user_id_2', 'fb_page_id_2'];\nconst CAL_A_T = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato',\n  'esecuzione', 'link_ig', 'link_fb', 'pubblicato_il', 'errore', 'note', 'brief', 'tag_persone', 'collaboratori', 'luogo'];\nconst CAL_U_Z = ['stato_2', 'esecuzione_2', 'link_ig_2', 'link_fb_2', 'pubblicato_il_2', 'errore_2'];\nconst APP_INTESTAZIONI = ['data_ora', 'chiave', 'id_riga', 'cliente', 'esce_il', 'esito', 'scade_il', 'token', 'dettaglio'];\nconst TROPICO = 'tropico-latino';\nconst FRASI_TROPICO = 'Vi aspettiamo stasera in via Mazzini 77/A | Prenota il tuo tavolo: 0523 335932 | Margarita frozen o classico? | Aperitivo al bancone, si parte! | Due sale, più di 100 posti: portate tutti | Bienvenidos al Tropico! | Fajitas per due: si divide e si assaggia | Nachos e guacamole per cominciare | Anche vegetariano: burrito de verduras | Enchiladas rojas o verdes? Scegli tu | Queso fundido da condividere al tavolo | Venerdì e sabato aperti fino alle 2 | Cucina aperta fino alle 23, nel weekend 23:30 | Per finire in dolcezza: churros | Mousse al cioccolato e peperoncino, da provare';\nconst LINK_TROPICO = 'https://wa.me/393312173684';\nconst PUNTI = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];\nconst ID_NUOVA_SCHEDA = 2026112201; // sheetId scelto da noi, così addSheet e intestazioni stanno in UNA chiamata atomica\n\nconst cfg = () => $('Config').first().json;\nconst modalitaVera = () => String(cfg().MODALITA || '').trim() === 'vero'; // qualunque altro valore = prova\nconst lettera = (i) => { let s = ''; let n = i + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };\nconst intervallo = (titolo, a1) => `'${titolo.replace(/'/g, \"''\")}'` + (a1 ? `!${a1}` : '');\nconst urlFoglio = () => API + encodeURIComponent(cfg().SHEET_ID);\nconst cella = (riga, i) => (riga && riga[i] != null ? String(riga[i]) : '');\nconst vuota = (v) => String(v == null ? '' : v).trim() === '';\nconst virgolette = (v) => '«' + (String(v).length > 30 ? String(v).slice(0, 30) + '…' : String(v)) + '»';\n\n// Le letture: struttura (solo sheets.properties) + valori delle tre schede. Righe intere, mai colonne oltre la griglia.\nfunction letture() {\n  const u = urlFoglio();\n  return [\n    { cosa: 'meta', url: `${u}?fields=sheets.properties` },\n    { cosa: 'clienti', url: `${u}/values/${encodeURIComponent(intervallo(CLIENTI))}` },\n    { cosa: 'calendario', url: `${u}/values/${encodeURIComponent(intervallo(CALENDARIO))}` },\n    { cosa: 'approvazioni', url: `${u}/values/${encodeURIComponent(intervallo(APPROVAZIONI, '1:1'))}` },\n  ];\n}\n\n// Esito di una risposta dell'HTTP Request (fullResponse + neverError, oppure {error} se la rete è caduta).\nfunction esito(r) {\n  if (!r) return { ok: false, errore: 'nessuna risposta' };\n  if (r.error) return { ok: false, errore: 'rete: ' + String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 160) };\n  const sc = Number(r.statusCode);\n  if (sc >= 200 && sc < 300) return { ok: true, body: r.body || {} };\n  const msg = r.body && r.body.error && r.body.error.message ? String(r.body.error.message) : String(r.statusMessage || '');\n  return { ok: false, errore: `HTTP ${sc || '?'}: ${msg.slice(0, 160)}` };\n}\n\n// Mette insieme le risposte delle letture (stesso ordine delle richieste).\nfunction leggiStato(richieste, risposte) {\n  const s = { meta: null, valori: {}, errori: {} };\n  richieste.forEach((q, i) => {\n    const e = esito(risposte[i]);\n    if (!e.ok) { s.errori[q.cosa] = e.errore; s.valori[q.cosa] = null; return; }\n    if (q.cosa === 'meta') {\n      s.meta = {};\n      for (const sh of e.body.sheets || []) { const p = sh.properties || {}; s.meta[p.title] = { sheetId: p.sheetId, colonne: (p.gridProperties || {}).columnCount || 0 }; }\n    } else s.valori[q.cosa] = e.body.values || [];\n  });\n  return s;\n}\n\nconst fermo = (perche, api = false) => ({ stato: 'fermo', perche, api, struttura: [], valori: [] });\nconst aPosto = () => ({ stato: 'gia', struttura: [], valori: [] });\nconst errLettura = (s, cosa) => fermo(`non riesco a leggere (${s.errori[cosa] || s.errori.meta || 'errore'})`, true);\n\n// Colonne nuove di Clienti: a) le 3 colonne, f) anteprime_con_persone. Stanno in fondo, una dopo l'altra:\n// le posizioni si calcolano INSIEME (prima quelle di a, poi f) e la modifica di griglia/formato va in UN solo batchUpdate,\n// sul punto a se ha qualcosa da fare, altrimenti sul punto f. Così due chiamate parallele non si pestano i piedi.\nfunction colonneClienti(s) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  const m = s.meta[CLIENTI];\n  if (!m) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v));\n  const presenti = new Set(int.map((v) => v.trim()));\n  const manca = { a: NUOVE_CLIENTI.filter((n) => !presenti.has(n)), f: NUOVE_CLIENTI_F.filter((n) => !presenti.has(n)) };\n  const tutte = manca.a.concat(manca.f);\n  if (!tutte.length) return { manca };\n  let inizio = 0; int.forEach((v, i) => { if (!vuota(v)) inizio = i + 1; });\n  if (righe.slice(1).some((r) => (r || []).slice(inizio).some((v) => !vuota(v))))\n    return { manca, fermo: fermo(`ci sono dati a destra dell'ultima intestazione (dalla colonna ${lettera(inizio)}): non metto colonne sopra dati esistenti`) };\n  const fine = inizio + tutte.length;\n  const struttura = [];\n  if (fine > m.colonne) struttura.push({ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: fine - m.colonne } });\n  tutte.forEach((n, k) => {\n    if (COLONNE_TESTO.includes(n)) struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n      cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } });\n  });\n  // Le intestazioni entrano nello STESSO batchUpdate (repeatCell con il testo, come in c): griglia, formato e nomi\n  // nascono insieme o per niente. Così alla rilettura le colonne esistono già per nome e il punto g le ritrova.\n  tutte.forEach((n, k) => struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n    cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } }));\n  const allarga = fine > m.colonne ? fine - m.colonne : 0;\n  return { manca, inizio, struttura, allarga, padrone: manca.a.length ? 'a' : 'f' };\n}\n\nfunction puntoColonne(s, p) {\n  const c = colonneClienti(s);\n  if (c.manca && !c.manca[p].length) return aPosto();\n  if (c.fermo) return c.fermo;\n  const da = c.inizio + (p === 'f' ? c.manca.a.length : 0);\n  const nomi = c.manca[p]; const a = da + nomi.length - 1;\n  const mia = c.padrone === p;\n  const descr = `aggiunta di ${nomi.join(', ')} in ${lettera(da)}1${a > da ? '-' + lettera(a) + '1' : ''}`\n    + (nomi.some((n) => COLONNE_TESTO.includes(n)) ? ' (ID in formato testo)' : '')\n    + (p === 'f' ? ' (vuota = no, formato normale)' : '')\n    + (mia && c.allarga ? `, griglia +${c.allarga} colonne` : '');\n  return { stato: 'da_fare', descr, struttura: mia ? c.struttura : [], valori: [], ...(mia ? {} : { dipende: c.padrone }) };\n}\nconst puntoA = (s) => puntoColonne(s, 'a');\nconst puntoF = (s) => puntoColonne(s, 'f');\n\nfunction puntoB(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[CALENDARIO];\n  if (!m) return fermo('la scheda Calendario non esiste');\n  const righe = s.valori.calendario;\n  if (righe == null) return errLettura(s, 'calendario');\n  const int = righe[0] || [];\n  const diverse = CAL_A_T.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  if (diverse.length) return fermo(`A1:T1 non sono le 20 intestazioni attese (${diverse.slice(0, 3).join('; ')}${diverse.length > 3 ? `; e altre ${diverse.length - 3}` : ''})`);\n  const uz = CAL_U_Z.map((n, k) => cella(int, 20 + k));\n  if (uz.every((v, k) => v === CAL_U_Z[k])) return aPosto();\n  if (!uz.every(vuota)) {\n    const altro = uz.map((v, k) => (vuota(v) || v === CAL_U_Z[k] ? null : `${lettera(20 + k)}1 = ${virgolette(v)}`)).filter(Boolean);\n    return fermo(altro.length ? `U1:Z1 contengono altro (${altro.join('; ')}): non scrivo` : 'U1:Z1 sono compilate solo in parte: non scrivo, controlla a mano');\n  }\n  if (righe.slice(1).some((r) => (r || []).slice(20, 26).some((v) => !vuota(v)))) return fermo('ci sono già dati nelle colonne U-Z sotto intestazioni vuote: non scrivo');\n  const struttura = m.colonne < 26 ? [{ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: 26 - m.colonne } }] : [];\n  return { stato: 'da_fare', descr: 'intestazioni stato_2 … errore_2 in U1:Z1' + (struttura.length ? `, griglia +${26 - m.colonne} colonne` : ''),\n    struttura, valori: [{ range: intervallo(CALENDARIO, 'U1:Z1'), values: [CAL_U_Z] }] };\n}\n\nfunction puntoC(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[APPROVAZIONI];\n  if (!m) {\n    let id = ID_NUOVA_SCHEDA; const usati = new Set(Object.values(s.meta).map((x) => x.sheetId));\n    while (usati.has(id)) id += 1;\n    const struttura = [{ addSheet: { properties: { sheetId: id, title: APPROVAZIONI, gridProperties: { rowCount: 1000, columnCount: 26 } } } }]\n      .concat(APP_INTESTAZIONI.map((n, i) => ({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1, startColumnIndex: i, endColumnIndex: i + 1 },\n        cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } })));\n    return { stato: 'da_fare', descr: 'nuova scheda con le 9 intestazioni (data_ora … dettaglio)', struttura, valori: [] };\n  }\n  const righe = s.valori.approvazioni;\n  if (righe == null) return errLettura(s, 'approvazioni');\n  const int = righe[0] || [];\n  const diff = APP_INTESTAZIONI.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  int.slice(9).forEach((v, k) => { if (!vuota(v)) diff.push(`${lettera(9 + k)}1 in più: ${virgolette(v)}`); });\n  if (!diff.length) return aPosto();\n  return fermo(`la scheda esiste già con intestazioni diverse (${diff.slice(0, 4).join('; ')}${diff.length > 4 ? `; e altre ${diff.length - 4}` : ''}): non la tocco`);\n}\n\n// La riga di tropico-latino (una sola) e la colonna per nome, nello stato letto.\nfunction cellaTropico(s, colonna) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  if (!s.meta[CLIENTI]) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v).trim());\n  const quante = (n) => int.filter((v) => v === n).length;\n  if (quante('cliente') !== 1) return { fermo: fermo(quante('cliente') ? 'la colonna cliente compare più volte' : 'manca la colonna cliente') };\n  if (quante(colonna) !== 1) return { fermo: fermo(quante(colonna) ? `la colonna ${colonna} compare più volte` : `manca la colonna ${colonna}`) };\n  const ic = int.indexOf('cliente'); const col = int.indexOf(colonna);\n  const trovate = []; righe.forEach((r, i) => { if (i > 0 && cella(r, ic).trim() === TROPICO) trovate.push(i + 1); });\n  if (!trovate.length) return { fermo: fermo(`nessuna riga con cliente = ${TROPICO}`) };\n  if (trovate.length > 1) return { fermo: fermo(`${TROPICO} compare in ${trovate.length} righe (righe ${trovate.join(', ')}): non so quale scrivere`) };\n  const riga = trovate[0];\n  return { riga, attuale: cella(righe[riga - 1], col), range: intervallo(CLIENTI, `${lettera(col)}${riga}`) };\n}\n\nfunction puntoD(s) {\n  const t = cellaTropico(s, 'frasi_storie');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === FRASI_TROPICO) return aPosto();\n  return { stato: 'da_fare', descr: `nuovo testo in frasi_storie, riga ${t.riga} (prima: ${t.attuale ? t.attuale.length + ' caratteri' : 'vuota'})`,\n    struttura: [], valori: [{ range: t.range, values: [[FRASI_TROPICO]] }] };\n}\n\n// e) link_prenotazione. Il numero non entra MAI nella descrizione: né il vecchio né il nuovo.\nfunction puntoE(s) {\n  const t = cellaTropico(s, 'link_prenotazione');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === LINK_TROPICO) return aPosto();\n  const prima = vuota(t.attuale) ? '(vuoto)' : (/wa\\.me/i.test(t.attuale) ? 'wa.me/… (nascosto)' : '(nascosto)');\n  return { stato: 'da_fare', descr: `link_prenotazione: ${prima} → wa.me/… (nascosto), riga ${t.riga}`,\n    struttura: [], valori: [{ range: t.range, values: [[LINK_TROPICO]] }] };\n}\n\n// g) La lettura da Meta: buona SOLO con status 200 e instagram_business_account.id di sole cifre, 15-20.\n// Il motivo è sempre un testo nostro: il messaggio d'errore di Meta non esce mai (al massimo il codice HTTP).\nfunction letturaMeta() {\n  let r;\n  try { r = $('Leggi Meta').first().json; } catch (e) { return { ok: false, perche: 'lettura da Meta non eseguita' }; }\n  if (!r || r.error) return { ok: false, perche: 'lettura da Meta non riuscita (rete)' };\n  const sc = Number(r.statusCode);\n  if (sc !== 200) return { ok: false, perche: `lettura da Meta non riuscita (codice HTTP ${Number.isFinite(sc) ? sc : '?'})` };\n  const iba = r.body && r.body.instagram_business_account;\n  const id = iba && iba.id;\n  if (typeof id !== 'string') return { ok: false, perche: 'lettura da Meta senza account Instagram collegato (codice HTTP 200)' };\n  if (!/^\\d{15,20}$/.test(id)) return { ok: false, perche: 'lettura da Meta con un ID Instagram di forma inattesa (codice HTTP 200)' };\n  return { ok: true, id };\n}\n\n// g) Scrive ig_user_id_2 (letto) e fb_page_id_2 (da Config) nella riga di tropico-latino. MAI ID nei testi.\nfunction puntoG(s, colonneDiA) {\n  const ig = letturaMeta();\n  if (!ig.ok) return fermo(ig.perche, true);\n  const fb2 = String(cfg().FB_PAGE_ID_2 || '').trim();\n  if (!/^\\d{5,20}$/.test(fb2)) return fermo('FB_PAGE_ID_2 nel Config manca o non è un numero');\n  const prima = {};\n  for (const col of ['ig_user_id', 'fb_page_id']) { const t = cellaTropico(s, col); if (t.fermo) return t.fermo; prima[col] = t.attuale.trim(); }\n  // Se le colonne _2 nascono in questo giro col punto a, oggi sono vuote per definizione.\n  const nasce = colonneDiA.stato === 'da_fare' ? new Set((colonneClienti(s).manca || { a: [] }).a) : new Set();\n  const ora = {}; const range = {}; let riga = null;\n  for (const col of ['ig_user_id_2', 'fb_page_id_2']) {\n    if (nasce.has(col)) { ora[col] = ''; continue; }\n    const t = cellaTropico(s, col); if (t.fermo) return t.fermo;\n    ora[col] = t.attuale; range[col] = t.range; riga = t.riga;\n  }\n  if (ig.id === prima.ig_user_id || ig.id === prima.fb_page_id) return fermo('l\\'ID Instagram letto è uguale a un ID della prima coppia: non scrivo');\n  if (fb2 === prima.fb_page_id || fb2 === prima.ig_user_id) return fermo('la pagina Facebook è uguale a un ID della prima coppia: non scrivo');\n  const voluti = { ig_user_id_2: ig.id, fb_page_id_2: fb2 };\n  if (ora.ig_user_id_2 === voluti.ig_user_id_2 && ora.fb_page_id_2 === voluti.fb_page_id_2) return aPosto();\n  const piene = Object.keys(voluti).filter((k) => !vuota(ora[k]) && ora[k] !== voluti[k]);\n  if (piene.length) return fermo(`${piene.join(' e ')} già ${piene.length > 1 ? 'piene' : 'piena'} con un valore diverso: non sovrascrivo`);\n  const daScrivere = Object.keys(voluti).filter((k) => ora[k] !== voluti[k]);\n  return { stato: 'da_fare', descr: `letto da Meta → ${daScrivere.join(' e ')}${riga ? ` nella riga ${riga}` : ''}, in formato testo`,\n    struttura: [], valori: daScrivere.filter((k) => range[k]).map((k) => ({ range: range[k], values: [[voluti[k]]] })),\n    ...(nasce.size ? { dipende: 'a' } : {}) };\n}\n\nfunction analizza(s) { const a = puntoA(s); return { a, b: puntoB(s), c: puntoC(s), d: puntoD(s), e: puntoE(s), f: puntoF(s), g: puntoG(s, a) }; }\n\nconst json = (items) => items.map((i) => i.json);\n// ===== fine aiuti comuni =====\n\n// Raccoglie l'esito delle scritture di struttura (se ci sono state) e rilegge il foglio.\nconst piano = json($('Piano struttura').all());\nconst risposte = json($input.all());\nconst esiti = piano[0].nulla ? [] : piano.map((p, i) => ({ punto: p.punto, richieste: p.body.requests, ...esito(risposte[i]) }));\nreturn letture().map((l, i) => ({ json: i === 0 ? { ...l, esiti_struttura: esiti.map(({ body, ...r }) => r) } : l }));\n"
+   },
+   "id": "3bbdb556-0a33-59fd-a699-25d2d5dc4aa3",
+   "name": "Prepara riletture",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1540,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $json.url }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleSheetsOAuth2Api",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    }
+   },
+   "id": "12ad0626-a84b-56ec-ad11-f1b73ef2e98f",
+   "name": "Rileggi",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1760,
+    0
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===== Aiuti comuni di «Prepara foglio (una tantum)» =====\n// Questo blocco è uguale in tutti i nodi Code: si modifica qui e si rigenera con costruisci.mjs.\nconst API = 'https://sheets.googleapis.com/v4/spreadsheets/';\nconst CLIENTI = 'Clienti';\nconst CALENDARIO = 'Calendario';\nconst APPROVAZIONI = 'Approvazioni storie';\nconst NUOVE_CLIENTI = ['ig_user_id_2', 'fb_page_id_2', 'campi_da_confermare'];\nconst NUOVE_CLIENTI_F = ['anteprime_con_persone'];\nconst COLONNE_TESTO = ['ig_user_id_2', 'fb_page_id_2'];\nconst CAL_A_T = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato',\n  'esecuzione', 'link_ig', 'link_fb', 'pubblicato_il', 'errore', 'note', 'brief', 'tag_persone', 'collaboratori', 'luogo'];\nconst CAL_U_Z = ['stato_2', 'esecuzione_2', 'link_ig_2', 'link_fb_2', 'pubblicato_il_2', 'errore_2'];\nconst APP_INTESTAZIONI = ['data_ora', 'chiave', 'id_riga', 'cliente', 'esce_il', 'esito', 'scade_il', 'token', 'dettaglio'];\nconst TROPICO = 'tropico-latino';\nconst FRASI_TROPICO = 'Vi aspettiamo stasera in via Mazzini 77/A | Prenota il tuo tavolo: 0523 335932 | Margarita frozen o classico? | Aperitivo al bancone, si parte! | Due sale, più di 100 posti: portate tutti | Bienvenidos al Tropico! | Fajitas per due: si divide e si assaggia | Nachos e guacamole per cominciare | Anche vegetariano: burrito de verduras | Enchiladas rojas o verdes? Scegli tu | Queso fundido da condividere al tavolo | Venerdì e sabato aperti fino alle 2 | Cucina aperta fino alle 23, nel weekend 23:30 | Per finire in dolcezza: churros | Mousse al cioccolato e peperoncino, da provare';\nconst LINK_TROPICO = 'https://wa.me/393312173684';\nconst PUNTI = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];\nconst ID_NUOVA_SCHEDA = 2026112201; // sheetId scelto da noi, così addSheet e intestazioni stanno in UNA chiamata atomica\n\nconst cfg = () => $('Config').first().json;\nconst modalitaVera = () => String(cfg().MODALITA || '').trim() === 'vero'; // qualunque altro valore = prova\nconst lettera = (i) => { let s = ''; let n = i + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };\nconst intervallo = (titolo, a1) => `'${titolo.replace(/'/g, \"''\")}'` + (a1 ? `!${a1}` : '');\nconst urlFoglio = () => API + encodeURIComponent(cfg().SHEET_ID);\nconst cella = (riga, i) => (riga && riga[i] != null ? String(riga[i]) : '');\nconst vuota = (v) => String(v == null ? '' : v).trim() === '';\nconst virgolette = (v) => '«' + (String(v).length > 30 ? String(v).slice(0, 30) + '…' : String(v)) + '»';\n\n// Le letture: struttura (solo sheets.properties) + valori delle tre schede. Righe intere, mai colonne oltre la griglia.\nfunction letture() {\n  const u = urlFoglio();\n  return [\n    { cosa: 'meta', url: `${u}?fields=sheets.properties` },\n    { cosa: 'clienti', url: `${u}/values/${encodeURIComponent(intervallo(CLIENTI))}` },\n    { cosa: 'calendario', url: `${u}/values/${encodeURIComponent(intervallo(CALENDARIO))}` },\n    { cosa: 'approvazioni', url: `${u}/values/${encodeURIComponent(intervallo(APPROVAZIONI, '1:1'))}` },\n  ];\n}\n\n// Esito di una risposta dell'HTTP Request (fullResponse + neverError, oppure {error} se la rete è caduta).\nfunction esito(r) {\n  if (!r) return { ok: false, errore: 'nessuna risposta' };\n  if (r.error) return { ok: false, errore: 'rete: ' + String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 160) };\n  const sc = Number(r.statusCode);\n  if (sc >= 200 && sc < 300) return { ok: true, body: r.body || {} };\n  const msg = r.body && r.body.error && r.body.error.message ? String(r.body.error.message) : String(r.statusMessage || '');\n  return { ok: false, errore: `HTTP ${sc || '?'}: ${msg.slice(0, 160)}` };\n}\n\n// Mette insieme le risposte delle letture (stesso ordine delle richieste).\nfunction leggiStato(richieste, risposte) {\n  const s = { meta: null, valori: {}, errori: {} };\n  richieste.forEach((q, i) => {\n    const e = esito(risposte[i]);\n    if (!e.ok) { s.errori[q.cosa] = e.errore; s.valori[q.cosa] = null; return; }\n    if (q.cosa === 'meta') {\n      s.meta = {};\n      for (const sh of e.body.sheets || []) { const p = sh.properties || {}; s.meta[p.title] = { sheetId: p.sheetId, colonne: (p.gridProperties || {}).columnCount || 0 }; }\n    } else s.valori[q.cosa] = e.body.values || [];\n  });\n  return s;\n}\n\nconst fermo = (perche, api = false) => ({ stato: 'fermo', perche, api, struttura: [], valori: [] });\nconst aPosto = () => ({ stato: 'gia', struttura: [], valori: [] });\nconst errLettura = (s, cosa) => fermo(`non riesco a leggere (${s.errori[cosa] || s.errori.meta || 'errore'})`, true);\n\n// Colonne nuove di Clienti: a) le 3 colonne, f) anteprime_con_persone. Stanno in fondo, una dopo l'altra:\n// le posizioni si calcolano INSIEME (prima quelle di a, poi f) e la modifica di griglia/formato va in UN solo batchUpdate,\n// sul punto a se ha qualcosa da fare, altrimenti sul punto f. Così due chiamate parallele non si pestano i piedi.\nfunction colonneClienti(s) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  const m = s.meta[CLIENTI];\n  if (!m) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v));\n  const presenti = new Set(int.map((v) => v.trim()));\n  const manca = { a: NUOVE_CLIENTI.filter((n) => !presenti.has(n)), f: NUOVE_CLIENTI_F.filter((n) => !presenti.has(n)) };\n  const tutte = manca.a.concat(manca.f);\n  if (!tutte.length) return { manca };\n  let inizio = 0; int.forEach((v, i) => { if (!vuota(v)) inizio = i + 1; });\n  if (righe.slice(1).some((r) => (r || []).slice(inizio).some((v) => !vuota(v))))\n    return { manca, fermo: fermo(`ci sono dati a destra dell'ultima intestazione (dalla colonna ${lettera(inizio)}): non metto colonne sopra dati esistenti`) };\n  const fine = inizio + tutte.length;\n  const struttura = [];\n  if (fine > m.colonne) struttura.push({ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: fine - m.colonne } });\n  tutte.forEach((n, k) => {\n    if (COLONNE_TESTO.includes(n)) struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n      cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } });\n  });\n  // Le intestazioni entrano nello STESSO batchUpdate (repeatCell con il testo, come in c): griglia, formato e nomi\n  // nascono insieme o per niente. Così alla rilettura le colonne esistono già per nome e il punto g le ritrova.\n  tutte.forEach((n, k) => struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n    cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } }));\n  const allarga = fine > m.colonne ? fine - m.colonne : 0;\n  return { manca, inizio, struttura, allarga, padrone: manca.a.length ? 'a' : 'f' };\n}\n\nfunction puntoColonne(s, p) {\n  const c = colonneClienti(s);\n  if (c.manca && !c.manca[p].length) return aPosto();\n  if (c.fermo) return c.fermo;\n  const da = c.inizio + (p === 'f' ? c.manca.a.length : 0);\n  const nomi = c.manca[p]; const a = da + nomi.length - 1;\n  const mia = c.padrone === p;\n  const descr = `aggiunta di ${nomi.join(', ')} in ${lettera(da)}1${a > da ? '-' + lettera(a) + '1' : ''}`\n    + (nomi.some((n) => COLONNE_TESTO.includes(n)) ? ' (ID in formato testo)' : '')\n    + (p === 'f' ? ' (vuota = no, formato normale)' : '')\n    + (mia && c.allarga ? `, griglia +${c.allarga} colonne` : '');\n  return { stato: 'da_fare', descr, struttura: mia ? c.struttura : [], valori: [], ...(mia ? {} : { dipende: c.padrone }) };\n}\nconst puntoA = (s) => puntoColonne(s, 'a');\nconst puntoF = (s) => puntoColonne(s, 'f');\n\nfunction puntoB(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[CALENDARIO];\n  if (!m) return fermo('la scheda Calendario non esiste');\n  const righe = s.valori.calendario;\n  if (righe == null) return errLettura(s, 'calendario');\n  const int = righe[0] || [];\n  const diverse = CAL_A_T.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  if (diverse.length) return fermo(`A1:T1 non sono le 20 intestazioni attese (${diverse.slice(0, 3).join('; ')}${diverse.length > 3 ? `; e altre ${diverse.length - 3}` : ''})`);\n  const uz = CAL_U_Z.map((n, k) => cella(int, 20 + k));\n  if (uz.every((v, k) => v === CAL_U_Z[k])) return aPosto();\n  if (!uz.every(vuota)) {\n    const altro = uz.map((v, k) => (vuota(v) || v === CAL_U_Z[k] ? null : `${lettera(20 + k)}1 = ${virgolette(v)}`)).filter(Boolean);\n    return fermo(altro.length ? `U1:Z1 contengono altro (${altro.join('; ')}): non scrivo` : 'U1:Z1 sono compilate solo in parte: non scrivo, controlla a mano');\n  }\n  if (righe.slice(1).some((r) => (r || []).slice(20, 26).some((v) => !vuota(v)))) return fermo('ci sono già dati nelle colonne U-Z sotto intestazioni vuote: non scrivo');\n  const struttura = m.colonne < 26 ? [{ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: 26 - m.colonne } }] : [];\n  return { stato: 'da_fare', descr: 'intestazioni stato_2 … errore_2 in U1:Z1' + (struttura.length ? `, griglia +${26 - m.colonne} colonne` : ''),\n    struttura, valori: [{ range: intervallo(CALENDARIO, 'U1:Z1'), values: [CAL_U_Z] }] };\n}\n\nfunction puntoC(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[APPROVAZIONI];\n  if (!m) {\n    let id = ID_NUOVA_SCHEDA; const usati = new Set(Object.values(s.meta).map((x) => x.sheetId));\n    while (usati.has(id)) id += 1;\n    const struttura = [{ addSheet: { properties: { sheetId: id, title: APPROVAZIONI, gridProperties: { rowCount: 1000, columnCount: 26 } } } }]\n      .concat(APP_INTESTAZIONI.map((n, i) => ({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1, startColumnIndex: i, endColumnIndex: i + 1 },\n        cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } })));\n    return { stato: 'da_fare', descr: 'nuova scheda con le 9 intestazioni (data_ora … dettaglio)', struttura, valori: [] };\n  }\n  const righe = s.valori.approvazioni;\n  if (righe == null) return errLettura(s, 'approvazioni');\n  const int = righe[0] || [];\n  const diff = APP_INTESTAZIONI.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  int.slice(9).forEach((v, k) => { if (!vuota(v)) diff.push(`${lettera(9 + k)}1 in più: ${virgolette(v)}`); });\n  if (!diff.length) return aPosto();\n  return fermo(`la scheda esiste già con intestazioni diverse (${diff.slice(0, 4).join('; ')}${diff.length > 4 ? `; e altre ${diff.length - 4}` : ''}): non la tocco`);\n}\n\n// La riga di tropico-latino (una sola) e la colonna per nome, nello stato letto.\nfunction cellaTropico(s, colonna) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  if (!s.meta[CLIENTI]) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v).trim());\n  const quante = (n) => int.filter((v) => v === n).length;\n  if (quante('cliente') !== 1) return { fermo: fermo(quante('cliente') ? 'la colonna cliente compare più volte' : 'manca la colonna cliente') };\n  if (quante(colonna) !== 1) return { fermo: fermo(quante(colonna) ? `la colonna ${colonna} compare più volte` : `manca la colonna ${colonna}`) };\n  const ic = int.indexOf('cliente'); const col = int.indexOf(colonna);\n  const trovate = []; righe.forEach((r, i) => { if (i > 0 && cella(r, ic).trim() === TROPICO) trovate.push(i + 1); });\n  if (!trovate.length) return { fermo: fermo(`nessuna riga con cliente = ${TROPICO}`) };\n  if (trovate.length > 1) return { fermo: fermo(`${TROPICO} compare in ${trovate.length} righe (righe ${trovate.join(', ')}): non so quale scrivere`) };\n  const riga = trovate[0];\n  return { riga, attuale: cella(righe[riga - 1], col), range: intervallo(CLIENTI, `${lettera(col)}${riga}`) };\n}\n\nfunction puntoD(s) {\n  const t = cellaTropico(s, 'frasi_storie');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === FRASI_TROPICO) return aPosto();\n  return { stato: 'da_fare', descr: `nuovo testo in frasi_storie, riga ${t.riga} (prima: ${t.attuale ? t.attuale.length + ' caratteri' : 'vuota'})`,\n    struttura: [], valori: [{ range: t.range, values: [[FRASI_TROPICO]] }] };\n}\n\n// e) link_prenotazione. Il numero non entra MAI nella descrizione: né il vecchio né il nuovo.\nfunction puntoE(s) {\n  const t = cellaTropico(s, 'link_prenotazione');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === LINK_TROPICO) return aPosto();\n  const prima = vuota(t.attuale) ? '(vuoto)' : (/wa\\.me/i.test(t.attuale) ? 'wa.me/… (nascosto)' : '(nascosto)');\n  return { stato: 'da_fare', descr: `link_prenotazione: ${prima} → wa.me/… (nascosto), riga ${t.riga}`,\n    struttura: [], valori: [{ range: t.range, values: [[LINK_TROPICO]] }] };\n}\n\n// g) La lettura da Meta: buona SOLO con status 200 e instagram_business_account.id di sole cifre, 15-20.\n// Il motivo è sempre un testo nostro: il messaggio d'errore di Meta non esce mai (al massimo il codice HTTP).\nfunction letturaMeta() {\n  let r;\n  try { r = $('Leggi Meta').first().json; } catch (e) { return { ok: false, perche: 'lettura da Meta non eseguita' }; }\n  if (!r || r.error) return { ok: false, perche: 'lettura da Meta non riuscita (rete)' };\n  const sc = Number(r.statusCode);\n  if (sc !== 200) return { ok: false, perche: `lettura da Meta non riuscita (codice HTTP ${Number.isFinite(sc) ? sc : '?'})` };\n  const iba = r.body && r.body.instagram_business_account;\n  const id = iba && iba.id;\n  if (typeof id !== 'string') return { ok: false, perche: 'lettura da Meta senza account Instagram collegato (codice HTTP 200)' };\n  if (!/^\\d{15,20}$/.test(id)) return { ok: false, perche: 'lettura da Meta con un ID Instagram di forma inattesa (codice HTTP 200)' };\n  return { ok: true, id };\n}\n\n// g) Scrive ig_user_id_2 (letto) e fb_page_id_2 (da Config) nella riga di tropico-latino. MAI ID nei testi.\nfunction puntoG(s, colonneDiA) {\n  const ig = letturaMeta();\n  if (!ig.ok) return fermo(ig.perche, true);\n  const fb2 = String(cfg().FB_PAGE_ID_2 || '').trim();\n  if (!/^\\d{5,20}$/.test(fb2)) return fermo('FB_PAGE_ID_2 nel Config manca o non è un numero');\n  const prima = {};\n  for (const col of ['ig_user_id', 'fb_page_id']) { const t = cellaTropico(s, col); if (t.fermo) return t.fermo; prima[col] = t.attuale.trim(); }\n  // Se le colonne _2 nascono in questo giro col punto a, oggi sono vuote per definizione.\n  const nasce = colonneDiA.stato === 'da_fare' ? new Set((colonneClienti(s).manca || { a: [] }).a) : new Set();\n  const ora = {}; const range = {}; let riga = null;\n  for (const col of ['ig_user_id_2', 'fb_page_id_2']) {\n    if (nasce.has(col)) { ora[col] = ''; continue; }\n    const t = cellaTropico(s, col); if (t.fermo) return t.fermo;\n    ora[col] = t.attuale; range[col] = t.range; riga = t.riga;\n  }\n  if (ig.id === prima.ig_user_id || ig.id === prima.fb_page_id) return fermo('l\\'ID Instagram letto è uguale a un ID della prima coppia: non scrivo');\n  if (fb2 === prima.fb_page_id || fb2 === prima.ig_user_id) return fermo('la pagina Facebook è uguale a un ID della prima coppia: non scrivo');\n  const voluti = { ig_user_id_2: ig.id, fb_page_id_2: fb2 };\n  if (ora.ig_user_id_2 === voluti.ig_user_id_2 && ora.fb_page_id_2 === voluti.fb_page_id_2) return aPosto();\n  const piene = Object.keys(voluti).filter((k) => !vuota(ora[k]) && ora[k] !== voluti[k]);\n  if (piene.length) return fermo(`${piene.join(' e ')} già ${piene.length > 1 ? 'piene' : 'piena'} con un valore diverso: non sovrascrivo`);\n  const daScrivere = Object.keys(voluti).filter((k) => ora[k] !== voluti[k]);\n  return { stato: 'da_fare', descr: `letto da Meta → ${daScrivere.join(' e ')}${riga ? ` nella riga ${riga}` : ''}, in formato testo`,\n    struttura: [], valori: daScrivere.filter((k) => range[k]).map((k) => ({ range: range[k], values: [[voluti[k]]] })),\n    ...(nasce.size ? { dipende: 'a' } : {}) };\n}\n\nfunction analizza(s) { const a = puntoA(s); return { a, b: puntoB(s), c: puntoC(s), d: puntoD(s), e: puntoE(s), f: puntoF(s), g: puntoG(s, a) }; }\n\nconst json = (items) => items.map((i) => i.json);\n// ===== fine aiuti comuni =====\n\n// Alla rilettura: trova righe e colonne per nome e prepara le scritture di valori (values.update RAW).\n// Un punto la cui struttura è fallita, o che alla rilettura non è pronto, non scrive.\nconst primo = $('Piano struttura').first().json;\nconst esiti1 = $('Prepara riletture').first().json.esiti_struttura || [];\nconst stato2 = leggiStato(json($('Prepara riletture').all()), json($input.all()));\nconst an2 = analizza(stato2);\nconst bloccati = {};\nconst out = [];\nif (primo.vero) for (const p of PUNTI) {\n  if (primo.analisi[p].stato !== 'da_fare') continue;\n  const e1 = esiti1.find((e) => e.punto === p);\n  if (e1 && !e1.ok) { bloccati[p] = `la modifica di struttura non è andata (${e1.errore})`; continue; }\n  if (an2[p].stato === 'gia') continue;\n  if (an2[p].stato !== 'da_fare') { bloccati[p] = `alla rilettura: ${an2[p].perche}`; continue; }\n  const fatte = new Set((e1 ? e1.richieste : []).map((r) => JSON.stringify(r)));\n  if (an2[p].struttura.some((r) => !fatte.has(JSON.stringify(r)))) { bloccati[p] = 'alla rilettura la struttura non risulta pronta: rilancia'; continue; }\n  for (const v of an2[p].valori)\n    out.push({ punto: p, url: `${urlFoglio()}/values/${encodeURIComponent(v.range)}?valueInputOption=RAW`, body: { range: v.range, majorDimension: 'ROWS', values: v.values } });\n}\nconst base = { bloccati, errori_rilettura: stato2.errori };\nif (!out.length) return [{ json: { nulla: true, ...base } }];\nreturn out.map((o, i) => ({ json: i === 0 ? { ...o, ...base } : o }));\n"
+   },
+   "id": "0e2a9cb2-bf77-5df2-ac02-611e2f453093",
+   "name": "Piano valori",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1980,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "17c367c3-d944-56f8-afe6-2aceb712004d",
+       "leftValue": "={{ $json.nulla !== true }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "97e60371-38be-5804-a167-2f12c2ee404f",
+   "name": "Valori da scrivere?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    2200,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "PUT",
+    "url": "={{ $json.url }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleSheetsOAuth2Api",
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    }
+   },
+   "id": "3f271cab-7162-5171-aceb-65b03ffc1d5a",
+   "name": "Scrivi valori",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2420,
+    -120
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===== Aiuti comuni di «Prepara foglio (una tantum)» =====\n// Questo blocco è uguale in tutti i nodi Code: si modifica qui e si rigenera con costruisci.mjs.\nconst API = 'https://sheets.googleapis.com/v4/spreadsheets/';\nconst CLIENTI = 'Clienti';\nconst CALENDARIO = 'Calendario';\nconst APPROVAZIONI = 'Approvazioni storie';\nconst NUOVE_CLIENTI = ['ig_user_id_2', 'fb_page_id_2', 'campi_da_confermare'];\nconst NUOVE_CLIENTI_F = ['anteprime_con_persone'];\nconst COLONNE_TESTO = ['ig_user_id_2', 'fb_page_id_2'];\nconst CAL_A_T = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato',\n  'esecuzione', 'link_ig', 'link_fb', 'pubblicato_il', 'errore', 'note', 'brief', 'tag_persone', 'collaboratori', 'luogo'];\nconst CAL_U_Z = ['stato_2', 'esecuzione_2', 'link_ig_2', 'link_fb_2', 'pubblicato_il_2', 'errore_2'];\nconst APP_INTESTAZIONI = ['data_ora', 'chiave', 'id_riga', 'cliente', 'esce_il', 'esito', 'scade_il', 'token', 'dettaglio'];\nconst TROPICO = 'tropico-latino';\nconst FRASI_TROPICO = 'Vi aspettiamo stasera in via Mazzini 77/A | Prenota il tuo tavolo: 0523 335932 | Margarita frozen o classico? | Aperitivo al bancone, si parte! | Due sale, più di 100 posti: portate tutti | Bienvenidos al Tropico! | Fajitas per due: si divide e si assaggia | Nachos e guacamole per cominciare | Anche vegetariano: burrito de verduras | Enchiladas rojas o verdes? Scegli tu | Queso fundido da condividere al tavolo | Venerdì e sabato aperti fino alle 2 | Cucina aperta fino alle 23, nel weekend 23:30 | Per finire in dolcezza: churros | Mousse al cioccolato e peperoncino, da provare';\nconst LINK_TROPICO = 'https://wa.me/393312173684';\nconst PUNTI = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];\nconst ID_NUOVA_SCHEDA = 2026112201; // sheetId scelto da noi, così addSheet e intestazioni stanno in UNA chiamata atomica\n\nconst cfg = () => $('Config').first().json;\nconst modalitaVera = () => String(cfg().MODALITA || '').trim() === 'vero'; // qualunque altro valore = prova\nconst lettera = (i) => { let s = ''; let n = i + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };\nconst intervallo = (titolo, a1) => `'${titolo.replace(/'/g, \"''\")}'` + (a1 ? `!${a1}` : '');\nconst urlFoglio = () => API + encodeURIComponent(cfg().SHEET_ID);\nconst cella = (riga, i) => (riga && riga[i] != null ? String(riga[i]) : '');\nconst vuota = (v) => String(v == null ? '' : v).trim() === '';\nconst virgolette = (v) => '«' + (String(v).length > 30 ? String(v).slice(0, 30) + '…' : String(v)) + '»';\n\n// Le letture: struttura (solo sheets.properties) + valori delle tre schede. Righe intere, mai colonne oltre la griglia.\nfunction letture() {\n  const u = urlFoglio();\n  return [\n    { cosa: 'meta', url: `${u}?fields=sheets.properties` },\n    { cosa: 'clienti', url: `${u}/values/${encodeURIComponent(intervallo(CLIENTI))}` },\n    { cosa: 'calendario', url: `${u}/values/${encodeURIComponent(intervallo(CALENDARIO))}` },\n    { cosa: 'approvazioni', url: `${u}/values/${encodeURIComponent(intervallo(APPROVAZIONI, '1:1'))}` },\n  ];\n}\n\n// Esito di una risposta dell'HTTP Request (fullResponse + neverError, oppure {error} se la rete è caduta).\nfunction esito(r) {\n  if (!r) return { ok: false, errore: 'nessuna risposta' };\n  if (r.error) return { ok: false, errore: 'rete: ' + String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 160) };\n  const sc = Number(r.statusCode);\n  if (sc >= 200 && sc < 300) return { ok: true, body: r.body || {} };\n  const msg = r.body && r.body.error && r.body.error.message ? String(r.body.error.message) : String(r.statusMessage || '');\n  return { ok: false, errore: `HTTP ${sc || '?'}: ${msg.slice(0, 160)}` };\n}\n\n// Mette insieme le risposte delle letture (stesso ordine delle richieste).\nfunction leggiStato(richieste, risposte) {\n  const s = { meta: null, valori: {}, errori: {} };\n  richieste.forEach((q, i) => {\n    const e = esito(risposte[i]);\n    if (!e.ok) { s.errori[q.cosa] = e.errore; s.valori[q.cosa] = null; return; }\n    if (q.cosa === 'meta') {\n      s.meta = {};\n      for (const sh of e.body.sheets || []) { const p = sh.properties || {}; s.meta[p.title] = { sheetId: p.sheetId, colonne: (p.gridProperties || {}).columnCount || 0 }; }\n    } else s.valori[q.cosa] = e.body.values || [];\n  });\n  return s;\n}\n\nconst fermo = (perche, api = false) => ({ stato: 'fermo', perche, api, struttura: [], valori: [] });\nconst aPosto = () => ({ stato: 'gia', struttura: [], valori: [] });\nconst errLettura = (s, cosa) => fermo(`non riesco a leggere (${s.errori[cosa] || s.errori.meta || 'errore'})`, true);\n\n// Colonne nuove di Clienti: a) le 3 colonne, f) anteprime_con_persone. Stanno in fondo, una dopo l'altra:\n// le posizioni si calcolano INSIEME (prima quelle di a, poi f) e la modifica di griglia/formato va in UN solo batchUpdate,\n// sul punto a se ha qualcosa da fare, altrimenti sul punto f. Così due chiamate parallele non si pestano i piedi.\nfunction colonneClienti(s) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  const m = s.meta[CLIENTI];\n  if (!m) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v));\n  const presenti = new Set(int.map((v) => v.trim()));\n  const manca = { a: NUOVE_CLIENTI.filter((n) => !presenti.has(n)), f: NUOVE_CLIENTI_F.filter((n) => !presenti.has(n)) };\n  const tutte = manca.a.concat(manca.f);\n  if (!tutte.length) return { manca };\n  let inizio = 0; int.forEach((v, i) => { if (!vuota(v)) inizio = i + 1; });\n  if (righe.slice(1).some((r) => (r || []).slice(inizio).some((v) => !vuota(v))))\n    return { manca, fermo: fermo(`ci sono dati a destra dell'ultima intestazione (dalla colonna ${lettera(inizio)}): non metto colonne sopra dati esistenti`) };\n  const fine = inizio + tutte.length;\n  const struttura = [];\n  if (fine > m.colonne) struttura.push({ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: fine - m.colonne } });\n  tutte.forEach((n, k) => {\n    if (COLONNE_TESTO.includes(n)) struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n      cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } });\n  });\n  // Le intestazioni entrano nello STESSO batchUpdate (repeatCell con il testo, come in c): griglia, formato e nomi\n  // nascono insieme o per niente. Così alla rilettura le colonne esistono già per nome e il punto g le ritrova.\n  tutte.forEach((n, k) => struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n    cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } }));\n  const allarga = fine > m.colonne ? fine - m.colonne : 0;\n  return { manca, inizio, struttura, allarga, padrone: manca.a.length ? 'a' : 'f' };\n}\n\nfunction puntoColonne(s, p) {\n  const c = colonneClienti(s);\n  if (c.manca && !c.manca[p].length) return aPosto();\n  if (c.fermo) return c.fermo;\n  const da = c.inizio + (p === 'f' ? c.manca.a.length : 0);\n  const nomi = c.manca[p]; const a = da + nomi.length - 1;\n  const mia = c.padrone === p;\n  const descr = `aggiunta di ${nomi.join(', ')} in ${lettera(da)}1${a > da ? '-' + lettera(a) + '1' : ''}`\n    + (nomi.some((n) => COLONNE_TESTO.includes(n)) ? ' (ID in formato testo)' : '')\n    + (p === 'f' ? ' (vuota = no, formato normale)' : '')\n    + (mia && c.allarga ? `, griglia +${c.allarga} colonne` : '');\n  return { stato: 'da_fare', descr, struttura: mia ? c.struttura : [], valori: [], ...(mia ? {} : { dipende: c.padrone }) };\n}\nconst puntoA = (s) => puntoColonne(s, 'a');\nconst puntoF = (s) => puntoColonne(s, 'f');\n\nfunction puntoB(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[CALENDARIO];\n  if (!m) return fermo('la scheda Calendario non esiste');\n  const righe = s.valori.calendario;\n  if (righe == null) return errLettura(s, 'calendario');\n  const int = righe[0] || [];\n  const diverse = CAL_A_T.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  if (diverse.length) return fermo(`A1:T1 non sono le 20 intestazioni attese (${diverse.slice(0, 3).join('; ')}${diverse.length > 3 ? `; e altre ${diverse.length - 3}` : ''})`);\n  const uz = CAL_U_Z.map((n, k) => cella(int, 20 + k));\n  if (uz.every((v, k) => v === CAL_U_Z[k])) return aPosto();\n  if (!uz.every(vuota)) {\n    const altro = uz.map((v, k) => (vuota(v) || v === CAL_U_Z[k] ? null : `${lettera(20 + k)}1 = ${virgolette(v)}`)).filter(Boolean);\n    return fermo(altro.length ? `U1:Z1 contengono altro (${altro.join('; ')}): non scrivo` : 'U1:Z1 sono compilate solo in parte: non scrivo, controlla a mano');\n  }\n  if (righe.slice(1).some((r) => (r || []).slice(20, 26).some((v) => !vuota(v)))) return fermo('ci sono già dati nelle colonne U-Z sotto intestazioni vuote: non scrivo');\n  const struttura = m.colonne < 26 ? [{ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: 26 - m.colonne } }] : [];\n  return { stato: 'da_fare', descr: 'intestazioni stato_2 … errore_2 in U1:Z1' + (struttura.length ? `, griglia +${26 - m.colonne} colonne` : ''),\n    struttura, valori: [{ range: intervallo(CALENDARIO, 'U1:Z1'), values: [CAL_U_Z] }] };\n}\n\nfunction puntoC(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[APPROVAZIONI];\n  if (!m) {\n    let id = ID_NUOVA_SCHEDA; const usati = new Set(Object.values(s.meta).map((x) => x.sheetId));\n    while (usati.has(id)) id += 1;\n    const struttura = [{ addSheet: { properties: { sheetId: id, title: APPROVAZIONI, gridProperties: { rowCount: 1000, columnCount: 26 } } } }]\n      .concat(APP_INTESTAZIONI.map((n, i) => ({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1, startColumnIndex: i, endColumnIndex: i + 1 },\n        cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } })));\n    return { stato: 'da_fare', descr: 'nuova scheda con le 9 intestazioni (data_ora … dettaglio)', struttura, valori: [] };\n  }\n  const righe = s.valori.approvazioni;\n  if (righe == null) return errLettura(s, 'approvazioni');\n  const int = righe[0] || [];\n  const diff = APP_INTESTAZIONI.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  int.slice(9).forEach((v, k) => { if (!vuota(v)) diff.push(`${lettera(9 + k)}1 in più: ${virgolette(v)}`); });\n  if (!diff.length) return aPosto();\n  return fermo(`la scheda esiste già con intestazioni diverse (${diff.slice(0, 4).join('; ')}${diff.length > 4 ? `; e altre ${diff.length - 4}` : ''}): non la tocco`);\n}\n\n// La riga di tropico-latino (una sola) e la colonna per nome, nello stato letto.\nfunction cellaTropico(s, colonna) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  if (!s.meta[CLIENTI]) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v).trim());\n  const quante = (n) => int.filter((v) => v === n).length;\n  if (quante('cliente') !== 1) return { fermo: fermo(quante('cliente') ? 'la colonna cliente compare più volte' : 'manca la colonna cliente') };\n  if (quante(colonna) !== 1) return { fermo: fermo(quante(colonna) ? `la colonna ${colonna} compare più volte` : `manca la colonna ${colonna}`) };\n  const ic = int.indexOf('cliente'); const col = int.indexOf(colonna);\n  const trovate = []; righe.forEach((r, i) => { if (i > 0 && cella(r, ic).trim() === TROPICO) trovate.push(i + 1); });\n  if (!trovate.length) return { fermo: fermo(`nessuna riga con cliente = ${TROPICO}`) };\n  if (trovate.length > 1) return { fermo: fermo(`${TROPICO} compare in ${trovate.length} righe (righe ${trovate.join(', ')}): non so quale scrivere`) };\n  const riga = trovate[0];\n  return { riga, attuale: cella(righe[riga - 1], col), range: intervallo(CLIENTI, `${lettera(col)}${riga}`) };\n}\n\nfunction puntoD(s) {\n  const t = cellaTropico(s, 'frasi_storie');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === FRASI_TROPICO) return aPosto();\n  return { stato: 'da_fare', descr: `nuovo testo in frasi_storie, riga ${t.riga} (prima: ${t.attuale ? t.attuale.length + ' caratteri' : 'vuota'})`,\n    struttura: [], valori: [{ range: t.range, values: [[FRASI_TROPICO]] }] };\n}\n\n// e) link_prenotazione. Il numero non entra MAI nella descrizione: né il vecchio né il nuovo.\nfunction puntoE(s) {\n  const t = cellaTropico(s, 'link_prenotazione');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === LINK_TROPICO) return aPosto();\n  const prima = vuota(t.attuale) ? '(vuoto)' : (/wa\\.me/i.test(t.attuale) ? 'wa.me/… (nascosto)' : '(nascosto)');\n  return { stato: 'da_fare', descr: `link_prenotazione: ${prima} → wa.me/… (nascosto), riga ${t.riga}`,\n    struttura: [], valori: [{ range: t.range, values: [[LINK_TROPICO]] }] };\n}\n\n// g) La lettura da Meta: buona SOLO con status 200 e instagram_business_account.id di sole cifre, 15-20.\n// Il motivo è sempre un testo nostro: il messaggio d'errore di Meta non esce mai (al massimo il codice HTTP).\nfunction letturaMeta() {\n  let r;\n  try { r = $('Leggi Meta').first().json; } catch (e) { return { ok: false, perche: 'lettura da Meta non eseguita' }; }\n  if (!r || r.error) return { ok: false, perche: 'lettura da Meta non riuscita (rete)' };\n  const sc = Number(r.statusCode);\n  if (sc !== 200) return { ok: false, perche: `lettura da Meta non riuscita (codice HTTP ${Number.isFinite(sc) ? sc : '?'})` };\n  const iba = r.body && r.body.instagram_business_account;\n  const id = iba && iba.id;\n  if (typeof id !== 'string') return { ok: false, perche: 'lettura da Meta senza account Instagram collegato (codice HTTP 200)' };\n  if (!/^\\d{15,20}$/.test(id)) return { ok: false, perche: 'lettura da Meta con un ID Instagram di forma inattesa (codice HTTP 200)' };\n  return { ok: true, id };\n}\n\n// g) Scrive ig_user_id_2 (letto) e fb_page_id_2 (da Config) nella riga di tropico-latino. MAI ID nei testi.\nfunction puntoG(s, colonneDiA) {\n  const ig = letturaMeta();\n  if (!ig.ok) return fermo(ig.perche, true);\n  const fb2 = String(cfg().FB_PAGE_ID_2 || '').trim();\n  if (!/^\\d{5,20}$/.test(fb2)) return fermo('FB_PAGE_ID_2 nel Config manca o non è un numero');\n  const prima = {};\n  for (const col of ['ig_user_id', 'fb_page_id']) { const t = cellaTropico(s, col); if (t.fermo) return t.fermo; prima[col] = t.attuale.trim(); }\n  // Se le colonne _2 nascono in questo giro col punto a, oggi sono vuote per definizione.\n  const nasce = colonneDiA.stato === 'da_fare' ? new Set((colonneClienti(s).manca || { a: [] }).a) : new Set();\n  const ora = {}; const range = {}; let riga = null;\n  for (const col of ['ig_user_id_2', 'fb_page_id_2']) {\n    if (nasce.has(col)) { ora[col] = ''; continue; }\n    const t = cellaTropico(s, col); if (t.fermo) return t.fermo;\n    ora[col] = t.attuale; range[col] = t.range; riga = t.riga;\n  }\n  if (ig.id === prima.ig_user_id || ig.id === prima.fb_page_id) return fermo('l\\'ID Instagram letto è uguale a un ID della prima coppia: non scrivo');\n  if (fb2 === prima.fb_page_id || fb2 === prima.ig_user_id) return fermo('la pagina Facebook è uguale a un ID della prima coppia: non scrivo');\n  const voluti = { ig_user_id_2: ig.id, fb_page_id_2: fb2 };\n  if (ora.ig_user_id_2 === voluti.ig_user_id_2 && ora.fb_page_id_2 === voluti.fb_page_id_2) return aPosto();\n  const piene = Object.keys(voluti).filter((k) => !vuota(ora[k]) && ora[k] !== voluti[k]);\n  if (piene.length) return fermo(`${piene.join(' e ')} già ${piene.length > 1 ? 'piene' : 'piena'} con un valore diverso: non sovrascrivo`);\n  const daScrivere = Object.keys(voluti).filter((k) => ora[k] !== voluti[k]);\n  return { stato: 'da_fare', descr: `letto da Meta → ${daScrivere.join(' e ')}${riga ? ` nella riga ${riga}` : ''}, in formato testo`,\n    struttura: [], valori: daScrivere.filter((k) => range[k]).map((k) => ({ range: range[k], values: [[voluti[k]]] })),\n    ...(nasce.size ? { dipende: 'a' } : {}) };\n}\n\nfunction analizza(s) { const a = puntoA(s); return { a, b: puntoB(s), c: puntoC(s), d: puntoD(s), e: puntoE(s), f: puntoF(s), g: puntoG(s, a) }; }\n\nconst json = (items) => items.map((i) => i.json);\n// ===== fine aiuti comuni =====\n\n// Raccoglie l'esito delle scritture di valori (se ci sono state) e rilegge tutto per la verifica.\nconst piano = json($('Piano valori').all());\nconst risposte = json($input.all());\nconst esiti = piano[0].nulla ? [] : piano.map((p, i) => { const { body, ...e } = esito(risposte[i]); return { punto: p.punto, ...e }; });\nreturn letture().map((l, i) => ({ json: i === 0 ? { ...l, esiti_valori: esiti } : l }));\n"
+   },
+   "id": "77629537-5e0b-5864-ad23-25dd5bcb06bb",
+   "name": "Prepara verifica",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ $json.url }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleSheetsOAuth2Api",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    }
+   },
+   "id": "ea00b80e-717d-5d70-acd4-1093080cc8c5",
+   "name": "Rileggi per verifica",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    2860,
+    0
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "// ===== Aiuti comuni di «Prepara foglio (una tantum)» =====\n// Questo blocco è uguale in tutti i nodi Code: si modifica qui e si rigenera con costruisci.mjs.\nconst API = 'https://sheets.googleapis.com/v4/spreadsheets/';\nconst CLIENTI = 'Clienti';\nconst CALENDARIO = 'Calendario';\nconst APPROVAZIONI = 'Approvazioni storie';\nconst NUOVE_CLIENTI = ['ig_user_id_2', 'fb_page_id_2', 'campi_da_confermare'];\nconst NUOVE_CLIENTI_F = ['anteprime_con_persone'];\nconst COLONNE_TESTO = ['ig_user_id_2', 'fb_page_id_2'];\nconst CAL_A_T = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato',\n  'esecuzione', 'link_ig', 'link_fb', 'pubblicato_il', 'errore', 'note', 'brief', 'tag_persone', 'collaboratori', 'luogo'];\nconst CAL_U_Z = ['stato_2', 'esecuzione_2', 'link_ig_2', 'link_fb_2', 'pubblicato_il_2', 'errore_2'];\nconst APP_INTESTAZIONI = ['data_ora', 'chiave', 'id_riga', 'cliente', 'esce_il', 'esito', 'scade_il', 'token', 'dettaglio'];\nconst TROPICO = 'tropico-latino';\nconst FRASI_TROPICO = 'Vi aspettiamo stasera in via Mazzini 77/A | Prenota il tuo tavolo: 0523 335932 | Margarita frozen o classico? | Aperitivo al bancone, si parte! | Due sale, più di 100 posti: portate tutti | Bienvenidos al Tropico! | Fajitas per due: si divide e si assaggia | Nachos e guacamole per cominciare | Anche vegetariano: burrito de verduras | Enchiladas rojas o verdes? Scegli tu | Queso fundido da condividere al tavolo | Venerdì e sabato aperti fino alle 2 | Cucina aperta fino alle 23, nel weekend 23:30 | Per finire in dolcezza: churros | Mousse al cioccolato e peperoncino, da provare';\nconst LINK_TROPICO = 'https://wa.me/393312173684';\nconst PUNTI = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];\nconst ID_NUOVA_SCHEDA = 2026112201; // sheetId scelto da noi, così addSheet e intestazioni stanno in UNA chiamata atomica\n\nconst cfg = () => $('Config').first().json;\nconst modalitaVera = () => String(cfg().MODALITA || '').trim() === 'vero'; // qualunque altro valore = prova\nconst lettera = (i) => { let s = ''; let n = i + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };\nconst intervallo = (titolo, a1) => `'${titolo.replace(/'/g, \"''\")}'` + (a1 ? `!${a1}` : '');\nconst urlFoglio = () => API + encodeURIComponent(cfg().SHEET_ID);\nconst cella = (riga, i) => (riga && riga[i] != null ? String(riga[i]) : '');\nconst vuota = (v) => String(v == null ? '' : v).trim() === '';\nconst virgolette = (v) => '«' + (String(v).length > 30 ? String(v).slice(0, 30) + '…' : String(v)) + '»';\n\n// Le letture: struttura (solo sheets.properties) + valori delle tre schede. Righe intere, mai colonne oltre la griglia.\nfunction letture() {\n  const u = urlFoglio();\n  return [\n    { cosa: 'meta', url: `${u}?fields=sheets.properties` },\n    { cosa: 'clienti', url: `${u}/values/${encodeURIComponent(intervallo(CLIENTI))}` },\n    { cosa: 'calendario', url: `${u}/values/${encodeURIComponent(intervallo(CALENDARIO))}` },\n    { cosa: 'approvazioni', url: `${u}/values/${encodeURIComponent(intervallo(APPROVAZIONI, '1:1'))}` },\n  ];\n}\n\n// Esito di una risposta dell'HTTP Request (fullResponse + neverError, oppure {error} se la rete è caduta).\nfunction esito(r) {\n  if (!r) return { ok: false, errore: 'nessuna risposta' };\n  if (r.error) return { ok: false, errore: 'rete: ' + String(r.error.message || r.error.description || JSON.stringify(r.error)).slice(0, 160) };\n  const sc = Number(r.statusCode);\n  if (sc >= 200 && sc < 300) return { ok: true, body: r.body || {} };\n  const msg = r.body && r.body.error && r.body.error.message ? String(r.body.error.message) : String(r.statusMessage || '');\n  return { ok: false, errore: `HTTP ${sc || '?'}: ${msg.slice(0, 160)}` };\n}\n\n// Mette insieme le risposte delle letture (stesso ordine delle richieste).\nfunction leggiStato(richieste, risposte) {\n  const s = { meta: null, valori: {}, errori: {} };\n  richieste.forEach((q, i) => {\n    const e = esito(risposte[i]);\n    if (!e.ok) { s.errori[q.cosa] = e.errore; s.valori[q.cosa] = null; return; }\n    if (q.cosa === 'meta') {\n      s.meta = {};\n      for (const sh of e.body.sheets || []) { const p = sh.properties || {}; s.meta[p.title] = { sheetId: p.sheetId, colonne: (p.gridProperties || {}).columnCount || 0 }; }\n    } else s.valori[q.cosa] = e.body.values || [];\n  });\n  return s;\n}\n\nconst fermo = (perche, api = false) => ({ stato: 'fermo', perche, api, struttura: [], valori: [] });\nconst aPosto = () => ({ stato: 'gia', struttura: [], valori: [] });\nconst errLettura = (s, cosa) => fermo(`non riesco a leggere (${s.errori[cosa] || s.errori.meta || 'errore'})`, true);\n\n// Colonne nuove di Clienti: a) le 3 colonne, f) anteprime_con_persone. Stanno in fondo, una dopo l'altra:\n// le posizioni si calcolano INSIEME (prima quelle di a, poi f) e la modifica di griglia/formato va in UN solo batchUpdate,\n// sul punto a se ha qualcosa da fare, altrimenti sul punto f. Così due chiamate parallele non si pestano i piedi.\nfunction colonneClienti(s) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  const m = s.meta[CLIENTI];\n  if (!m) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v));\n  const presenti = new Set(int.map((v) => v.trim()));\n  const manca = { a: NUOVE_CLIENTI.filter((n) => !presenti.has(n)), f: NUOVE_CLIENTI_F.filter((n) => !presenti.has(n)) };\n  const tutte = manca.a.concat(manca.f);\n  if (!tutte.length) return { manca };\n  let inizio = 0; int.forEach((v, i) => { if (!vuota(v)) inizio = i + 1; });\n  if (righe.slice(1).some((r) => (r || []).slice(inizio).some((v) => !vuota(v))))\n    return { manca, fermo: fermo(`ci sono dati a destra dell'ultima intestazione (dalla colonna ${lettera(inizio)}): non metto colonne sopra dati esistenti`) };\n  const fine = inizio + tutte.length;\n  const struttura = [];\n  if (fine > m.colonne) struttura.push({ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: fine - m.colonne } });\n  tutte.forEach((n, k) => {\n    if (COLONNE_TESTO.includes(n)) struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n      cell: { userEnteredFormat: { numberFormat: { type: 'TEXT', pattern: '@' } } }, fields: 'userEnteredFormat.numberFormat' } });\n  });\n  // Le intestazioni entrano nello STESSO batchUpdate (repeatCell con il testo, come in c): griglia, formato e nomi\n  // nascono insieme o per niente. Così alla rilettura le colonne esistono già per nome e il punto g le ritrova.\n  tutte.forEach((n, k) => struttura.push({ repeatCell: { range: { sheetId: m.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: inizio + k, endColumnIndex: inizio + k + 1 },\n    cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } }));\n  const allarga = fine > m.colonne ? fine - m.colonne : 0;\n  return { manca, inizio, struttura, allarga, padrone: manca.a.length ? 'a' : 'f' };\n}\n\nfunction puntoColonne(s, p) {\n  const c = colonneClienti(s);\n  if (c.manca && !c.manca[p].length) return aPosto();\n  if (c.fermo) return c.fermo;\n  const da = c.inizio + (p === 'f' ? c.manca.a.length : 0);\n  const nomi = c.manca[p]; const a = da + nomi.length - 1;\n  const mia = c.padrone === p;\n  const descr = `aggiunta di ${nomi.join(', ')} in ${lettera(da)}1${a > da ? '-' + lettera(a) + '1' : ''}`\n    + (nomi.some((n) => COLONNE_TESTO.includes(n)) ? ' (ID in formato testo)' : '')\n    + (p === 'f' ? ' (vuota = no, formato normale)' : '')\n    + (mia && c.allarga ? `, griglia +${c.allarga} colonne` : '');\n  return { stato: 'da_fare', descr, struttura: mia ? c.struttura : [], valori: [], ...(mia ? {} : { dipende: c.padrone }) };\n}\nconst puntoA = (s) => puntoColonne(s, 'a');\nconst puntoF = (s) => puntoColonne(s, 'f');\n\nfunction puntoB(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[CALENDARIO];\n  if (!m) return fermo('la scheda Calendario non esiste');\n  const righe = s.valori.calendario;\n  if (righe == null) return errLettura(s, 'calendario');\n  const int = righe[0] || [];\n  const diverse = CAL_A_T.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  if (diverse.length) return fermo(`A1:T1 non sono le 20 intestazioni attese (${diverse.slice(0, 3).join('; ')}${diverse.length > 3 ? `; e altre ${diverse.length - 3}` : ''})`);\n  const uz = CAL_U_Z.map((n, k) => cella(int, 20 + k));\n  if (uz.every((v, k) => v === CAL_U_Z[k])) return aPosto();\n  if (!uz.every(vuota)) {\n    const altro = uz.map((v, k) => (vuota(v) || v === CAL_U_Z[k] ? null : `${lettera(20 + k)}1 = ${virgolette(v)}`)).filter(Boolean);\n    return fermo(altro.length ? `U1:Z1 contengono altro (${altro.join('; ')}): non scrivo` : 'U1:Z1 sono compilate solo in parte: non scrivo, controlla a mano');\n  }\n  if (righe.slice(1).some((r) => (r || []).slice(20, 26).some((v) => !vuota(v)))) return fermo('ci sono già dati nelle colonne U-Z sotto intestazioni vuote: non scrivo');\n  const struttura = m.colonne < 26 ? [{ appendDimension: { sheetId: m.sheetId, dimension: 'COLUMNS', length: 26 - m.colonne } }] : [];\n  return { stato: 'da_fare', descr: 'intestazioni stato_2 … errore_2 in U1:Z1' + (struttura.length ? `, griglia +${26 - m.colonne} colonne` : ''),\n    struttura, valori: [{ range: intervallo(CALENDARIO, 'U1:Z1'), values: [CAL_U_Z] }] };\n}\n\nfunction puntoC(s) {\n  if (!s.meta) return errLettura(s, 'meta');\n  const m = s.meta[APPROVAZIONI];\n  if (!m) {\n    let id = ID_NUOVA_SCHEDA; const usati = new Set(Object.values(s.meta).map((x) => x.sheetId));\n    while (usati.has(id)) id += 1;\n    const struttura = [{ addSheet: { properties: { sheetId: id, title: APPROVAZIONI, gridProperties: { rowCount: 1000, columnCount: 26 } } } }]\n      .concat(APP_INTESTAZIONI.map((n, i) => ({ repeatCell: { range: { sheetId: id, startRowIndex: 0, endRowIndex: 1, startColumnIndex: i, endColumnIndex: i + 1 },\n        cell: { userEnteredValue: { stringValue: n } }, fields: 'userEnteredValue' } })));\n    return { stato: 'da_fare', descr: 'nuova scheda con le 9 intestazioni (data_ora … dettaglio)', struttura, valori: [] };\n  }\n  const righe = s.valori.approvazioni;\n  if (righe == null) return errLettura(s, 'approvazioni');\n  const int = righe[0] || [];\n  const diff = APP_INTESTAZIONI.map((n, i) => (cella(int, i) === n ? null : `${lettera(i)}1 è ${virgolette(cella(int, i))} invece di ${virgolette(n)}`)).filter(Boolean);\n  int.slice(9).forEach((v, k) => { if (!vuota(v)) diff.push(`${lettera(9 + k)}1 in più: ${virgolette(v)}`); });\n  if (!diff.length) return aPosto();\n  return fermo(`la scheda esiste già con intestazioni diverse (${diff.slice(0, 4).join('; ')}${diff.length > 4 ? `; e altre ${diff.length - 4}` : ''}): non la tocco`);\n}\n\n// La riga di tropico-latino (una sola) e la colonna per nome, nello stato letto.\nfunction cellaTropico(s, colonna) {\n  if (!s.meta) return { fermo: errLettura(s, 'meta') };\n  if (!s.meta[CLIENTI]) return { fermo: fermo('la scheda Clienti non esiste') };\n  const righe = s.valori.clienti;\n  if (righe == null) return { fermo: errLettura(s, 'clienti') };\n  const int = (righe[0] || []).map((v) => String(v == null ? '' : v).trim());\n  const quante = (n) => int.filter((v) => v === n).length;\n  if (quante('cliente') !== 1) return { fermo: fermo(quante('cliente') ? 'la colonna cliente compare più volte' : 'manca la colonna cliente') };\n  if (quante(colonna) !== 1) return { fermo: fermo(quante(colonna) ? `la colonna ${colonna} compare più volte` : `manca la colonna ${colonna}`) };\n  const ic = int.indexOf('cliente'); const col = int.indexOf(colonna);\n  const trovate = []; righe.forEach((r, i) => { if (i > 0 && cella(r, ic).trim() === TROPICO) trovate.push(i + 1); });\n  if (!trovate.length) return { fermo: fermo(`nessuna riga con cliente = ${TROPICO}`) };\n  if (trovate.length > 1) return { fermo: fermo(`${TROPICO} compare in ${trovate.length} righe (righe ${trovate.join(', ')}): non so quale scrivere`) };\n  const riga = trovate[0];\n  return { riga, attuale: cella(righe[riga - 1], col), range: intervallo(CLIENTI, `${lettera(col)}${riga}`) };\n}\n\nfunction puntoD(s) {\n  const t = cellaTropico(s, 'frasi_storie');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === FRASI_TROPICO) return aPosto();\n  return { stato: 'da_fare', descr: `nuovo testo in frasi_storie, riga ${t.riga} (prima: ${t.attuale ? t.attuale.length + ' caratteri' : 'vuota'})`,\n    struttura: [], valori: [{ range: t.range, values: [[FRASI_TROPICO]] }] };\n}\n\n// e) link_prenotazione. Il numero non entra MAI nella descrizione: né il vecchio né il nuovo.\nfunction puntoE(s) {\n  const t = cellaTropico(s, 'link_prenotazione');\n  if (t.fermo) return t.fermo;\n  if (t.attuale === LINK_TROPICO) return aPosto();\n  const prima = vuota(t.attuale) ? '(vuoto)' : (/wa\\.me/i.test(t.attuale) ? 'wa.me/… (nascosto)' : '(nascosto)');\n  return { stato: 'da_fare', descr: `link_prenotazione: ${prima} → wa.me/… (nascosto), riga ${t.riga}`,\n    struttura: [], valori: [{ range: t.range, values: [[LINK_TROPICO]] }] };\n}\n\n// g) La lettura da Meta: buona SOLO con status 200 e instagram_business_account.id di sole cifre, 15-20.\n// Il motivo è sempre un testo nostro: il messaggio d'errore di Meta non esce mai (al massimo il codice HTTP).\nfunction letturaMeta() {\n  let r;\n  try { r = $('Leggi Meta').first().json; } catch (e) { return { ok: false, perche: 'lettura da Meta non eseguita' }; }\n  if (!r || r.error) return { ok: false, perche: 'lettura da Meta non riuscita (rete)' };\n  const sc = Number(r.statusCode);\n  if (sc !== 200) return { ok: false, perche: `lettura da Meta non riuscita (codice HTTP ${Number.isFinite(sc) ? sc : '?'})` };\n  const iba = r.body && r.body.instagram_business_account;\n  const id = iba && iba.id;\n  if (typeof id !== 'string') return { ok: false, perche: 'lettura da Meta senza account Instagram collegato (codice HTTP 200)' };\n  if (!/^\\d{15,20}$/.test(id)) return { ok: false, perche: 'lettura da Meta con un ID Instagram di forma inattesa (codice HTTP 200)' };\n  return { ok: true, id };\n}\n\n// g) Scrive ig_user_id_2 (letto) e fb_page_id_2 (da Config) nella riga di tropico-latino. MAI ID nei testi.\nfunction puntoG(s, colonneDiA) {\n  const ig = letturaMeta();\n  if (!ig.ok) return fermo(ig.perche, true);\n  const fb2 = String(cfg().FB_PAGE_ID_2 || '').trim();\n  if (!/^\\d{5,20}$/.test(fb2)) return fermo('FB_PAGE_ID_2 nel Config manca o non è un numero');\n  const prima = {};\n  for (const col of ['ig_user_id', 'fb_page_id']) { const t = cellaTropico(s, col); if (t.fermo) return t.fermo; prima[col] = t.attuale.trim(); }\n  // Se le colonne _2 nascono in questo giro col punto a, oggi sono vuote per definizione.\n  const nasce = colonneDiA.stato === 'da_fare' ? new Set((colonneClienti(s).manca || { a: [] }).a) : new Set();\n  const ora = {}; const range = {}; let riga = null;\n  for (const col of ['ig_user_id_2', 'fb_page_id_2']) {\n    if (nasce.has(col)) { ora[col] = ''; continue; }\n    const t = cellaTropico(s, col); if (t.fermo) return t.fermo;\n    ora[col] = t.attuale; range[col] = t.range; riga = t.riga;\n  }\n  if (ig.id === prima.ig_user_id || ig.id === prima.fb_page_id) return fermo('l\\'ID Instagram letto è uguale a un ID della prima coppia: non scrivo');\n  if (fb2 === prima.fb_page_id || fb2 === prima.ig_user_id) return fermo('la pagina Facebook è uguale a un ID della prima coppia: non scrivo');\n  const voluti = { ig_user_id_2: ig.id, fb_page_id_2: fb2 };\n  if (ora.ig_user_id_2 === voluti.ig_user_id_2 && ora.fb_page_id_2 === voluti.fb_page_id_2) return aPosto();\n  const piene = Object.keys(voluti).filter((k) => !vuota(ora[k]) && ora[k] !== voluti[k]);\n  if (piene.length) return fermo(`${piene.join(' e ')} già ${piene.length > 1 ? 'piene' : 'piena'} con un valore diverso: non sovrascrivo`);\n  const daScrivere = Object.keys(voluti).filter((k) => ora[k] !== voluti[k]);\n  return { stato: 'da_fare', descr: `letto da Meta → ${daScrivere.join(' e ')}${riga ? ` nella riga ${riga}` : ''}, in formato testo`,\n    struttura: [], valori: daScrivere.filter((k) => range[k]).map((k) => ({ range: range[k], values: [[voluti[k]]] })),\n    ...(nasce.size ? { dipende: 'a' } : {}) };\n}\n\nfunction analizza(s) { const a = puntoA(s); return { a, b: puntoB(s), c: puntoC(s), d: puntoD(s), e: puntoE(s), f: puntoF(s), g: puntoG(s, a) }; }\n\nconst json = (items) => items.map((i) => i.json);\n// ===== fine aiuti comuni =====\n\n// Confronta prima/dopo e scrive il riepilogo Telegram punto per punto. Nessun valore di celle Meta finisce nel testo.\nconst esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst primo = $('Piano struttura').first().json;\nconst an1 = primo.analisi; const vero = primo.vero;\nconst esiti1 = $('Prepara riletture').first().json.esiti_struttura || [];\nconst pv = $('Piano valori').first().json;\nconst bloccati = pv.bloccati || {};\nconst esiti2 = $('Prepara verifica').first().json.esiti_valori || [];\nconst stato3 = leggiStato(json($('Prepara verifica').all()), json($input.all()));\nconst an3 = analizza(stato3);\nconst TITOLI = { a: 'Clienti, 3 colonne nuove', b: 'Calendario, colonne U-Z', c: 'Scheda «Approvazioni storie»', d: `frasi_storie di ${TROPICO}`, e: `link di prenotazione di ${TROPICO}`, f: 'Clienti, colonna anteprime_con_persone', g: `seconda coppia di ID di ${TROPICO}` };\nconst gravi = [];\nconst righe = [];\nlet daFare = 0;\nfor (const p of PUNTI) {\n  const x = an1[p];\n  let t;\n  if (x.stato === 'gia') t = 'già a posto';\n  else if (x.stato === 'fermo') { t = `fermo perché ${x.perche}`; if (x.api) gravi.push(`${p}) ${x.perche}`); }\n  else if (!vero) { t = `avrei fatto: ${x.descr}`; daFare += 1; }\n  else {\n    const dip = x.dipende || null; // f e g possono viaggiare sulle chiamate del punto a\n    const err = esiti1.concat(esiti2).filter((e) => (e.punto === p || e.punto === dip) && !e.ok).map((e) => (e.punto === p ? e.errore : `chiamata del punto ${dip}: ${e.errore}`));\n    if (err.length) { t = `fermo perché errore delle API (${err.join('; ')})`; gravi.push(`${p}) ${err.join('; ')}`); }\n    else if (bloccati[p]) { t = `fermo perché ${bloccati[p]}`; gravi.push(`${p}) ${bloccati[p]}`); }\n    else if (an3[p].stato === 'gia') t = `fatto: ${x.descr} (verificato alla rilettura)`;\n    else { const why = an3[p].stato === 'fermo' ? an3[p].perche : 'il foglio non risulta ancora come atteso'; t = `fatto, ma la verifica non torna: ${why}`; gravi.push(`${p}) verifica: ${why}`); }\n  }\n  righe.push(`<b>${p})</b> ${esc(TITOLI[p])}: ${esc(t)}`);\n}\n// Le letture di verifica devono riuscire, altrimenti in «vero» non posso dire «fatto».\nconst errVer = Object.entries(stato3.errori).filter(([k]) => !(k === 'approvazioni' && stato3.meta && !stato3.meta[APPROVAZIONI]));\nif (vero && errVer.length) gravi.push('rilettura finale: ' + errVer.map(([k, v]) => `${k} ${v}`).join('; '));\nconst testa = `<b>Prepara foglio (una tantum)</b> — ${vero ? 'modalità VERO' : 'modalità PROVA: nessuna scrittura'}`;\nconst coda = [];\nif (!vero && an1.d.stato === 'da_fare') {\n  const frasi = FRASI_TROPICO.split(' | ');\n  coda.push(`Frasi che scriverei (${frasi.length}, accorciate): ${esc(frasi.slice(0, 4).map((f) => (f.length > 24 ? f.slice(0, 24) + '…' : f)).join(' | '))} … e altre ${frasi.length - 4}`);\n}\nif (!vero && daFare) coda.push('Per eseguire davvero: nel nodo Config metti MODALITA = vero e rilancia.');\nif (vero && /<\\/b> [^:]+: fermo/.test(righe[PUNTI.indexOf('g')])) coda.push('ig_user_id_2 e fb_page_id_2 non sono stati scritti: vedi il punto g.');\nif (gravi.length) coda.push(`<b>Errore grave</b>: ${esc(gravi.join(' · '))}`);\n// Ultima difesa: nessun numero di telefono nel messaggio, qualunque cosa sia finita nei testi sopra.\nconst senzaNumeri = (t) => t.replace(/\\+?\\d[\\d .]{7,}\\d/g, '(numero nascosto)');\nlet testo = [testa, '', ...righe, '', ...coda].join('\\n');\nif (testo.length > 3900) testo = testo.replace(/<\\/?b>/g, '').slice(0, 3880).replace(/&[a-z]*$/, '') + '\\n…'; // senza tag, così l'HTML resta valido\ntesto = senzaNumeri(testo);\nreturn [{ json: { testo, grave: gravi.length > 0, motivo_grave: gravi.length ? senzaNumeri('Prepara foglio: ' + gravi.join(' · ').slice(0, 900)) : '' } }];\n"
+   },
+   "id": "4c9bd45c-099f-53bb-a518-031adcb96ec3",
+   "name": "Riepilogo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3080,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "disable_web_page_preview": true,
+     "parse_mode": "HTML"
+    }
+   },
+   "id": "f4afed80-bdd9-5f8f-a618-c7a19493a092",
+   "name": "Telegram: riepilogo",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    3300,
+    0
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "webhookId": "aeaf0736-81ea-5f5f-a7f7-146d0cc430e6"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "c0c9d310-5893-5d90-a6c2-cc5ebbd296e8",
+       "leftValue": "={{ $('Riepilogo').first().json.grave === true || !!$json.error }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "8480df6a-dc79-5514-a9c6-48dff9c907a6",
+   "name": "Errore grave?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3520,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "errorType": "errorMessage",
+    "errorMessage": "={{ $('Riepilogo').first().json.motivo_grave || 'Prepara foglio: Telegram non ha consegnato il riepilogo' }}"
+   },
+   "id": "8489c4dc-6977-5ec6-a9ac-747a647c3fe1",
+   "name": "Ferma e avvisa il flusso 99",
+   "type": "n8n-nodes-base.stopAndError",
+   "typeVersion": 1,
+   "position": [
+    3740,
+    -120
+   ]
+  }
+ ],
+ "connections": {
+  "Avvio a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Leggi Meta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Meta": {
+   "main": [
+    [
+     {
+      "node": "Prepara letture",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara letture": {
+   "main": [
+    [
+     {
+      "node": "Leggi stato iniziale",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi stato iniziale": {
+   "main": [
+    [
+     {
+      "node": "Piano struttura",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Piano struttura": {
+   "main": [
+    [
+     {
+      "node": "Struttura da scrivere?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Struttura da scrivere?": {
+   "main": [
+    [
+     {
+      "node": "Scrivi struttura",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Prepara riletture",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scrivi struttura": {
+   "main": [
+    [
+     {
+      "node": "Prepara riletture",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara riletture": {
+   "main": [
+    [
+     {
+      "node": "Rileggi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rileggi": {
+   "main": [
+    [
+     {
+      "node": "Piano valori",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Piano valori": {
+   "main": [
+    [
+     {
+      "node": "Valori da scrivere?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Valori da scrivere?": {
+   "main": [
+    [
+     {
+      "node": "Scrivi valori",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Prepara verifica",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scrivi valori": {
+   "main": [
+    [
+     {
+      "node": "Prepara verifica",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara verifica": {
+   "main": [
+    [
+     {
+      "node": "Rileggi per verifica",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rileggi per verifica": {
+   "main": [
+    [
+     {
+      "node": "Riepilogo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Riepilogo": {
+   "main": [
+    [
+     {
+      "node": "Telegram: riepilogo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram: riepilogo": {
+   "main": [
+    [
+     {
+      "node": "Errore grave?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Errore grave?": {
+   "main": [
+    [
+     {
+      "node": "Ferma e avvisa il flusso 99",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Rome",
+  "errorWorkflow": "D3Ugm3sc201nteFX",
+  "saveManualExecutions": true,
+  "callerPolicy": "workflowsFromSameOwner"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "c8f7dd84-144b-44a8-9b02-def3df0c49fd",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-22T23:14:56.569Z",
+   "createdAt": "2026-11-22T23:14:56.569Z",
+   "role": "workflow:owner",
+   "workflowId": "f045zwuRbqC77V9b",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

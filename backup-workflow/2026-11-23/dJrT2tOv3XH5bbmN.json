@@ -1,0 +1,1760 @@
+{
+ "updatedAt": "2026-11-22T00:27:45.500Z",
+ "createdAt": "2026-11-21T13:42:41.980Z",
+ "id": "dJrT2tOv3XH5bbmN",
+ "name": "10 · Revisore",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "40 8 * * *"
+      }
+     ]
+    }
+   },
+   "id": "08398196-3614-53f2-88fd-1b83d7f2a8f6",
+   "name": "Ogni giorno alle 8:40",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "10 * * * *"
+      }
+     ]
+    }
+   },
+   "id": "53de957f-52a9-5d1c-b35b-d923083cfa58",
+   "name": "Ogni ora",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    300
+   ],
+   "notes": "Solo le righe che escono nelle 3 ore dopo.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {},
+   "id": "0be60018-28c6-52b9-a3c0-038fff1f7a7b",
+   "name": "Prova a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    500
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "5190f0f5-00f0-53d7-8f5b-760a2d81336c",
+       "name": "MODALITA",
+       "value": "prova",
+       "type": "string"
+      },
+      {
+       "id": "c3691dde-44a7-5f18-9fb7-9943cc469097",
+       "name": "SHEET_ID",
+       "value": "1nOTwzXkqNsfwortRslKBzsBXh2uIz2G2Lyu13Hufmjo",
+       "type": "string"
+      },
+      {
+       "id": "c13e9236-b1b4-5236-9721-4adc2588f1a2",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "1913003037",
+       "type": "string"
+      },
+      {
+       "id": "b8a44347-ac5a-50ef-a937-8e090f2f457d",
+       "name": "SCHEDA_CALENDARIO",
+       "value": "Calendario",
+       "type": "string"
+      },
+      {
+       "id": "2caf5375-8454-5ff7-8b8e-5872a4cd32f6",
+       "name": "SCHEDA_CLIENTI",
+       "value": "Clienti",
+       "type": "string"
+      },
+      {
+       "id": "40757cb4-b899-5b7e-ace4-c8a7038a4720",
+       "name": "SCHEDA_REVISORE",
+       "value": "Revisore",
+       "type": "string"
+      },
+      {
+       "id": "961159a2-586e-5ef4-9f1e-1fa576ef3ac6",
+       "name": "ORE_VICINA_USCITA",
+       "value": 24,
+       "type": "number"
+      },
+      {
+       "id": "e2235d5e-37cf-5c22-b4b1-e4db79e5184b",
+       "name": "ORE_GIRO_ORARIO",
+       "value": 3,
+       "type": "number"
+      },
+      {
+       "id": "2a09bc77-1e8a-5a53-9cb0-b255ea7a8570",
+       "name": "GIORNI_AVANTI",
+       "value": 60,
+       "type": "number"
+      },
+      {
+       "id": "c56e4c26-375a-5763-8422-45f911dc4ee3",
+       "name": "GIORNI_IMPRONTE",
+       "value": 14,
+       "type": "number"
+      },
+      {
+       "id": "b767547a-1d66-5b13-8ef6-75c32af75438",
+       "name": "MAX_IMPRONTE",
+       "value": 40,
+       "type": "number"
+      },
+      {
+       "id": "6c35bfdf-b2ab-5a60-9cc2-9d336f2116a3",
+       "name": "ORE_ATTESA_RISPOSTA",
+       "value": 24,
+       "type": "number"
+      },
+      {
+       "id": "8d25643a-9fc5-58db-a0a3-1ab335ed22eb",
+       "name": "MAX_PROPOSTE",
+       "value": 15,
+       "type": "number"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "options": {}
+   },
+   "id": "a6819e72-f9cd-535d-8756-10d5cb234591",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    240,
+    300
+   ],
+   "notes": "MODALITA: «prova» = legge e propone ma non scrive mai nel Calendario né in Clienti; «vero» solo con l'OK di Nicola. In prova si possono usare anche copie delle schede.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CLIENTI || 'Clienti' }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "2f898f1c-a765-5bb1-93c8-e2b597b39749",
+   "name": "Leggi Clienti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    480,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CALENDARIO }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "1547c0d2-bed0-5ec4-bc58-daeb2da89351",
+   "name": "Leggi Calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    720,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_REVISORE }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "d2707a61-803c-5267-a9ee-f8d28fa874f1",
+   "name": "Leggi Revisore",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    960,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "notes": "La traccia: serve a non riproporre le cose già decise.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n// Quali file di Drive controllare con l'impronta md5 (solo nel giro delle 8:40): quelli delle righe vive che escono\n// nei prossimi GIORNI_IMPRONTE giorni e quelli delle righe pubblicate negli ultimi 30 giorni. Prima i file delle righe in\n// arrivo, al massimo MAX_IMPRONTE chiamate. Se non c'è niente da controllare esce un item senza file_id.\nconst cfg = $('Config').first().json;\nconst orario = $('Ogni ora').isExecuted;\nconst adesso = Date.now();\nconst GIORNO = 86400000;\nconst giorniImpronte = Number(cfg.GIORNI_IMPRONTE) || 14;\nconst maxImpronte = Math.max(0, Number(cfg.MAX_IMPRONTE) || 40);\n\nif (orario) return [{ json: { nessun_file: true, motivo: 'giro orario: impronte non controllate' } }];\n\nconst inArrivo = [];\nconst pubblicate = [];\nfor (const r of lette('Leggi Calendario')) {\n  const stato = testo(r.stato).toLowerCase();\n  const d = leggiDataOra(r.data_ora);\n  const ms = d && d.ms !== null ? d.ms : null;\n  if (VIVI.includes(stato) && ms !== null && ms >= adesso - 3600000 && ms <= adesso + giorniImpronte * GIORNO) {\n    inArrivo.push(...fileDellaRiga(r));\n  } else if (stato === 'pubblicato' && ms !== null && ms >= adesso - 30 * GIORNO) {\n    pubblicate.push(...fileDellaRiga(r));\n  }\n}\nconst scelti = [...new Set([...inArrivo, ...pubblicate])];\nconst tagliati = Math.max(0, scelti.length - maxImpronte);\nconst file = scelti.slice(0, maxImpronte);\nif (!file.length) return [{ json: { nessun_file: true, motivo: 'nessun file da controllare' } }];\nreturn file.map((id, i) => ({ json: { file_id: id, ordine: i, tagliati } }));\n"
+   },
+   "id": "f69cc3f4-9f10-59b6-b52c-f1e9eb6cde75",
+   "name": "Righe e file da guardare",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1200,
+    300
+   ],
+   "notes": "Quali file controllare con l'impronta md5 (solo alle 8:40).",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "4bd33a9f-93da-501b-a252-1fbceec79fbb",
+       "leftValue": "={{ !!$json.file_id }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "03e4a69f-2988-5475-a778-77600e3bb15d",
+   "name": "Ci sono file?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1440,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://www.googleapis.com/drive/v3/files/{{ encodeURIComponent($json.file_id) }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "md5Checksum,trashed"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 20000,
+     "batching": {
+      "batch": {
+       "batchSize": 10,
+       "batchInterval": 1000
+      }
+     }
+    }
+   },
+   "id": "8694d810-01b8-554d-904c-d1e280ae681e",
+   "name": "Impronta del file",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    1680,
+    200
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "notes": "Una chiamata per file, sola lettura. Solo il 404 o il cestino contano come file mancante; gli altri errori = non controllato.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n// Guarda le righe vive del Calendario e la scheda Clienti, e decide per ogni problema cosa fare:\n// auto (correzione da sola), pausa (correzione o solo stato → da_approvare), proposta (pulsanti su Telegram), avviso (solo riepilogo).\n// Non scrive niente: esce con un item solo, l'elenco dei problemi. Le scritture le fanno i rami dopo, rileggendo il foglio\n// e scrivendo per numero di riga (row_number), dopo aver ricontrollato che l'id sia ancora quello.\nconst cfg = $('Config').first().json;\nconst orario = $('Ogni ora').isExecuted;\nconst adesso = Date.now();\nconst ORA = 3600000;\nconst oreVicina = Number(cfg.ORE_VICINA_USCITA) || 24;\nconst oreGiro = Number(cfg.ORE_GIRO_ORARIO) || 3;\nconst giorniAvanti = Number(cfg.GIORNI_AVANTI) || 60;\nconst oreAttesa = Number(cfg.ORE_ATTESA_RISPOSTA) || 24;\nconst maxProposte = Math.max(0, Number(cfg.MAX_PROPOSTE) || 15);\n\n// --- prezzi: «€ 12», «12,50 €», «13 euro», «1.500 €», «10-12 €», con le parole che li accompagnano ---\nconst NUM = '(?:\\\\d{1,3}(?:\\\\.\\\\d{3})+(?:,\\\\d{1,2})?|\\\\d{1,4}(?:[.,]\\\\d{1,2})?)';\nconst INTERVALLO = `${NUM}(?:[ \\\\t\\\\u00a0\\\\u202f]*[-–][ \\\\t\\\\u00a0\\\\u202f]*${NUM})?`;\nconst SOLO_PREZZO = `(?:€[ \\\\t\\\\u00a0\\\\u202f]*${INTERVALLO}|(?<![\\\\d.,])${INTERVALLO}[ \\\\t\\\\u00a0\\\\u202f]*(?:€|euro\\\\b|eur\\\\b))`;\nconst PREZZO = new RegExp(SOLO_PREZZO, 'i');\nconst PREZZO_CON_PAROLE = () => new RegExp(`[ \\\\t\\\\u00a0\\\\u202f]*(?:\\\\b(?:a partire da|a soli|a solo|a|da|solo|soli)[ \\\\t\\\\u00a0\\\\u202f]+)?${SOLO_PREZZO}`, 'gi');\nconst LETTERA = /[A-Za-zÀ-ÖØ-öø-ÿ]/;\n// Toglie i prezzi solo dove la frase resta intera: prima del prezzo niente «:», «-», «/» o cifre, dopo il prezzo\n// fine riga o punteggiatura. Altrimenti (es. «Spendi 20€ e ricevi…», «Margherita: 8 €, Diavola: 9 €») è «sospetto»\n// e non si tocca: lo sistema una persona. Le pulizie (spazi, parentesi vuote) si fanno solo nel punto del taglio.\nconst togliPrezzi = (t) => {\n  const s = String(t);\n  let out = '';\n  let ultimo = 0;\n  let sospetto = false;\n  const tolti = [];\n  for (const m of s.matchAll(PREZZO_CON_PAROLE())) {\n    const inizio = m.index;\n    const fine = inizio + m[0].length;\n    const prima = s.slice(0, inizio).replace(/[ \\t\\u00a0\\u202f]+$/, '');\n    const dopo = s.slice(fine);\n    const cPrima = prima.slice(-1);\n    const cDopo = Array.from(dopo.replace(/^[ \\t\\u00a0\\u202f]*/, ''))[0] || '';\n    if (/[:\\-–—/·=+×,\\d]/.test(cPrima)) sospetto = true;\n    // una parola appesa prima del prezzo («ricco e a 11 euro», «menu di 20 €»): togliendolo la frase resterebbe monca\n    const ultimaParola = (prima.match(/([A-Za-zÀ-ÖØ-öø-ÿ']+)$/) || ['', ''])[1].toLowerCase();\n    if (/^(?:e|ed|o|od|di|del|della|dei|delle|con|per|in|su|tra|fra|che|il|lo|la|i|gli|le|un|uno|una|al|alla|ai|alle)$/.test(ultimaParola)) sospetto = true;\n    if (/[\\p{L}\\d]/u.test(cDopo)) sospetto = true;\n    if (/^[^ \\t\\u00a0\\u202f]/.test(m[0]) && LETTERA.test(s.slice(inizio - 1, inizio))) sospetto = true; // «a8€»\n    if (/\\d[ \\t\\u00a0\\u202f]*[-–][ \\t\\u00a0\\u202f]*\\d/.test(m[0])) sospetto = true; // «12-15 €» può essere un orario\n    tolti.push(m[0].trim());\n    out += s.slice(ultimo, inizio);\n    ultimo = fine;\n    // spazi prima della punteggiatura che segue, e parentesi rimaste vuote\n    const resto = s.slice(ultimo);\n    const sp = resto.match(/^[ \\t\\u00a0\\u202f]+(?=[.,;!?)…])/);\n    if (sp) ultimo += sp[0].length;\n    if (/\\([ \\t\\u00a0\\u202f]*$/.test(out) && /^[ \\t\\u00a0\\u202f]*\\)/.test(s.slice(ultimo))) {\n      out = out.replace(/[ \\t\\u00a0\\u202f]*\\([ \\t\\u00a0\\u202f]*$/, '');\n      ultimo += s.slice(ultimo).match(/^[ \\t\\u00a0\\u202f]*\\)/)[0].length;\n    }\n  }\n  out += s.slice(ultimo);\n  out = out.replace(/[ \\t\\u00a0\\u202f]+$/gm, '').trim();\n  if (tolti.length && (!LETTERA.test(out) || /[:\\-–/]\\s*$/.test(out))) sospetto = true;\n  return { testo: out, tolti, sospetto };\n};\n// Nel menu il prezzo è spesso l'ultimo numero della riga, senza «€». Si toglie solo da una riga che sembra una voce di\n// menu: almeno 3 lettere, numero di 1-3 cifre (o con i decimali), nessuna parola da indirizzo/orario/misura, e il numero\n// non attaccato ad altre cifre (telefoni). Le righe dubbie restano com'erano e si contano.\nconst INDIRIZZO_ORARIO = /\\b(?:tel|telefono|cell|cellulare|whatsapp|via|viale|piazza|piazzale|corso|vicolo|strada|largo|cap|orari|orario|aperti|aperto|chiuso|chiusi)\\b/i;\n// «per 2», «x 4»: porzioni per N persone, non prezzi\nconst PRIMA_DEL_NUMERO = /^(?:ore|dalle|alle|dal|al|n|nr|civico|anno|anni|tel|cap|per|x)$/i;\nconst FINE_RIGA_MENU = /^(.*?)([ \\t\\u00a0\\u202f]*[-–:·.…]*[ \\t\\u00a0\\u202f]*(?:€[ \\t\\u00a0\\u202f]*)?(\\d{1,3}(?:[.,]\\d{1,2})?)[ \\t\\u00a0\\u202f]*(?:€|euro|eur)?)[ \\t\\u00a0\\u202f]*$/i;\nconst rigaMenu = (riga) => {\n  const r = togliPrezzi(riga);\n  if (r.tolti.length) return r.sospetto ? { riga, cambiata: false, dubbia: true } : { riga: r.testo, cambiata: true, dubbia: false };\n  const m = riga.match(FINE_RIGA_MENU);\n  if (!m) return { riga, cambiata: false, dubbia: false };\n  const testoVoce = m[1];\n  const lettere = (testoVoce.match(/[A-Za-zÀ-ÖØ-öø-ÿ]/g) || []).length;\n  if (lettere < 3) return { riga, cambiata: false, dubbia: false };\n  const ultima = (testoVoce.trim().split(/[\\s(]+/).pop() || '').replace(/[.,:;)]+$/, '');\n  // indirizzi, telefoni, orari: il numero finale non è un prezzo. Ogni altra riga dubbia resta com'è ma si conta.\n  if (/\\d[ \\t\\u00a0\\u202f]*$/.test(testoVoce) || INDIRIZZO_ORARIO.test(riga) || PRIMA_DEL_NUMERO.test(ultima)) {\n    return { riga, cambiata: false, dubbia: !INDIRIZZO_ORARIO.test(riga) }; // es. «per 2 18»: resta com'è, ma si segnala\n  }\n  return { riga: testoVoce.replace(/[ \\t\\u00a0\\u202f]+$/, ''), cambiata: true, dubbia: false };\n};\nconst menuSenzaPrezzi = (t) => {\n  const righeMenu = String(t).split(/\\r?\\n/).map(rigaMenu);\n  return { testo: righeMenu.map((x) => x.riga).join('\\n'), cambiate: righeMenu.filter((x) => x.cambiata).length, dubbie: righeMenu.filter((x) => x.dubbia).length };\n};\nconst reFrase = (frase, flag) => new RegExp(`(?<![\\\\p{L}\\\\d])${frase.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&').replace(/\\s+/g, '\\\\s+')}(?![\\\\p{L}\\\\d])`, flag);\nconst togliFrase = (t, frase) => String(t).replace(reFrase(frase, 'giu'), '').replace(/[ \\t\\u00a0\\u202f]{2,}/g, ' ').replace(/[ \\t\\u00a0\\u202f]+([,.;:!?)])/g, '$1').replace(/[ \\t\\u00a0\\u202f]+$/gm, '').trim();\n\n// Cosa cambia, da mostrare su Telegram: solo le righe cambiate, con un po' di contesto intorno al pezzo cambiato.\nconst CONTESTO = 60;\nconst pezzoCambiato = (sa, sb) => {\n  const a = Array.from(sa); const b = Array.from(sb); // per caratteri veri: niente emoji tagliate a metà\n  let i = 0;\n  while (i < a.length && i < b.length && a[i] === b[i]) i++;\n  let j = 0;\n  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;\n  const pre = a.slice(Math.max(0, i - CONTESTO), i).join('');\n  const postA = a.slice(a.length - j, a.length - j + CONTESTO).join('');\n  return { pre: (i > CONTESTO ? '…' : '') + pre, tolto: a.slice(i, a.length - j).join(''), messo: b.slice(i, b.length - j).join(''),\n    post: postA + (j > CONTESTO ? '…' : '') };\n};\nconst cambi = (prima, dopo) => {\n  const ra = String(prima).split(/\\r?\\n/);\n  const rb = String(dopo).split(/\\r?\\n/);\n  const coppie = [];\n  if (ra.length === rb.length) ra.forEach((x, k) => { if (x !== rb[k]) coppie.push([x, rb[k]]); });\n  else coppie.push([String(prima), String(dopo)]);\n  return coppie.map(([a, b]) => pezzoCambiato(a, b));\n};\nconst MAX_PEZZO = 300;\nconst MAX_CAMBI = 1500;\n// la proposta si manda solo se tutto quello che cambia si può far vedere; altrimenti diventa un avviso\nconst proposta = (p) => {\n  const lista = cambi(p.prima, p.dopo);\n  const lungo = lista.some((c) => c.tolto.length > MAX_PEZZO || c.messo.length > MAX_PEZZO)\n    || lista.reduce((n, c) => n + c.pre.length + c.tolto.length + c.messo.length + c.post.length, 0) > MAX_CAMBI;\n  if (lungo || !lista.length) {\n    return { ...p, azione: 'avviso', cambi: [], copia_in_menu_con_prezzi: false,\n      problema: p.tipo === 'menu'\n        ? 'menu_testo ha prezzi non confermati in troppe righe da mostrare con i pulsanti: spostali a mano in menu_con_prezzi'\n        : `${p.colonna}: ${p.problema.replace(/\\?\\s*$/, '')} (troppe modifiche da mostrare con i pulsanti: correggilo a mano)` };\n  }\n  return { ...p, cambi: lista };\n};\n\n// --- dati letti ---\nconst clientiRighe = $('Leggi Clienti').all().map((i) => i.json || {}).filter((r) => testo(r.cliente));\nif (!clientiRighe.length) throw new Error('Revisore fermo: la scheda Clienti è vuota o non si legge. Senza i clienti toglierebbe i prezzi a tutti.');\nconst clienti = {};\nfor (const c of clientiRighe) if (!has(clienti, testo(c.cliente))) clienti[testo(c.cliente)] = c; // il 01 prende la prima riga\nconst perMinuscole = {};\nfor (const k of Object.keys(clienti)) (perMinuscole[k.toLowerCase()] = perMinuscole[k.toLowerCase()] || []).push(k);\nconst righe = lette('Leggi Calendario');\nconst traccia = $('Leggi Revisore').all().map((i) => i.json || {}).filter((r) => testo(r.chiave));\nconst chiesti = $('Righe e file da guardare').all().map((i) => i.json || {});\nconst risposte = $('Impronta del file').isExecuted ? $('Impronta del file').all().map((i) => i.json || {}) : [];\nconst tagliati = Number((chiesti[0] || {}).tagliati) || 0;\n\n// impronte md5 e file non trovati: le risposte di Drive arrivano nello stesso ordine dei file chiesti.\n// «Mancante» solo con la risposta 404 o il file nel cestino; ogni altro errore (token scaduto, quota, 5xx) = non controllato.\nconst codiceErrore = (e) => {\n  if (!e || typeof e !== 'object') return String(e || '').match(/\\b(\\d{3})\\b/)?.[1] || '';\n  const c = e.httpCode ?? e.statusCode ?? e.status ?? e.code ?? e.cause?.status ?? e.response?.status;\n  if (c !== undefined && /^\\d{3}$/.test(String(c))) return String(c);\n  return String(e.message || e.description || '').match(/\\b(4\\d\\d|5\\d\\d)\\b/)?.[1] || '';\n};\nconst md5DelFile = {};\nconst fileMancanti = new Set();\nlet erroriDrive = 0;\nchiesti.forEach((c, i) => {\n  if (!c.file_id) return;\n  const r = risposte[i] || {};\n  if (r.error) { if (codiceErrore(r.error) === '404') fileMancanti.add(c.file_id); else erroriDrive++; return; }\n  if (r.trashed === true) { fileMancanti.add(c.file_id); return; }\n  if (/^[0-9a-f]{32}$/i.test(testo(r.md5Checksum))) md5DelFile[c.file_id] = testo(r.md5Checksum).toLowerCase();\n});\n\n// --- righe da guardare in questo giro ---\nconst conData = righe.map((r) => {\n  const d = leggiDataOra(r.data_ora);\n  return { r, stato: testo(r.stato).toLowerCase(), d, ms: d && d.ms !== null ? d.ms : null };\n});\nconst nelGiro = conData.filter((x) => {\n  if (!VIVI.includes(x.stato)) return false;\n  if (orario) return x.ms !== null && x.ms >= adesso && x.ms <= adesso + oreGiro * ORA;\n  return x.ms === null || (x.ms >= adesso - ORA && x.ms <= adesso + giorniAvanti * 86400000);\n});\nconst approvatePassate = conData.filter((x) => x.stato === 'approvato' && x.ms !== null && x.ms < adesso - 15 * 60000\n  && (!orario || x.ms >= adesso - oreGiro * ORA));\n// id ripetuti (anche con spazi diversi) in tutto il Calendario\nconst quanteVolte = {};\nfor (const x of conData) { const k = testo(x.r.id); if (k) quanteVolte[k] = (quanteVolte[k] || 0) + 1; }\n\nconst problemi = [];\nconst aggiungi = (p) => {\n  p.chiave = [p.tipo, p.chiave_riga, p.colonna, impronta(p.prima), p.sotto || ''].filter((v, k) => k < 4 || v).join('|');\n  problemi.push(p);\n  return p;\n};\nconst quando = (x) => (x.ms !== null ? oraRoma(x.ms) : testo(x.r.data_ora) || 'senza data');\nconst baseDi = (x) => {\n  const id = testo(x.r.id);\n  return { scheda: 'Calendario', chiave_riga: id || `riga ${x.r.row_number}`, id_riga: id, row_number: x.r.row_number,\n    cliente: testo(x.r.cliente), quando: quando(x), stato: x.stato };\n};\n// una riga approvata vicina all'uscita con un problema torna da approvare: una pausa sola per riga, coi motivi in fila\nconst pausate = {};\nconst pausaRiga = (x, motivo) => {\n  const n = x.r.row_number;\n  if (pausate[n]) { pausate[n].problema += `; ${motivo}`; return; }\n  pausate[n] = aggiungi({ ...baseDi(x), tipo: 'pausa', azione: 'pausa', colonna: 'stato', prima: testo(x.r.stato), dopo: 'da_approvare',\n    solo_stato: true, problema: `torna da approvare perché esce entro ${oreVicina} ore: ${motivo}` });\n};\n\nfor (const x of nelGiro) {\n  const r = x.r;\n  const id = testo(r.id);\n  const chiaveCliente = testo(r.cliente);\n  const base = baseDi(x);\n\n  // id mancante: senza id 04, 01 e il motore non ritrovano la riga\n  if (!id) {\n    if (!chiaveCliente) continue;\n    const pezzo = chiaveCliente.replace(/[^A-Za-z0-9-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'cliente';\n    const data = x.d ? x.d.chiave.slice(0, 10).replace(/-/g, '') : 'senzadata';\n    aggiungi({ ...base, tipo: 'id', azione: 'avviso', colonna: 'id', prima: '', dopo: '',\n      problema: `la riga ${r.row_number} non ha l'id: 04, 01 e il motore non la possono lavorare. Scrivi un id unico, per esempio RV-${pezzo}-${data}-${r.row_number}` });\n    continue;\n  }\n  if (quanteVolte[id] > 1) {\n    aggiungi({ ...base, tipo: 'id', azione: 'avviso', colonna: 'id', prima: id, dopo: '', sotto: String(r.row_number),\n      problema: `l'id «${corto(id, 40)}» è anche in un'altra riga del Calendario: 04 e 01 potrebbero lavorare la riga sbagliata. Dagli un id unico` });\n  } else if (String(r.id) !== id) {\n    aggiungi({ ...base, tipo: 'id', azione: 'avviso', colonna: 'id', prima: String(r.id), dopo: '',\n      problema: `l'id «${corto(id, 40)}» ha degli spazi prima o dopo: toglili, altrimenti 04 e 01 possono non ritrovare la riga` });\n  }\n\n  // cliente: deve essere la chiave esatta della scheda Clienti. Se c'è un solo simile, i prezzi si giudicano con quello.\n  let cliente = has(clienti, chiaveCliente) ? clienti[chiaveCliente] : null;\n  if (!cliente) {\n    const simili = perMinuscole[chiaveCliente.toLowerCase()] || [];\n    if (simili.length === 1) {\n      cliente = clienti[simili[0]];\n      aggiungi(proposta({ ...base, tipo: 'formato', azione: 'proposta', colonna: 'cliente', prima: testo(r.cliente), dopo: simili[0],\n        problema: `il cliente «${corto(chiaveCliente, 60)}» non è scritto come nella scheda Clienti («${corto(simili[0], 60)}»): 01 e motore non lo ritrovano` }));\n    } else {\n      aggiungi({ ...base, tipo: 'formato', azione: 'avviso', colonna: 'cliente', prima: testo(r.cliente), dopo: '',\n        problema: `il cliente «${corto(chiaveCliente || 'vuoto', 60)}» non c'è nella scheda Clienti: prezzi e frasi di questa riga non li controllo` });\n    }\n  }\n\n  // data, tipo, piattaforme\n  if (x.ms === null) {\n    aggiungi({ ...base, tipo: 'formato', azione: 'avviso', colonna: 'data_ora', prima: testo(r.data_ora), dopo: '',\n      problema: `data_ora «${corto(testo(r.data_ora) || 'vuota', 40)}» non si legge (o è l'ora saltata dal cambio d'ora): la riga non uscirà` });\n  }\n  const tipoGrezzo = testo(r.tipo);\n  if (TIPI.includes(tipoGrezzo.toLowerCase()) && tipoGrezzo !== tipoGrezzo.toLowerCase()) {\n    aggiungi(proposta({ ...base, tipo: 'formato', azione: 'proposta', colonna: 'tipo', prima: tipoGrezzo, dopo: tipoGrezzo.toLowerCase(),\n      problema: `tipo «${tipoGrezzo}» con le maiuscole: il motore lo vuole in minuscolo` }));\n  } else if (!TIPI.includes(tipoGrezzo.toLowerCase())) {\n    aggiungi({ ...base, tipo: 'formato', azione: 'avviso', colonna: 'tipo', prima: tipoGrezzo, dopo: '',\n      problema: `tipo «${corto(tipoGrezzo || 'vuoto', 30)}» non valido: usa post, carosello, reel o storia` });\n  }\n  const piattGrezze = testo(r.piattaforme);\n  const voci = piattGrezze.toLowerCase().split(/[+,/ ]+/).filter(Boolean);\n  const ig = voci.some((v) => v === 'ig' || v === 'instagram');\n  const fb = voci.some((v) => v === 'fb' || v === 'facebook');\n  const altre = voci.filter((v) => !['ig', 'instagram', 'fb', 'facebook'].includes(v));\n  const normali = ig && fb ? 'ig+fb' : ig ? 'ig' : fb ? 'fb' : '';\n  if (!normali || altre.length) {\n    aggiungi({ ...base, tipo: 'formato', azione: 'avviso', colonna: 'piattaforme', prima: piattGrezze, dopo: '',\n      problema: `piattaforme «${corto(piattGrezze || 'vuote', 30)}» non valide: usa ig, fb oppure ig+fb` });\n  } else if (normali !== piattGrezze) {\n    aggiungi(proposta({ ...base, tipo: 'formato', azione: 'proposta', colonna: 'piattaforme', prima: piattGrezze, dopo: normali,\n      problema: `piattaforme scritte «${corto(piattGrezze, 30)}»: 04 e motore accettano solo ig, fb o ig+fb` }));\n  }\n\n  // prezzi non confermati e frasi da verificare, nei testi (solo se il cliente è riconosciuto)\n  if (!cliente) continue;\n  const prezziOk = siNo(cliente.prezzi_confermati, false);\n  const frasi = testo(cliente.da_verificare).split(/[;\\n]+/).map((s) => s.trim()).filter((s) => s.length >= 3);\n  const approvata = x.stato === 'approvato';\n  const vicina = approvata && x.ms !== null && x.ms - adesso <= oreVicina * ORA;\n  for (const colonna of COLONNE_TESTO) {\n    const valore = testo(r[colonna]);\n    if (!valore) continue;\n    let attuale = valore; // il testo come sarà dopo le correzioni automatiche: le proposte partono da qui\n    if (!prezziOk && PREZZO.test(valore)) {\n      const t = togliPrezzi(valore);\n      const elenco = corto(t.tolti.join(', '), 80);\n      if (!t.sospetto && t.testo) {\n        aggiungi({ ...base, tipo: 'prezzo', azione: vicina ? 'pausa' : 'auto', colonna, prima: valore, dopo: t.testo, tolto: t.tolti.join(', '),\n          problema: `prezzo non confermato in ${colonna}: tolto «${elenco}»${vicina ? `, e la riga torna da approvare perché esce entro ${oreVicina} ore` : ''}` });\n        if (vicina && !pausate[r.row_number]) pausate[r.row_number] = problemi[problemi.length - 1];\n        else if (vicina) pausate[r.row_number].problema += `; prezzo tolto anche in ${colonna}`;\n        attuale = t.testo;\n      } else {\n        // toglierlo da solo rovinerebbe la frase: lo sistema una persona. Un'approvata non deve uscire così.\n        aggiungi({ ...base, tipo: 'prezzo', azione: 'avviso', colonna, prima: valore, dopo: '', sotto: impronta(elenco),\n          problema: `prezzo non confermato in ${colonna} («${elenco}»): toglierlo da solo rovinerebbe la frase, correggilo a mano` });\n        if (approvata) {\n          const n = r.row_number;\n          if (!pausate[n]) {\n            pausate[n] = aggiungi({ ...base, tipo: 'pausa', azione: 'pausa', colonna: 'stato', prima: testo(r.stato), dopo: 'da_approvare', solo_stato: true,\n              problema: `torna da approvare: in ${colonna} c'è un prezzo non confermato da togliere a mano` });\n          } else pausate[n].problema += `; prezzo da togliere a mano in ${colonna}`;\n        }\n      }\n    }\n    // tutte le frasi trovate nella stessa colonna in una proposta sola: due proposte sullo stesso testo si escluderebbero\n    const trovate = frasi.filter((frase) => reFrase(frase, 'iu').test(attuale));\n    if (trovate.length) {\n      const dopo = trovate.reduce((t, frase) => togliFrase(t, frase), attuale);\n      const elenco = trovate.map((f) => corto(f, 60));\n      aggiungi(proposta({ ...base, tipo: 'frase', azione: 'proposta', colonna, prima: attuale, dopo, frase: trovate.join('; '),\n        problema: `in ${colonna} ${trovate.length === 1 ? 'c\\'è' : 'ci sono'} «${elenco.join('», «')}», da verificare con il titolare: ${trovate.length === 1 ? 'la tolgo' : 'le tolgo'}?` }));\n      if (vicina) pausaRiga(x, `in ${colonna} c'è una frase da verificare`);\n    }\n  }\n\n  // approvato senza file: il 01 la metterebbe in errore\n  if (approvata && !fileDellaRiga(r).length) {\n    aggiungi({ ...base, tipo: 'senza_media', azione: 'avviso', colonna: 'media', prima: testo(r.media), dopo: '',\n      problema: 'approvata ma senza file in media: il 01 non la può pubblicare' });\n  }\n}\n\n// --- file: stesso file in due righe, stessa impronta, file non trovato (solo righe vive nel giro) ---\nconst MESE = 30 * 86400000;\nconst viviEPubblicati = conData.filter((x) => VIVI.includes(x.stato) || (x.stato === 'pubblicato' && x.ms !== null && x.ms >= adesso - MESE));\nconst righeDelFile = {};\nconst righeDellImpronta = {};\nfor (const x of viviEPubblicati) {\n  for (const f of new Set(fileDellaRiga(x.r))) {\n    (righeDelFile[f] = righeDelFile[f] || []).push(x);\n    if (md5DelFile[f]) (righeDellImpronta[md5DelFile[f]] = righeDellImpronta[md5DelFile[f]] || []).push({ x, f });\n  }\n}\nconst ordine = (a, b) => (a.ms ?? Infinity) - (b.ms ?? Infinity) || a.r.row_number - b.r.row_number;\nconst segnalaFile = (x, problema, sotto, colonna = 'media') => {\n  if (!testo(x.r.id)) return;\n  const base = baseDi(x);\n  if (x.stato === 'approvato') {\n    const vicina = x.ms !== null && x.ms - adesso <= oreVicina * ORA;\n    if (vicina) { pausaRiga(x, problema); return; }\n    if (pausate[x.r.row_number]) { pausate[x.r.row_number].problema += `; ${problema}`; return; } // torna già da approvare\n    aggiungi(proposta({ ...base, tipo: 'file', azione: 'proposta', colonna: 'stato', prima: testo(x.r.stato), dopo: 'da_approvare', sotto,\n      problema: `${problema}: la rimetto da approvare?` }));\n  } else {\n    aggiungi({ ...base, tipo: 'file', azione: 'avviso', colonna, prima: testo(x.r[colonna]), dopo: '', sotto, problema });\n  }\n};\nconst inGiro = new Set(nelGiro.map((x) => x.r.row_number));\nfor (const [f, gruppo] of Object.entries(righeDelFile)) {\n  if (gruppo.length < 2) continue;\n  const ord = [...gruppo].sort(ordine);\n  for (const x of ord.slice(1)) {\n    if (!inGiro.has(x.r.row_number) || x.stato === 'pubblicato') continue;\n    segnalaFile(x, `lo stesso file è anche nella riga ${corto(testo(ord[0].r.id) || ord[0].r.row_number, 40)}: uscirebbe due volte`, `doppio:${f}`);\n  }\n}\nfor (const gruppo of Object.values(righeDellImpronta)) {\n  const fileDiversi = new Set(gruppo.map((g) => g.f));\n  if (fileDiversi.size < 2) continue;\n  const ord = [...gruppo].sort((a, b) => ordine(a.x, b.x));\n  const primo = ord[0];\n  for (const g of ord.slice(1)) {\n    if (g.f === primo.f || !inGiro.has(g.x.r.row_number) || g.x.stato === 'pubblicato') continue;\n    segnalaFile(g.x, `ha la stessa foto (stesso contenuto, file diverso) della riga ${corto(testo(primo.x.r.id) || primo.x.r.row_number, 40)}`, `impronta:${g.f}`);\n  }\n}\nfor (const x of nelGiro) {\n  const mancanti = fileDellaRiga(x.r).filter((f) => fileMancanti.has(f));\n  if (mancanti.length) segnalaFile(x, `${mancanti.length === 1 ? 'un file' : mancanti.length + ' file'} di media o copertina non si trova più su Drive (cancellato)`, `mancante:${mancanti.join(',')}`);\n}\n\n// --- approvate con la data passata: il 01 è fermo? ---\nfor (const x of approvatePassate) {\n  aggiungi({ ...baseDi(x), tipo: 'passato', azione: 'avviso', colonna: 'stato', prima: 'approvato', dopo: '',\n    problema: `approvata per le ${quando(x)} ma non ancora pubblicata: il 01 è acceso?` });\n}\n\n// --- menu con prezzi e prezzi non confermati (solo nel giro delle 8:40) ---\nif (!orario) {\n  for (const [chiave, c] of Object.entries(clienti)) {\n    if (!siNo(c.attivo, false) || siNo(c.prezzi_confermati, false)) continue;\n    const menu = testo(c.menu_testo);\n    if (!menu) continue;\n    const pulito = menuSenzaPrezzi(menu);\n    const restaPrezzo = PREZZO.test(pulito.testo);\n    if (!pulito.cambiate && !restaPrezzo) continue;\n    const base = { scheda: 'Clienti', chiave_riga: chiave, id_riga: '', row_number: c.row_number, cliente: chiave, quando: '', stato: '', tipo: 'menu', colonna: 'menu_testo' };\n    if (!pulito.cambiate) {\n      aggiungi({ ...base, azione: 'avviso', prima: menu, dopo: '',\n        problema: 'menu_testo ha dei prezzi non confermati che non riesco a togliere senza rovinare le righe: spostali a mano in menu_con_prezzi' });\n      continue;\n    }\n    const vuota = !testo(c.menu_con_prezzi);\n    const resto = restaPrezzo || pulito.dubbie ? ` Attenzione: ${pulito.dubbie || 'alcune'} righe dubbie restano come sono, guardale a mano.` : '';\n    aggiungi(proposta({ ...base, azione: 'proposta', prima: menu, dopo: pulito.testo, copia_in_menu_con_prezzi: vuota,\n      problema: (vuota\n        ? `menu_testo ha i prezzi non confermati in ${pulito.cambiate} righe: copio il menu com'è in menu_con_prezzi e tolgo i prezzi da menu_testo?`\n        : `menu_testo ha i prezzi non confermati in ${pulito.cambiate} righe: li tolgo? (menu_con_prezzi è già pieno e non lo tocco)`) + resto }));\n  }\n}\n\n// --- doppioni con la traccia: deciso = non torna; proposto o avvisato nelle ultime ore = non torna ---\nconst tracciaPerChiave = {};\nfor (const t of traccia) (tracciaPerChiave[testo(t.chiave)] = tracciaPerChiave[testo(t.chiave)] || []).push(t);\n// un'ora in più dell'attesa dei pulsanti: il messaggio di ieri deve essere già chiuso quando arriva quello nuovo\n// proposte: finestra uguale all'attesa (il messaggio con i pulsanti si chiude un'ora prima); avvisi: 20 ore, così il giro\n// delle 8:40 del giorno dopo li ripete\nconst recente = (t, ore) => { const d = leggiDataOra(t.data_ora); return d && d.ms !== null && adesso - d.ms < ore * ORA; };\nlet saltati = 0;\nconst finali = [];\nfor (const p of problemi) {\n  p.problema = corto(p.problema, 300);\n  if (p.azione === 'proposta' || p.azione === 'avviso') {\n    const prec = tracciaPerChiave[p.chiave] || [];\n    const deciso = prec.some((t) => /^(applicato|ignorato)\\b/.test(testo(t.esito).toLowerCase()));\n    const giaDetto = prec.some((t) => (/^proposto\\b/.test(testo(t.esito).toLowerCase()) && recente(t, oreAttesa))\n      || (/^avvisato\\b/.test(testo(t.esito).toLowerCase()) && recente(t, 20)));\n    if (deciso || giaDetto) { saltati++; continue; }\n  }\n  finali.push(p);\n}\n// stesso problema due volte nello stesso giro: uno solo\nconst visti = new Set();\nconst unici = finali.filter((p) => (visti.has(p.chiave) ? false : visti.add(p.chiave)));\nlet proposte = 0;\nlet oltre = 0;\nconst tenuti = unici.filter((p) => {\n  if (p.azione !== 'proposta') return true;\n  if (proposte < maxProposte) { proposte++; return true; }\n  oltre++;\n  return false;\n});\n\nreturn [{\n  json: {\n    giro: orario ? 'orario' : 'giornaliero',\n    problemi: tenuti,\n    correzioni: tenuti.filter((p) => p.azione === 'auto' || p.azione === 'pausa').length,\n    proposte,\n    avvisi: tenuti.filter((p) => p.azione === 'avviso').length,\n    saltati_doppi: saltati,\n    proposte_oltre_limite: oltre,\n    impronte_non_controllate: tagliati,\n    drive_non_risponde: erroriDrive,\n  },\n}];\n"
+   },
+   "id": "14c59de1-7a84-501f-bf03-ae1446081be1",
+   "name": "Trova i problemi",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1920,
+    300
+   ],
+   "notes": "Decide cosa fare per ogni problema. Non scrive niente.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "6188d351-eb8c-588e-9035-fda011c72bd3",
+       "leftValue": "={{ $json.correzioni > 0 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "82ce2f2e-dcda-5113-bc89-052d14635efc",
+   "name": "Ci sono correzioni?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    2160,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CALENDARIO }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "d775e5f3-fad9-5141-8504-afd9cf1d1c20",
+   "name": "Rileggi prima di scrivere",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2400,
+    100
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n\n// Correzioni automatiche e pause, sui dati riletti adesso: si scrive una cella solo se è ancora uguale a quella guardata,\n// se la riga è ancora in uno stato vivo e se a quel numero di riga c'è ancora lo stesso id. Un item per riga: row_number +\n// le sole colonne da cambiare (il nodo Sheets dopo, in modalità automatica, scrive per numero di riga solo quelle).\n// _revisore non è una colonna: serve alla traccia e al riepilogo.\nconst pb = $('Trova i problemi').first().json;\n// interruttore: finché Config.MODALITA non è «vero» non si scrive niente (l'item esce senza row_number)\nconst prova = testo($('Config').first().json.MODALITA).toLowerCase() !== 'vero';\nconst daFare = (pb.problemi || []).filter((p) => (p.azione === 'auto' || p.azione === 'pausa') && p.scheda === 'Calendario' && p.id_riga && p.row_number);\nconst perRiga = {};\nfor (const r of lette('Rileggi prima di scrivere')) perRiga[r.row_number] = r;\nconst statoDetto = (s) => (VIVI.concat(['in_scrittura', 'in_pubblicazione', 'pubblicato', 'errore', 'annullato']).includes(s) ? `«${s}»` : 'uno stato non previsto');\nconst gruppi = {};\nfor (const p of daFare) (gruppi[p.row_number] = gruppi[p.row_number] || []).push(p);\nconst uscita = [];\nfor (const [n, lista] of Object.entries(gruppi)) {\n  const r = perRiga[n];\n  const valori = { row_number: Number(n) };\n  const fatti = [];\n  const saltati = [];\n  for (const p of lista) {\n    if (!r || testo(r.id) !== p.id_riga) { saltati.push({ ...p, motivo: 'la riga si è spostata o non c\\'è più' }); continue; }\n    const statoOra = testo(r.stato).toLowerCase();\n    if (!VIVI.includes(statoOra)) { saltati.push({ ...p, motivo: `nel frattempo è diventata ${statoDetto(statoOra)}` }); continue; }\n    const ora = p.colonna === 'stato' ? statoOra : testo(r[p.colonna]);\n    const allora = p.colonna === 'stato' ? testo(p.prima).toLowerCase() : testo(p.prima);\n    if (ora !== allora) { saltati.push({ ...p, motivo: `${p.colonna} è cambiato nel frattempo` }); continue; }\n    if (p.colonna === 'stato') {\n      if (statoOra === 'approvato') valori.stato = 'da_approvare';\n    } else {\n      valori[p.colonna] = p.dopo;\n      if (p.azione === 'pausa' && statoOra === 'approvato') valori.stato = 'da_approvare';\n    }\n    fatti.push(p);\n  }\n  if (fatti.length && prova) uscita.push({ json: { _revisore: { fatti, saltati, prova: true } } });\n  else if (fatti.length) uscita.push({ json: { ...valori, _revisore: { fatti, saltati } } });\n  else if (saltati.length) uscita.push({ json: { _revisore: { fatti: [], saltati } } }); // senza row_number: il nodo Sheets non scrive niente\n}\nreturn uscita;\n"
+   },
+   "id": "bd4f4b95-1eeb-57c5-a339-ffcd6f124848",
+   "name": "Prepara le correzioni",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    100
+   ],
+   "notes": "Solo le celle ancora uguali a quelle guardate.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CALENDARIO }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "autoMapInputData",
+     "value": {},
+     "matchingColumns": [
+      "row_number"
+     ],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "handlingExtraData": "ignoreIt"
+    }
+   },
+   "id": "489c399a-935d-5fbe-a30d-065907cc6971",
+   "name": "Correggi nel Calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2880,
+    100
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "notes": "Per numero di riga (row_number), già ricontrollato con l'id; scrive solo le colonne presenti nell'item.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "b5f2a83a-10f0-5f29-ac33-2a2e73bee1a1",
+       "leftValue": "={{ $json.proposte > 0 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "5ec0d3a2-2317-5e3d-971f-da627dbd7da6",
+   "name": "Ci sono proposte?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    2160,
+    320
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n\n// Una esecuzione di questo stesso flusso per ogni proposta: ognuna manda il suo messaggio con i pulsanti e aspetta\n// la risposta per conto suo. Partono a qualche secondo l'una dall'altra, per non farsi bloccare da Telegram.\n// Nel messaggio si vede solo quello che cambia, con un po' di contesto: Applica scrive esattamente quello.\nconst cfg = $('Config').first().json;\nconst pb = $('Trova i problemi').first().json;\nconst proposte = (pb.problemi || []).filter((p) => p.azione === 'proposta');\nconst prova = testo(cfg.MODALITA).toLowerCase() !== 'vero';\nconst virgo = (s) => md(String(s).replace(/\\r?\\n/g, ' ⏎ '));\nreturn proposte.map((p, i) => {\n  const cosa = (c) => (c.tolto && c.messo ? `cambio «${virgo(c.tolto)}» in «${virgo(c.messo)}»` : c.tolto ? `tolgo «${virgo(c.tolto)}»` : `aggiungo «${virgo(c.messo)}»`);\n  const riga = (c, ctx) => `• ${ctx ? virgo(c.pre) : '…'}⟪${cosa(c)}⟫${ctx ? virgo(c.post) : '…'}`;\n  const righe = [\n    `${prova ? '🧪 *PROVA: niente scritto nel foglio*\\n' : ''}*Revisore · proposta*`,\n    `Cliente: ${md(corto(p.cliente, 60))}${p.id_riga ? ` · riga ${md(corto(p.id_riga, 40))}` : ''}${p.quando ? ` · esce ${md(p.quando)}` : ''}`,\n    md(p.problema),\n    '',\n    `Cosa cambia in ${md(p.colonna)}:`,\n    '§CAMBI§',\n    '',\n    prova ? 'In prova Applica e Ignora non cambiano niente: servono solo a vedere il giro.' : 'Applica corregge il foglio, Ignora lo lascia com\\'è e non te lo ripropongo.',\n  ];\n  // Telegram conta in UTF-16 (.length) e il limite è 4096: se non ci sta, si toglie il contesto intorno ai pezzi\n  const componi = (ctx) => righe.join('\\n').replace('§CAMBI§', (p.cambi || []).map((c) => riga(c, ctx)).join('\\n'));\n  let testoTg = componi(true);\n  if (testoTg.length > 3900) testoTg = componi(false);\n  if (testoTg.length > 4000) testoTg = [righe[0], righe[1], md(corto(p.problema, 300)), '', 'La modifica è troppo lunga da mostrare qui: premi Ignora e correggila a mano nel foglio.'].join('\\n');\n  return {\n    json: {\n      proposta: p,\n      sheet_id: cfg.SHEET_ID,\n      chat_id: cfg.TELEGRAM_CHAT_ID,\n      scheda: p.scheda === 'Clienti' ? (testo(cfg.SCHEDA_CLIENTI) || 'Clienti') : (testo(cfg.SCHEDA_CALENDARIO) || 'Calendario'),\n      scheda_revisore: testo(cfg.SCHEDA_REVISORE) || 'Revisore',\n      ore_attesa: Math.max(1, (Number(cfg.ORE_ATTESA_RISPOSTA) || 24) - 1), // si chiude prima che il giro del giorno dopo la riproponga\n      ritardo_s: 1 + i * 3,\n      modalita: prova ? 'prova' : 'vero',\n      testo_telegram: testoTg,\n    },\n  };\n});\n"
+   },
+   "id": "cdc97844-ceb7-5e4a-ba79-f05b55587ffc",
+   "name": "Una riga per proposta",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2400,
+    320
+   ],
+   "notes": "Prepara il messaggio con i pulsanti per ogni proposta.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "source": "database",
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $workflow.id }}"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {},
+     "matchingColumns": [],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": true
+    },
+    "mode": "each",
+    "options": {
+     "waitForSubWorkflow": false
+    }
+   },
+   "id": "89910278-11ca-5556-b51a-0e2a628620ea",
+   "name": "Manda le proposte",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.3,
+   "position": [
+    2640,
+    320
+   ],
+   "notes": "Richiama questo flusso, una volta per proposta, senza aspettare.",
+   "notesInFlow": true,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n// Una riga nella scheda «Revisore» per ogni cosa fatta o mandata in questo giro: correzioni, pause, proposte, avvisi.\nconst pb = $('Trova i problemi').first().json;\nconst quando = oraRoma(Date.now());\nconst riga = (p, esito) => ({\n  data_ora: quando,\n  chiave: p.chiave,\n  cliente: p.cliente || '',\n  id_riga: p.id_riga || p.chiave_riga || '',\n  colonna: p.colonna || '',\n  problema: corto(p.problema || '', 500),\n  prima: corto(p.prima || '', 1000),\n  dopo: corto(p.dopo || '', 1000),\n  esito,\n});\nconst righe = [];\nif ($('Prepara le correzioni').isExecuted) {\n  for (const it of $('Prepara le correzioni').all()) {\n    const rv = (it.json || {})._revisore || {};\n    for (const p of rv.fatti || []) righe.push(riga(p, (rv.prova ? 'prova: ' : '') + (p.azione === 'pausa' ? 'messo in pausa' : 'corretto in automatico')));\n    for (const p of rv.saltati || []) righe.push(riga(p, `non corretto: ${p.motivo}`));\n  }\n}\nfor (const p of pb.problemi || []) {\n  if (p.azione === 'proposta') righe.push(riga(p, 'proposto'));\n  if (p.azione === 'avviso') righe.push(riga(p, 'avvisato'));\n}\nreturn righe.map((r) => ({ json: r }));\n"
+   },
+   "id": "41f81f58-5eba-51b1-bdd1-405a960ec6e1",
+   "name": "Righe della traccia",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2160,
+    180
+   ],
+   "notes": "Una riga nella scheda Revisore per ogni cosa fatta o mandata.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_REVISORE }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "data_ora": "={{ $json.data_ora }}",
+      "chiave": "={{ $json.chiave }}",
+      "cliente": "={{ $json.cliente }}",
+      "id_riga": "={{ $json.id_riga }}",
+      "colonna": "={{ $json.colonna }}",
+      "problema": "={{ $json.problema }}",
+      "prima": "={{ $json.prima }}",
+      "dopo": "={{ $json.dopo }}",
+      "esito": "={{ $json.esito }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "chiave",
+       "displayName": "chiave",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "id_riga",
+       "displayName": "id_riga",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "colonna",
+       "displayName": "colonna",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "problema",
+       "displayName": "problema",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "prima",
+       "displayName": "prima",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "dopo",
+       "displayName": "dopo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esito",
+       "displayName": "esito",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true
+    }
+   },
+   "id": "1f075b7e-4472-549c-a78f-be5108ec8740",
+   "name": "Scrivi nella traccia",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2400,
+    180
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "notes": "Una riga per cosa fatta o mandata. Con 3 tentativi: in caso di errore di rete può scriverla due volte (innocuo).",
+   "notesInFlow": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n// Il riepilogo su Telegram (HTML): solo se c'è qualcosa da dire. Mai dati Meta: niente link dei post né errori.\nconst pb = $('Trova i problemi').first().json;\nconst fatti = [];\nconst saltati = [];\nif ($('Prepara le correzioni').isExecuted) {\n  for (const it of $('Prepara le correzioni').all()) {\n    const rv = (it.json || {})._revisore || {};\n    fatti.push(...(rv.fatti || []));\n    saltati.push(...(rv.saltati || []));\n  }\n}\nconst auto = fatti.filter((p) => p.azione === 'auto');\nconst pause = fatti.filter((p) => p.azione === 'pausa');\nconst avvisi = (pb.problemi || []).filter((p) => p.azione === 'avviso');\nconst nProposte = (pb.problemi || []).filter((p) => p.azione === 'proposta').length;\nif (!auto.length && !pause.length && !avvisi.length && !nProposte && !saltati.length && !pb.drive_non_risponde) return [];\nconst voce = (p) => `• ${esc(p.cliente)}${p.id_riga ? ' · ' + esc(p.id_riga) : ''}: ${esc(p.problema)}`;\nconst prova = testo($('Config').first().json.MODALITA).toLowerCase() !== 'vero';\nconst blocchi = [`${prova ? '🧪 <b>PROVA: niente scritto nel foglio</b>\\n' : ''}<b>🔎 Revisore · ${pb.giro === 'orario' ? 'controllo orario' : 'giro delle 8:40'}</b>`];\nif (pause.length) blocchi.push(`<b>${prova ? 'Avrei rimesso da approvare' : 'Rimesse da approvare'} (${pause.length})</b>\\n${pause.slice(0, 15).map(voce).join('\\n')}`);\nif (auto.length) blocchi.push(`<b>${prova ? 'Avrei corretto da solo' : 'Corretto da solo'} (${auto.length})</b>\\n${auto.slice(0, 15).map(voce).join('\\n')}`);\nif (saltati.length) blocchi.push(`<b>Non corretto (${saltati.length})</b>\\n${saltati.slice(0, 10).map((p) => `• ${esc(p.id_riga)}: ${esc(p.motivo)}`).join('\\n')}`);\nif (avvisi.length) blocchi.push(`<b>Da guardare (${avvisi.length})</b>\\n${avvisi.slice(0, 15).map(voce).join('\\n')}`);\nif (nProposte) blocchi.push(`<b>Proposte con i pulsanti: ${nProposte}</b>, arrivano in messaggi a parte.${pb.proposte_oltre_limite ? ` Altre ${pb.proposte_oltre_limite} al prossimo giro.` : ''}`);\nif (pb.drive_non_risponde) blocchi.push(`${pb.drive_non_risponde} file non controllati perché Drive non ha risposto (accesso scaduto o troppe richieste): se si ripete, ricollega la credenziale di Drive.`);\nif (pb.impronte_non_controllate) blocchi.push(`${pb.impronte_non_controllate} file non controllati con l'impronta in questo giro (limite raggiunto).`);\nlet testoTg = blocchi.join('\\n\\n');\nif (testoTg.length > 4000) { testoTg = testoTg.slice(0, 3990); testoTg = testoTg.slice(0, testoTg.lastIndexOf('\\n')) + '\\n…'; }\nreturn [{ json: { testo: testoTg } }];\n"
+   },
+   "id": "a17efea5-70ed-5142-8265-314d180ab6d5",
+   "name": "Riepilogo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2160,
+    240
+   ],
+   "notes": "Solo se c'è qualcosa da dire. Mai dati Meta.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "5aba4926-3aaf-5b30-8b11-de5a3ee14025",
+   "name": "Riepilogo su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    2400,
+    240
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "webhookId": "a6b1f860-d069-5aad-a0ac-dd93f0d0a0d8",
+   "notes": "HTML; se non risponde si va avanti.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "5b37297a-be70-588c-8503-1789726f9068",
+   "name": "Ricevi una proposta",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    1000
+   ],
+   "notes": "Lo chiama questo stesso flusso: una esecuzione per proposta.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendAndWait",
+    "chatId": "={{ $json.chat_id }}",
+    "message": "={{ $json.testo_telegram }}",
+    "responseType": "approval",
+    "approvalOptions": {
+     "values": {
+      "approvalType": "double",
+      "approveLabel": "✅ Applica",
+      "disapproveLabel": "❌ Ignora"
+     }
+    },
+    "options": {
+     "limitWaitTime": {
+      "values": {
+       "limitType": "afterTimeInterval",
+       "resumeAmount": "={{ Number($json.ore_attesa) || 24 }}",
+       "resumeUnit": "hours"
+      }
+     },
+     "appendAttribution": false
+    }
+   },
+   "id": "5ca24104-8894-5913-8490-7c175c02926b",
+   "name": "Chiedi su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    300,
+    1000
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "webhookId": "529d653c-2c95-5843-b6d2-dd1039b0f5a4",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "notes": "Pulsanti Applica / Ignora. Il messaggio è in Markdown (fisso in n8n): testi passati in md().",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n// Cosa ha risposto Nicola su Telegram: Applica, Ignora, oppure niente entro il tempo massimo.\nconst dati = $('Ricevi una proposta').first().json;\nconst r = $input.first().json || {};\nconst decisa = r.data && typeof r.data.approved === 'boolean';\nconst esito = r.error ? 'errore' : !decisa ? 'scaduto' : r.data.approved ? 'applica' : 'ignora';\nreturn [{ json: { ...dati, esito, errore_telegram: r.error ? 'Telegram non ha accettato il messaggio' : '' } }];\n"
+   },
+   "id": "45dba41e-bd07-5192-9256-dca3db7a8933",
+   "name": "Decisione",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    480,
+    1000
+   ],
+   "notes": "Applica, Ignora o tempo scaduto.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "5e76e823-82e4-5f84-a56d-b4248a72c1d1",
+       "leftValue": "={{ $json.esito === 'applica' }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "cfd986b2-e27d-5215-b1b9-866ce020e90d",
+   "name": "Applica?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    720,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $json.scheda }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "a2ee2a83-90f3-5230-8e23-e210e99f835e",
+   "name": "Rileggi la scheda",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    960,
+    900
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "executeOnce": true,
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n\n// Prima di applicare si rilegge la scheda: a quel numero di riga ci deve essere ancora la stessa riga (id o cliente),\n// e la cella deve essere ancora quella della proposta. Si accettano solo le colonne che il Revisore propone davvero.\n// Se qualcosa non torna non si scrive niente e lo si dice. L'item senza row_number passa dal nodo Sheets senza toccare niente.\nconst d = $('Decisione').first().json;\nconst p = d.proposta || {};\nconst righe = lette('Rileggi la scheda');\nconst statoDetto = (s) => (VIVI.concat(['in_scrittura', 'in_pubblicazione', 'pubblicato', 'errore', 'annullato']).includes(s) ? `«${s}»` : 'uno stato non previsto');\nconst AMMESSE = { Calendario: ['cliente', 'tipo', 'piattaforme', 'stato', 'brief', 'didascalia', 'primo_commento'], Clienti: ['menu_testo'] };\nconst scheda = p.scheda === 'Clienti' ? 'Clienti' : 'Calendario';\nlet esito = 'applicato';\nlet motivo = '';\nlet valori = {};\nconst no = (m) => { esito = 'non applicato'; motivo = m; valori = {}; };\nconst r = righe.find((x) => Number(x.row_number) === Number(p.row_number));\nif (testo(d.modalita) !== 'vero') no('modalità prova, niente scritto nel foglio');\nelse if (!AMMESSE[scheda].includes(p.colonna) || (p.colonna === 'stato' && testo(p.dopo) !== 'da_approvare')) no('proposta non ammessa');\nelse if (scheda === 'Clienti') {\n  if (!r || testo(r.cliente) !== p.cliente) no('il cliente si è spostato o non c\\'è più nella scheda Clienti');\n  else if (testo(r[p.colonna]) !== testo(p.prima)) no(`${p.colonna} è cambiato nel frattempo`);\n  else if (siNo(r.prezzi_confermati, false)) no('nel frattempo i prezzi sono stati confermati');\n  else {\n    valori = { row_number: r.row_number, [p.colonna]: p.dopo };\n    if (p.copia_in_menu_con_prezzi) {\n      if (testo(r.menu_con_prezzi)) no('menu_con_prezzi nel frattempo è stato riempito: non lo sovrascrivo');\n      else valori.menu_con_prezzi = p.prima;\n    }\n  }\n} else {\n  const statoOra = r ? testo(r.stato).toLowerCase() : '';\n  if (!r || testo(r.id) !== p.id_riga) no('la riga si è spostata o non c\\'è più');\n  else if (!VIVI.includes(statoOra)) no(`nel frattempo è diventata ${statoDetto(statoOra)}`);\n  else if (p.colonna === 'stato' ? statoOra !== 'approvato' : testo(r[p.colonna]) !== testo(p.prima)) no(`${p.colonna} è cambiato nel frattempo`);\n  else valori = { row_number: r.row_number, [p.colonna]: p.dopo };\n}\nreturn [{ json: { ...valori, _revisore: { ...d, esito_finale: esito, motivo } } }];\n"
+   },
+   "id": "799e91e8-f8b2-5a1d-88cd-3c8cead2750f",
+   "name": "Ancora uguale?",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1200,
+    900
+   ],
+   "notes": "Si scrive solo se la cella è ancora quella della proposta.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "79436608-7fcb-5057-a3b4-a818f52ce0ba",
+       "leftValue": "={{ $('Decisione').first().json.proposta.scheda === 'Clienti' }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "0e90a4c3-594a-5b86-b1e8-581e26a385e8",
+   "name": "È nei Clienti?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1440,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una proposta').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una proposta').first().json.scheda }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "autoMapInputData",
+     "value": {},
+     "matchingColumns": [
+      "row_number"
+     ],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "handlingExtraData": "ignoreIt"
+    }
+   },
+   "id": "ab471a6e-16d5-54af-958b-a9bea8f35975",
+   "name": "Correggi nei Clienti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    1680,
+    800
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "notes": "Per numero di riga, già ricontrollato col cliente; solo le colonne presenti. Scheda da Config.SCHEDA_CLIENTI.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una proposta').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una proposta').first().json.scheda }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "autoMapInputData",
+     "value": {},
+     "matchingColumns": [
+      "row_number"
+     ],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "handlingExtraData": "ignoreIt"
+    }
+   },
+   "id": "30022bc6-e934-5114-abae-4ea1ddda3003",
+   "name": "Correggi la riga",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    1680,
+    1000
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "notes": "Per numero di riga, già ricontrollato con l'id; solo le colonne presenti.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del Revisore (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice: si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\n// data_ora come la legge il 04: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms };\n};\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst fileDellaRiga = (r) => [r.media, r.copertina].flatMap((c) => testo(c).split('|')).map(idDaLink).filter(Boolean);\n// impronta breve di un testo (djb2), per riconoscere lo stesso problema tra un giro e l'altro\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\nconst VIVI = ['idea', 'bozza', 'da_scrivere', 'da_approvare', 'approvato'];\nconst TIPI = ['post', 'carosello', 'reel', 'storia'];\nconst COLONNE_TESTO = ['brief', 'didascalia', 'primo_commento'];\n\n// Traccia della decisione nella scheda «Revisore» e conferma breve su Telegram (HTML).\n// Arriva da tre strade: dopo l'aggiornamento (Calendario o Clienti) oppure direttamente se Ignora o tempo scaduto.\nconst it = $input.first().json || {};\nconst d = it._revisore || it; // dopo l'aggiornamento c'è _revisore; dal ramo Ignora arriva la decisione così com'è\nconst p = d.proposta || {};\nconst esito = d.esito_finale || (d.esito === 'ignora' ? 'ignorato' : d.esito === 'scaduto' ? 'scaduto' : d.esito === 'errore' ? 'errore telegram' : d.esito);\nconst motivo = d.motivo || d.errore_telegram || '';\nconst riga = {\n  data_ora: oraRoma(Date.now()),\n  chiave: p.chiave || '',\n  cliente: p.cliente || '',\n  id_riga: p.id_riga || p.chiave_riga || '',\n  colonna: p.colonna || '',\n  problema: corto(p.problema || '', 500),\n  prima: corto(p.prima || '', 1000),\n  dopo: corto(p.dopo || '', 1000),\n  // in prova un «Ignora» non deve spegnere la proposta per sempre: la traccia lo segna come prova\n  esito: (testo(d.modalita) !== 'vero' ? 'prova: ' : '') + (motivo ? `${esito}: ${motivo}` : esito),\n};\nconst dove = `${esc(corto(p.cliente, 60))}${p.id_riga ? ' · ' + esc(corto(p.id_riga, 40)) : ''}`;\nconst conferma = esito === 'applicato' ? `✅ Revisore: applicato (${dove}, ${esc(p.colonna)}).`\n  : esito === 'non applicato' ? `⚠️ Revisore: non applicato (${dove}): ${esc(corto(motivo, 300))}.`\n  : esito === 'ignorato' && testo(d.modalita) !== 'vero' ? `🧪 Revisore in prova: hai premuto Ignora (${dove}). Niente scritto.`\n  : esito === 'ignorato' ? `👌 Revisore: lasciato com'è (${dove}). Non te lo ripropongo.`\n  : esito === 'errore telegram' ? `⚠️ Revisore: la proposta per ${dove} non è arrivata (Telegram non ha accettato il messaggio). La ripropongo domani.`\n  : '';\nreturn [{ json: { ...riga, conferma, chat_id: d.chat_id, sheet_id: d.sheet_id, scheda_revisore: d.scheda_revisore } }];\n"
+   },
+   "id": "d0026c62-250c-588e-bb40-47615316dd2f",
+   "name": "Traccia della decisione",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1920,
+    1000
+   ],
+   "notes": "Riga nella traccia e conferma breve.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una proposta').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una proposta').first().json.scheda_revisore }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "data_ora": "={{ $json.data_ora }}",
+      "chiave": "={{ $json.chiave }}",
+      "cliente": "={{ $json.cliente }}",
+      "id_riga": "={{ $json.id_riga }}",
+      "colonna": "={{ $json.colonna }}",
+      "problema": "={{ $json.problema }}",
+      "prima": "={{ $json.prima }}",
+      "dopo": "={{ $json.dopo }}",
+      "esito": "={{ $json.esito }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "chiave",
+       "displayName": "chiave",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "id_riga",
+       "displayName": "id_riga",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "colonna",
+       "displayName": "colonna",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "problema",
+       "displayName": "problema",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "prima",
+       "displayName": "prima",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "dopo",
+       "displayName": "dopo",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esito",
+       "displayName": "esito",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true
+    }
+   },
+   "id": "9fa8aed3-4dcb-5186-af9c-5d3dd07e8693",
+   "name": "Scrivi la decisione",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2160,
+    1000
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "notes": "La decisione nella traccia. Con 3 tentativi: in caso di errore di rete può scriverla due volte (innocuo).",
+   "notesInFlow": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "a61f0472-b129-5c8f-ae98-9d8eb0ba549b",
+       "leftValue": "={{ !!$('Traccia della decisione').first().json.conferma }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "456add4e-8e43-5b74-b203-553a216cbe07",
+   "name": "C'è una conferma?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    2400,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Traccia della decisione').first().json.chat_id }}",
+    "text": "={{ $('Traccia della decisione').first().json.conferma }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "8095113c-c428-56b8-8914-15bd0f7455a9",
+   "name": "Conferma su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    2640,
+    1000
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput",
+   "webhookId": "4e0b65e3-abb1-5bcf-85f8-84ec9db45df0",
+   "notes": "HTML; se non risponde la decisione resta comunque scritta.",
+   "notesInFlow": true
+  },
+  {
+   "parameters": {
+    "amount": "={{ Number($json.ritardo_s) || 0 }}",
+    "unit": "seconds"
+   },
+   "id": "86c6ae02-0629-5bb0-a13e-d2037a2aafb2",
+   "name": "Aspetta il turno",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    120,
+    1000
+   ],
+   "webhookId": "92a3d7c1-ea5e-52df-b466-9865af59ebd2",
+   "notes": "Pochi secondi di distanza tra una proposta e l'altra, per non farsi bloccare da Telegram."
+  }
+ ],
+ "connections": {
+  "Ogni giorno alle 8:40": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ogni ora": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prova a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Leggi Clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Clienti": {
+   "main": [
+    [
+     {
+      "node": "Leggi Calendario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Calendario": {
+   "main": [
+    [
+     {
+      "node": "Leggi Revisore",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Revisore": {
+   "main": [
+    [
+     {
+      "node": "Righe e file da guardare",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Righe e file da guardare": {
+   "main": [
+    [
+     {
+      "node": "Ci sono file?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ci sono file?": {
+   "main": [
+    [
+     {
+      "node": "Impronta del file",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Trova i problemi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Impronta del file": {
+   "main": [
+    [
+     {
+      "node": "Trova i problemi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Trova i problemi": {
+   "main": [
+    [
+     {
+      "node": "Ci sono correzioni?",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Ci sono proposte?",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Righe della traccia",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Riepilogo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ci sono correzioni?": {
+   "main": [
+    [
+     {
+      "node": "Rileggi prima di scrivere",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    []
+   ]
+  },
+  "Rileggi prima di scrivere": {
+   "main": [
+    [
+     {
+      "node": "Prepara le correzioni",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prepara le correzioni": {
+   "main": [
+    [
+     {
+      "node": "Correggi nel Calendario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ci sono proposte?": {
+   "main": [
+    [
+     {
+      "node": "Una riga per proposta",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    []
+   ]
+  },
+  "Una riga per proposta": {
+   "main": [
+    [
+     {
+      "node": "Manda le proposte",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Righe della traccia": {
+   "main": [
+    [
+     {
+      "node": "Scrivi nella traccia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Riepilogo": {
+   "main": [
+    [
+     {
+      "node": "Riepilogo su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ricevi una proposta": {
+   "main": [
+    [
+     {
+      "node": "Aspetta il turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Chiedi su Telegram": {
+   "main": [
+    [
+     {
+      "node": "Decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Decisione": {
+   "main": [
+    [
+     {
+      "node": "Applica?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Applica?": {
+   "main": [
+    [
+     {
+      "node": "Rileggi la scheda",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Traccia della decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rileggi la scheda": {
+   "main": [
+    [
+     {
+      "node": "Ancora uguale?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ancora uguale?": {
+   "main": [
+    [
+     {
+      "node": "È nei Clienti?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "È nei Clienti?": {
+   "main": [
+    [
+     {
+      "node": "Correggi nei Clienti",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Correggi la riga",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Correggi nei Clienti": {
+   "main": [
+    [
+     {
+      "node": "Traccia della decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Correggi la riga": {
+   "main": [
+    [
+     {
+      "node": "Traccia della decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Traccia della decisione": {
+   "main": [
+    [
+     {
+      "node": "Scrivi la decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scrivi la decisione": {
+   "main": [
+    [
+     {
+      "node": "C'è una conferma?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "C'è una conferma?": {
+   "main": [
+    [
+     {
+      "node": "Conferma su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    []
+   ]
+  },
+  "Aspetta il turno": {
+   "main": [
+    [
+     {
+      "node": "Chiedi su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Rome",
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": true,
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "D3Ugm3sc201nteFX"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "110f3632-d052-44a8-84f7-252323357159",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-21T13:42:41.988Z",
+   "createdAt": "2026-11-21T13:42:41.988Z",
+   "role": "workflow:owner",
+   "workflowId": "dJrT2tOv3XH5bbmN",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

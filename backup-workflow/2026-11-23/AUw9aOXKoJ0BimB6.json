@@ -1,0 +1,35 @@
+{
+ "updatedAt": "2026-11-15T02:24:35.000Z",
+ "createdAt": "2026-11-15T02:20:22.879Z",
+ "id": "AUw9aOXKoJ0BimB6",
+ "name": "01 · Pubblica contenuti (Instagram + Facebook)",
+ "active": false,
+ "isArchived": true,
+ "nodes": [],
+ "connections": {},
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": {
+  "templateCredsSetupCompleted": true
+ },
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "246f5a08-7912-4292-8fd0-a9298efb6026",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-15T02:20:22.923Z",
+   "createdAt": "2026-11-15T02:20:22.923Z",
+   "role": "workflow:owner",
+   "workflowId": "AUw9aOXKoJ0BimB6",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

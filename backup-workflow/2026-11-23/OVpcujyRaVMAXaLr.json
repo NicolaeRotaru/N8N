@@ -1,0 +1,47 @@
+{
+ "updatedAt": "2026-11-15T05:06:30.000Z",
+ "createdAt": "2026-11-15T02:12:58.987Z",
+ "id": "OVpcujyRaVMAXaLr",
+ "name": "My workflow",
+ "active": false,
+ "isArchived": true,
+ "nodes": [
+  {
+   "parameters": {
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailReadImap",
+   "typeVersion": 2.2,
+   "position": [
+    0,
+    0
+   ],
+   "id": "ebe9cc7a-b928-46c3-ad17-90a7e336a8cf",
+   "name": "Email Trigger (IMAP)"
+  }
+ ],
+ "connections": {},
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "cbd11997-5908-4dfb-9fec-0687762741f2",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-15T02:12:59.034Z",
+   "createdAt": "2026-11-15T02:12:59.034Z",
+   "role": "workflow:owner",
+   "workflowId": "OVpcujyRaVMAXaLr",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

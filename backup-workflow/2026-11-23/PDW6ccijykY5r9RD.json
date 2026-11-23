@@ -1,0 +1,88 @@
+{
+ "updatedAt": "2026-11-20T11:09:26.000Z",
+ "createdAt": "2026-11-19T23:23:44.514Z",
+ "id": "PDW6ccijykY5r9RD",
+ "name": "Prova Claude",
+ "active": false,
+ "isArchived": true,
+ "nodes": [
+  {
+   "parameters": {},
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    0
+   ],
+   "id": "dc274944-d893-4bf8-a46f-64196342436d",
+   "name": "When clicking ‘Execute workflow’"
+  },
+  {
+   "parameters": {
+    "url": "https://api.anthropic.com/v1/models",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2026-10-21"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    224,
+    0
+   ],
+   "id": "d5c95306-d41e-45d6-803e-4bbee4d83630",
+   "name": "HTTP Request",
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "CSy3VQGj4dTxcjEj",
+     "name": "Anthropic API"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "When clicking ‘Execute workflow’": {
+   "main": [
+    [
+     {
+      "node": "HTTP Request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "binaryMode": "separate",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": {},
+ "versionId": "ebc0406c-4bbc-4858-89f7-d6777c04d5b1",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-19T23:23:44.520Z",
+   "createdAt": "2026-11-19T23:23:44.520Z",
+   "role": "workflow:owner",
+   "workflowId": "PDW6ccijykY5r9RD",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

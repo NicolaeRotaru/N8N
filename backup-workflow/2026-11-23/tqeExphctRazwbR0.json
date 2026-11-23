@@ -1,0 +1,1420 @@
+{
+ "updatedAt": "2026-11-23T12:01:27.751Z",
+ "createdAt": "2026-11-23T12:01:27.751Z",
+ "id": "tqeExphctRazwbR0",
+ "name": "14 · Smista materiale",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 15
+      }
+     ]
+    }
+   },
+   "id": "017c98c2-ca59-5c45-a3e3-851f971cc053",
+   "name": "Ogni 15 minuti",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "3bce89ae-9700-5f38-a7db-2dc13710064c",
+   "name": "Avvio a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "bd17f109-1acd-547a-aac1-d8ff75a60931",
+       "name": "SHEET_ID",
+       "value": "1nOTwzXkqNsfwortRslKBzsBXh2uIz2G2Lyu13Hufmjo",
+       "type": "string"
+      },
+      {
+       "id": "6a26ff40-5f7f-553c-a73d-93d85457cf4a",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "1913003037",
+       "type": "string"
+      },
+      {
+       "id": "e7e375e3-8bb9-50ad-a2dd-ab370133b150",
+       "name": "MODALITA",
+       "value": "prova",
+       "type": "string"
+      },
+      {
+       "id": "03d25334-efff-5b17-a577-3a3e8086994c",
+       "name": "NOME_CARTELLA",
+       "value": "Da smistare",
+       "type": "string"
+      },
+      {
+       "id": "5ec72567-c02a-51a0-ac93-a52c53305690",
+       "name": "MINUTI_QUIETE",
+       "value": 10,
+       "type": "number"
+      },
+      {
+       "id": "b659990a-64e2-51ac-aa6c-11a6aa336e0f",
+       "name": "ORA_RIEPILOGO",
+       "value": "09:00",
+       "type": "string"
+      },
+      {
+       "id": "39e29361-a767-559b-af66-f815a1fb9138",
+       "name": "INTERVALLO_MINUTI",
+       "value": 15,
+       "type": "number"
+      },
+      {
+       "id": "4bc6a8b9-33a4-5a45-a58d-5e1a284eacd1",
+       "name": "MAX_SPOSTAMENTI_GIRO",
+       "value": 30,
+       "type": "number"
+      },
+      {
+       "id": "9a1924a7-2c1d-5260-a4a8-270a9503d00d",
+       "name": "MAX_SOTTOCARTELLE",
+       "value": 40,
+       "type": "number"
+      },
+      {
+       "id": "e12ffb0c-eda8-5444-a841-3bfda8e3c921",
+       "name": "ORE_SILENZIO_AVVISI",
+       "value": 6,
+       "type": "number"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "eb0ea642-1a2d-59b1-a5f8-cb55d09b4355",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    240,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "={{ \"https://sheets.googleapis.com/v4/spreadsheets/\" + encodeURIComponent($('Config').first().json.SHEET_ID) + '/values/' + encodeURIComponent(\"Clienti!A:Z\") }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleSheetsOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "valueRenderOption",
+       "value": "FORMATTED_VALUE"
+      },
+      {
+       "name": "majorDimension",
+       "value": "ROWS"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 30000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "28f2d025-b53d-5552-a03e-f7e434d81481",
+   "name": "Leggi Clienti",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    480,
+    100
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueErrorOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Avviso: foglio non letto ---\nconst c = cfg();\nconst manuale = $('Avvio a mano').isExecuted;\nconst e = erroreVoce($input.first().json) || 'errore sconosciuto';\nreturn [{ json: { messaggio: '⚠️ Smista materiale: non riesco a leggere la scheda Clienti del foglio, quindi questo giro non sposta niente.\\nMotivo: ' + e + (manuale ? '' : '\\nRiprovo da solo al prossimo giro.') } }];\n"
+   },
+   "id": "e0071274-26ae-5075-a6e5-9dfb41110b01",
+   "name": "Avviso: foglio non letto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    720,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Non ripetere ---\nconst c = cfg();\nconst manuale = $('Avvio a mano').isExecuted;\nconst ore = Math.max(0, numero(c.ORE_SILENZIO_AVVISI, 6));\nlet memoria = null;\ntry { memoria = $getWorkflowStaticData('global'); } catch (e) { memoria = null; }\nconst visti = (memoria && memoria.avvisi_smista) || {};\nconst adesso = Date.now();\nconst out = [];\nfor (const it of $input.all()) {\n  const m = testo(it.json && it.json.messaggio);\n  if (!m) continue;\n  const sempre = it.json.sempre === true;\n  const chiave = impronta(m);\n  if (!sempre && !manuale && ore > 0 && visti[chiave] && adesso - visti[chiave] < ore * 3600000) continue;\n  out.push({ json: { messaggio: m, chiave, sempre } });\n}\nreturn out;\n"
+   },
+   "id": "1fd309e6-35bd-503c-a67e-0e75fbd0dbcc",
+   "name": "Non ripetere",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    960,
+    380
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ String($json.messaggio || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "871a95d9-141b-5ee2-a50b-4b0baaca32f4",
+   "name": "Telegram: avviso",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1200,
+    380
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "webhookId": "e43e713c-5595-5401-a15b-b05674303cf8"
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Segna gli avvisi ---\nlet memoria = null;\ntry { memoria = $getWorkflowStaticData('global'); } catch (e) { memoria = null; }\nif (!memoria) return [];\nconst ore = Math.max(0, numero(cfg().ORE_SILENZIO_AVVISI, 6));\nconst visti = memoria.avvisi_smista || {};\nconst adesso = Date.now();\nfor (const k of Object.keys(visti)) if (!(adesso - visti[k] < Math.max(ore, 24) * 3600000)) delete visti[k];\n$input.all().forEach((it, i) => {\n  if (it.json && it.json.error) return;\n  const x = $('Non ripetere').itemMatching(i).json;\n  if (x && x.chiave && !x.sempre) visti[x.chiave] = adesso;\n});\nmemoria.avvisi_smista = visti;\nreturn [];\n"
+   },
+   "id": "4b1fbadb-4c79-556f-ad69-73aa9e5e1efc",
+   "name": "Segna gli avvisi",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    380
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Clienti con cartella ---\n// Righe della scheda Clienti -> un elemento per ogni cliente attivo con cartella_drive valida.\n// La stessa cartella scritta per due clienti si smista una volta sola (col primo), con un avviso.\nconst c = cfg();\nconst j = $input.first().json || {};\nconst valori = Array.isArray(j.values) ? j.values : [];\nconst intest = (valori[0] || []).map((h) => testo(h));\nconst manuale = $('Avvio a mano').isExecuted;\n// Riepilogo delle cose che si ripetono (in prova: tutto l'elenco): a mano, oppure nel giro dell'ORA_RIEPILOGO.\nconst ora = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());\nconst minuti = (s) => { const m = testo(s).match(/^(\\d{1,2})[:.](\\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : NaN; };\nconst adesso = minuti(ora);\nconst slot = minuti(c.ORA_RIEPILOGO);\nconst intervallo = Math.max(5, numero(c.INTERVALLO_MINUTI, 15));\nconst nelloSlot = Number.isFinite(slot) && adesso >= slot && adesso < slot + intervallo;\nconst riepilogo = manuale || nelloSlot;\nconst out = [];\nconst perCartella = new Map();\nfor (let r = 1; r < valori.length; r++) {\n  const riga = Array.isArray(valori[r]) ? valori[r] : [];\n  const o = {};\n  intest.forEach((h, k) => { if (h) o[h] = riga[k] === undefined || riga[k] === null ? '' : String(riga[k]); });\n  const cliente = testo(o.cliente);\n  if (!cliente || !siNo(o.attivo)) continue;\n  const cartella = idDrive(o.cartella_drive);\n  if (!cartella) continue;\n  const nome_locale = testo(o.nome_locale) || cliente;\n  if (perCartella.has(cartella)) { perCartella.get(cartella).json.doppioni.push(nome_locale); continue; }\n  const it = { json: { cliente, nome_locale, cartella, modalita: modalita(), riepilogo, manuale, doppioni: [] } };\n  perCartella.set(cartella, it);\n  out.push(it);\n}\nif (!out.length && manuale) {\n  return [{ json: { nessuno: true, messaggio: 'Smista materiale: nessun cliente attivo con cartella_drive nella scheda Clienti. Non c\\'è niente da smistare.' } }];\n}\nreturn out;\n"
+   },
+   "id": "3d9ce8a6-007e-502f-abc9-891f32e33b23",
+   "name": "Clienti con cartella",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    720,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "71a6576e-9d71-5e7d-ac24-6bc2b15c832c",
+       "leftValue": "={{ $json.nessuno === true }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "78d9deea-316f-5247-a454-37f6df104581",
+   "name": "Nessun cliente?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    960,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ \"'\" + $json.cartella + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}"
+      },
+      {
+       "name": "fields",
+       "value": "nextPageToken,files(id,name,createdTime)"
+      },
+      {
+       "name": "pageSize",
+       "value": "1000"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "c99073ce-dc4b-516b-a9d8-de8417a28399",
+   "name": "Cartelle del cliente",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    1200,
+    160
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForEachItem",
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Trova le cartelle ---\n// «Da smistare», «post», «reel» e «storie» fra le figlie dirette di cartella_drive, con gli stessi nomi che usano 08, 07 e 06.\nconst c = cfg();\nconst cli = $('Nessun cliente?').item.json;\nconst j = $json || {};\nconst problemi = [];\nif ((cli.doppioni || []).length) problemi.push('la stessa cartella Drive è scritta anche per ' + cli.doppioni.join(', ') + ': la smisto una volta sola, a nome di ' + cli.nome_locale);\nconst errore = erroreVoce(j);\nconst troncata = !errore && !!j.nextPageToken;\nconst files = Array.isArray(j.files) ? j.files : [];\nif (errore) problemi.push('non riesco a leggere la cartella del cliente su Drive (' + errore + ')');\nif (troncata) problemi.push('Drive ha dato un elenco incompleto delle cartelle del cliente: non cerco «' + (testo(c.NOME_CARTELLA) || 'Da smistare') + '» in questo giro, riprovo al prossimo');\nconst nomeSmista = norm(c.NOME_CARTELLA || 'Da smistare');\nconst scegli = (lista, etichetta) => {\n  if (lista.length > 1) { problemi.push('ci sono ' + lista.length + ' cartelle «' + etichetta + '» dentro la cartella del cliente: tenetene una sola'); return 'doppia'; }\n  return lista.length ? lista[0].id : '';\n};\nconst smistare = scegli(files.filter((f) => norm(f.name) === nomeSmista), testo(c.NOME_CARTELLA) || 'Da smistare');\n// 08: nome «post» senza maiuscole, accenti e spazi doppi. 07: solo «Reel», «reel» o «REEL», scritti esatti.\nconst post = scegli(files.filter((f) => norm(f.name) === 'post'), 'post');\nconst reel = scegli(files.filter((f) => ['Reel', 'reel', 'REEL'].includes(String(f.name))), 'reel');\n// 06: nome «storie» in minuscolo dopo il trim; se ce ne sono più d'una usa la più vecchia. Qui si fa lo stesso.\nconst storieTutte = files.filter((f) => testo(f.name).toLowerCase() === 'storie').sort((a, b) => testo(a.createdTime).localeCompare(testo(b.createdTime)));\nconst storie = storieTutte.length ? storieTutte[0].id : '';\nconst illeggibile = !!errore || troncata;\nreturn { json: { ...cli, errore_lettura: illeggibile, smistare_id: illeggibile || smistare === 'doppia' ? '' : smistare, smistare_doppia: smistare === 'doppia',\n  post_id: post === 'doppia' ? '' : post, post_doppia: post === 'doppia', reel_id: reel === 'doppia' ? '' : reel, reel_doppia: reel === 'doppia', storie_id: storie, problemi } };\n"
+   },
+   "id": "31af99ba-0e55-5a77-a627-0a7db7f25ca5",
+   "name": "Trova le cartelle",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    160
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "dfa5efff-6d07-59fe-a305-7324e74fabca",
+       "leftValue": "={{ !!$json.smistare_id }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "3cbd18e7-4a60-54b3-ac3c-a2a6acc5329b",
+   "name": "Esiste Da smistare?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1680,
+    160
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForEachItem",
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Cartella da creare? ---\n// Nessuna «Da smistare» (o più di una, o Drive non letto). Si crea solo in modalità attivo e solo se la lettura è riuscita.\nconst c = cfg();\nconst x = $json;\nconst nome = testo(c.NOME_CARTELLA) || 'Da smistare';\nconst locale = x.nome_locale;\nif (x.errore_lettura || x.smistare_doppia) {\n  if (!x.riepilogo) return null;\n  return { json: { crea: false, messaggio: 'Smista materiale — ' + locale + ': ' + x.problemi.join('; ') + '. Non sposto niente finché non è sistemato.' } };\n}\nif (x.modalita === 'attivo') return { json: { crea: true, nome, dentro: x.cartella, locale } };\nif (!x.riepilogo) return null;\nreturn { json: { crea: false, messaggio: 'Smista materiale (prova) — ' + locale + ': manca la cartella «' + nome + '». La creo io quando MODALITA = attivo, oppure createla voi dentro la cartella del cliente.' } };\n"
+   },
+   "id": "b0f97767-9076-55a1-a8fb-e7d958242af5",
+   "name": "Cartella da creare?",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1920,
+    420
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "4ec9019f-b65b-5f5a-ad60-b7c3374d7ea8",
+       "leftValue": "={{ $json.crea === true }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "b3632fb1-ea8b-5736-a4b8-9d679b6ac128",
+   "name": "Devo crearla?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    2160,
+    420
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "fields",
+       "value": "id,name"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ name: $json.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$json.dentro] }) }}",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "fdf97295-a09f-543c-a63d-9283245cd529",
+   "name": "Crea Da smistare",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    2400,
+    360
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForEachItem",
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Cartella creata ---\nconst x = $('Devo crearla?').item.json;\nconst e = erroreVoce($json);\nreturn { json: { messaggio: e\n  ? '⚠️ Smista materiale — ' + x.locale + ': non riesco a creare la cartella «' + x.nome + '» (' + e + '). Createla voi dentro la cartella del cliente.'\n  : 'Smista materiale — ' + x.locale + ': ho creato la cartella «' + x.nome + '». Da ora il team può metterci foto e video da smistare.' } };\n"
+   },
+   "id": "a935fb95-1569-5273-aecc-34a945727d38",
+   "name": "Cartella creata",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    360
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ \"'\" + $json.smistare_id + \"' in parents and trashed = false\" }}"
+      },
+      {
+       "name": "fields",
+       "value": "nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime)"
+      },
+      {
+       "name": "pageSize",
+       "value": "1000"
+      },
+      {
+       "name": "orderBy",
+       "value": "name"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "21a4c11a-c4f2-5c28-a661-f2e4acec7f8f",
+   "name": "Elenca Da smistare",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    1920,
+    100
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ ($json.files || []).filter(f => f.mimeType === 'application/vnd.google-apps.folder' && !/^[_.]/.test(String(f.name || '').trim())).slice(0, Math.max(1, Number($('Config').first().json.MAX_SOTTOCARTELLE) || 40)).length ? '(' + ($json.files || []).filter(f => f.mimeType === 'application/vnd.google-apps.folder' && !/^[_.]/.test(String(f.name || '').trim())).slice(0, Math.max(1, Number($('Config').first().json.MAX_SOTTOCARTELLE) || 40)).map(f => \"'\" + f.id + \"' in parents\").join(' or ') + ') and trashed = false' : \"name = '__nessuna_sottocartella_smista__' and trashed = false\" }}"
+      },
+      {
+       "name": "fields",
+       "value": "nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,parents)"
+      },
+      {
+       "name": "pageSize",
+       "value": "1000"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "fd8f2134-81b7-5aee-a2ea-9a0176251391",
+   "name": "Contenuto delle sottocartelle",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    2160,
+    100
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "q",
+       "value": "={{ $('Esiste Da smistare?').item.json.reel_id ? \"'\" + $('Esiste Da smistare?').item.json.reel_id + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" : \"name = '__nessuna_cartella_reel_smista__' and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}"
+      },
+      {
+       "name": "fields",
+       "value": "nextPageToken,files(id,name,properties)"
+      },
+      {
+       "name": "pageSize",
+       "value": "1000"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "includeItemsFromAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "1325bc67-9c37-5cef-a00b-d7a6ff1c6cba",
+   "name": "Sottocartelle di reel",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    2400,
+    100
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "mode": "runOnceForEachItem",
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Piano ---\n// Regole decise da Nicola (23/11/2026), con i limiti veri dei workflow che poi useranno il materiale:\n// 1) sottocartella di clip (più brief.txt, una musica.*, sottotitoli.srt) → intera in «reel»: il nome resta, è il brief\n//    del 07 (al massimo 16 clip, 300 MB l'una, 800 MB in tutto, come il 07);\n// 2) sottocartella «storie» o «storia» → i suoi file SCIOLTI in «storie» (il 06 usa solo JPEG, PNG e video fino a 300 MB);\n// 3) sottocartella di sole foto (più un brief.txt) → intera in «post»: l'08 ne fa un carosello (al massimo 10 foto da 40 MB);\n// 4) foto sciolta → «post»;  5) video sciolto → sottocartella nuova in «reel» col nome del file, video rinominato 01.<est>\n//    (la cartella porta il segno smista_file = id del video: se lo spostamento non riesce, al giro dopo si riusa);\n// 6) foto e video insieme, HEIC, formati sconosciuti, cartelle dentro cartelle, nomi con «_», file «._» del Mac,\n//    scorciatoie di Drive, cartelle «Pronti» → restano, con avviso. I file di sistema (.DS_Store…) si ignorano.\n// Solo materiale fermo da MINUTI_QUIETE; al massimo MAX_SPOSTAMENTI_GIRO spostamenti per locale a giro, con quelli\n// falliti al giro prima messi in fondo (così non bloccano gli altri).\nconst c = cfg();\nconst x = $('Esiste Da smistare?').item.json;\nconst lista = $('Elenca Da smistare').item.json || {};\nconst dentro = $('Contenuto delle sottocartelle').item.json || {};\nconst reelLista = $json || {};\nconst nomeC = testo(c.NOME_CARTELLA) || 'Da smistare';\nlet memoria = null;\ntry { memoria = $getWorkflowStaticData('global'); } catch (e) { memoria = null; }\nconst falliti = (memoria && memoria.falliti_smista) || {};\nconst problemi = [...(x.problemi || [])];\nconst INCOMPLETO = 'Drive ha dato un elenco incompleto';\nconst eLista = erroreVoce(lista);\nif (eLista) problemi.push('non riesco a leggere la cartella «' + nomeC + '» (' + eLista + ')');\nif (!eLista && lista.nextPageToken) problemi.push(INCOMPLETO + ' di «' + nomeC + '»: smisto quelli che vedo, il resto ai prossimi giri');\nconst eDentro = eLista ? '' : erroreVoce(dentro);\nif (eDentro) problemi.push('non riesco a leggere le sottocartelle di «' + nomeC + '» (' + eDentro + '): le lascio dove sono');\nconst dentroTroncato = !eLista && !eDentro && !!dentro.nextPageToken;\nconst eReel = x.reel_id ? erroreVoce(reelLista) : '';\nif (eReel) problemi.push('non riesco a leggere la cartella reel (' + eReel + '): i video sciolti restano dove sono');\nconst reelTroncato = !!x.reel_id && !eReel && !!reelLista.nextPageToken;\nif (reelTroncato) problemi.push(INCOMPLETO + ' delle sottocartelle di reel: i video sciolti restano dove sono, riprovo al prossimo giro');\nconst quiete = Math.max(0, numero(c.MINUTI_QUIETE, 10)) * 60000;\nconst maxSotto = Math.max(1, numero(c.MAX_SOTTOCARTELLE, 40));\nconst maxGiro = Math.max(1, numero(c.MAX_SPOSTAMENTI_GIRO, 30));\nconst adesso = Date.now();\nconst fermo = (f) => { const t = Math.max(Date.parse(f.createdTime) || 0, Date.parse(f.modifiedTime) || 0); return !!t && adesso - t >= quiete; };\nconst tre = (l) => l.slice(0, 3).map((g) => '«' + taglia(g.name, 60) + '»').join(', ') + (l.length > 3 ? ' e altri ' + (l.length - 3) : '');\nconst reelFigli = Array.isArray(reelLista.files) ? reelLista.files : [];\nconst esistenti = new Set(reelFigli.map((f) => norm(f.name)));\n// Cartelle già create da me per un video che non si è spostato: si riusano (segno smista_file).\nconst giaCreata = {};\nfor (const f of reelFigli) { const id = f.properties && f.properties.smista_file; if (id && !giaCreata[id]) giaCreata[id] = f; }\nconst figli = {};\nfor (const g of (Array.isArray(dentro.files) ? dentro.files : [])) for (const p of (g.parents || [])) (figli[p] ||= []).push(g);\nlet sposta = [];\nlet nuovi = [];\nconst videoSciolti = [];\nconst lasciati = [];\nlet inAttesa = 0, vuote = 0, ignorati = 0;\nconst lascia = (nome, perche) => lasciati.push({ nome: taglia(nome, 120), perche });\nconst manca = (cosa, doppia, chi) => doppia ? 'ci sono due cartelle «' + cosa + '» nella cartella del cliente: tenetene una sola'\n  : 'manca la cartella «' + cosa + '» nella cartella del cliente: createla, oppure aspettate il giro del workflow ' + chi + ', se per questo locale è acceso';\nconst mancaPost = () => manca('post', x.post_doppia, 'dei post');\nconst mancaReel = () => manca('reel', x.reel_doppia, 'dei reel');\nconst HEIC = 'è una foto HEIC dell\\'iPhone: esportatela in JPEG';\nconst SEGNO = 'il nome comincia con «_»: è il segno per «non toccare»';\nconst sporco = (g) => testo(g.name).startsWith('._') ? 'è una copia «._» fatta dal Mac, non una foto o un video: cancellatela' : 'è una scorciatoia di Drive: mettete il file vero';\nconst PIU_DI = (b, max) => 'pesa ' + mbTesto(b) + ', oltre il massimo di ' + mbTesto(max, true);\n// Il 06 usa solo JPEG e PNG, e video riconosciuti da Drive (MIME video/*) fino a 300 MB, mai file vuoti.\nconst eFotoStoria = (f) => ['image/jpeg', 'image/png'].includes(testo(f.mimeType).toLowerCase());\nconst eVideoStoria = (f) => /^video\\//i.test(testo(f.mimeType));\nconst files = eLista ? [] : (Array.isArray(lista.files) ? lista.files : []);\nconst nascosta = (f) => /^[_.]/.test(testo(f.name));\nconst sottoTutte = files.filter((f) => eCartella(f) && !nascosta(f));\nconst considerate = new Set(sottoTutte.slice(0, maxSotto).map((f) => f.id));\nif (dentroTroncato) problemi.push(INCOMPLETO + ' dei file nelle sottocartelle di «' + nomeC + '»: non sposto nessuna sottocartella in questo giro, riprovo al prossimo');\nif (sottoTutte.length > maxSotto && !eDentro && !dentroTroncato) problemi.push('in «' + nomeC + '» ci sono ' + sottoTutte.length + ' sottocartelle: ne guardo ' + maxSotto + ' per giro, in ordine di nome (quelle ferme per un avviso vanno sistemate, se no le altre aspettano)');\nfor (const f of files) {\n  const nome = testo(f.name);\n  if (eSistema(f)) { ignorati++; continue; }\n  if (eSporco(f)) { lascia(nome, sporco(f)); continue; }\n  if (nome.startsWith('_')) { lascia(nome + (eCartella(f) ? '/' : ''), SEGNO); continue; }\n  if (eCartella(f)) {\n    if (eDentro || dentroTroncato || !considerate.has(f.id)) continue;\n    const tutti = figli[f.id] || [];\n    const contenuto = tutti.filter((g) => !eSistema(g));\n    if (!contenuto.length) { vuote++; continue; }\n    // Regola 2: storie, file per file.\n    if (['storie', 'storia'].includes(norm(nome))) {\n      if (!x.storie_id) { lascia(nome + '/', manca('storie', false, 'delle storie')); continue; }\n      for (const g of contenuto) {\n        const gn = nome + '/' + testo(g.name);\n        if (eSporco(g)) { lascia(gn, sporco(g)); continue; }\n        if (testo(g.name).startsWith('_')) { lascia(gn + (eCartella(g) ? '/' : ''), SEGNO); continue; }\n        if (eCartella(g)) { lascia(gn + '/', 'è una cartella: nelle storie vanno solo foto e video sciolti'); continue; }\n        if (!fermo(g)) { inAttesa++; continue; }\n        if (byte(g) === 0 && (eFotoStoria(g) || eVideoStoria(g))) { lascia(gn, 'il file è vuoto (0 byte): caricatelo di nuovo'); continue; }\n        if (eFotoStoria(g)) sposta.push({ cosa: 'storia', id: g.id, nome: g.name, da: f.id, a: x.storie_id });\n        else if (eVideoStoria(g)) {\n          if (byte(g) > MAX_BYTE_CLIP) lascia(gn, PIU_DI(byte(g), MAX_BYTE_CLIP) + ' per un video delle storie');\n          else sposta.push({ cosa: 'storia', id: g.id, nome: g.name, da: f.id, a: x.storie_id });\n        } else if (eHeic(g)) lascia(gn, HEIC);\n        else lascia(gn, tipoStrano(g) || 'nelle storie vanno solo foto JPEG o PNG e video');\n      }\n      continue;\n    }\n    // Regole 1, 3 e 6: la sottocartella si sposta intera, oppure resta.\n    if (norm(nome) === 'pronti') { lascia(nome + '/', '«Pronti» è il nome di una cartella di servizio dei workflow: rinominatela'); continue; }\n    if (contenuto.some(eCartella)) { lascia(nome + '/', 'contiene altre cartelle: lasciata stare'); continue; }\n    const sporchi = contenuto.filter(eSporco);\n    if (sporchi.length) { lascia(nome + '/', 'dentro ci sono copie «._» del Mac o scorciatoie di Drive (' + tre(sporchi) + '): toglietele, il workflow le conterebbe come foto o clip'); continue; }\n    if (!fermo(f) || !contenuto.every(fermo)) { inAttesa++; continue; }\n    const utili = contenuto.filter((g) => !eAppunto(g));\n    const video = utili.filter(eVideo);\n    const foto = utili.filter(eFoto);\n    const heic = utili.filter((g) => eHeic(g) && !eFoto(g));\n    if (video.length && (foto.length || heic.length)) { lascia(nome + '/', 'ci sono sia foto sia video: dividetele in due cartelle'); continue; }\n    if (video.length) {\n      const musiche = utili.filter(eMusica);\n      const altri = utili.filter((g) => !eVideo(g) && !eMusica(g) && !eBrief(g) && !eSrt(g));\n      const grossa = video.find((g) => byte(g) > MAX_BYTE_CLIP);\n      const totale = video.reduce((s, g) => s + byte(g), 0) + (musiche[0] ? byte(musiche[0]) : 0);\n      if (altri.length) lascia(nome + '/', 'dentro ci sono file che non sono clip, brief.txt, musica o sottotitoli.srt: ' + tre(altri) + (altri.some(tipoStrano) ? ' (Drive non riconosce il tipo di qualcuno: esportatelo di nuovo)' : ''));\n      else if (grossa) lascia(nome + '/', 'la clip «' + taglia(grossa.name, 60) + '» ' + PIU_DI(byte(grossa), MAX_BYTE_CLIP) + ' per clip');\n      else if (video.length > MAX_CLIP_REEL) lascia(nome + '/', 'ci sono ' + video.length + ' clip: un reel ne accetta al massimo ' + MAX_CLIP_REEL);\n      else if (musiche.length > 1) lascia(nome + '/', 'ci sono ' + musiche.length + ' file «musica»: ne serve uno solo');\n      else if (totale > MAX_BYTE_TOTALE_REEL) lascia(nome + '/', 'i file insieme pesano ' + mbTesto(totale) + ', oltre il massimo di ' + mbTesto(MAX_BYTE_TOTALE_REEL, true) + ' per un reel');\n      else if (!x.reel_id) lascia(nome + '/', mancaReel());\n      else sposta.push({ cosa: 'cartella_reel', id: f.id, nome: f.name, da: x.smistare_id, a: x.reel_id, quanti: video.length });\n      continue;\n    }\n    if (heic.length) { lascia(nome + '/', 'contiene foto HEIC dell\\'iPhone: esportatele in JPEG'); continue; }\n    if (foto.length) {\n      const brief = utili.filter(eBrief);\n      const altri = utili.filter((g) => !eFoto(g) && !eBrief(g));\n      const grossa = foto.find((g) => byte(g) > MAX_BYTE_FOTO_POST);\n      if (altri.length) lascia(nome + '/', 'dentro ci sono file che non sono foto: ' + tre(altri) + (altri.some(tipoStrano) ? ' (Drive non riconosce il tipo di qualcuno: esportatelo di nuovo)' : ''));\n      else if (brief.length > 1) lascia(nome + '/', 'ci sono ' + brief.length + ' file brief.txt: ne serve uno solo');\n      else if (grossa) lascia(nome + '/', 'la foto «' + taglia(grossa.name, 60) + '» ' + PIU_DI(byte(grossa), MAX_BYTE_FOTO_POST) + ' per una foto dei post');\n      else if (foto.length > MAX_FOTO_CAROSELLO) lascia(nome + '/', 'ci sono ' + foto.length + ' foto: un carosello ne tiene al massimo ' + MAX_FOTO_CAROSELLO);\n      else if (!x.post_id) lascia(nome + '/', mancaPost());\n      else sposta.push({ cosa: 'cartella_post', id: f.id, nome: f.name, da: x.smistare_id, a: x.post_id, quanti: foto.length });\n      continue;\n    }\n    lascia(nome + '/', utili.length && utili.every((g) => eBrief(g) || eSrt(g) || eMusica(g)) ? 'ci sono solo file di servizio (brief, sottotitoli, musica), nessuna foto o video' : 'nessuna foto e nessun video riconosciuto');\n    continue;\n  }\n  // File sciolti: regole 4, 5 e 6.\n  if (!fermo(f)) { inAttesa++; continue; }\n  if (eFoto(f)) {\n    if (byte(f) > MAX_BYTE_FOTO_POST) lascia(nome, PIU_DI(byte(f), MAX_BYTE_FOTO_POST) + ' per una foto dei post');\n    else if (!x.post_id) lascia(nome, mancaPost());\n    else sposta.push({ cosa: 'foto', id: f.id, nome: f.name, da: x.smistare_id, a: x.post_id });\n  } else if (eHeic(f)) {\n    lascia(nome, HEIC);\n  } else if (eVideo(f)) {\n    if (byte(f) > MAX_BYTE_CLIP) lascia(nome, PIU_DI(byte(f), MAX_BYTE_CLIP) + ' per clip (esportatela in 1080×1920)');\n    else if (!x.reel_id) lascia(nome, mancaReel());\n    else if (eReel || reelTroncato) lascia(nome, 'non riesco a leggere bene la cartella reel');\n    else videoSciolti.push(f);\n  } else {\n    lascia(nome, tipoStrano(f) || 'non è né una foto né un video');\n  }\n}\n// Regola 5: il nome della cartella nuova non deve coincidere con una già in «reel», né con una che ci arriva in questo giro.\nfor (const s of sposta) if (s.cosa === 'cartella_reel') esistenti.add(norm(s.nome));\nconst MIME_EST = { 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/x-m4v': 'm4v', 'video/webm': 'webm', 'video/x-matroska': 'mkv', 'video/3gpp': '3gp', 'video/mpeg': 'mpg', 'video/x-msvideo': 'avi', 'video/mp2t': 'mts' };\nfor (const f of videoSciolti) {\n  const est = ESTENSIONI_VIDEO.includes(estensione(f.name)) ? estensione(f.name) : '';\n  const nuovo_nome = '01.' + (est || MIME_EST[testo(f.mimeType).toLowerCase()] || 'mp4');\n  const gia = giaCreata[f.id];\n  if (gia) { nuovi.push({ id: f.id, nome: f.name, cartella: testo(gia.name), cartella_id: gia.id, nuovo_nome }); continue; }\n  let base = testo(f.name);\n  if (est) base = base.slice(0, base.length - est.length - 1);\n  base = base.replace(/^[\\s_.]+/, '').replace(/\\s+/g, ' ').trim() || 'video';\n  if (norm(base) === 'pronti') base = 'Pronti video';\n  base = Array.from(base).slice(0, 100).join('').trim();\n  let cartella = base, k = 2;\n  while (esistenti.has(norm(cartella))) cartella = base + ' ' + k++;\n  esistenti.add(norm(cartella));\n  nuovi.push({ id: f.id, nome: f.name, cartella, cartella_id: '', nuovo_nome });\n}\n// Tetto per giro: prima storie e cartelle intere, poi foto e video sciolti; quelli falliti al giro prima vanno in fondo.\nlet rimandati = 0;\nif (sposta.length + nuovi.length > maxGiro) {\n  const tot = sposta.length + nuovi.length;\n  const tutti = [...sposta.map((v) => ({ t: 's', v })), ...nuovi.map((v) => ({ t: 'n', v }))]\n    .map((o, i) => ({ ...o, i, k: (falliti[o.v.id] ? 2 : 0) + (o.t === 's' && o.v.cosa !== 'foto' ? 0 : 1) }))\n    .sort((a, b) => a.k - b.k || a.i - b.i).slice(0, maxGiro).sort((a, b) => a.i - b.i);\n  sposta = tutti.filter((o) => o.t === 's').map((o) => o.v);\n  nuovi = tutti.filter((o) => o.t === 'n').map((o) => o.v);\n  rimandati = tot - sposta.length - nuovi.length;\n}\nreturn { json: { cliente: x.cliente, nome_locale: x.nome_locale, modalita: x.modalita, riepilogo: x.riepilogo,\n  smistare_id: x.smistare_id, post_id: x.post_id, reel_id: x.reel_id, storie_id: x.storie_id, sposta, nuovi, rimandati, max_giro: maxGiro, lasciati, in_attesa: inAttesa, vuote, ignorati, problemi } };\n"
+   },
+   "id": "f72abd2a-5c63-5920-a9fe-67df79018457",
+   "name": "Piano",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Riepilogo ---\n// In prova: l'elenco di cosa farei, a mano o nel giro dell'ORA_RIEPILOGO. In attivo gli spostamenti li dice\n// «Esito spostamenti» DOPO averli fatti (solo quelli riusciti); qui restano le cose da sistemare, nello stesso orario.\nconst c = cfg();\nconst nomeC = testo(c.NOME_CARTELLA) || 'Da smistare';\nconst elenco = (voci, max = 12) => voci.slice(0, max).map((v) => '• ' + v).concat(voci.length > max ? ['• … e altri ' + (voci.length - max)] : []);\nconst blocchi = [];\nlet prova = false;\nfor (const it of $input.all()) {\n  const p = it.json;\n  if (!p.riepilogo) continue;\n  const attivo = p.modalita === 'attivo';\n  prova = prova || !attivo;\n  const righe = [];\n  if (!attivo) {\n    const di = (cosa) => p.sposta.filter((s) => s.cosa === cosa);\n    const nf = di('foto').length, nv = p.nuovi.length, ns = di('storia').length;\n    if (nf) righe.push('Sposterei in «post» ' + (nf === 1 ? '1 foto sciolta (diventa un post singolo):' : nf + ' foto sciolte (diventano post singoli):'), ...elenco(di('foto').map((s) => taglia(s.nome, 120))));\n    if (di('cartella_post').length) righe.push('Sposterei in «post» queste cartelle di foto (diventano caroselli):', ...elenco(di('cartella_post').map((s) => taglia(s.nome, 120) + ' (' + s.quanti + ' foto)')));\n    if (di('cartella_reel').length) righe.push('Sposterei in «reel» queste cartelle di clip (il nome resta il brief):', ...elenco(di('cartella_reel').map((s) => taglia(s.nome, 120) + ' (' + s.quanti + ' clip)')));\n    if (nv) righe.push('Sposterei in «reel» ' + (nv === 1 ? '1 video sciolto, in una cartella sua:' : nv + ' video sciolti, ognuno in una cartella sua:'), ...elenco(p.nuovi.map((n) => taglia(n.nome, 120) + ' → reel › ' + n.cartella + (n.cartella_id ? ' (già creata)' : '') + ' › ' + n.nuovo_nome)));\n    if (ns) righe.push('Sposterei in «storie» ' + (ns === 1 ? '1 file:' : ns + ' file:'), ...elenco(di('storia').map((s) => taglia(s.nome, 120))));\n  }\n  if (p.rimandati) righe.push('Altri ' + p.rimandati + ' elementi ' + (attivo ? 'li sposto' : 'li sposterei') + ' ai prossimi giri (al massimo ' + p.max_giro + ' per giro).');\n  if (p.lasciati.length) righe.push('Lascio in «' + nomeC + '»:', ...elenco(p.lasciati.map((l) => l.nome + ' — ' + l.perche)));\n  if (p.in_attesa) righe.push(p.in_attesa + (p.in_attesa === 1 ? ' elemento appena caricato' : ' elementi appena caricati') + ': aspetto che siano fermi da ' + Math.max(0, numero(c.MINUTI_QUIETE, 10)) + ' minuti.');\n  if (p.problemi.length) righe.push('Da sistemare:', ...elenco(p.problemi));\n  if (!righe.length && $('Avvio a mano').isExecuted) {\n    if (attivo && (p.sposta.length || p.nuovi.length)) righe.push('Nient\\'altro da sistemare: gli spostamenti di questo giro li scrivo appena fatti.');\n    else if (p.ignorati || p.vuote) righe.push('In «' + nomeC + '» non c\\'è niente da smistare' + ' (' + [p.ignorati ? p.ignorati + ' file di sistema' : '', p.vuote ? p.vuote + (p.vuote === 1 ? ' cartella vuota' : ' cartelle vuote') : ''].filter(Boolean).join(' e ') + ').');\n    else righe.push('«' + nomeC + '» è vuota: niente da smistare.');\n  }\n  if (righe.length) blocchi.push({ titolo: '📂 ' + p.nome_locale, righe });\n}\nif (!blocchi.length) return [];\nconst testa = prova ? 'Smista materiale — PROVA: non sposto niente, vi dico cosa farei.' : 'Smista materiale — riepilogo';\nreturn dividi(testa, blocchi).map((messaggio) => ({ json: { messaggio } }));\n"
+   },
+   "id": "638f8044-dd78-549f-aeb4-662168e5feed",
+   "name": "Riepilogo",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2880,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ String($json.messaggio || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "bb4644e9-585f-515f-a865-e90709b898bd",
+   "name": "Telegram: riepilogo",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    3120,
+    0
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "webhookId": "8b9403ac-a63e-53ab-ae97-2fb692eda03b"
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Azioni ---\n// In prova non esce niente: nessuna modifica su Drive. Un video sciolto con la sua cartella già creata (giro prima)\n// diventa un semplice spostamento con il nome nuovo.\nif (modalita() !== 'attivo') return [];\nconst out = [];\nfor (const it of $input.all()) {\n  const p = it.json;\n  for (const s of p.sposta) out.push({ json: { tipo: 'sposta', cosa: s.cosa, locale: p.nome_locale, file_id: s.id, nome: s.nome, da: s.da, a: s.a, nuovo_nome: '', cartella: '' } });\n  for (const n of p.nuovi) {\n    if (n.cartella_id) out.push({ json: { tipo: 'sposta', cosa: 'video', locale: p.nome_locale, file_id: n.id, nome: n.nome, da: p.smistare_id, a: n.cartella_id, nuovo_nome: n.nuovo_nome, cartella: n.cartella } });\n    else out.push({ json: { tipo: 'reel_nuovo', cosa: 'video', locale: p.nome_locale, file_id: n.id, nome: n.nome, da: p.smistare_id, reel_id: p.reel_id, cartella: n.cartella, nuovo_nome: n.nuovo_nome } });\n  }\n}\nreturn out;\n"
+   },
+   "id": "c2a01fdb-6f6d-532b-ab71-ad5b0740d751",
+   "name": "Azioni",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2880,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "6f058d9b-03e1-5417-a899-fb73b771d6a1",
+       "leftValue": "={{ $json.tipo === 'reel_nuovo' }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "efd2f89e-5a34-5cba-a5b4-a2a963db42eb",
+   "name": "Serve una cartella nuova?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3120,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.file_id }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "addParents",
+       "value": "={{ $json.a }}"
+      },
+      {
+       "name": "removeParents",
+       "value": "={{ $json.da }}"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "fields",
+       "value": "id,name,parents"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.nuovo_nome ? { name: $json.nuovo_nome } : {}) }}",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "70660e72-604d-59ac-a469-9983fbd49cb9",
+   "name": "Sposta",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    3360,
+    160
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://www.googleapis.com/drive/v3/files",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "fields",
+       "value": "id,name"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ name: $json.cartella, mimeType: 'application/vnd.google-apps.folder', parents: [$json.reel_id], properties: { smista_file: $json.file_id } }) }}",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "476b3d41-1043-5c93-a6b9-193a571a6967",
+   "name": "Crea la cartella del reel",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    3360,
+    320
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "0ae11fbd-dacd-5cf1-a13d-5f4ece0b1381",
+       "leftValue": "={{ !$json.error && !!$json.id }}",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "8cdfb840-0294-5040-a14e-b84f7dc1c9d4",
+   "name": "Cartella del reel creata?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3600,
+    320
+   ]
+  },
+  {
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Serve una cartella nuova?').item.json.file_id }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "specifyQuery": "keypair",
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "addParents",
+       "value": "={{ $json.id }}"
+      },
+      {
+       "name": "removeParents",
+       "value": "={{ $('Serve una cartella nuova?').item.json.da }}"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      },
+      {
+       "name": "fields",
+       "value": "id,name,parents"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "json",
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ name: $('Serve una cartella nuova?').item.json.nuovo_nome }) }}",
+    "options": {
+     "timeout": 60000,
+     "response": {
+      "response": {
+       "responseFormat": "json"
+      }
+     }
+    }
+   },
+   "id": "08f05e8c-8380-5df2-adc4-93b004d303d6",
+   "name": "Sposta e rinomina il video",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.5,
+   "position": [
+    3840,
+    260
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Esito spostamenti ---\nlet memoria = null;\ntry { memoria = $getWorkflowStaticData('global'); } catch (e) { memoria = null; }\nconst falliti = (memoria && memoria.falliti_smista) || {};\nconst adesso = Date.now();\nconst fatti = {};\nconst ko = [];\nconst DOVE = { foto: (x) => '→ post', cartella_post: (x) => '→ post (carosello)', cartella_reel: (x) => '→ reel', storia: (x) => '→ storie', video: (x) => '→ reel › ' + x.cartella + ' › ' + x.nuovo_nome };\n$input.all().forEach((it, i) => {\n  const x = $('Serve una cartella nuova?').itemMatching(i).json;\n  const e = erroreVoce(it.json);\n  const nome = '«' + taglia(x.nome, 120) + '»' + (x.cosa === 'cartella_post' || x.cosa === 'cartella_reel' ? '/' : '');\n  if (e) { ko.push('• ' + x.locale + ': ' + nome + ' (' + e + ')'); falliti[x.file_id] = adesso; return; }\n  delete falliti[x.file_id];\n  (fatti[x.locale] ||= []).push('• ' + nome + ' ' + (DOVE[x.cosa] || DOVE.foto)(x));\n});\nfor (const k of Object.keys(falliti)) if (!(adesso - falliti[k] < 7 * 86400000)) delete falliti[k];\nif (memoria) memoria.falliti_smista = falliti;\nconst out = [];\nconst blocchi = Object.entries(fatti).map(([locale, righe]) => ({ titolo: '📂 ' + locale, righe }));\nif (blocchi.length) for (const m of dividi('✅ Smista materiale: ho spostato', blocchi)) out.push({ json: { messaggio: m, sempre: true } });\nif (ko.length) for (const m of dividi('⚠️ Smista materiale: ' + ko.length + (ko.length === 1 ? ' elemento non spostato' : ' elementi non spostati') + '. Restano in «Da smistare» e riprovo al prossimo giro.', [{ titolo: '', righe: ko }])) out.push({ json: { messaggio: m } });\nreturn out;\n"
+   },
+   "id": "f3732cd3-6cd7-56d0-aaab-ea9b897adcdc",
+   "name": "Esito spostamenti",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3600,
+    160
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// --- aiuti comuni del 14 · Smista materiale (stessi criteri di 06, 07 e 08) ---\nfunction testo(v) { return v === undefined || v === null ? '' : String(v).trim(); }\nfunction numero(v, predefinito) { const n = Number(String(v === undefined || v === null ? '' : v).replace(',', '.')); return Number.isFinite(n) && String(v).trim() !== '' ? n : predefinito; }\nfunction norm(v) { return testo(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\\s+/g, ' ').trim(); }\nfunction siNo(v) { return ['si', 'yes', 'true', '1', 'x', 'vero', 'ok'].includes(norm(v)); }\n// Taglio sicuro anche con le emoji (conta i caratteri veri, non le metà).\nfunction taglia(s, max) { const a = Array.from(testo(s)); return a.length > max ? a.slice(0, max - 1).join('') + '…' : a.join(''); }\nfunction idDrive(v) {\n  const s = testo(v);\n  if (!s) return '';\n  const m = s.match(/\\/(?:file\\/d|folders|d)\\/([A-Za-z0-9_-]{10,})/) || s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : '';\n}\nconst MIME_CARTELLA = 'application/vnd.google-apps.folder';\n// Foto che l'08 sa lavorare (la sua lista MIME_FOTO).\nconst MIME_FOTO = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/tiff', 'image/avif'];\n// Video: stesso criterio del 07 (MIME video/* oppure estensione nota). Audio della musica: come il 07.\nconst ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];\nconst ESTENSIONI_AUDIO = ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'flac', 'opus'];\n// Limiti scritti nel codice di 07 (reel), 06 (storie) e 08 (post, valore di serie di MAX_MB_FOTO).\nconst MAX_CLIP_REEL = 16;\nconst MAX_BYTE_CLIP = 300 * 1024 * 1024;\nconst MAX_BYTE_TOTALE_REEL = 800 * 1024 * 1024;\nconst MAX_FOTO_CAROSELLO = 10;\nconst MAX_BYTE_FOTO_POST = 40 * 1024 * 1024;\nfunction estensione(nome) { const m = testo(nome).match(/\\.([A-Za-z0-9]{1,5})$/); return m ? m[1].toLowerCase() : ''; }\nfunction eCartella(f) { return !!f && f.mimeType === MIME_CARTELLA; }\nfunction eFoto(f) { return !!f && MIME_FOTO.includes(testo(f.mimeType).toLowerCase()); }\nfunction eHeic(f) { return !!f && /heic|heif/i.test(testo(f.mimeType) + ' ' + testo(f.name)); }\nfunction eVideo(f) { return !!f && !eCartella(f) && (/^video\\//i.test(testo(f.mimeType)) || ESTENSIONI_VIDEO.includes(estensione(f.name))); }\nfunction eMusica(f) { return !!f && !eCartella(f) && /^musica\\.[a-z0-9]{1,5}$/i.test(testo(f.name)) && (/^audio\\//i.test(testo(f.mimeType)) || ESTENSIONI_AUDIO.includes(estensione(f.name))); }\nfunction eBrief(f) { return !!f && !eCartella(f) && norm(f.name) === 'brief.txt'; }\nfunction eSrt(f) { return !!f && !eCartella(f) && norm(f.name) === 'sottotitoli.srt'; }\n// File di sistema che i computer mettono da soli: si ignorano senza dire niente.\nfunction eSistema(f) { const n = norm(f && f.name); return n === 'desktop.ini' || n === '.ds_store' || n === 'thumbs.db' || (n.startsWith('.') && !n.startsWith('._')); }\n// Appunti .txt (non brief.txt): dentro una cartella 07 e 08 li ignorano; sciolti non sono materiale.\nfunction eAppunto(f) { const n = norm(f && f.name); return testo(f && f.mimeType).toLowerCase().startsWith('text/') && n.endsWith('.txt') && n !== 'brief.txt'; }\n// File che 07 e 08 contano come clip o foto ma non lo sono: le copie «._nome» del Mac e le scorciatoie di Drive.\nfunction eSporco(f) { return testo(f && f.name).startsWith('._') || testo(f && f.mimeType).toLowerCase() === 'application/vnd.google-apps.shortcut'; }\nfunction byte(f) { const n = Number(f && f.size); return Number.isFinite(n) ? n : 0; }\n// Pesi come li mostrano Drive e il Finder (MB decimali, una cifra): il file per eccesso, il limite per difetto.\nfunction mbTesto(n, limite) { return ((limite ? Math.floor(n / 1e5) : Math.ceil(n / 1e5)) / 10).toFixed(1).replace('.', ',') + ' MB'; }\n// Un nome che sembra di una foto o di un video, ma Drive gli ha dato un altro tipo.\nfunction tipoStrano(f) {\n  const e = estensione(f && f.name);\n  const media = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif', 'heic', 'heif'].includes(e) || ESTENSIONI_VIDEO.includes(e);\n  return media && !eFoto(f) && !eHeic(f) && !/^video\\//i.test(testo(f && f.mimeType)) ? 'Drive non lo riconosce come foto o video (tipo «' + (testo(f.mimeType) || 'sconosciuto') + '»): esportatelo di nuovo' : '';\n}\n// Impronta corta di un testo (FNV-1a a 32 bit) per ricordare gli avvisi già mandati.\nfunction impronta(s) { let h = 0x811c9dc5; const t = String(s); for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + t.length; }\n// Il motivo vero di un errore di Google: n8n 2.x (HTTP Request 4.5) lo mette in error.description e details.description\n// (visto nel collaudo: «The user does not have sufficient permissions for this file.»), a volte in details.body, e il\n// codice in details.httpCode; error.message è una frase generica di n8n («Forbidden - perhaps check your credentials?»).\nfunction erroreVoce(j) {\n  const e = j && j.error;\n  if (!e) return '';\n  const d = (j && j.details) || {};\n  const corpo = d.body && typeof d.body === 'object' ? d.body : null;\n  const google = corpo && corpo.error ? (typeof corpo.error === 'string' ? corpo.error : testo(corpo.error.message)) : '';\n  const codice = testo(d.httpCode || (typeof e === 'object' && e.httpCode) || '');\n  let base = testo(google) || testo(d.description) || (typeof e === 'string' ? e : testo(e.description) || testo(e.message)) || testo(d.message) || JSON.stringify(e);\n  if (base.startsWith('<')) base = 'pagina d\\'errore di Google';\n  return taglia((codice ? 'errore ' + codice + ': ' : '') + base, 200);\n}\nfunction cfg() { return $('Config').first().json; }\nfunction modalita() { return norm(cfg().MODALITA) === 'attivo' ? 'attivo' : 'prova'; }\nfunction escHtml(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }\n// Divide in messaggi Telegram: 4096 unità dopo l'escape HTML, contate in UTF-16 (con le emoji è la misura prudente).\n// blocchi = [{ titolo, righe }]; se un blocco continua nel messaggio dopo, il titolo si ripete con «(continua)».\nfunction dividi(testa, blocchi, limite = 3800) {\n  const lung = (x) => escHtml(x).length;\n  const out = [];\n  const aperto = () => cur === testa || cur === testa + ' (continua)';\n  let cur = testa;\n  for (const b of blocchi) {\n    const titolo = taglia(b.titolo || '', 150);\n    const righe = (b.righe || []).map((r) => taglia(r, 600));\n    if (titolo) {\n      if (!aperto() && lung(cur + '\\n\\n' + titolo + (righe.length ? '\\n' + righe[0] : '')) > limite) { out.push(cur); cur = testa + ' (continua)'; }\n      cur += '\\n\\n' + titolo;\n    }\n    righe.forEach((r, i) => {\n      const sep = !titolo && i === 0 ? '\\n\\n' : '\\n';\n      if (lung(cur + sep + r) > limite) {\n        out.push(cur);\n        cur = testa + ' (continua)' + (titolo ? '\\n\\n' + titolo + ' (continua)\\n' : '\\n\\n') + r;\n      } else cur += sep + r;\n    });\n  }\n  out.push(cur);\n  return out;\n}\n\n// --- Esito video ---\n// Arriva qui dopo lo spostamento dei video nelle cartelle nuove, oppure subito se una cartella non è stata creata.\nlet memoria = null;\ntry { memoria = $getWorkflowStaticData('global'); } catch (e) { memoria = null; }\nconst falliti = (memoria && memoria.falliti_smista) || {};\nconst adesso = Date.now();\nconst fatti = {};\nconst ko = [];\n$input.all().forEach((it, i) => {\n  const x = $('Serve una cartella nuova?').itemMatching(i).json;\n  const cartella = $('Crea la cartella del reel').itemMatching(i).json || {};\n  const eCart = erroreVoce(cartella) || (cartella.id ? '' : 'Drive non ha restituito la cartella nuova');\n  const eSposta = eCart ? '' : erroreVoce(it.json);\n  const nome = '«' + taglia(x.nome, 120) + '»';\n  if (eCart) { ko.push('• ' + x.locale + ': non riesco a creare la cartella «' + x.cartella + '» in reel per ' + nome + ' (' + eCart + ')'); falliti[x.file_id] = adesso; return; }\n  if (eSposta) { ko.push('• ' + x.locale + ': ho creato «reel › ' + x.cartella + '» ma non riesco a spostarci ' + nome + ' (' + eSposta + '): al prossimo giro riprovo nella stessa cartella'); falliti[x.file_id] = adesso; return; }\n  delete falliti[x.file_id];\n  (fatti[x.locale] ||= []).push('• ' + nome + ' → reel › ' + x.cartella + ' › ' + x.nuovo_nome);\n});\nif (memoria) memoria.falliti_smista = falliti;\nconst out = [];\nconst blocchi = Object.entries(fatti).map(([locale, righe]) => ({ titolo: '📂 ' + locale, righe }));\nif (blocchi.length) for (const m of dividi('✅ Smista materiale: video in cartelle nuove di «reel»', blocchi)) out.push({ json: { messaggio: m, sempre: true } });\nif (ko.length) for (const m of dividi('⚠️ Smista materiale: ' + ko.length + (ko.length === 1 ? ' video non spostato' : ' video non spostati') + '. Restano in «Da smistare».', [{ titolo: '', righe: ko }])) out.push({ json: { messaggio: m } });\nreturn out;\n"
+   },
+   "id": "903535d1-743b-5c88-a0e7-bec1b55c4613",
+   "name": "Esito video",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    4080,
+    320
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 14 · Smista materiale\nOgni 15 minuti, per ogni cliente attivo con cartella_drive, guarda «Da smistare»:\n1. sottocartella di clip (+ brief.txt, una musica, sottotitoli.srt) → intera in «reel» (il nome è il brief; max 16 clip, 300 MB l'una, 800 MB in tutto)\n2. sottocartella «storie»/«storia» → i file sciolti in «storie» (JPEG, PNG, video fino a 300 MB)\n3. sottocartella di sole foto (+ un brief.txt) → intera in «post» (carosello, max 10 foto da 40 MB)\n4. foto sciolta → «post»\n5. video sciolto → sottocartella sua in «reel» col nome del file, video rinominato 01.<est> (se lo spostamento fallisce, al giro dopo riusa la stessa cartella)\n6. foto+video insieme, HEIC, formati sconosciuti, cartelle annidate, nomi con «_», copie «._» del Mac, scorciatoie, cartelle «Pronti»: restano, con avviso\nSolo materiale fermo da MINUTI_QUIETE (una cartella caricata con pause più lunghe può partire a metà: alzate il valore). Al massimo MAX_SPOSTAMENTI_GIRO spostamenti per locale a giro. Mai cancellare.\nIn attivo gli spostamenti si scrivono DOPO averli fatti; lo stesso avviso d'errore non si ripete per ORE_SILENZIO_AVVISI ore.\n\n**MODALITA = prova**: nessuna modifica, solo l'elenco su Telegram (a mano, o alle ORA_RIEPILOGO). **attivo**: sposta, e crea «Da smistare» se manca.",
+    "height": 460,
+    "width": 720
+   },
+   "id": "52f25651-6973-5963-ae30-55e0f56f2339",
+   "name": "Nota",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    0,
+    -440
+   ]
+  }
+ ],
+ "connections": {
+  "Ogni 15 minuti": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avvio a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Leggi Clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi Clienti": {
+   "main": [
+    [
+     {
+      "node": "Clienti con cartella",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Avviso: foglio non letto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Non ripetere": {
+   "main": [
+    [
+     {
+      "node": "Telegram: avviso",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram: avviso": {
+   "main": [
+    [
+     {
+      "node": "Segna gli avvisi",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avviso: foglio non letto": {
+   "main": [
+    [
+     {
+      "node": "Non ripetere",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Clienti con cartella": {
+   "main": [
+    [
+     {
+      "node": "Nessun cliente?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Nessun cliente?": {
+   "main": [
+    [
+     {
+      "node": "Non ripetere",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Cartelle del cliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartelle del cliente": {
+   "main": [
+    [
+     {
+      "node": "Trova le cartelle",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Trova le cartelle": {
+   "main": [
+    [
+     {
+      "node": "Esiste Da smistare?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Esiste Da smistare?": {
+   "main": [
+    [
+     {
+      "node": "Elenca Da smistare",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Cartella da creare?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartella da creare?": {
+   "main": [
+    [
+     {
+      "node": "Devo crearla?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Devo crearla?": {
+   "main": [
+    [
+     {
+      "node": "Crea Da smistare",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Non ripetere",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Crea Da smistare": {
+   "main": [
+    [
+     {
+      "node": "Cartella creata",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartella creata": {
+   "main": [
+    [
+     {
+      "node": "Non ripetere",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Elenca Da smistare": {
+   "main": [
+    [
+     {
+      "node": "Contenuto delle sottocartelle",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Contenuto delle sottocartelle": {
+   "main": [
+    [
+     {
+      "node": "Sottocartelle di reel",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sottocartelle di reel": {
+   "main": [
+    [
+     {
+      "node": "Piano",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Piano": {
+   "main": [
+    [
+     {
+      "node": "Riepilogo",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Azioni",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Riepilogo": {
+   "main": [
+    [
+     {
+      "node": "Telegram: riepilogo",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Azioni": {
+   "main": [
+    [
+     {
+      "node": "Serve una cartella nuova?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Serve una cartella nuova?": {
+   "main": [
+    [
+     {
+      "node": "Crea la cartella del reel",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Sposta",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Crea la cartella del reel": {
+   "main": [
+    [
+     {
+      "node": "Cartella del reel creata?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cartella del reel creata?": {
+   "main": [
+    [
+     {
+      "node": "Sposta e rinomina il video",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Esito video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sposta": {
+   "main": [
+    [
+     {
+      "node": "Esito spostamenti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Esito spostamenti": {
+   "main": [
+    [
+     {
+      "node": "Non ripetere",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sposta e rinomina il video": {
+   "main": [
+    [
+     {
+      "node": "Esito video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Esito video": {
+   "main": [
+    [
+     {
+      "node": "Non ripetere",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Rome",
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "D3Ugm3sc201nteFX",
+  "saveManualExecutions": true,
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "all"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "88216cc4-7f12-4223-9d4b-59611c9686a6",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-23T12:01:27.777Z",
+   "createdAt": "2026-11-23T12:01:27.777Z",
+   "role": "workflow:owner",
+   "workflowId": "tqeExphctRazwbR0",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}

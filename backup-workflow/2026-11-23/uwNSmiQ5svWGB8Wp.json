@@ -1,0 +1,2407 @@
+{
+ "updatedAt": "2026-11-22T01:43:17.180Z",
+ "createdAt": "2026-11-22T01:43:17.180Z",
+ "id": "uwNSmiQ5svWGB8Wp",
+ "name": "15 · Approva le storie",
+ "active": false,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "2-59/15 * * * *"
+      }
+     ]
+    }
+   },
+   "id": "0e2f2ef7-d4d9-5398-a0a0-ec9a81b41a88",
+   "name": "Ogni 15 minuti",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    200
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "0f04baa6-24d5-5a6d-abc2-18470252d227",
+   "name": "Prova a mano",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    400
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "manual",
+    "assignments": {
+     "assignments": [
+      {
+       "id": "f9228a63-1139-5013-af45-04c9eb4cb753",
+       "name": "MODALITA",
+       "value": "prova",
+       "type": "string"
+      },
+      {
+       "id": "83339fd1-3c3b-54fe-a685-597f9a11da06",
+       "name": "SHEET_ID",
+       "value": "1nOTwzXkqNsfwortRslKBzsBXh2uIz2G2Lyu13Hufmjo",
+       "type": "string"
+      },
+      {
+       "id": "016703a5-32e6-5b55-a46c-07e15c901331",
+       "name": "TELEGRAM_CHAT_ID",
+       "value": "1913003037",
+       "type": "string"
+      },
+      {
+       "id": "9992303e-b421-5f57-a45e-69b6d3ba1a7a",
+       "name": "SCHEDA_CALENDARIO",
+       "value": "Calendario",
+       "type": "string"
+      },
+      {
+       "id": "227c355e-ad0f-58be-a035-2982eedde9d8",
+       "name": "SCHEDA_CLIENTI",
+       "value": "Clienti",
+       "type": "string"
+      },
+      {
+       "id": "e2a55999-cccc-572b-a843-df2e026d4dfc",
+       "name": "SCHEDA_TRACCIA",
+       "value": "Approvazioni storie",
+       "type": "string"
+      },
+      {
+       "id": "30aeaff4-5bcf-5546-a582-7fff624f1021",
+       "name": "SCHEDA_ARCHIVIO",
+       "value": "Archivio file",
+       "type": "string"
+      },
+      {
+       "id": "551cbd23-c3a1-55db-ad5b-f7130e153411",
+       "name": "MINUTI_MINIMI",
+       "value": 15,
+       "type": "number"
+      },
+      {
+       "id": "df23102d-ebf6-5d54-a506-e3bcc23ed312",
+       "name": "MINUTI_MARGINE",
+       "value": 3,
+       "type": "number"
+      },
+      {
+       "id": "790ace3c-a41e-55eb-a7ee-5646264b9764",
+       "name": "GIORNI_AVANTI",
+       "value": 7,
+       "type": "number"
+      },
+      {
+       "id": "69d78875-cba1-5172-a723-ba56a28b1b8f",
+       "name": "ORE_MAX_ATTESA",
+       "value": 4,
+       "type": "number"
+      },
+      {
+       "id": "2beb883c-1581-5e9a-a67a-86598f96c93a",
+       "name": "ORE_VICINE",
+       "value": 6,
+       "type": "number"
+      },
+      {
+       "id": "425ac501-4c56-55e0-ae59-10c19edf9033",
+       "name": "ORE_ALLARME",
+       "value": 2,
+       "type": "number"
+      },
+      {
+       "id": "80300796-c839-5788-a312-09fd67d1791a",
+       "name": "ORE_PAUSA_DOPO_SCADUTA",
+       "value": 12,
+       "type": "number"
+      },
+      {
+       "id": "e7f40b76-457f-53b0-a716-39a548383e1a",
+       "name": "MAX_PER_GIRO",
+       "value": 5,
+       "type": "number"
+      },
+      {
+       "id": "04222bb0-418c-51d1-af35-0de25bbd63b0",
+       "name": "MAX_VICINE_PER_GIRO",
+       "value": 10,
+       "type": "number"
+      },
+      {
+       "id": "d0bd11b7-06d0-5c40-a4f4-5dd68f2fdf4d",
+       "name": "MAX_IN_ATTESA",
+       "value": 10,
+       "type": "number"
+      },
+      {
+       "id": "e8230abe-e9ca-5552-a61f-231a00cf42af",
+       "name": "MINUTI_PRENOTAZIONE",
+       "value": 20,
+       "type": "number"
+      },
+      {
+       "id": "cde287b3-a42a-5bc4-a15a-f014396acd09",
+       "name": "MINUTI_RIPROVA_VICINE",
+       "value": 15,
+       "type": "number"
+      },
+      {
+       "id": "9c3cdde3-7e29-5ec7-a3af-e3907ec3d6d4",
+       "name": "ORA_INIZIO_NOTTE",
+       "value": 23,
+       "type": "number"
+      },
+      {
+       "id": "c3be4978-83b9-5e6e-a4a5-2cfab048bf54",
+       "name": "ORA_FINE_NOTTE",
+       "value": 7,
+       "type": "number"
+      },
+      {
+       "id": "85719465-4418-5cc4-a3de-28f75557da21",
+       "name": "ORA_ECCEZIONE_NOTTE",
+       "value": 9,
+       "type": "number"
+      },
+      {
+       "id": "6e4129ee-07ef-5b83-a275-838f608abfa1",
+       "name": "MAX_BYTE_FOTO",
+       "value": 9500000,
+       "type": "number"
+      },
+      {
+       "id": "13b899a9-0ef9-5dab-a161-2c86d75ace71",
+       "name": "MAX_BYTE_VIDEO",
+       "value": 48000000,
+       "type": "number"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "options": {}
+   },
+   "id": "87630229-ab12-5649-a2b4-e4b92a23645e",
+   "name": "Config",
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    240,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CALENDARIO }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "a98bc5df-0cb4-52fb-ad15-b968a68d62a4",
+   "name": "Leggi il calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    480,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "alwaysOutputData": true,
+   "executeOnce": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_CLIENTI }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "5e9bc30f-6579-5abe-adc4-10c20069815c",
+   "name": "Leggi i clienti",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    720,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "alwaysOutputData": true,
+   "executeOnce": true
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_TRACCIA }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "9ac9aeb2-c10c-539e-ac3e-b54a377528e4",
+   "name": "Leggi la traccia",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    960,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "alwaysOutputData": true,
+   "executeOnce": true,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_ARCHIVIO }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "4be23cea-7c93-57da-a01a-ab1b1048af93",
+   "name": "Leggi archivio file",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    1200,
+    300
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "alwaysOutputData": true,
+   "executeOnce": true,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Sceglie le storie da mandare in approvazione su Telegram. Non scrive niente nel foglio: esce con un item solo.\n// Prende: tipo «storia», stato «da_approvare», un solo file di Drive in «media», note SENZA «[06]» (quelle le chiede il 06),\n// cliente attivo nella scheda Clienti, data_ora tra MINUTI_MINIMI minuti e GIORNI_AVANTI giorni.\n//\n// Traccia (scheda a parte, scritta solo in fondo). Ogni domanda ha un token (il giro che l'ha fatta). Una domanda è\n// APERTA se il suo token ha una riga «prenotato» o «chiesto» con scade_il nel futuro e nessuna riga di chiusura con lo\n// stesso token. «prenotato» (scritto dal giro) dura pochi minuti; «chiesto» (scritto dal sotto-flusso subito prima di\n// mandare la domanda) dura fino alla fine dell'attesa più un margine. Se il sotto-flusso non parte mai, la prenotazione\n// scade da sola e la storia si richiede: nessuna domanda si perde in silenzio.\n// In prova la traccia è nella memoria del flusso (niente scritture nel foglio).\nconst cfg = $('Config').first().json;\nconst vero = testo(cfg.MODALITA).toLowerCase() === 'vero';\nconst adesso = Date.now();\nconst MIN = 60000;\nconst ORA = 3600000;\nconst minutiMinimi = Number(cfg.MINUTI_MINIMI) || 15;\nconst margine = Number(cfg.MINUTI_MARGINE) || 3;\nconst giorniAvanti = Number(cfg.GIORNI_AVANTI) || 7;\nconst oreMaxAttesa = Number(cfg.ORE_MAX_ATTESA) || 4;\nconst oreVicine = Number(cfg.ORE_VICINE) || 6;\nconst oreAllarme = Number(cfg.ORE_ALLARME) || 2;\nconst orePausaScaduta = Number(cfg.ORE_PAUSA_DOPO_SCADUTA) || 12;\nconst maxPerGiro = Math.max(0, Number(cfg.MAX_PER_GIRO) || 5);\nconst maxVicine = Math.max(1, Number(cfg.MAX_VICINE_PER_GIRO) || 10);\nconst maxInAttesa = Math.max(0, Number(cfg.MAX_IN_ATTESA) || 10);\nconst schedaTraccia = testo(cfg.SCHEDA_TRACCIA) || 'Approvazioni storie';\n// Notte: dalle ORA_INIZIO_NOTTE alle ORA_FINE_NOTTE niente domande né avvisi normali, salvo le storie che escono prima\n// delle ORA_ECCEZIONE_NOTTE (la mattina presto) e gli allarmi urgenti («approvala dal foglio»).\nconst oraAdesso = partiRoma(adesso);\nconst inizioNotte = Number(cfg.ORA_INIZIO_NOTTE ?? 23);\nconst fineNotte = Number(cfg.ORA_FINE_NOTTE ?? 7);\nconst oraEccezione = Number(cfg.ORA_ECCEZIONE_NOTTE ?? 9);\nconst notte = inizioNotte > fineNotte ? (oraAdesso.ore >= inizioNotte || oraAdesso.ore < fineNotte) : (oraAdesso.ore >= inizioNotte && oraAdesso.ore < fineNotte);\nlet limiteNotte = romaMs(oraAdesso.anno, oraAdesso.mese, oraAdesso.giorno, oraEccezione, 0);\nif (limiteNotte === null || limiteNotte <= adesso) { const dom = partiRoma(adesso + 86400000); limiteNotte = romaMs(dom.anno, dom.mese, dom.giorno, oraEccezione, 0); }\nconst minutiErroreVicina = Number(cfg.MINUTI_RIPROVA_VICINE) || 15;\nconst CHIUSURE = ['approvato', 'rifiutato', 'non applicato', 'scaduto', 'errore telegram'];\n\n// --- traccia ---\nconst grezza = $('Leggi la traccia').all().map((i) => i.json || {});\nif (vero && grezza.some((r) => r && r.error)) {\n  throw new Error(`15 fermo: la scheda «${schedaTraccia}» non si legge. Senza la traccia chiederei le stesse storie ogni 15 minuti: creala con le intestazioni del PROGETTO.`);\n}\nconst traccia = grezza.filter((r) => has(r, 'row_number') && testo(r.chiave)).sort((a, b) => Number(a.row_number) - Number(b.row_number));\nconst perChiave = {};\nfor (const t of traccia) (perChiave[testo(t.chiave)] = perChiave[testo(t.chiave)] || []).push(t);\n// stato di ogni token su una chiave: { prima: riga della prima prenotazione, scade: massimo scade_il, chiuso, esitoChiusura, quando, dettaglio }\nconst tokenDi = (k) => {\n  const m = new Map();\n  for (const t of perChiave[k] || []) {\n    const tok = testo(t.token) || `riga ${t.row_number}`;\n    const e = testo(t.esito).toLowerCase();\n    const x = m.get(tok) || { prima: Number(t.row_number), scade: -Infinity, chiuso: false };\n    if (e === 'prenotato' || e === 'chiesto') { const s = msDi(t.scade_il); x.scade = Math.max(x.scade, s === null ? Infinity : s); } // scadenza illeggibile: prudenza\n    if (CHIUSURE.includes(e)) { x.chiuso = true; x.esitoChiusura = e; x.quando = msDi(t.data_ora); x.dettaglio = testo(t.dettaglio); x.riga = Number(t.row_number); }\n    m.set(tok, x);\n  }\n  return m;\n};\nconst aperta = (x) => !x.chiuso && x.scade > adesso;\nconst ultimaChiusura = (k) => [...tokenDi(k).values()].filter((x) => x.chiuso).sort((a, b) => b.riga - a.riga)[0] || null;\n\nconst memoria = $getWorkflowStaticData('global');\nmemoria.chiesti = memoria.chiesti || {};\nmemoria.avvisati = memoria.avvisati || {};\nmemoria.vicine = memoria.vicine || {};\nmemoria.tentate = memoria.tentate || {};\nfor (const g of ['chiesti', 'avvisati', 'tentate']) for (const k of Object.keys(memoria[g])) if (memoria[g][k] < adesso) { delete memoria[g][k]; delete memoria.vicine[k]; }\n\n// motivo per cui una chiave NON si chiede adesso (stringa vuota = si può chiedere)\nconst bloccata = (k, vicina) => {\n  if (!vero) return (memoria.chiesti[k] || 0) > adesso ? 'aperta' : '';\n  if ([...tokenDi(k).values()].some(aperta)) return 'aperta';\n  const u = ultimaChiusura(k);\n  // dopo un errore di Telegram: un'ora per le storie lontane, 15 minuti per quelle vicine all'uscita\n  if (u && u.esitoChiusura === 'errore telegram' && (u.quando === null || adesso - u.quando < (vicina ? minutiErroreVicina * MIN : ORA))) return 'errore recente';\n  if (u && u.esitoChiusura === 'scaduto' && !vicina && u.quando !== null && adesso - u.quando < orePausaScaduta * ORA) return 'pausa dopo scaduta';\n  return '';\n};\nconst giaAvvisato = (k) => {\n  if (!vero) return (memoria.avvisati[k] || 0) > adesso;\n  const ultima = (perChiave[k] || []).at(-1);\n  return !!ultima && testo(ultima.esito).toLowerCase() === 'avvisato' && (msDi(ultima.data_ora) ?? 0) > adesso - 24 * ORA;\n};\n\n// --- clienti e archivio ---\nconst clienti = {};\nfor (const c of lette('Leggi i clienti')) { const k = testo(c.cliente); if (k && !has(clienti, k)) clienti[k] = c; } // il 01 prende la prima riga\nconst descrizioni = {};\nfor (const a of $('Leggi archivio file').all().map((i) => i.json || {})) {\n  if (has(a, 'row_number') && testo(a.file_id) && testo(a.descrizione) && testo(a.descrizione) !== 'senza miniatura') descrizioni[testo(a.file_id)] = testo(a.descrizione);\n}\n\n// --- calendario ---\nconst righe = lette('Leggi il calendario');\nconst quanteVolte = {};\nfor (const r of righe) { const k = testo(r.id); if (k) quanteVolte[k] = (quanteVolte[k] || 0) + 1; }\n\nconst candidate = [];\nconst avvisi = [];\nconst avvisa = (r, problema, sotto = '', urgente = false) => {\n  if (notte && !urgente) return; // gli avvisi normali aspettano la mattina\n  const chiave = `avviso|${testo(r.id) || 'riga ' + r.row_number}|${impronta(problema.replace(/\\d+ minuti/, ''))}${sotto}`;\n  if (!giaAvvisato(chiave)) avvisi.push({ chiave, id: testo(r.id), row_number: r.row_number, cliente: testo(r.cliente), problema, urgente });\n};\nfor (const r of righe) {\n  if (testo(r.tipo).toLowerCase() !== 'storia') continue;\n  if (testo(r.stato).toLowerCase() !== 'da_approvare') continue;\n  if (!vociMedia(r).length) continue; // senza file: non c'è niente da far vedere (le chiede il foglio o il 06)\n  if (notaDelMotore(r.note)) continue; // storie del 06: le manda in approvazione il 06\n  const d = leggiDataOra(r.data_ora);\n  const ms = d && d.ms !== null ? d.ms : null;\n  if (ms === null || ms <= adesso || ms > adesso + giorniAvanti * 86400000) continue;\n  if (ms < adesso + minutiMinimi * MIN) {\n    // troppo tardi per chiedere: se la domanda non è mai arrivata (mai chiesta, o l'ultimo tentativo è un errore di Telegram)\n    // lo si dice, invece di tacere. Se una domanda è ancora aperta, risponde quella.\n    const idT = testo(r.id); const fT = idDaLink(vociMedia(r)[0] || '');\n    const kT = idT && fT ? `${idT}|${fT}|${d.chiave}` : '';\n    let silenzio;\n    if (!kT) silenzio = false; // id o file sbagliati: c'è già l'avviso dedicato quando c'era tempo\n    else if (!vero) silenzio = !memoria.chiesti[kT] && !memoria.tentate?.[kT];\n    else {\n      const aperteT = [...tokenDi(kT).values()].some(aperta);\n      const u = ultimaChiusura(kT);\n      silenzio = !aperteT && (!u || u.esitoChiusura === 'errore telegram');\n    }\n    if (silenzio && clienti[testo(r.cliente)] && siNo(clienti[testo(r.cliente)].attivo, false)) {\n      avvisa(r, `la storia ${corto(idT, 40)} esce ${d.leggibile} e non riesco più a chiedertela in tempo: approvala dal foglio se deve uscire`, '|tardi', true);\n    }\n    continue;\n  }\n  if (notte && ms >= limiteNotte) continue; // di notte solo le storie che escono prima delle 9\n  const cliente = clienti[testo(r.cliente)];\n  if (!cliente) { avvisa(r, `il cliente «${corto(testo(r.cliente) || 'vuoto', 40)}» non c'è nella scheda Clienti: non la mando in approvazione`); continue; }\n  if (!siNo(cliente.attivo, false)) continue; // cliente spento: il 01 non pubblicherebbe comunque\n  const id = testo(r.id);\n  if (!id) { avvisa(r, `la storia alla riga ${r.row_number} non ha l'id: non la posso approvare da Telegram`); continue; }\n  if (String(r.id) !== id) { avvisa(r, `l'id «${corto(id, 40)}» ha spazi prima o dopo: toglili, poi arriva l'approvazione`); continue; }\n  if (quanteVolte[id] > 1) { avvisa(r, `l'id «${corto(id, 40)}» è in ${quanteVolte[id]} righe: dagli un id unico, poi arriva l'approvazione`); continue; }\n  const voci = vociMedia(r);\n  if (voci.length !== 1) { avvisa(r, `la storia ${corto(id, 40)} ha ${voci.length} file in media: una storia ne vuole uno solo (il 01 la fermerebbe)`); continue; }\n  const fileId = idDaLink(voci[0]);\n  if (!fileId) { avvisa(r, `il file della storia ${corto(id, 40)} non è un link di un file di Google Drive`); continue; }\n  const chiave = `${id}|${fileId}|${d.chiave}`;\n  const vicina = ms - adesso <= oreVicine * ORA;\n  if (bloccata(chiave, vicina)) continue;\n  const u = vero ? ultimaChiusura(chiave) : null;\n  candidate.push({ r, id, d, ms, fileId, chiave, cliente, vicina,\n    riprova: !!(u && u.esitoChiusura === 'errore telegram' && /anteprima mandata/.test(u.dettaglio || '')) });\n}\n\n// domande aperte che contano nel tetto: solo quelle delle storie lontane (le vicine passano sempre)\nlet aperte = 0;\nif (vero) {\n  for (const k of Object.keys(perChiave)) {\n    if (k.startsWith('avviso|')) continue;\n    if (![...tokenDi(k).values()].some(aperta)) continue;\n    const esce = msDi(k.split('|')[2]);\n    if (esce === null || esce - adesso > oreVicine * ORA) aperte++;\n  }\n} else aperte = Object.keys(memoria.chiesti).filter((k) => !memoria.vicine[k]).length;\n\ncandidate.sort((a, b) => a.ms - b.ms || a.r.row_number - b.r.row_number);\nconst vicine = candidate.filter((x) => x.vicina);\nconst lontane = candidate.filter((x) => !x.vicina);\nconst scelteVicine = vicine.slice(0, maxVicine);\nconst posti = Math.max(0, Math.min(maxPerGiro, maxInAttesa - aperte));\nconst scelte = [...scelteVicine, ...lontane.slice(0, posti)];\n// una storia che esce a breve e resta fuori lo stesso: lo si dice subito\nfor (const x of vicine.slice(maxVicine)) {\n  if (x.ms - adesso <= oreAllarme * ORA) avvisa(x.r, `la storia ${corto(x.id, 40)} esce ${x.d.leggibile} ma ci sono troppe storie da approvare insieme: approvala dal foglio`, '|fuori', true);\n}\n\nconst token = `${$execution.id}-${adesso}`;\nconst suMinuto = (ms) => Math.ceil(ms / MIN) * MIN;\nconst storie = scelte.map((x) => {\n  const fineUscita = x.ms - margine * MIN;\n  const fine = Math.min(fineUscita, adesso + oreMaxAttesa * ORA);\n  if (!vero) { memoria.chiesti[x.chiave] = suMinuto(fine + 2 * MIN); if (x.vicina) memoria.vicine[x.chiave] = true; memoria.tentate = memoria.tentate || {}; memoria.tentate[x.chiave] = x.ms + ORA; }\n  return {\n    chiave: x.chiave, id: x.id, row_number: x.r.row_number, cliente: testo(x.r.cliente),\n    nome_locale: testo(x.cliente.nome_locale) || testo(x.r.cliente),\n    consenso: consensoFirmato(x.cliente.anteprime_con_persone),\n    data_ora: x.d.chiave, esce_leggibile: x.d.leggibile, esce_ms: x.ms,\n    file_id: x.fileId, media: testo(x.r.media), note: testo(x.r.note), piattaforme: testo(x.r.piattaforme),\n    impronta_riga: improntaRiga(x.r),\n    brief: corto(testo(x.r.brief), 700), descrizione_archivio: corto(descrizioni[x.fileId] || '', 400),\n    // la domanda si chiude a quest'ora esatta (atSpecifiedTime), qualunque ritardo abbia avuto il sotto-flusso\n    fine_iso: new Date(fine).toISOString(), fine_leggibile: oraRoma(fine),\n    attesa_minuti: Math.max(1, Math.floor((fine - adesso) / MIN)), // solo informativo: la fine vera è fine_iso\n    // nella traccia: fine attesa più 2 minuti, arrotondata al minuto SUCCESSIVO (mai prima della fine vera)\n    scade_il: oraRoma(suMinuto(fine + 2 * MIN)),\n    ultima_occasione: fine === fineUscita, vicina: x.vicina, riprova_senza_anteprima: x.riprova,\n  };\n});\n// gli avvisi si segnano come «avvisati» solo DOPO un invio riuscito (nodo «Righe avvisate»): un invio fallito si ripete al giro dopo\n\nreturn [{ json: { token, modalita: vero ? 'vero' : 'prova', notte, storie, avvisi, aperte, posti, rimaste: candidate.length - scelte.length } }];\n"
+   },
+   "id": "c4e2dd0c-2640-567f-ac14-585b8a5beecb",
+   "name": "Scegli le storie",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "df53b101-5bc5-5c88-a232-a89c545f9060",
+       "leftValue": "={{ $json.modalita === 'vero' && $json.storie.length > 0 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "ed41f7bf-98b9-526c-a556-2b8521467b18",
+   "name": "Si prenota?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1680,
+    200
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Solo in modalità vero. Una riga «prenotato» nella traccia per ogni storia che sto per chiedere (con il token di\n// questo giro, valida MINUTI_PRENOTAZIONE minuti). Le righe «avvisato» NON si scrivono qui: le scrive «Righe avvisate»\n// solo dopo che Telegram ha accettato l'avviso. Dopo una pausa si rilegge la\n// traccia: se un altro giro partito insieme ha prenotato la stessa storia prima di me, la lascio a lui.\n// La riga «chiesto» con la scadenza vera la scrive il sotto-flusso subito prima di mandare la domanda: se il sotto-flusso\n// non parte (errore, n8n fermo nella pausa), la prenotazione scade da sola e la storia si richiede.\nconst s = $('Scegli le storie').first().json;\nconst cfg = $('Config').first().json;\nconst adesso = Date.now();\nconst quando = oraRoma(adesso);\nconst minuti = Number(cfg.MINUTI_PRENOTAZIONE) || 20;\nconst scadePrenotazione = oraRoma(Math.ceil((adesso + minuti * 60000) / 60000) * 60000);\nconst righe = [];\nfor (const x of s.storie || []) {\n  righe.push({ data_ora: quando, chiave: x.chiave, id_riga: x.id, cliente: x.cliente, esce_il: x.data_ora, esito: 'prenotato',\n    scade_il: scadePrenotazione, token: s.token, dettaglio: x.consenso ? 'anteprima con immagine se il file lo permette' : 'solo nome del file (niente consenso alle anteprime con persone)' });\n}\nreturn righe.map((r) => ({ json: r }));\n"
+   },
+   "id": "73d41d4e-d945-5d99-a972-3600a6b72b3a",
+   "name": "Righe da prenotare",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1920,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_TRACCIA }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "data_ora": "={{ $json.data_ora }}",
+      "chiave": "={{ $json.chiave }}",
+      "id_riga": "={{ $json.id_riga }}",
+      "cliente": "={{ $json.cliente }}",
+      "esce_il": "={{ $json.esce_il }}",
+      "esito": "={{ $json.esito }}",
+      "scade_il": "={{ $json.scade_il }}",
+      "token": "={{ $json.token }}",
+      "dettaglio": "={{ $json.dettaglio }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "chiave",
+       "displayName": "chiave",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "id_riga",
+       "displayName": "id_riga",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esce_il",
+       "displayName": "esce_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esito",
+       "displayName": "esito",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "scade_il",
+       "displayName": "scade_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "token",
+       "displayName": "token",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "dettaglio",
+       "displayName": "dettaglio",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true
+    }
+   },
+   "id": "b1175fa3-685f-519d-a538-9370a052685b",
+   "name": "Prenota nella traccia",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2160,
+    100
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "amount": 12,
+    "unit": "seconds"
+   },
+   "id": "7ae317f7-6246-5e85-ac99-db1c9d551c49",
+   "name": "Pausa anti-doppione",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    2400,
+    100
+   ],
+   "webhookId": "9962c679-4917-551b-a397-886c5b900da3"
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_TRACCIA }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "b073d70b-a1f9-5b59-a51f-6f67fbf076a9",
+   "name": "Rileggi la traccia",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2640,
+    100
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "alwaysOutputData": true,
+   "executeOnce": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Rilettura della traccia dopo la pausa anti-doppione. Tengo una storia solo se la MIA riga «prenotato» c'è e se\n// nessun altro token ha su quella storia una domanda ancora aperta (prenotata o chiesta, non scaduta, non chiusa)\n// cominciata prima della mia.\nconst s = $('Scegli le storie').first().json;\nconst adesso = Date.now();\nconst CHIUSURE = ['approvato', 'rifiutato', 'non applicato', 'scaduto', 'errore telegram'];\nconst traccia = lette('Rileggi la traccia').filter((r) => testo(r.chiave)).sort((a, b) => Number(a.row_number) - Number(b.row_number));\nconst perChiave = {};\nfor (const t of traccia) (perChiave[testo(t.chiave)] = perChiave[testo(t.chiave)] || []).push(t);\nconst tenute = [];\nconst lasciate = [];\nfor (const x of s.storie || []) {\n  const lista = perChiave[x.chiave] || [];\n  const mia = lista.find((t) => testo(t.token) === s.token && testo(t.esito).toLowerCase() === 'prenotato');\n  if (!mia) { lasciate.push({ id: x.id, motivo: 'la mia prenotazione non si trova nella traccia' }); continue; }\n  const tok = new Map();\n  for (const t of lista) {\n    const k = testo(t.token) || `riga ${t.row_number}`;\n    const e = testo(t.esito).toLowerCase();\n    const v = tok.get(k) || { prima: Number(t.row_number), scade: -Infinity, chiuso: false };\n    if (e === 'prenotato' || e === 'chiesto') { const sc = msDi(t.scade_il); v.scade = Math.max(v.scade, sc === null ? Infinity : sc); }\n    if (CHIUSURE.includes(e)) v.chiuso = true;\n    tok.set(k, v);\n  }\n  const altra = [...tok.entries()].some(([k, v]) => k !== s.token && !v.chiuso && v.scade > adesso && v.prima < Number(mia.row_number));\n  if (altra) { lasciate.push({ id: x.id, motivo: 'un altro giro partito insieme la sta già chiedendo' }); continue; }\n  tenute.push(x);\n}\nreturn [{ json: { storie: tenute, lasciate } }];\n"
+   },
+   "id": "2a0e4916-e521-521a-aca5-1fca5d733696",
+   "name": "Tieni le prenotate",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2880,
+    100
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Una esecuzione di questo stesso flusso per ogni storia: ognuna manda l'anteprima e la domanda con i pulsanti e\n// aspetta la risposta per conto suo. Partono a 6 secondi l'una dall'altra (Telegram non vuole raffiche nella stessa chat).\n// In modalità vero si arriva qui solo dalla rilettura della traccia; in prova direttamente dalla scelta.\nconst cfg = $('Config').first().json;\nconst s = $('Scegli le storie').first().json;\nconst vero = s.modalita === 'vero';\nlet storie;\nif (vero) {\n  if (!$('Tieni le prenotate').isExecuted) return [];\n  storie = $('Tieni le prenotate').first().json.storie || [];\n} else storie = s.storie || [];\nreturn storie.map((x, i) => ({\n  json: {\n    storia: x,\n    modalita: vero ? 'vero' : 'prova',\n    token: s.token,\n    sheet_id: cfg.SHEET_ID,\n    chat_id: cfg.TELEGRAM_CHAT_ID,\n    scheda_calendario: testo(cfg.SCHEDA_CALENDARIO) || 'Calendario',\n    scheda_traccia: testo(cfg.SCHEDA_TRACCIA) || 'Approvazioni storie',\n    max_byte_foto: Number(cfg.MAX_BYTE_FOTO) || 9500000,\n    max_byte_video: Number(cfg.MAX_BYTE_VIDEO) || 48000000,\n    minuti_minimi: Number(cfg.MINUTI_MINIMI) || 15,\n    ritardo_s: 1 + i * 6,\n  },\n}));\n"
+   },
+   "id": "44c05a5e-6965-514e-a255-ece9fd2c16d7",
+   "name": "Una storia per esecuzione",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3120,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "source": "database",
+    "workflowId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $workflow.id }}"
+    },
+    "workflowInputs": {
+     "mappingMode": "defineBelow",
+     "value": {},
+     "matchingColumns": [],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": true
+    },
+    "mode": "each",
+    "options": {
+     "waitForSubWorkflow": false
+    }
+   },
+   "id": "c92c522c-8bb5-5b4b-a63f-956eeb6f8c35",
+   "name": "Manda in approvazione",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.3,
+   "position": [
+    3360,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Le storie da sistemare a mano (una volta ogni 24 ore per lo stesso problema), su Telegram in HTML.\nconst s = $('Scegli le storie').first().json;\nconst avvisi = s.avvisi || [];\nif (!avvisi.length) return [];\nconst prova = s.modalita !== 'vero';\nconst ordinati = [...avvisi].sort((a, b) => Number(!!b.urgente) - Number(!!a.urgente)); // gli urgenti in cima\nconst righe = ordinati.slice(0, 20).map((a) => `${a.urgente ? '⏰' : '•'} ${esc(corto(a.cliente || '?', 40))}: ${esc(corto(a.problema, 300))}`);\nlet t = `${prova ? '🧪 <b>PROVA</b>\\n' : ''}<b>📲 Approva le storie · da sistemare nel foglio (${avvisi.length})</b>\\n${righe.join('\\n')}`;\nif (avvisi.length > 20) t += `\\n…e altre ${avvisi.length - 20}.`;\nt += '\\nQueste storie non arrivano con i pulsanti finché non sono sistemate.';\nreturn [{ json: { testo: t } }];\n"
+   },
+   "id": "6867ec70-a2ca-5cfc-a826-4dbfca256a17",
+   "name": "Testo degli avvisi",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1680,
+    -160
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    "text": "={{ $json.testo }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "8568b30a-5b07-5936-a5a8-ce382df2c0a2",
+   "name": "Avvisa su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1920,
+    -160
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "webhookId": "69080f97-6236-4b9d-ab8c-1d5c22093927"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Dopo «Avvisa su Telegram»: gli avvisi si segnano come «avvisati» (e quindi non si ripetono per 24 ore) SOLO se Telegram\n// ha accettato il messaggio. Se l'invio è fallito non si segna niente: al giro dopo, tra 15 minuti, l'avviso riparte.\n// In vero esce una riga «avvisato» per la traccia; in prova si segna nella memoria del flusso e non esce niente.\nconst s = $('Scegli le storie').first().json;\nconst r = $input.first().json || {};\nif (!(r.ok === true && !r.error)) return [];\nconst adesso = Date.now();\nif (s.modalita !== 'vero') {\n  const memoria = $getWorkflowStaticData('global');\n  memoria.avvisati = memoria.avvisati || {};\n  for (const a of s.avvisi || []) memoria.avvisati[a.chiave] = adesso + 24 * 3600000;\n  return [];\n}\nconst quando = oraRoma(adesso);\nreturn (s.avvisi || []).map((a) => ({ json: { data_ora: quando, chiave: a.chiave, id_riga: a.id || `riga ${a.row_number}`, cliente: a.cliente, esce_il: '',\n  esito: 'avvisato', scade_il: '', token: s.token, dettaglio: corto(a.problema, 300) } }));\n"
+   },
+   "id": "70e7fd39-c056-57d8-a8b6-7e779a9a1447",
+   "name": "Righe avvisate",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2160,
+    -160
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SHEET_ID }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Config').first().json.SCHEDA_TRACCIA }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "data_ora": "={{ $json.data_ora }}",
+      "chiave": "={{ $json.chiave }}",
+      "id_riga": "={{ $json.id_riga }}",
+      "cliente": "={{ $json.cliente }}",
+      "esce_il": "={{ $json.esce_il }}",
+      "esito": "={{ $json.esito }}",
+      "scade_il": "={{ $json.scade_il }}",
+      "token": "={{ $json.token }}",
+      "dettaglio": "={{ $json.dettaglio }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "chiave",
+       "displayName": "chiave",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "id_riga",
+       "displayName": "id_riga",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esce_il",
+       "displayName": "esce_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esito",
+       "displayName": "esito",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "scade_il",
+       "displayName": "scade_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "token",
+       "displayName": "token",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "dettaglio",
+       "displayName": "dettaglio",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true
+    }
+   },
+   "id": "9893b2c8-82b5-535b-a48d-371ee37e509e",
+   "name": "Scrivi gli avvisati",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2400,
+    -160
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "inputSource": "passthrough"
+   },
+   "id": "5c956715-c3c9-5e39-aae5-c0ecd3b32917",
+   "name": "Ricevi una storia",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "amount": "={{ Number($json.ritardo_s) || 0 }}",
+    "unit": "seconds"
+   },
+   "id": "ed4af648-a11e-5f94-a5d1-012ca172e3c7",
+   "name": "Aspetta il turno",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    240,
+    1000
+   ],
+   "webhookId": "ba91c305-9b15-5e9d-afdc-72255955a745"
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "=https://www.googleapis.com/drive/v3/files/{{ encodeURIComponent($('Ricevi una storia').first().json.storia.file_id) }}",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "googleDriveOAuth2Api",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "fields",
+       "value": "id,name,mimeType,size,trashed"
+      },
+      {
+       "name": "supportsAllDrives",
+       "value": "true"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     },
+     "timeout": 20000
+    }
+   },
+   "id": "511485a8-608b-56ba-aeaa-f37f81478ea6",
+   "name": "Informazioni del file su Drive",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.4,
+   "position": [
+    480,
+    1000
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Che anteprima mandare. REGOLA PERSONE: un'immagine o un video arrivano su Telegram SOLO se il cliente ha\n// «anteprime_con_persone» = si nella scheda Clienti (consenso firmato). In ogni altro caso (vuoto, no, colonna che\n// non c'è, valore strano) si manda solo il nome del file con la descrizione: nessun pixel lascia Drive.\n// Poi i limiti di Telegram per i file caricati dal bot: foto fino a 10 MB, video fino a 50 MB (con un margine,\n// numeri nel Config). Il link di Drive non si può passare a Telegram come URL: i file sono privati, quindi si scarica e si carica.\nconst d = $('Ricevi una storia').first().json;\nconst x = d.storia || {};\nconst r = $input.first().json || {};\nconst info = r.body || {};\nconst ok = Number(r.statusCode) === 200 && !info.trashed;\nconst mime = testo(info.mimeType).toLowerCase();\nconst peso = Number(info.size);\nconst nome = testo(info.name) || `file ${x.file_id}`;\nconst mb = (b) => `${(b / 1048576).toFixed(1).replace('.', ',')} MB`;\nconst FOTO = ['image/jpeg', 'image/png', 'image/webp'];\nconst VIDEO = ['video/mp4', 'video/quicktime'];\nlet modo = 'nome';\nlet motivo = '';\n// Il 01 pubblica le storie solo con foto JPEG fino a 8 MB o video MP4/MOV: se non è così lo si dice nella domanda.\nconst est = nome.toLowerCase().split('.').pop();\nconst formato01 = ['image/jpeg', 'image/jpg', 'image/pjpeg'].includes(mime) ? 'foto'\n  : ['video/mp4', 'video/quicktime'].includes(mime) ? 'video'\n    : (mime === 'application/octet-stream' || !mime) && ['jpg', 'jpeg'].includes(est) ? 'foto'\n      : (mime === 'application/octet-stream' || !mime) && ['mp4', 'mov'].includes(est) ? 'video' : '';\nlet avviso01 = '';\nif (ok && !formato01) avviso01 = `il 01 la fermerà: il file è in formato ${mime || 'sconosciuto'}, per le storie servono foto JPG o video MP4/MOV`;\nelse if (ok && formato01 === 'foto' && peso > 8 * 1024 * 1024) avviso01 = `il 01 la fermerà: la foto pesa ${mb(peso)}, Instagram accetta foto fino a 8 MB`;\nif (!ok) {\n  motivo = Number(r.statusCode) === 404 || info.trashed ? 'il file non si trova su Drive (cancellato o non condiviso con l\\'agenzia): il 01 non potrà pubblicarla'\n    : 'Drive non ha dato le informazioni del file: anteprima non disponibile';\n} else if (x.riprova_senza_anteprima) {\n  motivo = 'l\\'anteprima è già arrivata nel tentativo precedente (quello in cui la domanda non era partita)';\n} else if (!x.consenso) {\n  motivo = 'niente immagini: il cliente non ha il consenso firmato per le anteprime con persone';\n} else if (FOTO.includes(mime)) {\n  if (peso > 0 && peso <= d.max_byte_foto) modo = 'foto';\n  else motivo = peso > 0 ? `la foto pesa ${mb(peso)}, troppo per l'anteprima su Telegram` : 'Drive non dice quanto pesa la foto';\n} else if (VIDEO.includes(mime)) {\n  if (peso > 0 && peso <= d.max_byte_video) modo = 'video';\n  else motivo = peso > 0 ? `il video pesa ${mb(peso)}: Telegram accetta dal bot video fino a 50 MB` : 'Drive non dice quanto pesa il video';\n} else {\n  motivo = `formato ${mime || 'sconosciuto'}: niente anteprima`;\n}\nconst prova = d.modalita !== 'vero';\nconst didascalia = corto(`${prova ? '🧪 PROVA · ' : ''}Anteprima · ${x.nome_locale} · storia di ${x.esce_leggibile}`, 1000);\nreturn [{ json: { modo, motivo, avviso_01: avviso01, nome_file: nome, mime, peso: peso > 0 ? peso : 0, file_ok: ok, didascalia_media: esc(didascalia) } }];\n"
+   },
+   "id": "aa5423c5-7f91-58ad-ad6e-1bbffb53f854",
+   "name": "Scegli anteprima",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    720,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "mode": "rules",
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "81d61b32-5899-5ca9-a191-d694cfd97196",
+          "leftValue": "={{ $json.modo }}",
+          "rightValue": "foto",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "Foto"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "loose",
+         "version": 3
+        },
+        "conditions": [
+         {
+          "id": "f3bed03a-f632-5d01-abc0-3f4e504b40e6",
+          "leftValue": "={{ $json.modo }}",
+          "rightValue": "video",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "Video"
+      }
+     ]
+    },
+    "looseTypeValidation": true,
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "Solo il nome"
+    }
+   },
+   "id": "ee20dd03-b3de-564b-acae-e7160e091a8e",
+   "name": "Che anteprima?",
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.4,
+   "position": [
+    960,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "file",
+    "operation": "download",
+    "fileId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.storia.file_id }}",
+     "mode": "id"
+    },
+    "options": {}
+   },
+   "id": "70fad455-f852-5944-a657-4216e75e5340",
+   "name": "Scarica la foto",
+   "type": "n8n-nodes-base.googleDrive",
+   "typeVersion": 3,
+   "position": [
+    1200,
+    860
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "file",
+    "operation": "download",
+    "fileId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.storia.file_id }}",
+     "mode": "id"
+    },
+    "options": {}
+   },
+   "id": "04057656-f3be-5d52-a817-ba3be692e61d",
+   "name": "Scarica il video",
+   "type": "n8n-nodes-base.googleDrive",
+   "typeVersion": 3,
+   "position": [
+    1200,
+    1000
+   ],
+   "credentials": {
+    "googleDriveOAuth2Api": {
+     "id": "FCSps1wTGjDI2YUg",
+     "name": "Google Drive - Agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendPhoto",
+    "chatId": "={{ $('Ricevi una storia').first().json.chat_id }}",
+    "binaryData": true,
+    "binaryPropertyName": "data",
+    "additionalFields": {
+     "caption": "={{ $('Scegli anteprima').first().json.didascalia_media }}",
+     "parse_mode": "HTML",
+     "disable_notification": true
+    }
+   },
+   "id": "fd8cb52e-a80d-55cf-a3cf-9df353f8b9d9",
+   "name": "Manda la foto",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1440,
+    860
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "webhookId": "30474d1b-b5b2-4a18-a03a-31b2fc39a7ff"
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendVideo",
+    "chatId": "={{ $('Ricevi una storia').first().json.chat_id }}",
+    "binaryData": true,
+    "binaryPropertyName": "data",
+    "additionalFields": {
+     "caption": "={{ $('Scegli anteprima').first().json.didascalia_media }}",
+     "parse_mode": "HTML",
+     "disable_notification": true
+    }
+   },
+   "id": "d285b346-920d-58b7-aad6-2a4ae6c53579",
+   "name": "Manda il video",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1440,
+    1000
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "webhookId": "fb67886d-8cee-44e4-bab7-50ef38fa3953"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Il messaggio con Approva / Rifiuta. sendAndWait usa sempre il Markdown semplice: ogni dato passa da md().\n// Se l'anteprima doveva partire ma Telegram non l'ha presa, lo si dice nel messaggio (e si dà il nome del file).\n// Esce anche la riga «chiesto» per la traccia (la scrive «Segna chiesto», solo in vero, subito prima della domanda).\nconst d = $('Ricevi una storia').first().json;\nconst x = d.storia || {};\nconst a = $('Scegli anteprima').first().json;\nconst prova = d.modalita !== 'vero';\nlet mandata = false;\nlet problemaInvio = '';\nconst nodo = a.modo === 'foto' ? 'Manda la foto' : a.modo === 'video' ? 'Manda il video' : '';\nif (nodo) {\n  const out = $(nodo).isExecuted ? ($(nodo).first().json || {}) : {};\n  mandata = !!(out && !out.error && (out.ok === true || out.result || out.message_id));\n  if (!mandata) problemaInvio = `l'anteprima non è partita (${a.modo === 'video' ? 'video' : 'foto'} non accettata da Telegram o non scaricata da Drive)`;\n}\nconst MB = (b) => (b > 0 ? ` · ${(b / 1048576).toFixed(1).replace('.', ',')} MB` : '');\nconst righe = [\n  prova ? '🧪 *PROVA: i pulsanti non cambiano niente nel foglio*' : null,\n  `📲 *Storia da approvare* · ${md(corto(x.nome_locale, 60))}`,\n  `Esce: ${md(x.esce_leggibile)} · ${md(x.piattaforme || 'piattaforme?')} · riga ${md(corto(x.id, 40))}`,\n  mandata ? `File: ${md(corto(a.nome_file, 120))} (anteprima qui sopra)` : `File: ${md(corto(a.nome_file, 120))}${md(a.mime ? ' · ' + a.mime : '')}${MB(a.peso)}`,\n  a.avviso_01 ? `⚠️ ${md(a.avviso_01)}. Sistemala prima di approvare.` : null,\n  !mandata && a.motivo ? `ℹ️ ${md(a.motivo)}.` : null,\n  !mandata && problemaInvio ? `ℹ️ ${md(problemaInvio)}.` : null,\n  !mandata && x.descrizione_archivio ? `Descrizione: ${md(x.descrizione_archivio)}` : null,\n  x.brief ? `Brief: ${md(x.brief)}` : null,\n  '',\n  prova\n    ? 'In prova Approva e Rifiuta non scrivono niente: servono solo a vedere il giro.'\n    : `Approva: la storia passa in «approvato» ed esce all'ora prevista. Rifiuta: torna in «bozza» con una nota. Rispondi entro ${md(x.fine_leggibile)}${x.ultima_occasione ? ', poi non esce' : ', poi te la richiedo'}.`,\n].filter((v) => v !== null);\nlet t = righe.join('\\n');\nif (t.length > 3900) t = righe.filter((v) => !/^(Brief|Descrizione):/.test(v)).join('\\n');\nreturn [{\n  json: {\n    testo_telegram: t, anteprima_mandata: mandata,\n    // riga «chiesto» della traccia\n    data_ora: oraRoma(Date.now()), chiave: x.chiave, id_riga: x.id, cliente: x.cliente, esce_il: x.data_ora, esito: 'chiesto',\n    scade_il: x.scade_il, token: d.token, dettaglio: mandata ? 'anteprima mandata' : (a.motivo ? corto(a.motivo, 200) : 'solo nome del file'),\n  },\n}];\n"
+   },
+   "id": "6a1471c5-3250-5129-a02a-5ec6729dd1af",
+   "name": "Componi la domanda",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1680,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "1e0630cc-c2be-543e-aa52-8a744a04a49b",
+       "leftValue": "={{ $('Ricevi una storia').first().json.modalita === 'vero' }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "1d0f7e6b-bbed-5b5a-a40c-15db01d2162b",
+   "name": "Si segna?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    1800,
+    1140
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.scheda_traccia }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "data_ora": "={{ $json.data_ora }}",
+      "chiave": "={{ $json.chiave }}",
+      "id_riga": "={{ $json.id_riga }}",
+      "cliente": "={{ $json.cliente }}",
+      "esce_il": "={{ $json.esce_il }}",
+      "esito": "={{ $json.esito }}",
+      "scade_il": "={{ $json.scade_il }}",
+      "token": "={{ $json.token }}",
+      "dettaglio": "={{ $json.dettaglio }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "chiave",
+       "displayName": "chiave",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "id_riga",
+       "displayName": "id_riga",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esce_il",
+       "displayName": "esce_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esito",
+       "displayName": "esito",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "scade_il",
+       "displayName": "scade_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "token",
+       "displayName": "token",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "dettaglio",
+       "displayName": "dettaglio",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true
+    }
+   },
+   "id": "3a319e49-6768-55fd-add5-850a2f6eae53",
+   "name": "Segna chiesto",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    1900,
+    1260
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendAndWait",
+    "chatId": "={{ $('Ricevi una storia').first().json.chat_id }}",
+    "message": "={{ $('Componi la domanda').first().json.testo_telegram }}",
+    "responseType": "approval",
+    "approvalOptions": {
+     "values": {
+      "approvalType": "double",
+      "approveLabel": "✅ Approva",
+      "disapproveLabel": "❌ Rifiuta"
+     }
+    },
+    "options": {
+     "limitWaitTime": {
+      "values": {
+       "limitType": "atSpecifiedTime",
+       "maxDateAndTime": "={{ $('Ricevi una storia').first().json.storia.fine_iso }}"
+      }
+     },
+     "appendAttribution": false
+    }
+   },
+   "id": "246a9b32-a3dc-503a-aaef-fa11ef809de7",
+   "name": "Chiedi su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    1920,
+    1000
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "webhookId": "6fa084fa-be1a-5eab-ade6-16d16b6c3d2a"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Cosa ha risposto il team su Telegram: Approva, Rifiuta, niente entro il tempo, oppure messaggio non partito.\nconst d = $('Ricevi una storia').first().json;\nconst r = $input.first().json || {};\nconst decisa = r.data && typeof r.data.approved === 'boolean';\nconst esito = r.error ? 'errore' : !decisa ? 'scaduto' : r.data.approved ? 'approva' : 'rifiuta';\nreturn [{ json: { esito, errore_telegram: r.error ? 'Telegram non ha accettato il messaggio' : '', modalita: d.modalita } }];\n"
+   },
+   "id": "f8fbe1dd-cd71-5076-a8f1-e114d6b180b1",
+   "name": "Decisione",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2160,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "f59f8f24-4aab-5191-ad32-59b8dd526176",
+       "leftValue": "={{ $json.esito === 'approva' || $json.esito === 'rifiuta' }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "d500f008-6f97-5818-a67c-5923212b77c5",
+   "name": "Approva o rifiuta?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    2400,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.scheda_calendario }}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "id": "9c6ad220-741f-5e20-a68b-5700e5399a37",
+   "name": "Rileggi il calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    2640,
+    900
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000,
+   "alwaysOutputData": true,
+   "executeOnce": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Prima di scrivere si rilegge il Calendario. La riga si ritrova per id (dev'essere una sola) e si scrive sul numero di\n// riga trovato ADESSO: se il foglio è stato ordinato o sono state inserite righe, si scrive comunque sulla riga giusta.\n// Poi dev'essere ancora la stessa storia che il team ha visto: storia, «da_approvare», stesso file in media, stessa\n// data_ora ancora futura, stessi cliente/piattaforme/tag/collaboratori/copertina, note senza «[06]». Si cambiano SOLO stato e note\n// (le note vecchie restano, si aggiunge un pezzo in fondo). Mai media, mai esecuzione. In prova non si scrive niente.\nconst d = $('Ricevi una storia').first().json;\nconst x = d.storia || {};\nconst dec = $('Decisione').first().json;\nconst righe = lette('Rileggi il calendario');\nconst conId = righe.filter((r) => testo(r.id) === x.id);\nconst statoDetto = (s) => (['idea', 'bozza', 'da_scrivere', 'in_scrittura', 'da_approvare', 'approvato', 'in_pubblicazione', 'pubblicato', 'errore', 'annullato'].includes(s) ? `«${s}»` : 'uno stato non previsto');\nlet motivo = '';\nlet valori = null;\nconst r = conId[0];\nif (d.modalita !== 'vero') motivo = 'modalità prova, niente scritto nel foglio';\nelse if (!conId.length) motivo = 'la storia non c\\'è più nel Calendario';\nelse if (conId.length > 1) motivo = `l'id ${x.id} adesso è in ${conId.length} righe`;\nelse if (testo(r.tipo).toLowerCase() !== 'storia') motivo = 'non è più una storia';\nelse if (testo(r.stato).toLowerCase() !== 'da_approvare') motivo = `nel frattempo è diventata ${statoDetto(testo(r.stato).toLowerCase())}`;\nelse if (vociMedia(r).length !== 1 || idDaLink(vociMedia(r)[0]) !== x.file_id) motivo = 'nel frattempo è cambiato il file in media';\nelse if ((leggiDataOra(r.data_ora) || {}).chiave !== x.data_ora) motivo = 'nel frattempo è cambiata data_ora';\nelse if ((msDi(r.data_ora) ?? 0) <= Date.now()) motivo = 'l\\'ora di uscita è già passata';\nelse if (improntaRiga(r) !== x.impronta_riga) motivo = 'nel frattempo sono cambiati cliente, piattaforme, tag, collaboratori o copertina';\nelse if (notaDelMotore(r.note)) motivo = 'nelle note adesso c\\'è un segno del motore: non la tocco';\nelse {\n  const quando = timbro(Date.now());\n  const pezzo = dec.esito === 'approva'\n    ? `storia approvata su Telegram ${quando}`\n    : `storia rifiutata su Telegram ${quando}: correggila e rimetti da_approvare, oppure svuota media e metti annullato per farla rifare al 06`;\n  const note = [testo(r.note), pezzo].filter(Boolean).join(' | ');\n  if (!notaDelMotore(note)) valori = { row_number: Number(r.row_number), stato: dec.esito === 'approva' ? 'approvato' : 'bozza', note };\n  else motivo = 'la nota conterrebbe un segno del motore';\n}\nreturn [{ json: valori ? { ...valori, _esito: dec.esito === 'approva' ? 'approvato' : 'rifiutato', _motivo: '' } : { _esito: 'non applicato', _motivo: motivo } }];\n"
+   },
+   "id": "6d4abfe5-85ab-5d0b-a17d-ab3f87187967",
+   "name": "Ancora uguale?",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2880,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "120cd3a8-55f3-5bcb-a01c-87c328324853",
+       "leftValue": "={{ Number($json.row_number) > 1 }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "8432ee75-77a9-5eb5-ae2d-9b435a547562",
+   "name": "Si scrive?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    3120,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "update",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.scheda_calendario }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "autoMapInputData",
+     "value": {},
+     "matchingColumns": [
+      "row_number"
+     ],
+     "schema": [],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "handlingExtraData": "ignoreIt"
+    }
+   },
+   "id": "9935a5e3-c249-5126-ae5b-b8025fe2c176",
+   "name": "Segna nel calendario",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    3360,
+    800
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── Funzioni comuni del 15 (copiate in testa a ogni nodo Code dal costruttore) ──\nconst testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();\nconst due = (n) => String(n).padStart(2, '0');\nconst has = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);\nconst corto = (s, n) => { const c = Array.from(String(s ?? '')); return c.length > n ? c.slice(0, n - 1).join('') + '…' : String(s ?? ''); };\n// HTML per sendMessage con parse_mode HTML\nconst esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// Telegram con i pulsanti (sendAndWait) usa sempre il Markdown semplice (fissato nel codice di n8n): si neutralizzano _ * ` [\nconst md = (v) => String(v ?? '').replace(/\\\\/g, '/').replace(/([_*`[])/g, '\\\\$1');\nconst siNo = (v, seVuoto) => { const t = testo(v).toLowerCase(); if (!t) return seVuoto; return ['si', 'sì', 'yes', 'true', 'vero', '1', 'x', 'ok'].includes(t); };\n// Il consenso alle anteprime con persone vale SOLO se nella cella c'è esattamente «si» (o «sì»): niente x, ok, 1, true.\nconst consensoFirmato = (v) => ['si', 'sì'].includes(testo(v).toLowerCase());\nconst lette = (nodo) => $(nodo).all().map((i) => i.json || {}).filter((r) => has(r, 'row_number')); // solo righe vere del foglio\nconst partiRoma = (ms) => {\n  const p = {};\n  for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit',\n    hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms))) p[x.type] = x.value;\n  return { anno: Number(p.year), mese: Number(p.month), giorno: Number(p.day), ore: Number(p.hour), minuti: Number(p.minute) };\n};\nconst romaMs = (a, me, g, o, mi) => {\n  const base = Date.UTC(a, me - 1, g, o, mi);\n  for (const off of [60, 120]) { const t = base - off * 60000; const p = partiRoma(t); if (p.anno === a && p.mese === me && p.giorno === g && p.ore === o && p.minuti === mi) return t; }\n  return null;\n};\nconst oraRoma = (ms) => { const p = partiRoma(ms); return `${p.anno}-${due(p.mese)}-${due(p.giorno)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst timbro = (ms) => { const p = partiRoma(ms); return `${due(p.giorno)}/${due(p.mese)} ${due(p.ore)}:${due(p.minuti)}`; };\nconst giorniNelMese = (a, me) => new Date(Date.UTC(a, me, 0)).getUTCDate();\nconst GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];\n// data_ora come la leggono 04 e 10: testo AAAA-MM-GG HH:MM, GG/MM/AAAA HH:MM, oppure numero di Sheets\nconst leggiDataOra = (v) => {\n  let a; let me; let g; let o; let mi;\n  if (typeof v === 'number' && isFinite(v)) {\n    const t = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 1440) * 60000);\n    [a, me, g, o, mi] = [t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours(), t.getUTCMinutes()];\n  } else {\n    const s = testo(v).replace(/\\s+/g, ' ');\n    let m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T](\\d{1,2})[:.](\\d{2})/);\n    if (m) [a, me, g, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    else {\n      m = s.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4}),? (\\d{1,2})[:.](\\d{2})/);\n      if (!m) return null;\n      [g, me, a, o, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number);\n    }\n  }\n  if (!(me >= 1 && me <= 12 && g >= 1 && g <= giorniNelMese(a, me) && o >= 0 && o <= 23 && mi >= 0 && mi <= 59)) return null;\n  const ms = romaMs(a, me, g, o, mi);\n  return { chiave: `${a}-${due(me)}-${due(g)} ${due(o)}:${due(mi)}`, ms,\n    leggibile: `${GIORNI_BREVI[new Date(Date.UTC(a, me - 1, g)).getUTCDay()]} ${g}/${me} ore ${due(o)}:${due(mi)}` };\n};\n// link di Drive come li legge il 01: /file/d/<id>/view, ?id=<id> oppure l'id nudo. Le cartelle no.\nconst idDaLink = (voce) => {\n  const t = testo(voce);\n  if (!t || /\\/folders\\//.test(t)) return '';\n  const m = t.match(/\\/d\\/([A-Za-z0-9_-]{10,})/) || t.match(/[?&]id=([A-Za-z0-9_-]{10,})/);\n  if (m) return m[1];\n  if (/^[A-Za-z0-9_-]{10,}$/.test(t)) return t;\n  return '';\n};\nconst vociMedia = (r) => testo(r.media).split('|').map((s) => s.trim()).filter(Boolean);\nconst impronta = (s) => { let h = 5381; for (const ch of String(s ?? '')) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(16); };\n// note che appartengono al motore (06/07/08): il 15 non tocca mai quelle righe e non scrive mai questi pezzi\nconst NOTE_DEL_MOTORE = ['[06]', '[07 cartella ', '[08:'];\nconst notaDelMotore = (n) => NOTE_DEL_MOTORE.some((x) => String(n ?? '').includes(x));\nconst msDi = (v) => { const d = leggiDataOra(v); return d && d.ms !== null ? d.ms : null; };\n// impronta di quello che decide COME e DOVE esce la storia: se cambia dopo la domanda, l'approvazione non vale più\nconst improntaRiga = (r) => impronta(['cliente', 'piattaforme', 'tag_persone', 'collaboratori', 'copertina'].map((c) => testo(r[c])).join('␟'));\n\n// Riga di traccia della decisione e conferma breve su Telegram (HTML). Arriva da due strade: dopo «Ancora uguale?»\n// (Approva o Rifiuta) oppure direttamente (nessuna risposta, messaggio non partito). La traccia si scrive solo in vero.\nconst d = $('Ricevi una storia').first().json;\nconst x = d.storia || {};\nconst dec = $('Decisione').first().json;\nconst prova = d.modalita !== 'vero';\nconst controllo = $('Ancora uguale?').isExecuted ? ($('Ancora uguale?').first().json || {}) : null;\nlet esito;\nlet motivo = '';\nif (controllo) { esito = controllo._esito; motivo = controllo._motivo || ''; }\nelse if (dec.esito === 'errore') {\n  esito = 'errore telegram';\n  // se l'anteprima era già arrivata, il prossimo tentativo manda solo il nome del file (niente doppione)\n  motivo = dec.errore_telegram + ($('Componi la domanda').first().json.anteprima_mandata ? '; anteprima mandata' : '');\n}\nelse esito = 'scaduto';\nconst dove = `${esc(corto(x.nome_locale, 60))} · storia di ${esc(x.esce_leggibile)}`;\nlet conferma = '';\nif (prova) {\n  conferma = dec.esito === 'approva' ? `🧪 PROVA · hai premuto Approva (${dove}). Niente scritto: in vero sarebbe passata in «approvato».`\n    : dec.esito === 'rifiuta' ? `🧪 PROVA · hai premuto Rifiuta (${dove}). Niente scritto: in vero sarebbe tornata in «bozza» con una nota.`\n    : dec.esito === 'errore' ? `🧪 PROVA · la domanda per ${dove} non è partita (Telegram non ha accettato il messaggio).`\n    : x.ultima_occasione ? `🧪 PROVA · nessuna risposta per ${dove}: in vero resterebbe «da_approvare» e non uscirebbe.` : '';\n} else if (esito === 'approvato') conferma = `✅ Approvata: ${dove}. Esce all'ora prevista.`;\nelse if (esito === 'rifiutato') conferma = `↩️ Rifiutata: ${dove}. È tornata in «bozza». Per farla rifare al 06: svuota media e metti «annullato».`;\nelse if (esito === 'non applicato') conferma = `⚠️ Non applicato (${dove}): ${esc(motivo)}. Il foglio non è stato toccato.`;\nelse if (esito === 'errore telegram') {\n  // quando riprova il giro: 15 minuti per le storie vicine, un'ora per le altre. Se dopo non c'è più tempo, lo si dice subito.\n  const minimi = Number(d.minuti_minimi) || 15;\n  const mancano = (Number(x.esce_ms) - Date.now()) / 60000;\n  const riprova = x.vicina ? 15 : 60;\n  conferma = mancano - riprova < minimi\n    ? `⚠️ La domanda per ${dove} non è partita (Telegram non ha accettato il messaggio) e non riesco a richiederla in tempo: approvala dal foglio se deve uscire.`\n    : `⚠️ La domanda per ${dove} non è partita (Telegram non ha accettato il messaggio). Riprovo tra ${x.vicina ? '15 minuti' : 'un\\'ora'}.`;\n}\nelse if (x.ultima_occasione) conferma = `⏰ Nessuna risposta per ${dove}: resta «da_approvare» e non esce. Per farla uscire più tardi cambia data_ora e approvala dal foglio.`;\n// scaduta ma non è l'ultima occasione: nessun messaggio, al prossimo giro arriva una domanda nuova\nconst riga = {\n  data_ora: oraRoma(Date.now()), chiave: x.chiave, id_riga: x.id, cliente: x.cliente, esce_il: x.data_ora,\n  esito, scade_il: '', token: d.token, dettaglio: corto(motivo, 300),\n};\nreturn [{ json: { ...riga, conferma, scrivi_traccia: !prova } }];\n"
+   },
+   "id": "bc95185b-666d-54af-a35f-724777eba4eb",
+   "name": "Traccia della decisione",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3600,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "7ad3b065-0c46-5e26-a8f2-436f9ae576bc",
+       "leftValue": "={{ $json.scrivi_traccia === true }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "c6f68a78-e87a-5b14-a4f0-acba4af354fc",
+   "name": "Traccia nel foglio?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    3840,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "authentication": "oAuth2",
+    "resource": "sheet",
+    "operation": "append",
+    "documentId": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.sheet_id }}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "={{ $('Ricevi una storia').first().json.scheda_traccia }}",
+     "mode": "name"
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "data_ora": "={{ $json.data_ora }}",
+      "chiave": "={{ $json.chiave }}",
+      "id_riga": "={{ $json.id_riga }}",
+      "cliente": "={{ $json.cliente }}",
+      "esce_il": "={{ $json.esce_il }}",
+      "esito": "={{ $json.esito }}",
+      "scade_il": "={{ $json.scade_il }}",
+      "token": "={{ $json.token }}",
+      "dettaglio": "={{ $json.dettaglio }}"
+     },
+     "matchingColumns": [],
+     "schema": [
+      {
+       "id": "data_ora",
+       "displayName": "data_ora",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "chiave",
+       "displayName": "chiave",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "id_riga",
+       "displayName": "id_riga",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "cliente",
+       "displayName": "cliente",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esce_il",
+       "displayName": "esce_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "esito",
+       "displayName": "esito",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "scade_il",
+       "displayName": "scade_il",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "token",
+       "displayName": "token",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      },
+      {
+       "id": "dettaglio",
+       "displayName": "dettaglio",
+       "required": false,
+       "defaultMatch": false,
+       "display": true,
+       "type": "string",
+       "canBeUsedToMatch": true
+      }
+     ],
+     "attemptToConvertTypes": false,
+     "convertFieldsToString": false
+    },
+    "options": {
+     "cellFormat": "RAW",
+     "useAppend": true
+    }
+   },
+   "id": "3b20a214-13c0-506a-a689-506dca8cc9ea",
+   "name": "Scrivi la decisione",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.7,
+   "position": [
+    4080,
+    900
+   ],
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "N0ckGuoYFN0qbSEt",
+     "name": "Google Sheets - Agenzia"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose",
+      "version": 3
+     },
+     "conditions": [
+      {
+       "id": "45f3428e-d8a8-5459-a8eb-68182016dc6e",
+       "leftValue": "={{ !!$('Traccia della decisione').first().json.conferma }}",
+       "rightValue": "",
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "looseTypeValidation": true,
+    "options": {}
+   },
+   "id": "b0df3ea6-d095-57cc-ac86-53c5fd882b97",
+   "name": "C'è una conferma?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.3,
+   "position": [
+    4320,
+    1000
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "message",
+    "operation": "sendMessage",
+    "chatId": "={{ $('Ricevi una storia').first().json.chat_id }}",
+    "text": "={{ $('Traccia della decisione').first().json.conferma }}",
+    "additionalFields": {
+     "appendAttribution": false,
+     "parse_mode": "HTML",
+     "disable_web_page_preview": true
+    }
+   },
+   "id": "c6a17665-55f3-512d-af5d-1baa74f6d187",
+   "name": "Conferma su Telegram",
+   "type": "n8n-nodes-base.telegram",
+   "typeVersion": 1.2,
+   "position": [
+    4560,
+    1000
+   ],
+   "credentials": {
+    "telegramApi": {
+     "id": "OSR2Mp2IrY68ShiL",
+     "name": "Telegram - Bot agenzia"
+    }
+   },
+   "onError": "continueRegularOutput",
+   "retryOnFail": true,
+   "maxTries": 2,
+   "waitBetweenTries": 3000,
+   "webhookId": "cd9894af-2758-4fde-866a-fac93c51dffe"
+  },
+  {
+   "parameters": {
+    "content": "## 15 · Approva le storie\n**Cosa fa.** Ogni 15 minuti cerca nel **Calendario** le **storie** in **da_approvare** con un file in `media` (quelle del modulo 05 «MO-…», del piano 03 «PI-…» o messe a mano) e le manda su Telegram con l'anteprima e i pulsanti **✅ Approva / ❌ Rifiuta**. Le storie del **06** (note con «[06]») le chiede il 06: qui non arrivano.\n\n**Approva** → stato **approvato** subito (il 01 la pubblica all'ora prevista). **Rifiuta** → stato **bozza** + una nota. Nessuna risposta → resta **da_approvare**; se era l'ultima occasione non esce (e te lo dice), altrimenti la richiede più tardi.\n\n**Persone.** Foto e video arrivano su Telegram SOLO se in **Clienti** `anteprime_con_persone` = **si** (consenso firmato). Altrimenti solo il nome del file, la descrizione dell'Archivio file e il brief.\n\n**Scrive** solo `stato` e `note` della riga (mai media né esecuzione), per numero di riga dopo aver ritrovato la riga per id. Traccia in una scheda a parte: **Approvazioni storie**.\n\n**Interruttore** `MODALITA` nel Config: **prova** (niente scritture nel foglio, pulsanti senza effetto, messaggi con 🧪 PROVA) o **vero**.",
+    "height": 560,
+    "width": 900,
+    "color": 4
+   },
+   "id": "bc739267-182e-50b3-ae93-6c8bc444c06f",
+   "name": "Nota · Leggimi",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -40,
+    -420
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## ① Il giro\n**Scegli le storie** non scrive niente. Una domanda è aperta se il suo token ha «prenotato» o «chiesto» non scaduto e nessuna chiusura con lo stesso token. Le storie che escono entro `ORE_VICINE` ore passano sempre (fino a `MAX_VICINE_PER_GIRO`); le altre al massimo `MAX_PER_GIRO` per giro e `MAX_IN_ATTESA` aperte.\nIn **vero**: scrive «prenotato» (vale `MINUTI_PRENOTAZIONE` minuti) col token del giro, aspetta 12 secondi, rilegge e tiene solo le storie prenotate per prime da questo giro. Il sotto-flusso scrive «chiesto» con la scadenza vera subito prima della domanda: se non parte, la prenotazione scade e la storia si richiede. In **prova** la traccia è nella memoria del flusso.\nGli avvisi (id mancante o doppio, più file, link non di Drive, cliente sconosciuto, storia che non si fa più in tempo a chiedere) girano per primi; «avvisato» si scrive solo dopo un invio riuscito, poi lo stesso avviso non torna per 24 ore. Di notte (23-7) niente domande né avvisi normali, salvo le storie che escono prima delle 9 e gli allarmi urgenti.",
+    "height": 700,
+    "width": 1760,
+    "color": 5
+   },
+   "id": "267766f5-235c-5527-a29b-b3bcbaec43a6",
+   "name": "Nota · Giro",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    1400,
+    -40
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## ② Una storia (sotto-flusso)\nChiede a Drive nome, tipo e peso del file. **Scegli anteprima**: senza consenso → solo nome; foto JPEG/PNG/WebP fino a `MAX_BYTE_FOTO` → sendPhoto; video MP4/MOV fino a `MAX_BYTE_VIDEO` → sendVideo (limiti di Telegram per i file caricati dal bot: 10 MB foto, 50 MB video); oltre → solo nome. Poi «chiesto» nella traccia (solo in vero) e la domanda con i pulsanti: si chiude a un'ora esatta (atSpecifiedTime), 3 minuti prima dell'uscita e al massimo `ORE_MAX_ATTESA` ore dopo il giro. Se il file non va bene per il 01 (solo JPG fino a 8 MB, MP4, MOV) la domanda lo dice.",
+    "height": 560,
+    "width": 3400,
+    "color": 6
+   },
+   "id": "7414e3d7-b5f3-545f-ab18-7eaa289b6ebf",
+   "name": "Nota · Una storia",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    -40,
+    720
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## ③ Prima di scrivere\n**Rileggi il calendario**: la riga si ritrova per **id** (una sola) e si scrive sul numero di riga trovato adesso. Deve essere ancora una storia **da_approvare** con lo **stesso file**, la **stessa data_ora** non ancora passata, gli stessi cliente/piattaforme/tag/collaboratori/copertina e senza «[06]» nelle note. Se qualcosa non torna non si scrive e arriva «Non applicato». Si aggiorna solo `stato` e `note`. Poi la traccia e la conferma.",
+    "height": 560,
+    "width": 2200,
+    "color": 3
+   },
+   "id": "8d5004f3-2b73-5fc6-a6a0-6e564446cc16",
+   "name": "Nota · Scrittura",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    2600,
+    700
+   ]
+  }
+ ],
+ "connections": {
+  "Ogni 15 minuti": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prova a mano": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Leggi il calendario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi il calendario": {
+   "main": [
+    [
+     {
+      "node": "Leggi i clienti",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi i clienti": {
+   "main": [
+    [
+     {
+      "node": "Leggi la traccia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi la traccia": {
+   "main": [
+    [
+     {
+      "node": "Leggi archivio file",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leggi archivio file": {
+   "main": [
+    [
+     {
+      "node": "Scegli le storie",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scegli le storie": {
+   "main": [
+    [
+     {
+      "node": "Testo degli avvisi",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Si prenota?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Si prenota?": {
+   "main": [
+    [
+     {
+      "node": "Righe da prenotare",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Una storia per esecuzione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Righe da prenotare": {
+   "main": [
+    [
+     {
+      "node": "Prenota nella traccia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Prenota nella traccia": {
+   "main": [
+    [
+     {
+      "node": "Pausa anti-doppione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pausa anti-doppione": {
+   "main": [
+    [
+     {
+      "node": "Rileggi la traccia",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rileggi la traccia": {
+   "main": [
+    [
+     {
+      "node": "Tieni le prenotate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Tieni le prenotate": {
+   "main": [
+    [
+     {
+      "node": "Una storia per esecuzione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Una storia per esecuzione": {
+   "main": [
+    [
+     {
+      "node": "Manda in approvazione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Testo degli avvisi": {
+   "main": [
+    [
+     {
+      "node": "Avvisa su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Avvisa su Telegram": {
+   "main": [
+    [
+     {
+      "node": "Righe avvisate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Righe avvisate": {
+   "main": [
+    [
+     {
+      "node": "Scrivi gli avvisati",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ricevi una storia": {
+   "main": [
+    [
+     {
+      "node": "Aspetta il turno",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Aspetta il turno": {
+   "main": [
+    [
+     {
+      "node": "Informazioni del file su Drive",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Informazioni del file su Drive": {
+   "main": [
+    [
+     {
+      "node": "Scegli anteprima",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scegli anteprima": {
+   "main": [
+    [
+     {
+      "node": "Che anteprima?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Che anteprima?": {
+   "main": [
+    [
+     {
+      "node": "Scarica la foto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Scarica il video",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Componi la domanda",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scarica la foto": {
+   "main": [
+    [
+     {
+      "node": "Manda la foto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scarica il video": {
+   "main": [
+    [
+     {
+      "node": "Manda il video",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manda la foto": {
+   "main": [
+    [
+     {
+      "node": "Componi la domanda",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manda il video": {
+   "main": [
+    [
+     {
+      "node": "Componi la domanda",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Componi la domanda": {
+   "main": [
+    [
+     {
+      "node": "Si segna?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Si segna?": {
+   "main": [
+    [
+     {
+      "node": "Segna chiesto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Chiedi su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Segna chiesto": {
+   "main": [
+    [
+     {
+      "node": "Chiedi su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Chiedi su Telegram": {
+   "main": [
+    [
+     {
+      "node": "Decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Decisione": {
+   "main": [
+    [
+     {
+      "node": "Approva o rifiuta?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Approva o rifiuta?": {
+   "main": [
+    [
+     {
+      "node": "Rileggi il calendario",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Traccia della decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Rileggi il calendario": {
+   "main": [
+    [
+     {
+      "node": "Ancora uguale?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Ancora uguale?": {
+   "main": [
+    [
+     {
+      "node": "Si scrive?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Si scrive?": {
+   "main": [
+    [
+     {
+      "node": "Segna nel calendario",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Traccia della decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Segna nel calendario": {
+   "main": [
+    [
+     {
+      "node": "Traccia della decisione",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Traccia della decisione": {
+   "main": [
+    [
+     {
+      "node": "Traccia nel foglio?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Traccia nel foglio?": {
+   "main": [
+    [
+     {
+      "node": "Scrivi la decisione",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "C'è una conferma?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Scrivi la decisione": {
+   "main": [
+    [
+     {
+      "node": "C'è una conferma?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "C'è una conferma?": {
+   "main": [
+    [
+     {
+      "node": "Conferma su Telegram",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "timezone": "Europe/Rome",
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "none",
+  "saveManualExecutions": true,
+  "callerPolicy": "workflowsFromSameOwner",
+  "errorWorkflow": "D3Ugm3sc201nteFX"
+ },
+ "staticData": null,
+ "meta": null,
+ "nodeGroups": [],
+ "pinData": null,
+ "versionId": "250022de-25ab-4632-a55f-b86f97677dcb",
+ "activeVersionId": null,
+ "triggerCount": 0,
+ "tags": [],
+ "shared": [
+  {
+   "updatedAt": "2026-11-22T01:43:17.186Z",
+   "createdAt": "2026-11-22T01:43:17.186Z",
+   "role": "workflow:owner",
+   "workflowId": "uwNSmiQ5svWGB8Wp",
+   "projectId": "9RxpDjJEa5JWwSRy"
+  }
+ ],
+ "activeVersion": null
+}
