@@ -195,7 +195,9 @@ return [{ json: { mandare: true, corpo: {
   ...(chiave ? { chiave_cliente: chiave } : {}),
   campi,
   analisi: { tipo_di_locale: testo(a.tipo_di_locale).slice(0, 500) || null, pubblico: testo(a.pubblico).slice(0, 500) || null,
-    punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6) },
+    tono_consigliato: testo(a.tono_consigliato).slice(0, 500) || null,
+    punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6),
+    dubbi: lista(a.dubbi, 6) },
   da_confermare: lista(p.da_confermare, 20).map((v) => v.slice(0, 40)),
 } } }];`;
 

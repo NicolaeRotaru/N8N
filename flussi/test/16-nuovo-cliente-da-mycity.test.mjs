@@ -337,7 +337,7 @@ test('la scheda al sito vuole https e la sua credenziale', () => {
 });
 
 const PROPOSTA = { ok: true, chiave_proposta: 'bar-roma', sito_ufficiale: 'https://barroma.it', da_confermare: ['orari', 'menu_testo'],
-  analisi: { tipo_di_locale: 'bar', pubblico: 'impiegati', punti_di_forza: ['brioche'], idee_contenuti: ['colazione'], cosa_chiedere_al_titolare: ['domenica?'] },
+  analisi: { tipo_di_locale: 'bar', pubblico: 'impiegati', tono_consigliato: 'cordiale', punti_di_forza: ['brioche'], idee_contenuti: ['colazione'], cosa_chiedere_al_titolare: ['domenica?'], dubbi: ['due indirizzi diversi'] },
   campi: {
     indirizzo: { valore: 'Via Roma 1', stato: 'confermato', fonte: 'https://comune.example/bar' },
     telefono: { valore: '0523 1', stato: 'frammento', fonte: 'ricerca' },
@@ -369,6 +369,8 @@ test('la scheda per il sito: il formato concordato, senza prezzi, mai in prova',
   assert.equal(JSON.stringify(c).includes('1,50'), false);
   assert.deepEqual(c.campi.sito_ufficiale, { valore: 'https://barroma.it', stato: 'da_confermare', fonte: 'https://barroma.it' });
   assert.deepEqual(c.analisi.punti_di_forza, ['brioche']);
+  assert.equal(c.analisi.tono_consigliato, 'cordiale');
+  assert.deepEqual(c.analisi.dubbi, ['due indirizzi diversi']);
   assert.deepEqual(c.da_confermare, ['orari', 'menu_testo']);
   // Senza chiave proposta la chiave non si manda proprio: il sito risponderebbe 400 a un null.
   const [{ json: senzaChiave }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA('vero', { ...PROPOSTA, chiave_proposta: '' }) });
