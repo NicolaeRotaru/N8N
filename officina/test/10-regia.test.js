@@ -1,4 +1,4 @@
-// Prove della regia (1.3.0): sceneggiatura, regole contro i «bolli» (tagli fra le parole, salti coperti, niente lampi,
+// Prove della regia (1.3.0, stile moodboard 1.4.0): sceneggiatura, regole contro i «bolli» (tagli fra le parole, salti coperti, niente lampi,
 // volti in sincrono, voce sempre coperta), testi ASS dello stile SDG, render vero di un video da sceneggiatura.
 // Materiale SINTETICO: toni al posto della voce (il whisper finto «sente» le frasi sui tratti con suono).
 import { test, before, after } from 'node:test';
@@ -396,8 +396,9 @@ test('regoleDelloStile e stileDa: solo numeri buoni; dal marchio arrivano accent
   const sdg = stileDa('sdg');
   assert.deepEqual(sdg.colori, { fondo: '#2C2A27', testo: '#F4F1EC', accento: '#E0A95C' });
   assert.deepEqual([sdg.font_titoli, sdg.peso_titoli, sdg.font_testo, sdg.fps, sdg.grana, sdg.sottotitoli.modo, sdg.sottotitoli.maiuscolo], ['Poppins', 600, 'Poppins', 25, 0, 'frase', false]);
-  const cliente = stileDa('sdg', { colori: { primario: '#8A1C1C', testo: '#000000' }, font: 'Playfair Display', peso_titolo: 700 });
-  assert.equal(cliente.colori.accento, '#8A1C1C', 'il colore primario del cliente prende il posto dell\'oro');
+  const cliente = stileDa('sdg', { colori: { primario: '#D94F3D', testo: '#000000' }, font: 'Playfair Display', peso_titolo: 700 });
+  assert.equal(cliente.colori.accento, '#D94F3D', 'il colore primario del cliente prende il posto dell\'oro');
+  assert.equal(stileDa('sdg', { colori: { primario: '#8A1C1C' } }).colori.accento, '#E0A95C', 'un rosso scuro non si vedrebbe sul fondo: resta l\'oro');
   assert.equal(cliente.colori.testo, '#F4F1EC', 'il testo resta avorio');
   assert.deepEqual([cliente.font_titoli, cliente.peso_titoli, cliente.font_testo], ['Playfair Display', 700, 'Poppins']);
   assert.equal(stileDa('sdg', { colori: { accento: 'rosso' } }).colori.accento, '#E0A95C', 'un colore non valido si ignora');

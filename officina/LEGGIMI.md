@@ -19,6 +19,12 @@ Non inventa niente. Ritaglia, corregge luce e colore su tutta la foto, mette scr
 Non allarga mai una foto e non crea sfondi finti. Le scritte sono solo quelle che le passa n8n.
 
 ## Cosa cambia per te
+**Versione 1.4.0 (24/11/2026, notte): la moodboard di Scatti di G.** Lo stile `sdg` adesso segue la moodboard. Il video è calmo: inquadrature da 2,5 a 6 secondi, mai sotto 1. Il nero è morbido, senza grana. I testi sono in Poppins avorio, con un filo d'oro sul cartello del nome. Esce a 25 fotogrammi al secondo.
+- Esempio: un reel da 20 secondi con 6 clip lunghe aveva 8-10 tagli nello stile veloce; adesso ne ha 4-6. Il sottotitolo è la frase intera in minuscolo, non la parola che salta.
+- Lo stile veloce di prima c'è ancora, si chiama `virale`.
+- Quattro cose nuove: le clip girate a 50-120 fotogrammi senza voce si rallentano da sole; il girato in log si corregge con la LUT della camera (caricata una volta); dalla stessa regia escono più formati (9:16 e 16:9); i progetti restano 14 giorni, per le correzioni.
+- Il piano del mese del montatore ora monta reel e storie video con la regia.
+
 **Versione 1.3.0 (24/11/2026): la regia di Scatti di G.** L'officina monta un video seguendo una sceneggiatura.
 La voce fuori campo o l'intervista stanno sotto, e sopra ci sono le coperture scelte da Claude. Il risultato è un MP4 finito nello stile SDG.
 I salti si coprono da soli, i tagli cadono tra le parole, e i sottotitoli escono parola per parola.
@@ -51,9 +57,13 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.3.0", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.4.0", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
 
 ## Cosa non ho verificato
+- **1.4.0 con materiale vero.** Rallenty, LUT e doppio formato li ho provati con clip sintetiche: una clip a 50 fotogrammi, una LUT che inverte i colori, una clip orizzontale. Con una LUT vera di una camera (S-Log3, V-Log…) non li ho visti.
+  - Il rallenty esce a 8 bit: con un girato log a 10 bit rallentato e poi corretto con la LUT può comparire qualche sfumatura a scalini nel cielo. Va guardato sul primo servizio vero.
+- **I colori della triade** (fumo `#2C2A27`, avorio `#F4F1EC`, oro `#E0A95C`) sono segnaposti: la moodboard dice i nomi, non i codici esatti.
+- **Spazio su disco con 14 giorni.** Un servizio intero resta sul volume `/dati` fino a 14 giorni. Sotto 3 GB liberi l'officina rifiuta il materiale nuovo con un messaggio chiaro (`MIN_DISCO_LIBERO_MB`). Non so quanto è grande il volume su Sliplane.
 - **L'immagine Docker non l'ho costruita.** Qui il programma Docker c'è, ma il suo servizio non gira, e Docker Hub non è tra le fonti che potevo usare.
   - Ho però provato da qui il pezzo più fragile della build, con gli stessi argomenti del Dockerfile: lo scaricamento di whisper.cpp v1.9.1 da GitHub e la compilazione dei due programmi. Ci ha messo 55 secondi su 4 processori.
 - **FFmpeg**: le prove girano con la versione 6.1, l'immagine usa quella di Debian 12, cioè la 5.1. I filtri usati esistono anche nella 5.1, ma lì non li ho visti girare.
@@ -277,7 +287,7 @@ Prove reali fatte qui, con whisper.cpp 1.9.1, il modello `small` e una voce sint
 
 ### Il montatore: progetti (1.2.0)
 Un **progetto** è il materiale di un servizio, caricato una volta sola e usato per tutto il mese.
-Vive in `/dati/progetti/<id>/` e scade `PROGETTO_DURATA_ORE` (di serie 72) dopo l'ultimo uso.
+Vive in `/dati/progetti/<id>/` e scade `PROGETTO_DURATA_ORE` (di serie 336, cioè 14 giorni, dalla 1.4.0) dopo l'ultimo uso.
 Le rotte leggere accettano JSON (oppure multipart con il campo `dati`) e non passano dalla coda. Quelle pesanti vogliono multipart e passano dalla coda come le altre.
 
 | Indirizzo | Coda | Corpo | Cosa fa |
@@ -317,7 +327,10 @@ Avvisi senza correzione: lo stesso momento o la stessa foto in due contenuti, du
 |---|---|---|
 | `MAX_MATERIALE_MB` | `2048` | grandezza massima di un file del materiale (i lavori normali restano a `MAX_FILE_MB`) |
 | `MAX_PROGETTO_MB` | `40000` | materiale massimo di un progetto (413 `progetto_troppo_grande`) |
-| `PROGETTO_DURATA_ORE` | `72` | dopo quante ore senza uso un progetto si cancella |
+| `PROGETTO_DURATA_ORE` | `336` | dopo quante ore senza uso un progetto si cancella (14 giorni) |
+| `MIN_DISCO_LIBERO_MB` | `3000` | sotto questo spazio libero sul volume il materiale nuovo si rifiuta (507 `disco_pieno`) |
+| `RALLENTY` | `auto` | clip a 50-120 fotogrammi: `auto` le rallenta se nessuno parla, `si` sempre, `no` mai |
+| `RALLENTY_FPS` | `25` | i fotogrammi al secondo del rallenty (quelli del video finale) |
 
 **Errori nuovi:** 404 `progetto_non_trovato`, 409 `progetto_in_uso`, 413 `progetto_troppo_grande`, 422 `progetto_vuoto`, 422 `contenuto_non_valido`, 422 `video_troppo_corto` (materiale sotto 1 s).
 
@@ -378,6 +391,47 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 **Problemi della regia** (in `problemi`, con `gravita`):
 - **blocca** (la battuta si toglie): `fonte_inesistente`, `fonte_senza_audio`, `battuta_troppo_corta`, `immagini_senza_coperture`, `voce_scoperta`, `coperture_insufficienti`, `timeline_incoerente` (la timeline resta vuota);
 - **avviso**: `copertura_inesistente`, `coperture_dalla_riserva`, `coperture_corte`, `taglio_scoperto`, `senza_parole`, `tempi_stimati`, `parole_ripetute`, `ripetizione` (uno solo per piano), `difetto`, `inquadratura_corta`, `oltre_durata`, `testo_lungo`, `scritta_senza_battuta`, `scritta_senza_spazio`.
+
+### La moodboard, il rallenty, la LUT, i formati (1.4.0)
+**Stile `sdg` (moodboard di Scatti di G, pagine 01-03).**
+- Font: Poppins SemiBold per titoli e nome, Poppins Medium per sottotitoli e ruolo. È incluso, con licenza OFL.
+- Colori: fumo `#2C2A27`, avorio `#F4F1EC`, oro `#E0A95C`. Sono segnaposti in attesa dei codici esatti.
+- **Sottotitoli** in modo `frase`: la frase intera, in minuscolo, avorio con un alone morbido. Entrano e escono piano solo dove c'è una pausa.
+- **Cartello** in modo `linea`: nome e ruolo in avorio, con un filo d'oro di 5 px a sinistra.
+- **Scritte** in modo `ombra`: niente riquadro. La chiusura ha un filo d'oro corto sotto.
+- **Colore**: la curva `0/0.045 0.10/0.115 0.50/0.50 0.90/0.885 1/0.95` (nero morbido, alte luci che non bruciano), saturazione 0,96, niente grana. Va applicata prima dei testi, che restano dei loro colori esatti.
+- **25 fotogrammi al secondo.** Le foto hanno uno zoom del 6%.
+- **Ritmo** (`ritmo`, letto da `regoleDelloStile`): minima 1 s, coperture da 2,5 a 6 s, un volto fra due coperture almeno 1,5 s, prima apparizione di una persona 3 s, salto coperto ±1 s.
+- La rotta `/regia/controlla` deve ricevere lo stesso `stile` di `/regia/monta`: il ritmo cambia la timeline.
+- Dal **marchio** arrivano solo l'accento (`colori.accento`, o `colori.primario`) e il font dei titoli (`font`, `peso_titolo`).
+  - L'accento si usa solo se si vede sul fondo scuro (luminanza almeno 0,12): un rosso scuro lascia l'oro.
+  - Con `marchio_valido: false` il marchio non tocca lo stile.
+- `virale` è lo stile 1.3.0: Bricolage, lime, parola evidenziata, grana, 30 fotogrammi. `pulito` è neutro, a 30.
+
+**Rallenty** (`src/rallenty.js`). Una clip a 47 fotogrammi o più si «conforma» quando entra nel progetto. Ogni fotogramma girato diventa un fotogramma a 25: una clip a 50 dura il doppio. Il limite è 4 volte, quindi una clip a 240 si rallenta 4 volte.
+- Il file conformato prende il posto dell'originale (`V03-rallenty.mp4`, senza audio, lato lungo al massimo 1920). Scene e durata si allungano dello stesso fattore. Arriva l'avviso `rallenty`.
+- Una clip con almeno 3 parole trascritte **non** si rallenta: è un'intervista girata a 50.
+- Campo `rallenta` del materiale: `auto` (di serie), `si`, `no`. Variabili: `RALLENTY` (auto/si/no) e `RALLENTY_FPS` (25).
+
+**LUT** (`src/lut.js`).
+- `POST /lut` (multipart: `file` .cube + `dati {nome}`) salva `/dati/lut/<nome>.cube`. Va bene solo una LUT 3D, `LUT_3D_SIZE` da 2 a 129, con tutti i punti; altrimenti risponde 415 `lut_non_valida`.
+- `GET /lut` dà l'elenco.
+- La regia la applica per clip, prima del ritaglio. La scelta segue quest'ordine: `lut_materiali[codice]` (anche `"no"`), poi il campo `lut` dato al caricamento del materiale, poi `lut` del montaggio.
+- Una LUT che non c'è dà 422 `lut_mancante`, con l'elenco di quelle che ci sono. Vale sia per `/regia/monta` sia per `/progetto/:pid/monta`.
+
+**Più formati.** `/regia/monta` con `dati.formati: ["verticale","orizzontale"]` (al massimo 3) monta la stessa regia in ogni formato.
+- I file si chiamano `verticale-video.mp4`, `orizzontale-copertina.jpg` e così via.
+- La risposta ha `formati:[{formato, file, controllo}]`. `file` e `controllo` restano quelli del primo formato.
+
+**Il piano del mese con la regia.** In `/progetto/:pid/piano` un reel o una storia video con `regia.battute` non vuote si controlla con `controllaRegia`, con il ritmo dello stile (`stile`, `marchio`, `marchio_valido` nel corpo).
+- Il contenuto esce con `motore: "regia"`, `durata`, `pezzi_usati` e `foto_usate`, che servono al controllo delle ripetizioni fra contenuti.
+- Una regia non montabile dà `regia_non_valida`; una troppo lunga `troppo_lungo`.
+- `/progetto/:pid/monta` monta questi contenuti con la regia: stesso stile, LUT, logo e musica. Gli altri tipi restano come prima.
+- Le coperture si possono scrivere come codici con la posizione («V07.2 sinistra»). I campi vuoti dello schema di Claude («», 0) valgono come assenti.
+
+**Conservazione e spazio.** `PROGETTO_DURATA_ORE` di serie 336 (14 giorni). Sotto `MIN_DISCO_LIBERO_MB` (3000) liberi sul volume il materiale nuovo riceve 507 `disco_pieno`.
+
+**Errori nuovi:** 415 `lut_non_valida`, 422 `lut_mancante`, 507 `disco_pieno`, 400 `dati_non_validi` per i formati sbagliati.
 
 ### Come chiamarla da n8n (nodo HTTP Request 4.5)
 - **Metodo** POST; **URL** `{{ $('Config').item.json.OFFICINA_URL }}/video/reel`.

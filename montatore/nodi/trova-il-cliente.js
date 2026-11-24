@@ -28,5 +28,7 @@ return [{ json: {
   scheda,
   marchio: m.marchio,
   marchio_valido: m.valido,
+  // foto e video con persone su Telegram solo con il consenso firmato (stessa regola del workflow 15)
+  anteprime: siNo(c.anteprime_con_persone, false),
   logo: m.logo,
 } }];

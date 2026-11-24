@@ -308,6 +308,7 @@ export async function analizzaVideo({ file, codice, dirProgetto, dirTmp, dati, c
       codice,
       tipo: 'video',
       durata: r2(info.durata),
+      fps: Math.round(info.fps * 100) / 100,
       larghezza: info.larghezza,
       altezza: info.altezza,
       orientamento: orient,

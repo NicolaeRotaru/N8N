@@ -183,6 +183,37 @@ function leggiClaude(r) {
 }
 // Un indirizzo dell'officina (assoluto o relativo) → il percorso dopo /file/, da mettere dietro OFFICINA_URL.
 function percorsoOfficina(url) { return String(url || '').replace(/^.*?(^|\/)file\//, ''); }
+// Telegram con i pulsanti (sendAndWait) usa il Markdown semplice: si neutralizzano _ * ` [ (come nel workflow 15).
+function md(v) { return String(v === null || v === undefined ? '' : v).replace(/\\/g, '/').replace(/([_*`[])/g, '\\$1'); }
+// Una riga del Calendario per un contenuto montato (giro in modalità attivo, oppure «Approva» su Telegram).
+// approvato = il team l'ha approvato su Telegram: una storia è pronta per il 01, reel e post vanno al 04 per la didascalia.
+function rigaCalendario(J, x, progetto, opz) {
+  const o = opz || {};
+  const c = x.contenuto || {};
+  const tipo = TIPI_CALENDARIO[c.tipo] || c.tipo;
+  const video = (x.file || []).find((f) => f.tipo === 'video');
+  const copertina = (x.file || []).find((f) => f.tipo === 'copertina');
+  const immagini = (x.file || []).filter((f) => f.tipo === 'immagine');
+  const media = video ? video.link : immagini.map((f) => f.link).join(' | ');
+  const rivedere = !o.approvato && x.controllo && x.controllo.esito === 'da_rivedere';
+  const stato = o.approvato ? (tipo === 'storia' ? 'approvato' : 'da_scrivere') : rivedere ? 'bozza' : tipo === 'storia' ? 'da_approvare' : 'da_scrivere';
+  const usati = c.motore === 'regia' ? [...new Set((c.pezzi_usati || []).map((p) => p.scena).concat(c.foto_usate || []))] : c.tipo === 'reel' || c.tipo === 'storia_video' ? (c.pezzi || []).map((p) => p.scena) : (c.foto || []);
+  const brief = ['Idea: ' + testo(c.idea), c.perche ? 'Perché funziona: ' + testo(c.perche) : '', c.didascalia ? 'Didascalia proposta dal montatore: ' + testo(c.didascalia) : '',
+    'Montato dal montatore dal servizio «' + testo((J.servizio || {}).nome) + '» (' + usati.join(', ') + ').'].filter(Boolean).join('\n');
+  const riga = {
+    id: 'MO-' + slug((J.cliente || {}).cliente, 20) + '-' + testo(c.data).replace(/-/g, '') + '-' + testo(c.ora).replace(':', '') + '-' + testo(progetto).slice(0, 4) + x.n,
+    cliente: (J.cliente || {}).cliente,
+    tipo,
+    piattaforme: 'ig+fb',
+    data_ora: testo(c.data) + ' ' + testo(c.ora),
+    brief,
+    media,
+    stato,
+    note: 'montatore AI' + (o.approvato ? ' · approvato su Telegram' + (Number(o.versione) > 1 ? ' (versione ' + Number(o.versione) + ')' : '') : '') + (rivedere ? ' · da rivedere: ' + accorcia(testo(x.controllo.motivo), 200) : ''),
+  };
+  if (copertina) riga.copertina = copertina.link;
+  return riga;
+}
 // Messaggi Telegram sotto i 3.800 caratteri, spezzati sulle righe.
 function aPezzi(righe, max) {
   const lim = max || 3800;

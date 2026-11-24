@@ -59,6 +59,8 @@ const schemaPiano = {
           idea: { type: 'string' },
           perche: { type: 'string' },
           pezzi: { type: 'array', items: { type: 'object', properties: { scena: { type: 'string' }, inizio: { type: 'number' }, fine: { type: 'number' } }, required: ['scena', 'inizio', 'fine'], additionalProperties: false } },
+          // reel e storia_video: la regia di Scatti di G (per gli altri tipi battute vuote)
+          regia: SCHEMA_REGIA,
           foto: { type: 'array', items: { type: 'string' } },
           intro: { type: 'string' },
           outro: { type: 'string' },
@@ -66,7 +68,7 @@ const schemaPiano = {
           musica: { type: 'boolean' },
           didascalia: { type: 'string' },
         },
-        required: ['tipo', 'data', 'ora', 'titolo', 'idea', 'perche', 'pezzi', 'foto', 'intro', 'outro', 'righe', 'musica', 'didascalia'],
+        required: ['tipo', 'data', 'ora', 'titolo', 'idea', 'perche', 'pezzi', 'regia', 'foto', 'intro', 'outro', 'righe', 'musica', 'didascalia'],
         additionalProperties: false,
       },
     },

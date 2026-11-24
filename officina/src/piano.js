@@ -3,6 +3,7 @@
 // ogni durata deve rispettare i limiti di Instagram e dell'officina. Quello che si può correggere si corregge
 // (con un avviso), quello che non si può si toglie (con un problema «blocca» per quel contenuto).
 import { etichetteQualita } from './catalogo.js';
+import { controllaRegia, REGOLE } from './regia.js';
 
 export const TIPI = ['reel', 'storia_video', 'post', 'carosello', 'storia_foto'];
 export const LIMITI = {
@@ -125,7 +126,7 @@ function righeValide(v, n, avvisi) {
 }
 
 // Controlla UN contenuto. Restituisce {contenuto|null, problemi, avvisi}.
-export function controllaContenuto(c, n, idx, { mese } = {}) {
+export function controllaContenuto(c, n, idx, { mese, progetto = null, R = REGOLE } = {}) {
   const problemi = [];
   const avvisi = [];
   const tipo = testo(c?.tipo).toLowerCase().replace(/[\s-]+/g, '_');
@@ -158,6 +159,45 @@ export function controllaContenuto(c, n, idx, { mese } = {}) {
     perche: testo(c.perche).slice(0, 400),
     didascalia: String(c.didascalia ?? '').trim().slice(0, 2200),
   };
+
+  // reel e storie video con la REGIA (Scatti di G): le battute e le coperture le controlla la regia, con le stesse
+  // regole che userà il montaggio. Il contenuto si tiene se la regia dà un video montabile della durata giusta.
+  const battuteRegia = Array.isArray(c?.regia?.battute) ? c.regia.battute : [];
+  if ((tipo === 'reel' || tipo === 'storia_video') && battuteRegia.length && progetto) {
+    const tl = controllaRegia(c.regia, progetto, { R, formato: 'verticale' });
+    if (!tl.video.length) {
+      const motivi = tl.problemi.filter((p) => p.gravita === 'blocca').map((p) => p.messaggio).join(' ');
+      problemi.push({ n, gravita: 'blocca', codice: 'regia_non_valida', messaggio: `Contenuto ${n} (${tipo}): la regia non si può montare. ${motivi} L'ho tolto.` });
+      return { contenuto: null, problemi, avvisi };
+    }
+    for (const p of tl.problemi) avvisi.push(p.messaggio.replace(/[.\s]+$/, ''));
+    const lim = LIMITI[tipo];
+    if (tl.durata > lim.max + 1e-6) {
+      problemi.push({ n, gravita: 'blocca', codice: 'troppo_lungo', messaggio: `Contenuto ${n} (${tipo}): la regia dura ${virgola(tl.durata)} s, il massimo è ${virgola(lim.max)}. L'ho tolto.` });
+      return { contenuto: null, problemi, avvisi };
+    }
+    if (tl.durata < lim.min - 1e-6) {
+      problemi.push({ n, gravita: 'blocca', codice: 'troppo_corto', messaggio: `Contenuto ${n} (${tipo}): la regia dura ${virgola(tl.durata)} s, ne servono almeno ${virgola(lim.min)}. L'ho tolto.` });
+      return { contenuto: null, problemi, avvisi };
+    }
+    if (tipo === 'reel' && tl.durata > lim.consigliato) avvisi.push(`il reel dura ${Math.round(tl.durata)} s: sopra i ${lim.consigliato} s molti lo abbandonano`);
+    return {
+      contenuto: {
+        ...base,
+        motore: 'regia',
+        regia: c.regia,
+        durata: tl.durata,
+        musica: Boolean(tl.musica?.usa),
+        pezzi: [],
+        foto: [],
+        // i momenti e le foto usati davvero, per il controllo delle ripetizioni fra contenuti
+        pezzi_usati: tl.video.filter((q) => q.tipo !== 'foto').map((q) => ({ scena: q.etichetta, video: q.fonte, inizio: q.inizio, fine: q.fine })),
+        foto_usate: [...new Set(tl.video.filter((q) => q.tipo === 'foto').map((q) => q.fonte))],
+      },
+      problemi,
+      avvisi,
+    };
+  }
 
   if (tipo === 'reel' || tipo === 'storia_video') {
     const pezzi = [];
@@ -248,7 +288,7 @@ function sovrapposti(a, b) {
 }
 
 // Controlla tutto il piano. richiesta = {reel, post, storie} (facoltativa) per confrontare i numeri.
-export function controllaPiano(piano, progetto, { mese = null, richiesta = null, oggi = null } = {}) {
+export function controllaPiano(piano, progetto, { mese = null, richiesta = null, oggi = null, R = REGOLE } = {}) {
   const idx = indice(progetto);
   const lista = Array.isArray(piano?.contenuti) ? piano.contenuti : Array.isArray(piano) ? piano : null;
   const problemi = [];
@@ -261,7 +301,7 @@ export function controllaPiano(piano, progetto, { mese = null, richiesta = null,
   const contenuti = [];
   lista.forEach((c, i) => {
     const n = i + 1;
-    const r = controllaContenuto(c, n, idx, { mese });
+    const r = controllaContenuto(c, n, idx, { mese, progetto, R });
     problemi.push(...r.problemi);
     if (r.avvisi.length) problemi.push({ n, gravita: 'avviso', codice: 'corretto', messaggio: `Contenuto ${n}: ${[...new Set(r.avvisi)].join('; ')}.` });
     if (r.contenuto) {
@@ -278,12 +318,12 @@ export function controllaPiano(piano, progetto, { mese = null, richiesta = null,
   const pezziVisti = [];
   const fotoViste = new Map();
   for (const c of contenuti) {
-    for (const p of c.pezzi || []) {
+    for (const p of c.pezzi_usati || c.pezzi || []) {
       const prima = pezziVisti.find((x) => x.n !== c.n && sovrapposti(x.p, p));
       if (prima) problemi.push({ n: c.n, gravita: 'avviso', codice: 'ripetizione', messaggio: `Contenuto ${c.n}: il momento ${p.scena} (${p.inizio}–${p.fine} s) è già usato nel contenuto ${prima.n}.` });
       pezziVisti.push({ n: c.n, p });
     }
-    for (const f of c.foto || []) {
+    for (const f of c.foto_usate || c.foto || []) {
       if (fotoViste.has(f)) problemi.push({ n: c.n, gravita: 'avviso', codice: 'ripetizione', messaggio: `Contenuto ${c.n}: la foto ${f} è già usata nel contenuto ${fotoViste.get(f)}.` });
       else fotoViste.set(f, c.n);
     }

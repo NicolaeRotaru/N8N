@@ -49,7 +49,7 @@ const minuti = Math.max(5, Math.round(secondi * (0.3 + (trascrivi ? 0.8 : 0)) / 
 const lavoro = {
   lavoro: 'giro',
   avviato: partiRoma().data + ' ' + partiRoma().ora,
-  cliente: { cliente: T.cliente, nome_locale: T.nome_locale, scheda: T.scheda, marchio: T.marchio, logo: T.logo },
+  cliente: { cliente: T.cliente, nome_locale: T.nome_locale, scheda: T.scheda, marchio: T.marchio, marchio_valido: T.marchio_valido !== false, anteprime: T.anteprime === true, logo: T.logo },
   servizio: S,
   mese,
   richiesta,

@@ -49,7 +49,13 @@ export function leggiConfig(env = process.env) {
     // Montatore: materiale di un servizio (anche video lunghi) tenuto in un progetto per giorni.
     maxMaterialeByte: numero(env.MAX_MATERIALE_MB, 2048) * MB,
     maxProgettoByte: numero(env.MAX_PROGETTO_MB, 40000) * MB,
-    progettoDurataMs: numero(env.PROGETTO_DURATA_ORE, 72) * 3600 * 1000,
+    // 14 giorni: le correzioni su Telegram possono arrivare anche una settimana dopo il montaggio
+    progettoDurataMs: numero(env.PROGETTO_DURATA_ORE, 336) * 3600 * 1000,
+    // sotto questo spazio libero sul volume dei dati non si accetta altro materiale (il montaggio ha bisogno di spazio)
+    minDiscoLiberoByte: numero(env.MIN_DISCO_LIBERO_MB, 3000) * MB,
+    // rallenty delle clip girate a 50-120 fotogrammi: auto (solo se nessuno parla), si, no
+    rallenty: ['auto', 'si', 'no'].includes(String(env.RALLENTY || '').toLowerCase()) ? String(env.RALLENTY).toLowerCase() : 'auto',
+    fpsRallenty: numero(env.RALLENTY_FPS, 25),
     urlBase: (env.URL_BASE || '').replace(/\/+$/, ''),
     timeoutProcessoMs: numero(env.TIMEOUT_PROCESSO_MIN, 20) * 60 * 1000,
     livelloLog: env.LOG_LEVEL || 'info',

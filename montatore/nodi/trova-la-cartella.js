@@ -5,7 +5,8 @@ const r = $input.first().json || {};
 const scritto = testo(CFG.cartella);
 const no = (messaggio) => [{ json: { ok: false, messaggio } }];
 if (/drive\.google\.com/i.test(scritto) && idDrive(scritto)) {
-  return [{ json: { ok: true, servizio: { id: idDrive(scritto), nome: 'cartella dal link' } } }];
+  // dal guardiano delle cartelle arriva anche il nome vero della cartella
+  return [{ json: { ok: true, servizio: { id: idDrive(scritto), nome: testo(CFG.servizio_nome) || 'cartella dal link' } } }];
 }
 if (!scritto) return no('Scrivi il nome della cartella del servizio (quella che contiene «video verticali», «video orizzontali» e «foto»).');
 if (r.error || !Array.isArray(r.files)) return no('Non riesco a leggere la cartella Drive di ' + T.nome_locale + '. Controlla che la credenziale «Google Drive - Agenzia» la possa vedere.');

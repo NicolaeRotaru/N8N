@@ -8,6 +8,9 @@ import { creaReel } from './video.js';
 import { creaGrafica } from './grafiche.js';
 import { preparaFoto } from './immagini.js';
 import { scriviSrt } from './srt.js';
+import { controllaRegia, regoleDelloStile } from './regia.js';
+import { montaRegia, stileDa } from './regia-render.js';
+import { lutPerMateriali } from './lut.js';
 import { indice, controllaContenuto } from './piano.js';
 
 // I campi del marchio che i motori conoscono (gli altri si ignorano).
@@ -46,7 +49,11 @@ async function sposta(dirDa, dirOut, prefisso) {
 
 export async function montaContenuto({ progetto, dirProgetto, dati, file, lavoro, url, cfg, segnale }) {
   const idx = indice(progetto);
-  const r = controllaContenuto(dati.contenuto, Number(dati.contenuto?.n) || 1, idx, {});
+  // lo stile della regia (di serie Scatti di G) decide anche il ritmo con cui si controllano le battute
+  const marchioRegia = dati.marchio_valido === false ? null : dati.marchio;
+  const stile = stileDa(dati.stile, marchioRegia);
+  const R = regoleDelloStile(stile);
+  const r = controllaContenuto(dati.contenuto, Number(dati.contenuto?.n) || 1, idx, { progetto, R });
   if (!r.contenuto) {
     throw errore(422, 'contenuto_non_valido', `Non posso montare questo contenuto: ${r.problemi.map((p) => p.messaggio).join(' ')}`);
   }
@@ -55,6 +62,19 @@ export async function montaContenuto({ progetto, dirProgetto, dati, file, lavoro
   const logo = file.logo?.[0];
   const avvisi = r.avvisi.map((a) => ({ codice: 'corretto', messaggio: a }));
   const conSottotitoli = dati.sottotitoli !== false;
+
+  if (c.motore === 'regia') {
+    const tl = controllaRegia(c.regia, progetto, { R, formato: 'verticale' });
+    const lut = await lutPerMateriali(cfg, progetto.materiali, { lut: dati.lut ?? null, lut_materiali: dati.lut_materiali ?? null });
+    let musicaFile = null;
+    if (tl.musica?.usa) {
+      musicaFile = file.musica?.[0]?.percorso || null;
+      if (!musicaFile) avvisi.push({ codice: 'musica_mancante', messaggio: 'La regia voleva la musica ma non è arrivato nessun file musicale: il video esce solo con le voci.' });
+    }
+    // la regia avvisa da sola se manca la musica: qui non lo ripeto
+    const ris = await montaRegia({ tl: { ...tl, musica: { ...tl.musica, usa: Boolean(musicaFile) } }, progetto, dirProgetto, stile, lut, logo, musicaFile, lavoro, url, cfg, segnale });
+    return { tipo: c.tipo, contenuto: c, file: ris.file, controllo: ris.controllo, avvisi: [...avvisi, ...ris.avvisi] };
+  }
 
   if (c.tipo === 'reel' || c.tipo === 'storia_video') {
     const ordine = [];

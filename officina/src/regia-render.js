@@ -12,6 +12,7 @@ import { errore } from './errori.js';
 import { sonda, BASE, CODIFICA_FINALE, misuraVolume, filtroLoudnorm, durataFile, creaCopertina, creaFotogrammi, AVVISO_MUTO } from './video.js';
 import { caricaFont, nomeFamigliaLibass } from './font.js';
 import { apri, preparaLogo } from './immagini.js';
+import { filtroLut } from './lut.js';
 
 // Fotogrammi al secondo: li decide lo stile (Scatti di G gira e consegna a 25). Senza stile, 30.
 export const FPS_BASE = 30;
@@ -93,6 +94,12 @@ export const STILI = {
 const f3 = (n) => Number(n).toFixed(3);
 const RE_HEX = /^#[0-9a-fA-F]{6}$/;
 
+// Luminanza relativa (0 nero, 1 bianco) di un colore #RRGGBB.
+export function luminanza(hex) {
+  const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+
 // Stile della richiesta = uno stile base + il marchio del cliente (facoltativo). Dal marchio arrivano solo l'accento
 // (colori.accento, o il colore primario) e il font dei titoli con il suo peso: fondo, testo, sottotitoli e ritmo
 // restano quelli dello stile (per Scatti di G: la moodboard). I sottotitoli restano nel font dello stile, che si legge.
@@ -100,7 +107,8 @@ export function stileDa(nome, marchio) {
   const base = STILI[String(nome || 'sdg').toLowerCase()] || STILI.sdg;
   const s = JSON.parse(JSON.stringify(base));
   const c = marchio?.colori || {};
-  const accento = [c.accento, c.primario].find((x) => RE_HEX.test(x || ''));
+  // l'accento del cliente si usa solo se si vede sul fondo scuro (un filo da 5 px nero su grigio-nero non si vede)
+  const accento = [c.accento, c.primario].find((x) => RE_HEX.test(x || '') && luminanza(x) >= 0.12);
   if (accento) s.colori.accento = accento;
   if (typeof marchio?.font === 'string' && marchio.font.trim()) {
     s.font_titoli = marchio.font.trim();
@@ -287,10 +295,11 @@ const PRE_HDR = 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap
 const FINE = 'setsar=1,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p';
 
 // Filtro di un'inquadratura video: riempi (ritaglio, con la posizione del soggetto) o sfondo sfocato della stessa clip.
-export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centro', fps = FPS_BASE } = {}) {
+export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centro', fps = FPS_BASE, lut = null } = {}) {
   const FPS = fps;
   const { w: W, h: H } = fmt;
-  const pre = HDR.includes(info.trasferimento) ? PRE_HDR : '';
+  // girato in log: prima la LUT della camera (i colori «veri»), poi tutto il resto
+  const pre = (HDR.includes(info.trasferimento) ? PRE_HDR : '') + filtroLut(lut);
   const r = info.larghezza / info.altezza;
   const t = W / H;
   const tenuto = r > t ? t / r : r / t;
@@ -311,7 +320,7 @@ export async function contaFotogrammi(file, cfg, segnale) {
 
 const CODIFICA_PEZZO = (t, fps) => ['-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(fps), '-g', String(fps * 2), '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709'];
 
-async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale) {
+async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null) {
   const t = String(cfg.threadFfmpeg);
   const FPS = stile.fps || FPS_BASE;
   if (q.tipo === 'foto') {
@@ -325,7 +334,7 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
     return;
   }
   const modo = q.tipo === 'volto' ? (q.posizione === 'intera' ? 'intera' : stile.volto) : (q.posizione === 'intera' ? 'intera' : stile.coperture);
-  const grafo = grafoInquadratura(info, fmt, { modo, posizione: q.posizione || 'centro', fps: FPS }).replace('[v]', '[g]');
+  const grafo = grafoInquadratura(info, fmt, { modo, posizione: q.posizione || 'centro', fps: FPS, lut }).replace('[v]', '[g]');
   // tpad: se la clip finisce prima (la regia non lo permette, ma un file può dichiarare una durata sbagliata), l'ultimo
   // fotogramma resta fino a riempire il pezzo: mai un pezzo più corto, quindi mai le immagini dopo che scivolano
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-ss', f3(q.inizio), '-t', f3(fotogrammi / FPS + 0.5), '-i', sorgente,
@@ -377,7 +386,7 @@ export function leggiDifetti(stderr) {
   return { neri, fermi };
 }
 
-export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, musicaFile, lavoro, url, cfg, segnale }) {
+export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, musicaFile, lavoro, url, cfg, segnale, lut = new Map() }) {
   const avvisi = [];
   const fmt = FORMATI[tl.formato] || FORMATI.verticale;
   const { dirTmp, dirOut } = lavoro;
@@ -409,7 +418,7 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
     if (fotogrammi <= 0) continue;
     fotogrammiFatti = fineFotogramma;
     const nome = `inq-${String(k).padStart(3, '0')}.mkv`;
-    await pezzoVideo(q, sorgenti.get(q.fonte), info.get(q.fonte), fmt, stile, fotogrammi, path.join(dirTmp, nome), dirTmp, cfg, segnale);
+    await pezzoVideo(q, sorgenti.get(q.fonte), info.get(q.fonte), fmt, stile, fotogrammi, path.join(dirTmp, nome), dirTmp, cfg, segnale, lut.get(q.fonte) || null);
     if (info.get(q.fonte) && HDR.includes(info.get(q.fonte).trasferimento) && !avvisi.some((a) => a.codice === 'hdr_convertito')) {
       avvisi.push({ codice: 'hdr_convertito', messaggio: `Il video ${q.fonte} è in HDR: l'ho convertito nei colori normali (SDR).` });
     }

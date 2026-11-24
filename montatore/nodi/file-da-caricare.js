@@ -4,7 +4,9 @@ const E = $('Esito del montaggio').first().json;
 if (!E.ok) return [{ json: { salta: true } }];
 const c = J.contenuto;
 const pulito = (s) => testo(s).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'contenuto';
-const base = c.data + ' ' + testo(c.ora).replace(':', '') + ' · ' + NOMI_TIPO[c.tipo] + ' · ' + pulito(c.titolo);
+// una versione ritoccata da una correzione su Telegram porta « · v2», « · v3»: la prima resta su Drive
+const versione = Number(J.versione) > 1 ? ' · v' + Number(J.versione) : '';
+const base = c.data + ' ' + testo(c.ora).replace(':', '') + ' · ' + NOMI_TIPO[c.tipo] + ' · ' + pulito(c.titolo) + versione;
 const immagini = E.file.filter((f) => f.tipo === 'immagine');
 return E.file.map((f) => {
   let nome;

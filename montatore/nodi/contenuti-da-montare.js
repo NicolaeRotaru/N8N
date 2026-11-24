@@ -13,6 +13,8 @@ return P.contenuti.map((c, i) => ({ json: {
   di: P.contenuti.length,
   contenuto: c,
   marchio: J.cliente.marchio,
+  marchio_valido: J.cliente.marchio_valido !== false,
+  versione: 1,
   logo: J.cliente.logo || { tipo: 'nessuno' },
   musica: J.musica,
   cartella_uscita: cartella,

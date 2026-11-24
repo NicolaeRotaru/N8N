@@ -108,7 +108,12 @@ function posizioneValida(v) {
 // Una copertura del piano → pezzo disponibile {fonte, tipo, ci, cf, max} (cf = dove finirebbe da sola, max = fino a dove
 // si può allungare). null se non esiste.
 function coperturaDisponibile(c, idx, R = REGOLE) {
-  const codice = testo(typeof c === 'string' ? c : c?.scena ?? c?.foto ?? c?.codice).toUpperCase();
+  // il codice è il primo campo non vuoto fra scena, foto e codice (lo schema di Claude manda anche stringhe vuote);
+  // in una stringa può seguire la posizione del soggetto dopo uno spazio: «V07.2 sinistra»
+  const grezzo = typeof c === 'string' ? c : [c?.scena, c?.foto, c?.codice].find((x) => testo(x));
+  const [primo, dopo] = testo(grezzo).split(/\s+/);
+  const codice = testo(primo).toUpperCase();
+  const posizioneScritta = typeof c === 'string' ? posizioneValida(dopo) : posizioneValida(c?.posizione);
   if (/^F\d+$/.test(codice) && idx.materiali.get(codice)?.tipo === 'foto') {
     return { fonte: codice, tipo: 'foto', ci: 0, cf: Number(c?.durata) > 0 ? Number(c.durata) : R.fotoBase, max: Math.max(8, R.coperturaMax), etichetta: codice };
   }
@@ -123,7 +128,7 @@ function coperturaDisponibile(c, idx, R = REGOLE) {
   let cf = Number.isFinite(Number(c?.fine)) && c?.fine !== null && c?.fine !== '' ? Number(c.fine) : scena.fine;
   ci = Math.max(0, Math.min(ci, video.durata - 0.3));
   cf = Math.min(video.durata, Math.max(cf, ci + 0.3));
-  return { fonte: video.codice, tipo: 'copertura', ci, cf, max: video.durata, etichetta: scena.codice, posizione: posizioneValida(c?.posizione) };
+  return { fonte: video.codice, tipo: 'copertura', ci, cf, max: video.durata, etichetta: scena.codice, posizione: posizioneScritta };
 }
 
 // Riempie `durata` secondi con le coperture date, in ordine: ognuna fra coperturaMin e coperturaMax se può, poi si

@@ -25,7 +25,19 @@ import { controllaPiano } from './piano.js';
 import { montaContenuto } from './montaggio.js';
 import { leggiSceneggiatura } from './sceneggiatura.js';
 import { controllaRegia, regoleDelloStile } from './regia.js';
-import { montaRegia, stileDa } from './regia-render.js';
+import { montaRegia, stileDa, FORMATI } from './regia-render.js';
+import { forseRallenta } from './rallenty.js';
+import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
+
+// Spazio libero sul volume dei dati (byte). null se il sistema non lo dice.
+async function discoLibero(dir) {
+  try {
+    const s = await fsp.statfs(dir);
+    return Number(s.bavail) * Number(s.bsize);
+  } catch {
+    return null;
+  }
+}
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
 
@@ -234,7 +246,9 @@ export async function creaServer(cfg = leggiConfig()) {
     const dati = await datiLeggeri(req);
     const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
     if (!dati.piano) throw nonValido('dati_non_validi', 'Manca «piano»: serve {piano:{contenuti:[…]}, mese:"AAAA-MM"}.');
-    return { progetto: progetto.id, ...controllaPiano(dati.piano, progetto, { mese: dati.mese ?? null, richiesta: dati.richiesta ?? null, oggi: dati.oggi ?? null }) };
+    // i reel con la regia si controllano con il ritmo dello stile che userà il montaggio (di serie Scatti di G)
+    const R = regoleDelloStile(stileDa(dati.stile, dati.marchio_valido === false ? null : dati.marchio));
+    return { progetto: progetto.id, ...controllaPiano(dati.piano, progetto, { mese: dati.mese ?? null, richiesta: dati.richiesta ?? null, oggi: dati.oggi ?? null, R }) };
   });
 
   const controllaEsiste = async (req) => {
@@ -253,6 +267,10 @@ export async function creaServer(cfg = leggiConfig()) {
       const pub = materialiPubblici(progetto).find((m) => m.codice === gia.codice);
       return { progetto: progetto.id, materiale: pub, gia_caricato: true, avvisi: [{ codice: 'gia_caricato', messaggio: `«${nomeOriginale}» era già nel progetto come ${gia.codice}: non l'ho caricato due volte.` }] };
     }
+    const libero = await discoLibero(cfg.datiDir);
+    if (libero !== null && libero - f.byte < cfg.minDiscoLiberoByte) {
+      throw errore(507, 'disco_pieno', `Sul server dell'officina restano ${Math.round(libero / 1048576)} MB liberi: chiudi i progetti finiti (POST /progetto/<id>/chiudi) o aspetta che scadano, poi ricarica.`);
+    }
     if (byteProgetto(progetto) + f.byte > cfg.maxProgettoByte) {
       throw errore(413, 'progetto_troppo_grande', `Il materiale di questo progetto supera ${Math.round(cfg.maxProgettoByte / 1048576)} MB: esporta i video in 1080p oppure dividi il servizio in due progetti.`);
     }
@@ -264,12 +282,20 @@ export async function creaServer(cfg = leggiConfig()) {
     await fsp.rename(f.percorso, assoluto);
     const fileMat = { percorso: assoluto, nome: nomeOriginale };
     let r;
+    let relFinale = rel;
     try {
-      if (tipo === 'video') r = await analizzaVideo({ file: fileMat, codice, dirProgetto: dir, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
+      if (tipo === 'video') {
+        r = await analizzaVideo({ file: fileMat, codice, dirProgetto: dir, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
+        // girato a 50-120 fotogrammi e nessuno parla: la clip si rallenta qui, una volta sola (vedi rallenty.js)
+        const rl = await forseRallenta({ materiale: r.materiale, fps: r.materiale.fps, assoluto, rel, dati, cfg, segnale });
+        r = { ...r, materiale: rl.materiale, avvisi: [...r.avvisi, ...rl.avvisi] };
+        relFinale = rl.rel;
+      }
       else if (tipo === 'audio') r = await analizzaAudio({ file: fileMat, codice, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
       else r = await analizzaFoto({ file: fileMat, codice, dirProgetto: dir, progetto, dati });
     } catch (e) {
       await fsp.rm(assoluto, { force: true });
+      await fsp.rm(path.join(dir, rel.replace(/\.[^./]+$/, '') + '-rallenty.mp4'), { force: true });
       for (const n of await fsp.readdir(path.join(dir, 'miniature')).catch(() => [])) {
         if (n === `${codice}.jpg` || n.startsWith(`${codice}-`)) await fsp.rm(path.join(dir, 'miniature', n), { force: true });
       }
@@ -277,7 +303,10 @@ export async function creaServer(cfg = leggiConfig()) {
     }
     // rileggo il progetto subito prima di scrivere (l'analisi può durare minuti)
     const { progetto: fresco } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
-    fresco.materiali.push({ ...r.materiale, nome_originale: nomeOriginale, cartella: String(dati.cartella || '').slice(0, 100), drive_id: driveId, file: rel, byte: f.byte, caricato: new Date().toISOString() });
+    // la LUT della camera, se il materiale è girato in log (facoltativa: si può dare anche al montaggio)
+    const lut = tipo === 'video' && dati.lut ? nomeLut(dati.lut) : null;
+    const byte = relFinale === rel ? f.byte : (await fsp.stat(path.join(dir, relFinale))).size;
+    fresco.materiali.push({ ...r.materiale, ...(lut ? { lut } : {}), nome_originale: nomeOriginale, cartella: String(dati.cartella || '').slice(0, 100), drive_id: driveId, file: relFinale, byte, caricato: new Date().toISOString() });
     await salvaProgetto(dir, fresco);
     const pub = materialiPubblici(fresco).find((m) => m.codice === codice);
     return { progetto: fresco.id, materiale: pub, avvisi: r.avvisi };
@@ -325,11 +354,41 @@ export async function creaServer(cfg = leggiConfig()) {
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
     // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
     const stile = stileDa(dati.stile, dati.marchio);
-    const tl = controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null, R: regoleDelloStile(stile) });
+    const R = regoleDelloStile(stile);
+    const lut = await lutPerMateriali(cfg, progetto.materiali, { lut: dati.lut ?? null, lut_materiali: dati.lut_materiali ?? null });
+    // più formati dalla stessa regia (es. ["verticale","orizzontale"]): stessi tagli, inquadrature ritagliate per ognuno
+    const formati = Array.isArray(dati.formati) && dati.formati.length ? [...new Set(dati.formati.map((x) => String(x).toLowerCase()))] : null;
+    if (formati && (formati.length > 3 || formati.some((x) => !FORMATI[x]))) throw nonValido('dati_non_validi', `«formati» accetta al massimo tre fra ${Object.keys(FORMATI).join(', ')}.`);
+    const tl = controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: formati ? formati[0] : dati.formato ?? null, R });
     if (!tl.video.length) throw errore(422, 'regia_non_valida', `Non posso montare: ${tl.problemi.filter((p) => p.gravita === 'blocca').map((p) => p.messaggio).join(' ') || 'la timeline è vuota.'}`);
-    const r = await montaRegia({ tl, progetto, dirProgetto: dir, stile, logo: file.logo?.[0], musicaFile: file.musica?.[0]?.percorso, lavoro, url, cfg, segnale });
-    return { ...r, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
+    const comuni = { progetto, dirProgetto: dir, stile, lut, logo: file.logo?.[0], musicaFile: file.musica?.[0]?.percorso, url, cfg, segnale };
+    if (!formati) {
+      const r = await montaRegia({ ...comuni, tl, lavoro });
+      return { ...r, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
+    }
+    const uscite = [];
+    const avvisi = [];
+    for (const formato of formati) {
+      const tlF = formato === tl.formato ? tl : controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato, R });
+      const sub = { dirTmp: path.join(lavoro.dirTmp, formato), dirOut: path.join(lavoro.dirTmp, `uscita-${formato}`) };
+      await fsp.mkdir(sub.dirTmp, { recursive: true });
+      await fsp.mkdir(sub.dirOut, { recursive: true });
+      const nomi = new Map();
+      const r = await montaRegia({ ...comuni, tl: tlF, lavoro: sub, url: (n) => { nomi.set(n, `${formato}-${n}`); return url(`${formato}-${n}`); } });
+      for (const [n, nuovo] of nomi) await fsp.rename(path.join(sub.dirOut, n), path.join(lavoro.dirOut, nuovo));
+      uscite.push({ formato, file: r.file, controllo: r.controllo });
+      for (const a of r.avvisi) avvisi.push({ ...a, messaggio: `${formato}: ${a.messaggio}` });
+    }
+    return { formati: uscite, file: uscite[0].file, controllo: uscite[0].controllo, avvisi, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
   }, { prima: controllaEsiste });
+
+  // ------------------------------------------------------------ LUT (girato in log)
+  rotta('/lut', { file: { min: 1, max: 1 } }, async ({ dati, file }) => {
+    const f = file.file[0];
+    const r = await salvaLut(cfg, dati.nome || f.nome, f);
+    return { lut: r.nome, punti: r.punti, elenco: await elencoLut(cfg) };
+  });
+  app.get('/lut', async () => ({ elenco: await elencoLut(cfg) }));
 
   // Pulizia: all'avvio e poi a intervalli regolari.
   const fai = () => Promise.all([

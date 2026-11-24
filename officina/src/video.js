@@ -24,6 +24,13 @@ function hex6(hex) {
   return h.toUpperCase();
 }
 
+// «50/1», «60000/1001» → numero (0 se non si sa)
+function fpsDa(testo) {
+  const [a, b] = String(testo || '').split('/').map(Number);
+  if (!(a > 0)) return 0;
+  return b > 0 ? a / b : a;
+}
+
 export async function sonda(file, nome, cfg, segnale) {
   let stdout;
   try {
@@ -49,6 +56,7 @@ export async function sonda(file, nome, cfg, segnale) {
     larghezza: video ? (girato ? video.height : video.width) : 0,
     altezza: video ? (girato ? video.width : video.height) : 0,
     trasferimento: video?.color_transfer || '',
+    fps: fpsDa(video?.avg_frame_rate) || fpsDa(video?.r_frame_rate),
     immagine: /(^|,)(image2|[a-z0-9]+_pipe)(,|$)/.test(j.format?.format_name || ''),
   };
 }

@@ -10,7 +10,7 @@ Come pubblicarlo su Sliplane: `officina/LEGGIMI.md`, sezione
 «Pubblicare dal repository GitHub su Sliplane» (Dockerfile path `/officina/Dockerfile`,
 Docker context `/officina`, servizio non pubblico, volume `/dati`, variabile `OFFICINA_CHIAVE`, porta 8080).
 
-Versione: 1.3.0 (con le rotte del montatore e la regia di Scatti di G).
+Versione: 1.4.0 (montatore, regia e moodboard di Scatti di G: rallenty, LUT, più formati, progetti per 14 giorni).
 
 ## montatore/
 Workflow n8n «16 · Montatore»: gli dici il cliente e la cartella del servizio su Drive

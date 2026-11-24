@@ -11,5 +11,7 @@ const prendi = (nodo, campo) => {
 prendi('Scarica il logo', 'logo');
 prendi('Scarica il logo dal sito', 'logo');
 if (J.contenuto.musica) prendi('Scarica la musica', 'musica');
-const dati = { contenuto: J.contenuto, marchio: J.marchio, sottotitoli: true };
+// stile della regia (Scatti di G) per i reel montati con la regia; il marchio scritto male non tocca lo stile; LUT del girato in log
+const dati = { contenuto: J.contenuto, marchio: J.marchio, marchio_valido: J.marchio_valido !== false, stile: testo(J.STILE_VIDEO) || 'sdg', sottotitoli: true };
+if (testo(J.LUT)) dati.lut = testo(J.LUT);
 return [{ json: { dati: JSON.stringify(dati), con_logo: !!binari.logo, con_musica: !!binari.musica }, binary: binari }];

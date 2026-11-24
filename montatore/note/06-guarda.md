@@ -1,0 +1,2 @@
+## Guarda (il guardiano delle cartelle)
+Ogni 15 minuti, se `AVVIO_DA_CARTELLA` = si: per ogni cliente attivo con `cartella_drive` cerca le cartelle create da quando il workflow è acceso (le vecchie non si toccano mai). Quando un servizio ha del materiale e da `QUIETE_MINUTI` non arriva niente di nuovo (la copia dalla scheda SD è finita), parte il montaggio del mese prossimo come dal modulo, una volta sola per cartella. Le cartelle «Pronti», «Logo», «Contratti», «Archivio» si saltano.
