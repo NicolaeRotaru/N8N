@@ -370,6 +370,9 @@ test('la scheda per il sito: il formato concordato, senza prezzi, mai in prova',
   assert.deepEqual(c.campi.sito_ufficiale, { valore: 'https://barroma.it', stato: 'da_confermare', fonte: 'https://barroma.it' });
   assert.deepEqual(c.analisi.punti_di_forza, ['brioche']);
   assert.deepEqual(c.da_confermare, ['orari', 'menu_testo']);
+  // Senza chiave proposta la chiave non si manda proprio: il sito risponderebbe 400 a un null.
+  const [{ json: senzaChiave }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA('vero', { ...PROPOSTA, chiave_proposta: '' }) });
+  assert.equal('chiave_cliente' in senzaChiave.corpo, false);
   for (const [modalita, proposta, motivo] of [['prova', PROPOSTA, /prova/], ['vero', null, /nessuna scheda/], ['vero', { ok: false }, /nessuna scheda/]]) {
     const [{ json: j }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA(modalita, proposta) });
     assert.equal(j.mandare, false);

@@ -174,24 +174,29 @@ if (!p || !p.ok) return [{ json: { mandare: false, motivo: 'nessuna scheda: la r
 const STATI = { confermato: 'confermato', da_confermare: 'da_confermare', foto: 'foto', frammento: 'frammento', proposta: 'proposta',
   nessuna: 'nessuna', non_trovata: 'da_confermare', bloccata: 'nessuna' };
 const MANDO = ['indirizzo', 'telefono', 'orari', 'link_prenotazione', 'link_menu', 'tono_di_voce', 'regole_risposte', 'hashtag_fissi', 'note_piano', 'menu_testo'];
-const soloHttps = (u) => (/^https:\/\//i.test(testo(u)) ? testo(u) : null);
+const soloHttps = (u) => (/^https:\/\//i.test(testo(u)) && testo(u).length <= 500 ? testo(u) : null);
 const campi = {};
 for (const nome of MANDO) {
   const c = (p.campi || {})[nome];
   if (!c) continue;
   const valore = testo(c.valore);
-  campi[nome] = { valore: valore || null, stato: valore ? STATI[c.stato] || 'da_confermare' : 'nessuna', fonte: soloHttps(c.fonte) };
+  // Limiti del sito (lib/agenzia/scheda-cliente.ts, SchedaInArrivo): valore al massimo 4000 caratteri, fonte 500.
+  campi[nome] = { valore: valore ? valore.slice(0, 4000) : null, stato: valore ? STATI[c.stato] || 'da_confermare' : 'nessuna', fonte: soloHttps(c.fonte) };
 }
 const sito = testo(p.sito_ufficiale);
 campi.sito_ufficiale = { valore: /^https?:\/\//i.test(sito) ? sito : null, stato: sito ? 'da_confermare' : 'nessuna', fonte: soloHttps(sito) };
 const a = p.analisi || {};
-const lista = (x, quanti) => (Array.isArray(x) ? x.map((v) => testo(v)).filter(Boolean).slice(0, quanti) : []);
+const lista = (x, quanti) => (Array.isArray(x) ? x.map((v) => testo(v).slice(0, 500)).filter(Boolean).slice(0, quanti) : []);
+const chiave = testo(p.chiave_proposta).slice(0, 120);
 return [{ json: { mandare: true, corpo: {
   tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(),
-  id_attivita: f.id_mycity, chiave_cliente: testo(p.chiave_proposta) || null, campi,
-  analisi: { tipo_di_locale: testo(a.tipo_di_locale) || null, pubblico: testo(a.pubblico) || null,
+  id_attivita: f.id_mycity,
+  // Il sito vuole la chiave come testo o assente: null lo farebbe rispondere 400.
+  ...(chiave ? { chiave_cliente: chiave } : {}),
+  campi,
+  analisi: { tipo_di_locale: testo(a.tipo_di_locale).slice(0, 500) || null, pubblico: testo(a.pubblico).slice(0, 500) || null,
     punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6) },
-  da_confermare: lista(p.da_confermare, 20),
+  da_confermare: lista(p.da_confermare, 20).map((v) => v.slice(0, 40)),
 } } }];`;
 
 // Testo HTML sicuro per Telegram dentro un'espressione n8n.
