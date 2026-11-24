@@ -57,6 +57,15 @@ const L = {
   in_vendita: lettura('Leggi i prodotti in vendita di tutti'),
   negozi: lettura('Leggi i negozi approvati'),
 };
+// I venditori «di sistema» (il negozio «MyCity», SDG Agenzia) non entrano nel confronto con gli altri negozi.
+const diSistema = (id) => String(id || '').toLowerCase().startsWith('11111111-1111-1111-1111-');
+for (const [chiave, campo] of [['in_vendita', 'seller_id'], ['negozi', 'id']]) {
+  const l = L[chiave];
+  if (!l.ok) continue;
+  const prima = l.righe.length;
+  l.righe = l.righe.filter((r) => !diSistema(r[campo]));
+  l.totale = Math.max(l.righe.length, l.totale - (prima - l.righe.length));
+}
 const p = L.attivita.ok ? L.attivita.righe[0] || null : null;
 const trovata = L.attivita.ok ? !!p : null;
 const se = (chiave, calcolo) => (L[chiave].ok ? calcolo(L[chiave].righe) : null);

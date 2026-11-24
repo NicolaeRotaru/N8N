@@ -322,3 +322,23 @@ test("il commento di Claude nasce spento: «non si paga MAI un'API di IA» (regi
   const cfg = costruisci().nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
   assert.equal(cfg.find((a) => a.name === 'COMMENTO_CLAUDE').value, 'no');
 });
+
+test('i venditori di sistema (il negozio «MyCity», SDG) non contano come negozi e non sono mai «fermi»', async () => {
+  const d = datiNormali();
+  const SDG = '11111111-1111-1111-1111-5d9000000001';
+  const MYCITY = '11111111-1111-1111-1111-c1ec0de00001';
+  d['Leggi i profili'] = risposta([...d['Leggi i profili'][0].json.body,
+    { id: SDG, role: 'seller', approval_status: 'approved', approved_at: fa(24 * 40), created_at: fa(24 * 40), store_name: 'SDG Agenzia', stripe_charges_enabled: true, stripe_payouts_enabled: true },
+    { id: MYCITY, role: 'seller', approval_status: 'approved', approved_at: fa(24 * 90), created_at: fa(24 * 90), store_name: 'MyCity' }]);
+  d['Leggi i prodotti'] = risposta([...d['Leggi i prodotti'][0].json.body,
+    { id: 'abb1', seller_id: SDG, status: 'available' }, { id: 'abb2', seller_id: SDG, status: 'available' }, { id: 'imp', seller_id: MYCITY, status: 'available' }]);
+  d['Leggi gli ordini'] = risposta([...d['Leggi gli ordini'][0].json.body,
+    { id: 'os', user_id: 'u1', seller_id: SDG, total_price: 300, payment_status: 'PAID', payment_method: 'card', delivery_status: 'PENDING', created_at: fa(30), payout_at: null }]);
+  const a = await calcola(d);
+  assert.equal(a.numeri.negozi_approvati, 3, 'come senza i venditori di sistema');
+  assert.equal(a.numeri.negozi_con_incassi_attivi, 1);
+  assert.equal(a.numeri.prodotti_disponibili, 2);
+  assert.equal(a.numeri.ordini_creati, 5);
+  assert.equal(a.numeri.pagati_senza_payout, 2);
+  assert.deepEqual(a.negozi_fermi, ['Bottega Ferma']);
+});

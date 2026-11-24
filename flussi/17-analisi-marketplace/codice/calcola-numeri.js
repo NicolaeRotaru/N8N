@@ -91,6 +91,21 @@ const L = {
   lead: conteggio('Leggi i lead dei negozi'),
 };
 const S = { home: sito('Guarda il sito'), pronto: sito('Guarda il controllo «pronto»') };
+
+// I venditori «di sistema» del sito (il negozio «MyCity» dei prodotti importati, SDG Agenzia coi suoi
+// abbonamenti) hanno un identificativo fisso che comincia così. Non sono negozi da far crescere: fuori
+// dai conteggi dei negozi, dei prodotti e degli ordini, e mai «negozio fermo».
+const PREFISSO_SISTEMA = '11111111-1111-1111-1111-';
+const diSistema = (id) => String(id || '').toLowerCase().startsWith(PREFISSO_SISTEMA);
+const togliSistema = (l, campo) => {
+  if (!l.ok) return;
+  const prima = l.righe.length;
+  l.righe = l.righe.filter((r) => !diSistema(r[campo]));
+  l.totale = Math.max(l.righe.length, l.totale - (prima - l.righe.length));
+};
+togliSistema(L.profili, 'id');
+togliSistema(L.prodotti, 'seller_id');
+togliSistema(L.ordini, 'seller_id');
 const se = (chiave, calcolo) => (L[chiave].ok ? calcolo(L[chiave].righe) : null);
 
 // ---- i negozi in attesa concordata (non sono churn): «id:AAAA-MM-GG, id:AAAA-MM-GG» ----------------

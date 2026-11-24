@@ -76,6 +76,16 @@ test('una richiesta che non è un nuovo cliente di MyCity si scarta e si dice pe
   }
 });
 
+test('un venditore di sistema del sito (SDG, il negozio «MyCity») non entra nella scheda Clienti', async () => {
+  for (const id of ['11111111-1111-1111-1111-5d9000000001', '11111111-1111-1111-1111-C1EC0DE00001']) {
+    const statico = {};
+    const [{ json }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ id, nome: 'SDG Agenzia' }), statico });
+    assert.equal(json.scartata, true, id);
+    assert.equal(json.avvisa, false);
+    assert.equal(statico.mycity_oggi, undefined, 'non consuma il tetto del giorno');
+  }
+});
+
 // Le pagine come le prepara il 12: JSON con ogni $ raddoppiato (perPagina).
 const perPagina = (campi) => JSON.stringify(campi).replace(/\$/g, '$$$$');
 

@@ -78,6 +78,9 @@ if (corpo.tipo !== 'nuovo-cliente' || corpo.origine !== 'mycity') return scarta(
 const id = testo(a.id);
 if (!/^[0-9A-Za-z-]{6,64}$/.test(id)) return scarta("manca l'identificativo dell'attività", true);
 if (nome.length < 2) return scarta("manca il nome dell'attività", true);
+// I venditori «di sistema» del sito (il negozio «MyCity», SDG Agenzia) non sono clienti dell'agenzia:
+// SDG nel foglio Clienti sarebbe cliente di sé stessa.
+if (id.toLowerCase().startsWith('11111111-1111-1111-1111-')) return scarta('è un venditore di sistema del sito, non un cliente', false);
 
 const memoria = $getWorkflowStaticData('global');
 const adesso = Date.now();

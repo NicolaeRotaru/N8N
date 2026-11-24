@@ -272,3 +272,13 @@ test("il commento di Claude nasce spento: «non si paga MAI un'API di IA» (regi
   const cfg = costruisci().nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
   assert.equal(cfg.find((a) => a.name === 'COMMENTO_CLAUDE').value, 'no');
 });
+
+test('nel confronto con gli altri negozi i venditori di sistema non contano', async () => {
+  const d = appenaIscritta();
+  const SDG = '11111111-1111-1111-1111-5d9000000001';
+  d['Leggi i prodotti in vendita di tutti'] = risposta([...d['Leggi i prodotti in vendita di tutti'][0].json.body, { seller_id: SDG }, { seller_id: SDG }, { seller_id: SDG }]);
+  d['Leggi i negozi approvati'] = risposta([...d['Leggi i negozi approvati'][0].json.body, { id: SDG }]);
+  const a = await calcola(d);
+  assert.equal(a.numeri.media_prodotti_negozi_che_vendono, 2);
+  assert.equal(a.numeri.negozi_approvati, 3);
+});

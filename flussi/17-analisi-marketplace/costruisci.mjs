@@ -37,7 +37,7 @@ export const CREDENZIALE_MEMORIA = { id: 'SEGNAPOSTO_SUPABASE_MEMORIA', name: 'S
 export const LETTURE = [
   ['Leggi gli ordini', 'orders?select=id,user_id,seller_id,total_price,payment_status,payment_method,delivery_status,created_at,delivered_at,canceled_at,payout_at&order=created_at.desc&limit=10000'],
   ['Leggi i profili', 'profiles?select=id,role,approval_status,approval_requested_at,approved_at,created_at,store_name,stripe_charges_enabled,stripe_payouts_enabled&limit=10000'],
-  ['Leggi i prodotti', 'products?select=id,status&limit=10000'],
+  ['Leggi i prodotti', 'products?select=id,seller_id,status&limit=10000'],
   ['Leggi i carrelli', 'abandoned_carts?select=recovered,recovery_email_sent_at,last_activity&limit=10000'],
   ['Leggi le recensioni dei prodotti', 'reviews?select=rating,created_at&limit=10000'],
   ['Leggi le recensioni dei negozi', 'store_reviews?select=rating,created_at&limit=10000'],
