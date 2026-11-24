@@ -53,12 +53,12 @@ export async function riceviUpload(req, dirIn, spec, cfg) {
       const contatore = new Transform({
         transform(pezzo, _enc, cb) {
           totale += pezzo.length;
-          if (totale > cfg.maxTotaleByte) cb(errore(413, 'richiesta_troppo_grande', 'I file insieme superano il limite di 800 MB per richiesta.'));
+          if (totale > cfg.maxTotaleByte) cb(errore(413, 'richiesta_troppo_grande', `I file insieme superano il limite di ${Math.round(cfg.maxTotaleByte / 1048576)} MB per richiesta.`));
           else cb(null, pezzo);
         },
       });
       await pipeline(parte.file, contatore, fs.createWriteStream(destinazione));
-      if (parte.file.truncated) throw errore(413, 'file_troppo_grande', `Il file «${nome}» supera il limite di 300 MB.`);
+      if (parte.file.truncated) throw errore(413, 'file_troppo_grande', `Il file «${nome}» supera il limite di ${Math.round(cfg.maxFileByte / 1048576)} MB.`);
       const { size } = await stat(destinazione);
       if (size === 0) throw nonValido('file_vuoto', `Il file «${nome}» è vuoto.`);
       lista.push({ percorso: destinazione, nome, byte: size, tipo: parte.mimetype });

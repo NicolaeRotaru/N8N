@@ -19,6 +19,11 @@ Non inventa niente. Ritaglia, corregge luce e colore su tutta la foto, mette scr
 Non allarga mai una foto e non crea sfondi finti. Le scritte sono solo quelle che le passa n8n.
 
 ## Cosa cambia per te
+**Versione 1.2.0 (24/11/2026): il montatore.** L'officina sa tenere tutto il materiale di un servizio in un «progetto» per 72 ore.
+Lo guarda una volta sola: divide ogni video in momenti, misura nitidezza, luce e movimento, e trascrive il parlato.
+Poi controlla il piano del mese scritto da Claude e monta ogni contenuto senza ricaricare niente.
+La usa il workflow 16 · Montatore (guida: `../montatore/LEGGIMI.md`). Le rotte di prima non cambiano.
+
 Le correzioni del 15/11/2026 cambiano sei cose:
 - **I sottotitoli finiscono quando finisce il parlato.** Prima una frase detta a 3 s e ripetuta a 25 s diventava un sottotitolo solo, acceso da 3 a 30 s. La ripetizione spariva. Adesso escono due sottotitoli: da 2,9 a 8,1 s e da 24,9 a 30,0 s.
 - **Anche una pausa di 4-5 secondi spegne il sottotitolo** (ricontrollo, versione 1.1.1). Il programma di trascrizione a volte mette due frasi in un pezzo solo. Prima quel sottotitolo restava acceso nel silenzio e mostrava la frase dopo secondi prima che venisse detta.
@@ -41,7 +46,7 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.1.1", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.2.0", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
 
 ## Cosa non ho verificato
 - **L'immagine Docker non l'ho costruita.** Qui il programma Docker c'è, ma il suo servizio non gira, e Docker Hub non è tra le fonti che potevo usare.
@@ -265,6 +270,52 @@ Prove reali fatte qui, con whisper.cpp 1.9.1, il modello `small` e una voce sint
 | 500 | `errore_interno`, `trascrizione_fallita`, `jpeg_troppo_grande` |
 | 503 | `trascrizione_non_disponibile` |
 
+### Il montatore: progetti (1.2.0)
+Un **progetto** è il materiale di un servizio, caricato una volta sola e usato per tutto il mese.
+Vive in `/dati/progetti/<id>/` e scade `PROGETTO_DURATA_ORE` (di serie 72) dopo l'ultimo uso.
+Le rotte leggere accettano JSON (oppure multipart con il campo `dati`) e non passano dalla coda. Quelle pesanti vogliono multipart e passano dalla coda come le altre.
+
+| Indirizzo | Coda | Corpo | Cosa fa |
+|---|---|---|---|
+| `POST /progetto` | no | `{nome?}` | crea il progetto → `{progetto, nome, video, foto, scene, durata_video, byte, scade_alle}` |
+| `GET /progetto/:pid` | no | — | stato + `materiali` (senza dati interni) |
+| `POST /progetto/:pid/materiale` | sì | multipart: `file` (uno) + `dati {cartella?, nome?, drive_id?, trascrivi?, lingua?}` | riconosce foto o video dal contenuto (non dalla cartella), dà il codice (V01…, F01…), analizza → `{progetto, materiale, avvisi}`. Lo stesso `drive_id` due volte → `gia_caricato: true`, niente doppioni |
+| `POST /progetto/:pid/catalogo` | sì | multipart: `dati {}` | provini 5×4 con i codici scritti sopra (≤ 1568 px, ≤ 3,5 MB) → `{provini:[{url, codici}], testo, materiali, avvisi}` |
+| `POST /progetto/:pid/piano` | no | `{piano:{contenuti:[…]}, mese:"AAAA-MM", richiesta?:{reel,post,storie}, oggi?}` | controlla il piano → `{contenuti, problemi:[{n, gravita:"blocca"\|"avviso", codice, messaggio}], bloccante, conti}` |
+| `POST /progetto/:pid/monta` | sì | multipart: `dati {contenuto, marchio?, sottotitoli?}` + `logo?` + `musica?` | monta un contenuto del piano → `{tipo, contenuto, file:[…], avvisi}` |
+| `POST /progetto/:pid/chiudi` | no | — | cancella il progetto (409 `progetto_in_uso` finché una richiesta ci lavora o aspetta in coda) |
+
+**Analisi di un video.** Una sola lettura con FFmpeg: 4 fotogrammi al secondo piccoli e in grigio (luce, movimento, cambi di inquadratura con `scdet`) e 1 miniatura al secondo da 480 px. Le scene:
+- i tagli trovati da `scdet` (soglia 12), ignorati se a meno di 1 s dall'inizio, dalla fine o dal taglio prima;
+- una scena oltre i 6 s si divide in pezzi uguali di circa 4,5 s;
+- al massimo 40 scene per video (i pezzi si allungano).
+Per ogni scena: `nitidezza` (mediana della varianza del Laplaciano sulle miniature), `luminosita` (0-255), `movimento` (differenza media fra fotogrammi, 0-255), la miniatura più nitida, e le frasi dette (whisper, solo se c'è audio udibile e `trascrivi` non è `false`/`"no"`).
+Se whisper si pianta o va oltre il tempo, la clip entra lo stesso, senza parlato, con l'avviso `trascrizione_fallita`.
+Anche con tanti tagli (un'inquadratura ogni 2 s) le scene restano al massimo 40: si uniscono le due vicine più corte.
+Nel testo del catalogo ogni frase detta ha i suoi tempi («Benvenuti da noi.» 0,5–2,0 s): servono a Claude per non tagliare una frase a metà.
+Le etichette del catalogo sono relative al servizio: «sfocata» = sotto il 30% della nitidezza mediana delle altre scene; «buia» sotto 40; «bruciata» sopra 220; «mossa» con movimento sopra 30.
+
+**Analisi di una foto.** Le misure di `/foto/provino` (nitidezza, luce, orientamento) e il doppione rispetto alle foto già nel progetto (hash percettivo, distanza ≤ 10). HEIC → 415 con la spiegazione.
+
+**Il piano** (lo scrive Claude, lo controlla l'officina). Ogni contenuto: `tipo` (`reel` | `storia_video` | `post` | `carosello` | `storia_foto`), `data` `AAAA-MM-GG`, `ora` `HH:MM`, `titolo`, `idea`, `perche`, `didascalia`, e poi:
+- video: `pezzi:[{scena:"V03.2", inizio?, fine?}]` con i secondi DENTRO il video (senza tempi = tutta la scena), `intro`, `outro`, `musica`, `sottotitoli`;
+- foto: `foto:["F07"…]` (post e storia_foto 1, carosello 2-10), `righe:[{testo, ruolo}]`.
+Cosa si corregge da solo (avviso): ora non valida → 18:30; pezzo oltre la fine della clip → fermato; pezzo sotto 0,8 s → allungato; pezzo sopra 30 s → accorciato; montaggio troppo lungo → si accorcia la coda (reel 90 s con il cartello, storia 59,9 s); codici e foto inesistenti → tolti.
+Cosa toglie il contenuto (blocca): tipo sconosciuto, data non valida o fuori dal mese, data già passata rispetto a `oggi` (se arriva), nessun pezzo o foto valida, reel sotto i 5 s.
+Avvisi senza correzione: lo stesso momento o la stessa foto in due contenuti, due contenuti nello stesso orario, numeri diversi dalla richiesta, scene o foto con difetti.
+
+**Il montaggio** usa gli stessi motori di `/video/reel` (anche per le storie video, con durata massima 59,9 s), `/grafica/post`, `/grafica/storia` e `/foto/prepara`. I sottotitoli vengono dal parlato salvato nel progetto. Nel carosello la prima foto ha titolo e logo, le altre sono ritagliate in 4:5 con lo stile del marchio. Gli avvisi parlano dei codici del materiale («Il video V02 non è verticale»), non della «clip 1».
+
+**Variabili nuove** (i valori di serie vanno bene):
+
+| Variabile | Di serie | A cosa serve |
+|---|---|---|
+| `MAX_MATERIALE_MB` | `2048` | grandezza massima di un file del materiale (i lavori normali restano a `MAX_FILE_MB`) |
+| `MAX_PROGETTO_MB` | `40000` | materiale massimo di un progetto (413 `progetto_troppo_grande`) |
+| `PROGETTO_DURATA_ORE` | `72` | dopo quante ore senza uso un progetto si cancella |
+
+**Errori nuovi:** 404 `progetto_non_trovato`, 409 `progetto_in_uso`, 413 `progetto_troppo_grande`, 422 `progetto_vuoto`, 422 `contenuto_non_valido`, 422 `video_troppo_corto` (materiale sotto 1 s).
+
 ### Come chiamarla da n8n (nodo HTTP Request 4.5)
 - **Metodo** POST; **URL** `{{ $('Config').item.json.OFFICINA_URL }}/video/reel`.
 - **Authentication**: Generic Credential Type → Header Auth → credenziale **'Officina - Chiave'**.
@@ -286,7 +337,7 @@ Prove reali fatte qui, con whisper.cpp 1.9.1, il modello `small` e una voce sint
 ```
 cd officina
 npm ci
-npm test                      # 67 prove, circa 5 minuti e mezzo, senza Docker (usa /usr/bin/ffmpeg)
+npm test                      # 79 prove (12 del montatore), circa 6 minuti, senza Docker (usa /usr/bin/ffmpeg)
 npm run prepara-whisper       # facoltativo: compila whisper-cli e whisper-vad-speech-segments, scarica "small" e la voce italiana in .locale/
 npm run mutazioni             # rompe il codice di proposito in 39 punti e controlla che le prove se ne accorgano
 node test/mutazioni.mjs --controllo   # le stesse prove sulla copia intatta: devono essere tutte verdi
@@ -314,6 +365,11 @@ officina/
   src/font.js         font inclusi + Google Font al primo uso + cache; font_testo e peso_titolo
   src/video.js        reel e storie (FFmpeg)
   src/srt.js          SRT, spostamento sui tagli, ASS per libass
+  src/progetti.js     montatore: progetti su /dati/progetti, scadenza 72 h
+  src/analisi.js      montatore: scene, nitidezza, luce, movimento, miniature, parlato; misure delle foto
+  src/catalogo.js     montatore: etichette di qualità, provini con i codici, catalogo in testo
+  src/piano.js        montatore: controllo del piano di Claude contro il materiale vero
+  src/montaggio.js    montatore: monta un contenuto dal materiale del progetto
   src/trascrizione.js whisper.cpp senza --vad, con i tempi per parola (-dtw) + zone di parlato (silero o silenzi di FFmpeg); segmenti divisi sui silenzi
   font/               Inter, Playfair Display, Archivo (licenza OFL) e Roboto Slab (licenza Apache 2.0)
   strumenti/          prepara-whisper-locale.sh, voce_it.py (voce italiana per le prove)

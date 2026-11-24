@@ -15,6 +15,14 @@ import { creaProvino, preparaFoto, creaConfronto } from './immagini.js';
 import { creaGrafica } from './grafiche.js';
 import { creaReel, creaStoriaVideo } from './video.js';
 import { trascrivi, whisperDisponibile, presetDtw } from './trascrizione.js';
+import path from 'node:path';
+import fsp from 'node:fs/promises';
+import { errore, nonValido } from './errori.js';
+import { creaProgetto, apriProgetto, chiudiProgetto, salvaProgetto, prossimoCodice, byteProgetto, scadenza, pulisciProgetti, Registro } from './progetti.js';
+import { analizzaVideo, analizzaFoto, tipoDelFile } from './analisi.js';
+import { materialiPubblici, testoCatalogo, celleProvini, disegnaProvini } from './catalogo.js';
+import { controllaPiano } from './piano.js';
+import { montaContenuto } from './montaggio.js';
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
 
@@ -32,6 +40,7 @@ export async function creaServer(cfg = leggiConfig()) {
   fs.mkdirSync(cfg.datiDir, { recursive: true });
   const coda = new Coda(cfg.maxAttesa);
   const lavoriAttivi = new Set();
+  const progettiAttivi = new Registro();
   let ffmpegOk = false;
   try {
     await esegui(cfg.ffmpeg, ['-version'], { timeoutMs: 15_000 });
@@ -110,7 +119,7 @@ export async function creaServer(cfg = leggiConfig()) {
     req.biglietto = b;
   }
 
-  function rotta(url, spec, lavora) {
+  function rotta(url, spec, lavora, opz = {}) {
     app.post(url, {
       onRequest: prenota,
       onResponse: async (req) => {
@@ -122,16 +131,18 @@ export async function creaServer(cfg = leggiConfig()) {
       reply.raw.on('close', () => {
         if (!reply.raw.writableFinished) controllo.abort();
       });
+      if (opz.prima) await opz.prima(req);
       const lavoro = await creaLavoro(cfg.datiDir);
       lavoriAttivi.add(lavoro.id);
+      if (req.params?.pid) progettiAttivi.entra(req.params.pid);
       const base = cfg.urlBase || `${req.protocol}://${req.headers.host}`;
       const indirizzo = (nome) => `${base}/file/${lavoro.id}/${nome}`;
       req.lavoroInCorso = true;
       try {
-        const { dati, file } = await riceviUpload(req, lavoro.dirIn, spec, cfg);
+        const { dati, file } = await riceviUpload(req, lavoro.dirIn, spec, opz.cfgUpload || cfg);
         await biglietto.turno(controllo.signal);
         const inizio = Date.now();
-        const risultato = await lavora({ dati, file, lavoro, url: indirizzo, segnale: controllo.signal });
+        const risultato = await lavora({ dati, file, lavoro, url: indirizzo, segnale: controllo.signal, params: req.params || {} });
         await chiudiLavoro(lavoro);
         req.log.info({ lavoro: lavoro.id, ms: Date.now() - inizio, url }, 'lavoro finito');
         return { id: lavoro.id, ...risultato };
@@ -140,6 +151,7 @@ export async function creaServer(cfg = leggiConfig()) {
         throw e;
       } finally {
         lavoriAttivi.delete(lavoro.id);
+        if (req.params?.pid) progettiAttivi.esce(req.params.pid);
         req.lavoroInCorso = false;
         biglietto.libera();
       }
@@ -163,9 +175,137 @@ export async function creaServer(cfg = leggiConfig()) {
     return { file: [{ url: url(r.nome) }] };
   });
 
+  // ------------------------------------------------------------ MONTATORE (progetti)
+  // Un progetto = il materiale di un servizio, caricato una volta sola (un file per richiesta) e usato per il mese.
+  // Rotte leggere (niente coda): crea, stato, controllo del piano, chiudi. Rotte pesanti (in coda): materiale,
+  // catalogo, monta. Le rotte leggere accettano JSON oppure multipart con il campo «dati».
+  async function datiLeggeri(req) {
+    if (req.isMultipart && req.isMultipart()) {
+      const dir = await fsp.mkdtemp(path.join(cfg.datiDir, 'tmp-'));
+      try {
+        return (await riceviUpload(req, dir, {}, cfg)).dati;
+      } finally {
+        await fsp.rm(dir, { recursive: true, force: true });
+      }
+    }
+    const b = req.body;
+    if (b === undefined || b === null || b === '') return {};
+    if (typeof b !== 'object' || Array.isArray(b)) throw nonValido('dati_non_validi', 'Il corpo della richiesta deve essere un oggetto JSON.');
+    return b.dati && typeof b.dati === 'object' && !Array.isArray(b.dati) ? b.dati : b;
+  }
+
+  function statoProgetto(progetto) {
+    const conta = (t) => progetto.materiali.filter((m) => m.tipo === t).length;
+    return {
+      progetto: progetto.id,
+      nome: progetto.nome,
+      video: conta('video'),
+      foto: conta('foto'),
+      scene: progetto.materiali.filter((m) => m.tipo === 'video').reduce((s, m) => s + m.scene.length, 0),
+      durata_video: Math.round(progetto.materiali.filter((m) => m.tipo === 'video').reduce((s, m) => s + m.durata, 0) * 10) / 10,
+      byte: byteProgetto(progetto),
+      scade_alle: scadenza(cfg.progettoDurataMs),
+    };
+  }
+
+  app.post('/progetto', async (req) => {
+    const dati = await datiLeggeri(req);
+    const { progetto } = await creaProgetto(cfg.datiDir, { nome: dati.nome });
+    return statoProgetto(progetto);
+  });
+
+  app.get('/progetto/:pid', async (req) => {
+    const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    return { ...statoProgetto(progetto), materiali: materialiPubblici(progetto) };
+  });
+
+  app.post('/progetto/:pid/chiudi', async (req) => {
+    if (progettiAttivi.has(req.params.pid)) throw errore(409, 'progetto_in_uso', 'Il progetto sta lavorando adesso: chiudilo quando il lavoro è finito.');
+    await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    await chiudiProgetto(cfg.datiDir, req.params.pid);
+    return { ok: true, progetto: req.params.pid };
+  });
+
+  app.post('/progetto/:pid/piano', { bodyLimit: 4 * 1024 * 1024 }, async (req) => {
+    const dati = await datiLeggeri(req);
+    const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    if (!dati.piano) throw nonValido('dati_non_validi', 'Manca «piano»: serve {piano:{contenuti:[…]}, mese:"AAAA-MM"}.');
+    return { progetto: progetto.id, ...controllaPiano(dati.piano, progetto, { mese: dati.mese ?? null, richiesta: dati.richiesta ?? null, oggi: dati.oggi ?? null }) };
+  });
+
+  const controllaEsiste = async (req) => {
+    await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+  };
+  const cfgMateriale = { ...cfg, maxFileByte: cfg.maxMaterialeByte, maxTotaleByte: cfg.maxMaterialeByte };
+
+  rotta('/progetto/:pid/materiale', { file: { min: 1, max: 1 } }, async ({ dati, file, lavoro, segnale, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    const f = file.file[0];
+    const nomeOriginale = String(dati.nome || f.nome).slice(0, 200);
+    const driveId = dati.drive_id ? String(dati.drive_id).slice(0, 200) : null;
+    // Lo stesso file mandato due volte (es. «Retry on Fail» di n8n): si restituisce quello già caricato.
+    const gia = progetto.materiali.find((m) => (driveId && m.drive_id === driveId) || (!driveId && !m.drive_id && m.nome_originale === nomeOriginale && m.byte === f.byte));
+    if (gia) {
+      const pub = materialiPubblici(progetto).find((m) => m.codice === gia.codice);
+      return { progetto: progetto.id, materiale: pub, gia_caricato: true, avvisi: [{ codice: 'gia_caricato', messaggio: `«${nomeOriginale}» era già nel progetto come ${gia.codice}: non l'ho caricato due volte.` }] };
+    }
+    if (byteProgetto(progetto) + f.byte > cfg.maxProgettoByte) {
+      throw errore(413, 'progetto_troppo_grande', `Il materiale di questo progetto supera ${Math.round(cfg.maxProgettoByte / 1048576)} MB: esporta i video in 1080p oppure dividi il servizio in due progetti.`);
+    }
+    const tipo = await tipoDelFile(f, cfg, segnale);
+    const codice = prossimoCodice(progetto, tipo);
+    const est = path.extname(f.percorso).toLowerCase() || (tipo === 'video' ? '.mp4' : '.jpg');
+    const rel = `materiale/${codice}${est}`;
+    const assoluto = path.join(dir, rel);
+    await fsp.rename(f.percorso, assoluto);
+    const fileMat = { percorso: assoluto, nome: nomeOriginale };
+    let r;
+    try {
+      r = tipo === 'video'
+        ? await analizzaVideo({ file: fileMat, codice, dirProgetto: dir, dirTmp: lavoro.dirTmp, dati, cfg, segnale })
+        : await analizzaFoto({ file: fileMat, codice, dirProgetto: dir, progetto, dati });
+    } catch (e) {
+      await fsp.rm(assoluto, { force: true });
+      for (const n of await fsp.readdir(path.join(dir, 'miniature')).catch(() => [])) {
+        if (n === `${codice}.jpg` || n.startsWith(`${codice}-`)) await fsp.rm(path.join(dir, 'miniature', n), { force: true });
+      }
+      throw e;
+    }
+    // rileggo il progetto subito prima di scrivere (l'analisi può durare minuti)
+    const { progetto: fresco } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    fresco.materiali.push({ ...r.materiale, nome_originale: nomeOriginale, cartella: String(dati.cartella || '').slice(0, 100), drive_id: driveId, file: rel, byte: f.byte, caricato: new Date().toISOString() });
+    await salvaProgetto(dir, fresco);
+    const pub = materialiPubblici(fresco).find((m) => m.codice === codice);
+    return { progetto: fresco.id, materiale: pub, avvisi: r.avvisi };
+  }, { prima: controllaEsiste, cfgUpload: cfgMateriale });
+
+  rotta('/progetto/:pid/catalogo', {}, async ({ lavoro, url, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    if (!progetto.materiali.length) throw errore(422, 'progetto_vuoto', 'Nel progetto non c\'è ancora materiale: carica prima video e foto.');
+    const { celle, esclusi } = celleProvini(progetto);
+    const provini = await disegnaProvini(celle, dir, lavoro.dirOut, cfg);
+    const avvisi = esclusi ? [{ codice: 'provini_ridotti', messaggio: `Il materiale è tanto: ${esclusi} scene o foto (le peggiori) non sono nei provini, ma restano nel testo del catalogo.` }] : [];
+    return {
+      ...statoProgetto(progetto),
+      provini: provini.map((p) => ({ url: url(p.nome), codici: p.codici, larghezza: p.larghezza, altezza: p.altezza })),
+      testo: testoCatalogo(progetto),
+      materiali: materialiPubblici(progetto),
+      avvisi,
+    };
+  }, { prima: controllaEsiste });
+
+  rotta('/progetto/:pid/monta', { logo: { min: 0, max: 1 }, musica: { min: 0, max: 1 } }, async ({ dati, file, lavoro, url, segnale, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    if (!dati.contenuto || typeof dati.contenuto !== 'object') throw nonValido('dati_non_validi', 'Manca «contenuto»: uno dei contenuti del piano controllato.');
+    return montaContenuto({ progetto, dirProgetto: dir, dati, file, lavoro, url, cfg, segnale });
+  }, { prima: controllaEsiste });
+
   // Pulizia: all'avvio e poi a intervalli regolari.
-  const fai = () => pulisci(cfg.datiDir, cfg.durataFileMs, lavoriAttivi)
-    .then((n) => { if (n) app.log.info({ cancellati: n }, 'pulizia dei file scaduti'); })
+  const fai = () => Promise.all([
+    pulisci(cfg.datiDir, cfg.durataFileMs, lavoriAttivi),
+    pulisciProgetti(cfg.datiDir, cfg.progettoDurataMs, progettiAttivi),
+  ])
+    .then(([n, p]) => { if (n || p) app.log.info({ cancellati: n, progetti_cancellati: p }, 'pulizia dei file scaduti'); })
     .catch((e) => app.log.warn({ err: e }, 'pulizia fallita'));
   await fai();
   const timer = setInterval(fai, cfg.puliziaOgniMs);

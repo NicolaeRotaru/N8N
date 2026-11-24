@@ -17,7 +17,7 @@ export function traduciErrore(e) {
   if (e instanceof ErroreOfficina) return e;
   switch (e?.code) {
     case 'FST_REQ_FILE_TOO_LARGE':
-      return errore(413, 'file_troppo_grande', 'Un file supera il limite di 300 MB.');
+      return errore(413, 'file_troppo_grande', 'Un file supera il limite di grandezza di questa richiesta (300 MB per i lavori normali, MAX_MATERIALE_MB per il materiale del montatore).');
     case 'FST_FILES_LIMIT':
     case 'FST_PARTS_LIMIT':
       return errore(400, 'troppi_file', 'La richiesta contiene troppi file.');

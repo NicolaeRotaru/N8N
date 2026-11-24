@@ -46,6 +46,10 @@ export function leggiConfig(env = process.env) {
     maxAttesa: intero(env.CODA_MAX_ATTESA, 5),
     maxFileByte: numero(env.MAX_FILE_MB, 300) * MB,
     maxTotaleByte: numero(env.MAX_TOTALE_MB, 800) * MB,
+    // Montatore: materiale di un servizio (anche video lunghi) tenuto in un progetto per giorni.
+    maxMaterialeByte: numero(env.MAX_MATERIALE_MB, 2048) * MB,
+    maxProgettoByte: numero(env.MAX_PROGETTO_MB, 40000) * MB,
+    progettoDurataMs: numero(env.PROGETTO_DURATA_ORE, 72) * 3600 * 1000,
     urlBase: (env.URL_BASE || '').replace(/\/+$/, ''),
     timeoutProcessoMs: numero(env.TIMEOUT_PROCESSO_MIN, 20) * 60 * 1000,
     livelloLog: env.LOG_LEVEL || 'info',

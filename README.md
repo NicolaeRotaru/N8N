@@ -10,4 +10,10 @@ Come pubblicarlo su Sliplane: `officina/LEGGIMI.md`, sezione
 «Pubblicare dal repository GitHub su Sliplane» (Dockerfile path `/officina/Dockerfile`,
 Docker context `/officina`, servizio non pubblico, volume `/dati`, variabile `OFFICINA_CHIAVE`, porta 8080).
 
-Versione: 1.1.1.
+Versione: 1.2.0 (con le rotte del montatore).
+
+## montatore/
+Workflow n8n «16 · Montatore»: gli dici il cliente e la cartella del servizio su Drive
+(«video verticali», «video orizzontali», «foto») e prepara il piano del mese montando
+reel, storie, post e caroselli con l'officina. Guida: `montatore/LEGGIMI.md`.
+Il file da importare in n8n è `montatore/16-montatore.json` (si rigenera con `node montatore/genera.mjs`).
