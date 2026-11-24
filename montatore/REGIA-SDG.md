@@ -87,6 +87,9 @@ CHIUSURA: Ordina su MyCity
 - **Claude vero non l'ho collegato.** Il piano di regia della prova l'ho scritto io a mano. Il prompt per Claude è pronto, ma non l'ho provato.
 - **Whisper vero non c'è qui.** Le prove usano un finto, che però dà i tempi di ogni parola come il vero. Con una voce vera i tagli possono sbagliare di 1-2 decimi di secondo.
 - **Il ritaglio del volto non riconosce le facce.** Taglia a sinistra, al centro o a destra secondo quello che dice Claude guardando le miniature.
+- **Il collaudo.** La regia è passata da tre collaudi indipendenti. Il terzo ha trovato ancora due difetti, uno grave: un falso allarme sulle frasi attaccate della stessa intervista. Come hai deciso tu, li ho corretti senza un quarto collaudo.
+  - Le correzioni le ho misurate con i simulatori dei collaudatori: zero timeline rifiutate, zero errori sui fotogrammi, zero pezzi fuori dalla clip su 100.000 piani casuali.
+  - Con materiale estremo restano alcune inquadrature sotto 0,6 secondi, sempre con un avviso. Succede con clip più corte di 1,2 secondi, o con battute tagliate a metà parola.
 - **Il server di Sliplane è piccolo.** La prova da 26 secondi si monta in circa un minuto qui (4 processori). Lì può volerci di più.
 
 ---

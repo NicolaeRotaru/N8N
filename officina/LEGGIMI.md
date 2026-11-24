@@ -336,18 +336,18 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 - Poi: `coperture_riserva`, `scritte:[{testo, battuta, durata?}]`, `titolo`, `chiusura`, `musica`, `volume_musica`, `musica_fonte` (un audio del progetto), `durata_max`.
 
 **Le regole contro i «bolli»** (in `src/regia.js`, valgono per ogni video):
-1. Ogni battuta si aggancia alle parole: prende le parole intere toccate, con 0,08 s prima e 0,15 s dopo, senza entrare nella parola vicina.
+1. Ogni battuta si aggancia alle parole: prende le parole intere toccate, con 0,08 s prima e 0,15 s dopo, senza entrare nella parola vicina. Due battute dello stesso file attaccate (a meno di 5 centesimi) diventano esattamente attaccate.
 2. La voce fuori campo, l'audio senza video e le parti `immagini` sono sempre coperti.
    - Se le coperture non bastano si allungano dentro la loro clip, poi si usa la riserva, poi si ripetono (avviso `coperture_corte`).
    - Un pezzo non va mai oltre la fine della sua clip.
    - Una voce senza volto e senza nessuna copertura (né di riserva) si toglie: errore `voce_scoperta`, che blocca.
 3. Un salto nell'intervista (stessa fonte, due pezzi non di seguito, volto prima e dopo) si copre con una copertura da 0,6 s prima a 0,6 s dopo il taglio. Senza coperture disponibili arriva l'avviso `taglio_scoperto`.
-4. Nessuna inquadratura sotto 0,6 s, e nessun pezzo da 0 fotogrammi.
+4. Nessuna inquadratura sotto 0,6 s quando il materiale lo permette. Quando non lo permette (clip più corte di 1,2 s ripetute, salti coperti con clip corte, battute spezzate a metà parola) l'inquadratura resta, con l'avviso `inquadratura_corta`. Un pezzo che arrotondato vale 0 fotogrammi il render lo salta, e i fotogrammi si contano in fila: il totale è sempre durata × 30.
    - Un avanzo corto non diventa mai un pezzo nuovo: va al vicino che ha ancora materiale nella sua clip.
    - Se nessun vicino ha materiale, il pezzo corto cresce fino a 0,6 s togliendo tempo al vicino (`senzaPezziCorti`).
    - Un volto stretto fra due coperture deve durare almeno 1 s: se il resto è più corto, l'ultima copertura arriva in fondo, oppure si accorcia o si toglie.
-   - La stessa scena non ricomincia subito dopo sé stessa. Si cambia ordine; se non si può, si continua la clip da dove era arrivata; se la clip è finita, si usa una copertura di riserva (`evitaStessaDiFila`). Con materiale troppo corto la ripetizione è obbligata, e arriva l'avviso `coperture_corte`.
-5. Un volto si vede solo in sincrono con la sua voce.
+   - La stessa scena (o la stessa foto) non ricomincia subito dopo sé stessa. Si cambia ordine; se non si può, si continua la clip da dove era arrivata; se la clip è finita, si usa un'altra copertura della battuta o della riserva (`evitaStessaDiFila`). Con materiale troppo corto la ripetizione è obbligata, e arriva l'avviso `coperture_corte`.
+5. Un volto si vede solo in sincrono con la sua voce. Il controllo guarda ogni pezzo di voce sotto il volto, quindi due battute attaccate dello stesso file sotto un volto solo sono giuste.
 6. La prima volta che parla una persona ci sono almeno 2 s di volto, col cartello del nome; le volte dopo 1,2 s.
 7. Lo stesso momento usato due volte e le coperture con difetti si segnalano.
 8. `durata_max` toglie le ultime battute intere, mai a metà. Se la prima battuta da sola è più lunga arriva l'avviso.

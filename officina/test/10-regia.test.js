@@ -128,11 +128,14 @@ function controllaInvarianti(tl) {
     ta = a.a;
   }
   assert.ok(Math.abs(ta - tl.durata) < 0.002);
-  // ogni volto è in sincrono con la sua voce
+  // ogni volto è in sincrono con la sua voce: ogni pezzo di voce sotto il volto è dello stesso file, con lo stesso scarto
   for (const q of tl.video.filter((x) => x.tipo === 'volto')) {
-    const a = tl.audio.find((x) => x.fonte === q.fonte && x.da <= q.da + 1e-6 && x.a >= q.a - 1e-6);
-    assert.ok(a, `volto senza la sua voce: ${JSON.stringify(q)}`);
-    assert.ok(Math.abs((q.inizio - a.inizio) - (q.da - a.da)) < 0.002, `volto fuori sincrono: ${JSON.stringify(q)}`);
+    const sotto = tl.audio.filter((x) => x.da < q.a - 0.002 && x.a > q.da + 0.002);
+    assert.ok(sotto.length, `volto senza la sua voce: ${JSON.stringify(q)}`);
+    for (const a of sotto) {
+      assert.equal(a.fonte, q.fonte, `sotto il volto c'è un'altra voce: ${JSON.stringify(q)}`);
+      assert.ok(Math.abs((q.inizio - a.inizio) - (q.da - a.da)) < 0.002, `volto fuori sincrono: ${JSON.stringify(q)}`);
+    }
   }
   // la voce fuori campo e le parti senza voce non mostrano mai un volto
   for (const a of tl.audio.filter((x) => !x.fonte || PROGETTO.materiali.find((m) => m.codice === x.fonte)?.tipo === 'audio')) {
@@ -373,6 +376,29 @@ test('i due casi esatti del secondo collaudo: avanzo di 1 centesimo e lampo da 1
   const a = senzaPezziCorti([{ fonte: 'V10', tipo: 'copertura', inizio: 0, fine: 4.53, durata: 4.53 }, { fonte: 'V08', tipo: 'copertura', inizio: 0, fine: 5, durata: 5 }, { fonte: 'V10', tipo: 'copertura', inizio: 0, fine: 0.01, durata: 0.01 }], (c) => durate[c]);
   assert.deepEqual(a.map((p) => [p.fonte, p.inizio, p.fine]), [['V10', 0, 4.53], ['V08', 0, 4.41], ['V10', 0, 0.6]]);
   assert.ok(Math.abs(a.reduce((t, p) => t + p.durata, 0) - 9.54) < 1e-9, 'la durata totale non cambia');
+});
+
+test('i casi del terzo collaudo: due battute attaccate della stessa intervista, salto con copertura corta, millesimo scoperto', () => {
+  // due battute attaccate dello stesso file, senza coperture: un volto solo, in sincrono, niente falso allarme
+  for (const piano of [
+    { battute: [{ fonte: 'V01', inizio: 1, fine: 3.4 }, { fonte: 'V01', inizio: 3.4, fine: 5 }] },
+    { battute: [{ fonte: 'A01', inizio: 0.4, fine: 4.6, coperture: ['V02.1'] }, { fonte: 'V01', inizio: 1, fine: 3.4 }, { fonte: 'V01', inizio: 3.4, fine: 5, scritta: 'Dal 1994' }] },
+  ]) {
+    const tl = controllaRegia(piano, PROGETTO);
+    assert.equal(tl.bloccante, false, JSON.stringify(tl.problemi));
+    controllaInvarianti(tl);
+  }
+  // battute attaccate a meno di 5 centesimi: diventano esattamente attaccate (niente millesimi di voce ripetuti)
+  const vicine = controllaRegia({ battute: [{ fonte: 'V01', inizio: 1, fine: 3.38 }, { fonte: 'V01', inizio: 3.41, fine: 5 }] }, PROGETTO);
+  assert.equal(vicine.audio[0].fine, vicine.audio[1].inizio);
+  controllaInvarianti(vicine);
+  // salto coperto con una copertura più corta della finestra: niente buchi, niente volti sotto la minima ai lati
+  const P = JSON.parse(JSON.stringify(PROGETTO));
+  P.materiali.push({ codice: 'V09', tipo: 'video', durata: 1.71, audio: false, scene: [{ codice: 'V09.1', inizio: 0, fine: 1.71, nitidezza: 80, luminosita: 120, movimento: 3 }] });
+  const salto = controllaRegia({ battute: [{ fonte: 'V01', inizio: 1, fine: 2.2 }, { fonte: 'V01', inizio: 10, fine: 15 }], coperture_riserva: ['V09.1'] }, P);
+  assert.equal(salto.bloccante, false, JSON.stringify(salto.problemi));
+  controllaInvarianti(salto);
+  assert.equal(salto.conti.tagli_coperti, 1);
 });
 
 // ---------------------------------------------------------------- testi dello stile

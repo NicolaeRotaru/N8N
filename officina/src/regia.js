@@ -183,7 +183,8 @@ export function senzaPezziCorti(pezzi, durataClip, R = REGOLE) {
       allunga(q, manca, cresce);
       continue;
     }
-    // 3) niente da fare senza uscire dalle clip: il pezzo corto si unisce al vicino più lungo (che si ripete un attimo)
+    // 3) niente da fare senza uscire dalle clip (clip più corte di due volte la minima): il pezzo corto resta, e il
+    // controllo dei lampi più avanti lo segnala con l'avviso «inquadratura_corta»
     break;
   }
   return lista.map((p) => ({ ...p, inizio: r3(p.inizio), fine: r3(p.fine) }));
@@ -194,15 +195,15 @@ export function senzaPezziCorti(pezzi, durataClip, R = REGOLE) {
 // prima si continua da lì (nessun taglio), altrimenti si usa una copertura di riserva della stessa durata.
 export function evitaStessaDiFila(pezzi, ultimo, durataClip, riserva = [], R = REGOLE) {
   const restanti = pezzi.map((p) => ({ ...p }));
-  const uguale = (a, b) => a && b && b.tipo === 'copertura' && a.tipo === 'copertura' && a.etichetta === b.etichetta && a.fonte === b.fonte;
+  const uguale = (a, b) => a && b && b.tipo !== 'volto' && a.tipo === b.tipo && a.etichetta === b.etichetta && a.fonte === b.fonte;
   const out = [];
   let prima = ultimo;
   while (restanti.length) {
     let k = restanti.findIndex((p) => !uguale(prima, p));
     if (k < 0) k = 0;
     let q = restanti.splice(k, 1)[0];
-    if (uguale(prima, q) && Math.abs(prima.fine - q.inizio) >= 0.01) {
-      if (durataClip(q.fonte) - prima.fine >= q.durata - 1e-6) {
+    if (uguale(prima, q) && (q.tipo === 'foto' || Math.abs(prima.fine - q.inizio) >= 0.01)) {
+      if (q.tipo !== 'foto' && durataClip(q.fonte) - prima.fine >= q.durata - 1e-6) {
         q.inizio = r3(prima.fine);
         q.fine = r3(prima.fine + q.durata);
       } else {
@@ -270,6 +271,10 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
     if (fine - inizio < 0.3) { blocca(n, 'battuta_troppo_corta', `Battuta ${n}: dura meno di 0,3 s. L'ho tolta.`); return; }
     const parole = paroleDi(m);
     const ag = agganciaAlleParole(parole, inizio, fine, m.durata, R);
+    // due battute dello stesso file attaccate (a meno di 5 centesimi) diventano esattamente attaccate: niente
+    // millesimi di voce ripetuti o saltati fra l'una e l'altra
+    const precedente = battute[battute.length - 1];
+    if (precedente && precedente.fonte === codice && Math.abs(precedente.fine - ag.inizio) < 0.05 && ag.fine > precedente.fine + 0.3) ag.inizio = precedente.fine;
     if (parole.length && !ag.agganciato) avviso(n, 'senza_parole', `Battuta ${n}: nel pezzo ${codice} ${virgola(inizio)}–${virgola(fine)} s non si sente nessuna parola.`);
     if (ag.stimato) avviso(n, 'tempi_stimati', `Battuta ${n}: i tempi delle parole di ${codice} sono stimati (manca l'allineamento di whisper): il taglio può essere impreciso.`);
     const durata = ag.fine - ag.inizio;
@@ -325,7 +330,7 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
       let resto = b.durata;
       let ripetuto = false;
       const pezzi = [];
-      for (let g = 0; resto > 1e-3 && g < 40; g++) {
+      for (let g = 0; resto > 1e-6 && g < 40; g++) {
         let lista = g < giri.length ? giri[g] : tutte;
         if (g >= giri.length) {
           ripetuto = true;
@@ -340,9 +345,18 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
         pezzi.push(...r.pezzi);
         resto = r.manca;
       }
-      video.push(...inFila(evitaStessaDiFila(senzaPezziCorti(pezzi, durataClip, R), video[video.length - 1], durataClip, riservaNuova, R), b.da));
+      if (resto > 1e-6 && resto <= 0.02 && pezzi.length) {
+        const ultimo = pezzi[pezzi.length - 1];
+        const spazio = ultimo.tipo === 'foto' ? 8 - ultimo.durata : durataClip(ultimo.fonte) - ultimo.fine;
+        if (spazio >= resto) {
+          ultimo.durata += resto;
+          ultimo.fine += resto;
+          resto = 0;
+        }
+      }
+      video.push(...inFila(evitaStessaDiFila(senzaPezziCorti(pezzi, durataClip, R), video[video.length - 1], durataClip, [...b.coperture, ...riservaNuova], R), b.da));
       if (ripetuto) avviso(b.n, 'coperture_corte', `Battuta ${b.n}: le coperture non bastavano per ${virgola(b.durata)} s, ho ripetuto delle immagini.`);
-      if (resto > 1e-3) blocca(b.n, 'coperture_insufficienti', `Battuta ${b.n}: non sono riuscito a coprire ${virgola(resto)} s di voce.`);
+      if (resto > 1e-6) blocca(b.n, 'coperture_insufficienti', `Battuta ${b.n}: non sono riuscito a coprire ${virgola(resto)} s di voce.`);
       continue;
     }
     // la stessa persona = lo stesso video o lo stesso nome: la seconda volta basta meno volto prima delle coperture
@@ -409,12 +423,19 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
     if (da - prima.da < R.minima) da = prima.da;
     if (dopo.a - a < R.minima) a = dopo.a;
     const r = riempiConCoperture([candidata], a - da, R);
-    if (r.manca > 0.01) {
-      // la copertura non basta per tutta la finestra: la finestra si stringe, sempre a cavallo del taglio
+    if (r.manca > 1e-6) {
+      // la copertura non basta per tutta la finestra: la finestra diventa lunga quanto la copertura (mai di più, se no
+      // resterebbe un buco), sempre a cavallo del taglio
       const coperto = (a - da) - r.manca;
       da = Math.max(prima.da, Math.min(T - 0.15, T - coperto / 2));
       a = Math.min(dopo.a, da + coperto);
-      if (a <= T + 0.1) {
+      da = Math.max(prima.da, a - coperto);
+      // un volto ai lati più corto della minima si evita spostando la finestra, che resta della stessa lunghezza
+      const sinistra = da - prima.da;
+      if (sinistra > 1e-6 && sinistra < R.minima && a - sinistra > T + 0.1) { da -= sinistra; a -= sinistra; }
+      const destra = dopo.a - a;
+      if (destra > 1e-6 && destra < R.minima && da + destra < T - 0.1 && (da + destra - prima.da >= R.minima || da - prima.da > R.minima)) { da += destra; a += destra; }
+      if (a <= T + 0.1 || da >= T - 0.1) {
         saltiScoperti++;
         avviso(B.n, 'taglio_scoperto', `Fra la battuta ${A.n} e la ${B.n} c'è un salto nell'intervista di ${A.fonte} e la copertura disponibile era troppo corta: si vedrà il salto.`);
         continue;
@@ -453,7 +474,7 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
         if (dopo.tipo !== 'foto') dopo.inizio = r3(dopo.inizio - (q.a - q.da));
         video.splice(i, 1);
         i--;
-      } else if (q.tipo === 'volto' && prima?.tipo === 'volto' && prima.fonte === q.fonte && Math.abs(prima.fine - q.inizio) < 0.05) {
+      } else if (q.tipo === 'volto' && prima?.tipo === 'volto' && prima.fonte === q.fonte && Math.abs(prima.fine - q.inizio) < 0.002) {
         prima.a = q.a;
         prima.fine = q.fine;
         video.splice(i, 1);
@@ -465,7 +486,9 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
   const unite = [];
   for (const q of video) {
     const u = unite[unite.length - 1];
-    if (u && u.fonte === q.fonte && u.tipo === q.tipo && q.tipo !== 'foto' && Math.abs(u.a - q.da) < 1e-3 && Math.abs(u.fine - q.inizio) < 0.05) {
+    // si uniscono solo pezzi che continuano esattamente: con uno scarto, la lunghezza non tornerebbe più col posto
+    const continua = Math.abs(u?.fine - q.inizio) < 0.001;
+    if (u && u.fonte === q.fonte && u.tipo === q.tipo && q.tipo !== 'foto' && Math.abs(u.a - q.da) < 1e-3 && continua) {
       u.a = q.a;
       u.fine = q.fine;
     } else unite.push({ ...q });
@@ -543,7 +566,12 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
 
   // controllo finale: nessun buco, nessun pezzo oltre la sua clip, ogni pezzo lungo quanto il suo posto, volti in sincrono
   let tt = 0;
-  const audioDi = (q) => audio.find((x) => x.fonte === q.fonte && x.da <= q.da + 0.002 && x.a >= q.a - 0.002);
+  // ogni pezzo di voce sotto un volto deve essere dello stesso file e con lo stesso scarto (due battute attaccate dello
+  // stesso file sotto un volto solo sono giuste: il volto continua e la voce pure)
+  const inSincrono = (q) => {
+    const sotto = audio.filter((x) => x.da < q.a - 0.002 && x.a > q.da + 0.002);
+    return sotto.length > 0 && sotto.every((x) => x.fonte === q.fonte && Math.abs((q.inizio - x.inizio) - (q.da - x.da)) <= 0.002);
+  };
   for (const q of video) {
     const m = idx.materiali.get(q.fonte);
     const errori = [];
@@ -552,10 +580,7 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
       if (Math.abs((q.fine - q.inizio) - (q.a - q.da)) > 0.002) errori.push('pezzo lungo diverso dal suo posto');
       if (q.inizio < -0.001 || q.fine > (m?.durata ?? 0) + 0.01) errori.push('pezzo fuori dalla clip');
     }
-    if (q.tipo === 'volto') {
-      const a = audioDi(q);
-      if (!a || Math.abs((q.inizio - a.inizio) - (q.da - a.da)) > 0.002) errori.push('volto fuori sincrono');
-    }
+    if (q.tipo === 'volto' && !inSincrono(q)) errori.push('volto fuori sincrono');
     if (errori.length) blocca(0, 'timeline_incoerente', `Inquadratura ${q.etichetta || q.fonte} a ${virgola(q.da)} s: ${errori.join(', ')}. È un errore della regia: non monto.`);
     tt = q.a;
   }
