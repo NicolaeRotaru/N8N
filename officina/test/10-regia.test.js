@@ -9,8 +9,8 @@ import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { avviaServer, chiama, scarica, creaClip, creaImmagine, creaLogo, sondaFile, ffmpeg, loudnessIntegrata, MATERIALE, TMP, RADICE, CHIAVE } from './aiuti.js';
 import { leggiSceneggiatura, leggiIntervallo, leggiTempo } from '../src/sceneggiatura.js';
-import { controllaRegia, agganciaAlleParole, riempiConCoperture, paroleDi, senzaPezziCorti, REGOLE } from '../src/regia.js';
-import { creaAssRegia, gruppiDiParole, coloreAss, leggiDifetti, grafoInquadratura, stileDa, famiglieAss, FORMATI } from '../src/regia-render.js';
+import { controllaRegia, agganciaAlleParole, riempiConCoperture, paroleDi, senzaPezziCorti, REGOLE, regoleDelloStile } from '../src/regia.js';
+import { creaAssRegia, gruppiDiParole, coloreAss, leggiDifetti, grafoInquadratura, stileDa, famiglieAss, filtroColore, STILI, FORMATI } from '../src/regia-render.js';
 import { nomeFamigliaLibass, caricaFont } from '../src/font.js';
 import { leggiConfig } from '../src/config.js';
 import { paroleConTempi } from '../src/trascrizione.js';
@@ -112,7 +112,7 @@ const PIANO = {
   musica: true,
 };
 
-function controllaInvarianti(tl) {
+function controllaInvarianti(tl, R = REGOLE) {
   // inquadrature senza buchi né sovrapposizioni, da 0 alla fine
   let t = 0;
   for (const q of tl.video) {
@@ -142,7 +142,7 @@ function controllaInvarianti(tl) {
     assert.ok(!tl.video.some((q) => q.tipo === 'volto' && q.da < a.a - 1e-6 && q.a > a.da + 1e-6), 'un volto sopra la voce fuori campo');
   }
   // niente lampi
-  for (const q of tl.video) assert.ok(q.a - q.da >= REGOLE.minima - 1e-3, `lampo: ${JSON.stringify(q)}`);
+  for (const q of tl.video) assert.ok(q.a - q.da >= R.minima - 1e-3, `lampo: ${JSON.stringify(q)}`);
 }
 
 test('controllaRegia: tagli fra le parole, salto coperto, niente lampi, volti in sincrono, voce coperta', () => {
@@ -280,7 +280,7 @@ test('controllaRegia: la stessa frase in due battute si segnala; scritte mai una
 
 test('testi ASS: parole del sottotitolo nell\'ordine giusto, cartello in alto anche in quadrato, scritte che vanno a capo', () => {
   const tl = { durata: 4, parole: [{ testo: 'Da', da: 0, a: 0.4, battuta: 1 }, { testo: "trent'anni", da: 0.4, a: 1, battuta: 1 }, { testo: 'pane', da: 1, a: 1.5, battuta: 1 }], cartelli: [{ testo: 'Mario', sotto: 'fornaio', da: 0.3, a: 3 }], scritte: [{ tipo: 'scritta', testo: 'Dal 1994 nel cuore di Piacenza', da: 1, a: 3 }] };
-  const ass = creaAssRegia(tl, stileDa('sdg'), FORMATI.quadrato, { titoli: 'Bricolage Grotesque ExtraBold', testo: 'Inter' });
+  const ass = creaAssRegia(tl, stileDa('virale'), FORMATI.quadrato, { titoli: 'Bricolage Grotesque ExtraBold', testo: 'Inter' });
   const eventi = ass.split('\n').filter((r) => r.startsWith('Dialogue: 0,'));
   assert.equal(eventi.length, 3);
   // seconda parola detta: «DA» normale, «TRENT'ANNI» in lime, «PANE» normale, in quest'ordine
@@ -306,13 +306,13 @@ function casuale(seme) {
   };
 }
 
-test('regia su 3000 piani casuali di lavoro normale: niente lampi, niente pezzi da 0 fotogrammi, fotogrammi esatti, niente stessa scena di fila evitabile', () => {
-  const rnd = casuale(20261124);
+function pianiCasuali(seme, N, R = REGOLE, fps = 30, lunghe = false) {
+  const rnd = casuale(seme);
   const r2 = (n) => Math.round(n * 100) / 100;
   const conteggi = { piani: 0, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 };
-  for (let it = 0; it < 3000; it++) {
+  for (let it = 0; it < N; it++) {
     // clip da telefono da 1,5 a 8 s (durate a 2 decimali come le scrive l'analisi), una voce, un'intervista, un'altra voce
-    const clip = Array.from({ length: 6 }, (_, k) => { const d = r2(1.5 + rnd() * 6.5); return { codice: `V${10 + k}`, tipo: 'video', durata: d, audio: false, scene: [{ codice: `V${10 + k}.1`, inizio: 0, fine: d, nitidezza: 80, luminosita: 120, movimento: 3 }] }; });
+    const clip = Array.from({ length: 6 }, (_, k) => { const d = r2(lunghe ? 4 + rnd() * 12 : 1.5 + rnd() * 6.5); return { codice: `V${10 + k}`, tipo: 'video', durata: d, audio: false, scene: [{ codice: `V${10 + k}.1`, inizio: 0, fine: d, nitidezza: 80, luminosita: 120, movimento: 3 }] }; });
     const audio = (codice, L, tipo = 'audio') => {
       const n = Math.max(3, Math.round(L * 2.5));
       return { codice, tipo, durata: 60, audio: true, orientamento: 'verticale', scene: [{ codice: `${codice}.1`, inizio: 0, fine: 60, nitidezza: 80, luminosita: 120, movimento: 3 }], parlato: [{ inizio: 1, fine: 1 + L, testo: 'x', parole: Array.from({ length: n }, (_, k) => ({ testo: `p${k}`, inizio: +(1 + (k * L) / n).toFixed(3), fine: +(1 + ((k + 0.85) * L) / n).toFixed(3) })) }] };
@@ -327,17 +327,17 @@ test('regia su 3000 piani casuali di lavoro normale: niente lampi, niente pezzi 
       { fonte: 'V01', inizio: 1, fine: 1 + L2, nome: 'Mario', coperture: rnd() < 0.5 ? scegli(1 + Math.floor(rnd() * 2)) : [] },
       { fonte: 'A02', inizio: 1, fine: 1 + L3, coperture: scegli(1 + Math.floor(rnd() * 3)) },
     ], ...(rnd() < 0.5 ? { coperture_riserva: scegli(2) } : {}) };
-    const tl = controllaRegia(piano, progetto);
+    const tl = controllaRegia(piano, progetto, { R });
     conteggi.piani++;
     if (tl.problemi.some((p) => p.codice === 'timeline_incoerente')) conteggi.incoerenti++;
     let fotogrammi = 0;
     for (const q of tl.video) {
-      const f = Math.round(q.a * 30) - Math.round(q.da * 30);
-      if (q.a - q.da < REGOLE.minima - 1e-3) conteggi.sotto++;
+      const f = Math.round(q.a * fps) - Math.round(q.da * fps);
+      if (q.a - q.da < R.minima - 1e-3) conteggi.sotto++;
       if (f <= 0) conteggi.zero++;
       fotogrammi += Math.max(0, f);
     }
-    if (fotogrammi !== Math.round(tl.durata * 30)) conteggi.conti++;
+    if (fotogrammi !== Math.round(tl.durata * fps)) conteggi.conti++;
     // stessa scena due volte di fila, ricominciata da capo, quando la battuta (con la riserva) aveva un'alternativa
     for (let i = 1; i < tl.video.length; i++) {
       const a = tl.video[i - 1];
@@ -354,7 +354,84 @@ test('regia su 3000 piani casuali di lavoro normale: niente lampi, niente pezzi 
       if (!bastava && !tl.problemi.some((p) => p.codice === 'coperture_corte' || p.codice === 'ripetizione')) conteggi.senzaAvviso = (conteggi.senzaAvviso || 0) + 1;
     }
   }
-  assert.deepEqual(conteggi, { piani: 3000, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 });
+  return conteggi;
+}
+
+test('regia su 3000 piani casuali di lavoro normale: niente lampi, niente pezzi da 0 fotogrammi, fotogrammi esatti, niente stessa scena di fila evitabile', () => {
+  assert.deepEqual(pianiCasuali(20261124, 3000), { piani: 3000, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 });
+});
+
+test('ritmo di Scatti di G (moodboard) su 3000 piani casuali a 25 fotogrammi: stesse garanzie, inquadrature mai sotto 1 secondo', () => {
+  const R = regoleDelloStile(STILI.sdg);
+  assert.equal(R.minima, 1);
+  assert.equal(R.coperturaMin, 2.5);
+  // girato da telefono (clip corte) e girato da camera (clip lunghe)
+  assert.deepEqual(pianiCasuali(20261125, 3000, R, 25), { piani: 3000, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 });
+  assert.deepEqual(pianiCasuali(20261126, 3000, R, 25, true), { piani: 3000, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 });
+});
+
+test('ritmo di Scatti di G: con clip lunghe le inquadrature durano 2,5-6 secondi, più lente dello stile virale', () => {
+  const R = regoleDelloStile(STILI.sdg);
+  const progetto = { materiali: [
+    { codice: 'A01', tipo: 'audio', durata: 30, audio: true, scene: [{ codice: 'A01.1', inizio: 0, fine: 30 }], parlato: [{ inizio: 0.5, fine: 20.5, testo: 'x', parole: Array.from({ length: 50 }, (_, k) => ({ testo: `p${k}`, inizio: 0.5 + k * 0.4, fine: 0.5 + k * 0.4 + 0.34 })) }] },
+    ...[1, 2, 3, 4, 5, 6].map((k) => ({ codice: `V0${k}`, tipo: 'video', durata: 12, audio: false, scene: [{ codice: `V0${k}.1`, inizio: 0, fine: 12, nitidezza: 80, luminosita: 120, movimento: 3 }] })),
+  ] };
+  const piano = { battute: [{ fonte: 'A01', inizio: 0.5, fine: 20.5, coperture: ['V01.1', 'V02.1', 'V03.1', 'V04.1', 'V05.1', 'V06.1'] }] };
+  const lento = controllaRegia(piano, progetto, { R });
+  const veloce = controllaRegia(piano, progetto);
+  assert.equal(lento.bloccante, false, JSON.stringify(lento.problemi));
+  controllaInvarianti(lento, R);
+  for (const q of lento.video) assert.ok(q.a - q.da >= 2.5 - 1e-3 && q.a - q.da <= 6 + 1e-3, `inquadratura fuori ritmo: ${JSON.stringify(q)}`);
+  assert.ok(lento.video.length < veloce.video.length || lento.video.length <= 6, `${lento.video.length} tagli lenti contro ${veloce.video.length} veloci`);
+});
+
+test('regoleDelloStile e stileDa: solo numeri buoni; dal marchio arrivano accento e font dei titoli, il resto resta di Scatti di G', () => {
+  const R = regoleDelloStile({ ritmo: { minima: 0.1, coperturaMin: 'tanto', coperturaMax: 0.5, voltoPrima: -3, nonEsiste: 9 } });
+  assert.equal(R.minima, 0.4, 'minima mai sotto 0,4 s');
+  assert.equal(R.coperturaMin, REGOLE.coperturaMin, 'un valore non numerico si ignora');
+  assert.equal(R.coperturaMax, R.coperturaMin, 'il massimo mai sotto il minimo');
+  assert.equal(R.voltoPrima, REGOLE.voltoPrima);
+  assert.equal(R.nonEsiste, undefined);
+  assert.deepEqual(regoleDelloStile(STILI.virale), REGOLE, 'lo stile virale ha le regole di prima');
+  const sdg = stileDa('sdg');
+  assert.deepEqual(sdg.colori, { fondo: '#2C2A27', testo: '#F4F1EC', accento: '#E0A95C' });
+  assert.deepEqual([sdg.font_titoli, sdg.peso_titoli, sdg.font_testo, sdg.fps, sdg.grana, sdg.sottotitoli.modo, sdg.sottotitoli.maiuscolo], ['Poppins', 600, 'Poppins', 25, 0, 'frase', false]);
+  const cliente = stileDa('sdg', { colori: { primario: '#8A1C1C', testo: '#000000' }, font: 'Playfair Display', peso_titolo: 700 });
+  assert.equal(cliente.colori.accento, '#8A1C1C', 'il colore primario del cliente prende il posto dell\'oro');
+  assert.equal(cliente.colori.testo, '#F4F1EC', 'il testo resta avorio');
+  assert.deepEqual([cliente.font_titoli, cliente.peso_titoli, cliente.font_testo], ['Playfair Display', 700, 'Poppins']);
+  assert.equal(stileDa('sdg', { colori: { accento: 'rosso' } }).colori.accento, '#E0A95C', 'un colore non valido si ignora');
+  assert.equal(stileDa('niente').font_titoli, 'Poppins', 'uno stile sconosciuto diventa sdg');
+  assert.equal(STILI.sdg.colori.accento, '#E0A95C', 'lo stile base non si sporca');
+  // colore: nero morbido senza grana per sdg; contrasto, saturazione e grana per virale
+  assert.equal(filtroColore(stileDa('sdg')), "curves=master='0/0.045 0.10/0.115 0.50/0.50 0.90/0.885 1/0.95',eq=contrast=1:saturation=0.96");
+  assert.equal(filtroColore(stileDa('virale')), 'eq=contrast=1.06:saturation=1.06,noise=c0s=7:allf=t');
+  assert.equal(filtroColore(stileDa('pulito')), 'null');
+});
+
+test('testi ASS Scatti di G: frase intera in avorio, niente parola evidenziata, cartello con il filo d\'oro, chiusura con il filo', async () => {
+  const tl = controllaRegia(PIANO, PROGETTO, { R: regoleDelloStile(STILI.sdg) });
+  const cfg = { ...leggiConfig({}), fontRete: false };
+  const fam = famiglieAss(await caricaFont('Poppins', cfg, 600), await caricaFont('Poppins', cfg, 500), 600, 500);
+  assert.deepEqual(fam, { titoli: 'Poppins SemiBold', testo: 'Poppins Medium' });
+  const ass = creaAssRegia(tl, stileDa('sdg'), FORMATI.verticale, fam);
+  assert.match(ass, /^Style: Sotto,Poppins Medium,60,&H00ECF1F4,/m, 'sottotitoli in Poppins, avorio');
+  assert.ok(!/\\c&H005CA9E0/.test(ass.split('[Events]')[1].split('\n').filter((r) => r.includes(',Sotto,')).join('\n')), 'nessuna parola cambia colore');
+  const sotto = ass.split('\n').filter((r) => r.startsWith('Dialogue: 0,'));
+  assert.ok(sotto.length >= 1 && sotto.length < tl.parole.length, 'un evento per frase, non per parola');
+  assert.ok(sotto.every((r) => /\\blur3\\fad\(\d+,\d+\)/.test(r)), 'entrano e escono piano, con l\'alone morbido');
+  assert.ok(!/TRENT'ANNI/.test(ass), 'niente maiuscolo');
+  // le frasi non si sovrappongono e seguono le parole
+  const tempo = (t) => { const [h, m, x] = t.split(':'); return +h * 3600 + +m * 60 + +x; };
+  const fasce = sotto.map((r) => r.split(',').slice(1, 3).map(tempo));
+  for (let i = 1; i < fasce.length; i++) assert.ok(fasce[i][0] >= fasce[i - 1][1] - 0.011, `frasi sovrapposte: ${JSON.stringify(fasce)}`);
+  assert.match(ass, /^Style: Filo,.*,&H005CA9E0,/m, 'il filo è nel colore d\'accento (oro)');
+  assert.match(ass, /Dialogue: 2,[^,]+,[^,]+,Filo,,0,0,0,,\{\\an7\\pos\(72,326\)\\fad\(240,240\)\\p1\}m 0 0 l 5 0 l 5 120 l 0 120\{\\p0\}/);
+  assert.match(ass, /,Nome,,0,0,0,,\{\\an7\\pos\(98,320\)\\blur2\\fad\(240,240\)\}Mario Rossi/);
+  assert.match(ass, /,Ruolo,,0,0,0,,\{\\an7\\pos\(98,390\)\\blur2\\fad\(240,240\)\}fornaio/);
+  assert.match(ass, /,Chiusura,.*Ordina su MyCity/);
+  assert.match(ass, /Dialogue: 1,[^,]+,[^,]+,Filo,,0,0,0,,\{\\an8\\pos\(540,\d+\)\\fad\(320,320\)\\p1\}m 0 0 l 120 0/);
+  assert.match(ass, /^Style: Nome,Poppins SemiBold,54,&H00ECF1F4,/m, 'il nome è avorio, non su un riquadro colorato');
 });
 
 test('i due casi esatti del secondo collaudo: avanzo di 1 centesimo e lampo da 1 fotogramma', () => {
@@ -402,9 +479,9 @@ test('i casi del terzo collaudo: due battute attaccate della stessa intervista, 
 });
 
 // ---------------------------------------------------------------- testi dello stile
-test('testi ASS SDG: font del marchio con il nome giusto per libass, parola detta in lime, maiuscolo, cartello, scritte', () => {
+test('testi ASS virale: font del marchio con il nome giusto per libass, parola detta in lime, maiuscolo, cartello, scritte', () => {
   const tl = controllaRegia(PIANO, PROGETTO);
-  const stile = stileDa('sdg');
+  const stile = stileDa('virale');
   const ass = creaAssRegia(tl, stile, FORMATI.verticale, { titoli: 'Bricolage Grotesque ExtraBold', testo: 'Inter' });
   assert.match(ass, /^Style: Sotto,Bricolage Grotesque ExtraBold,86,&H00EAF0F3/m);
   assert.match(ass, /\\c&H003AFFD2&?.*TRENT'ANNI|\\c&H003AFFD2\\fscx\d+\\fscy\d+\}DA/);
@@ -449,7 +526,7 @@ after(async () => s?.ferma());
 
 const H = { 'x-officina-chiave': CHIAVE, 'content-type': 'application/json' };
 
-test('regia vera: voce + intervista + coperture + foto → MP4 SDG 1080×1920, durata giusta, -14 LUFS, niente neri, sottotitoli bruciati', async () => {
+test('regia vera: voce + intervista + coperture + foto → MP4 virale 1080×1920, durata giusta, -14 LUFS, niente neri, sottotitoli bruciati', async () => {
   const voce = path.join(MATERIALE, 'regia-voce.wav');
   if (!fs.existsSync(voce)) ffmpeg(['-f', 'lavfi', '-i', "aevalsrc='0.4*sin(2*PI*220*t)*(between(t,0.5,3.5)+between(t,4.3,7.8)+between(t,8.6,11.0))':s=48000:d=12", '-ac', '2', voce]);
   const intv = path.join(MATERIALE, 'regia-intervista.mp4');
@@ -489,11 +566,11 @@ test('regia vera: voce + intervista + coperture + foto → MP4 SDG 1080×1920, d
     chiusura: 'Vieni a trovarci',
     musica: true,
   };
-  const ctl = await (await fetch(`${s.base}/progetto/${p.progetto}/regia/controlla`, { method: 'POST', headers: H, body: JSON.stringify({ piano, sceneggiatura: sc }) })).json();
+  const ctl = await (await fetch(`${s.base}/progetto/${p.progetto}/regia/controlla`, { method: 'POST', headers: H, body: JSON.stringify({ piano, sceneggiatura: sc, stile: 'virale' }) })).json();
   assert.equal(ctl.bloccante, false, JSON.stringify(ctl.problemi));
   assert.equal(ctl.conti.tagli_coperti, 1);
   const logo = await creaLogo();
-  const r = await chiama(s.base, `/progetto/${p.progetto}/regia/monta`, { dati: { piano, sceneggiatura: sc, stile: 'sdg' }, file: { logo, musica } });
+  const r = await chiama(s.base, `/progetto/${p.progetto}/regia/monta`, { dati: { piano, sceneggiatura: sc, stile: 'virale' }, file: { logo, musica } });
   assert.equal(r.stato, 200, JSON.stringify(r.json));
   assert.deepEqual(r.json.file.map((f) => f.tipo), ['video', 'copertina', 'fotogrammi']);
   assert.ok(Math.abs(r.json.file[0].durata - ctl.durata) <= 0.1, `durata ${r.json.file[0].durata} invece di ${ctl.durata}`);
@@ -539,7 +616,7 @@ test('regia vera: voce + intervista + coperture + foto → MP4 SDG 1080×1920, d
   assert.equal(no.json.errore, 'regia_non_valida');
 });
 
-test('regia vera: coperture cortissime e un\'immagine ferma con la grana SDG → fotogrammi esatti, immagine ferma trovata', async () => {
+test('regia vera: coperture cortissime e un\'immagine ferma con la grana dello stile virale → fotogrammi esatti, immagine ferma trovata', async () => {
   const voce = path.join(MATERIALE, 'regia-voce.wav');
   const intv = path.join(MATERIALE, 'regia-intervista.mp4');
   const ferma = creaClip('regia-ferma.mp4', { w: 1080, h: 1920, durata: 6, audio: 'nessuno', video: 'grigio' });
@@ -555,10 +632,10 @@ test('regia vera: coperture cortissime e un\'immagine ferma con la grana SDG →
     { fonte: 'A01', inizio: 4, fine: 11.2, coperture: ['V03.1'] },
     { fonte: 'V01', inizio: 0.5, fine: 9.3 },
   ] };
-  const ctl = await (await fetch(`${s.base}/progetto/${p.progetto}/regia/controlla`, { method: 'POST', headers: H, body: JSON.stringify({ piano }) })).json();
+  const ctl = await (await fetch(`${s.base}/progetto/${p.progetto}/regia/controlla`, { method: 'POST', headers: H, body: JSON.stringify({ piano, stile: 'virale' }) })).json();
   assert.equal(ctl.bloccante, false, JSON.stringify(ctl.problemi));
   assert.ok(ctl.video.filter((q) => q.fonte === 'V03').length >= 3, 'la clip da 1,5 s si ripete invece di allungarsi');
-  const r = await chiama(s.base, `/progetto/${p.progetto}/regia/monta`, { dati: { piano, stile: 'sdg' }, file: {} });
+  const r = await chiama(s.base, `/progetto/${p.progetto}/regia/monta`, { dati: { piano, stile: 'virale' }, file: {} });
   assert.equal(r.stato, 200, JSON.stringify(r.json));
   assert.ok(r.json.controllo.fermi.length >= 1, `l'immagine grigia ferma per 3,6 s non è stata trovata: ${JSON.stringify(r.json.controllo)}`);
   assert.ok(r.json.avvisi.some((a) => a.codice === 'immagine_ferma'));
@@ -567,4 +644,73 @@ test('regia vera: coperture cortissime e un\'immagine ferma con la grana SDG →
   fs.writeFileSync(pv, v.buf);
   const pacchetti = Number(execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-count_packets', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', pv]).toString().trim());
   assert.equal(pacchetti, Math.round(ctl.durata * 30));
+});
+
+test('regia vera in stile Scatti di G (moodboard): 25 fotogrammi, sottotitoli avorio a frase, filo d\'oro sul cartello, nero morbido', async () => {
+  const voce = path.join(MATERIALE, 'regia-voce.wav');
+  if (!fs.existsSync(voce)) ffmpeg(['-f', 'lavfi', '-i', "aevalsrc='0.4*sin(2*PI*220*t)*(between(t,0.5,3.5)+between(t,4.3,7.8)+between(t,8.6,11.0))':s=48000:d=12", '-ac', '2', voce]);
+  const intv = path.join(MATERIALE, 'regia-intervista.mp4');
+  if (!fs.existsSync(intv)) ffmpeg(['-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30:duration=24', '-f', 'lavfi', '-i', "aevalsrc='0.4*sin(2*PI*330*t)*(between(t,1,5)+between(t,6,9)+between(t,10,15)+between(t,17,22))':s=48000:d=24", '-map', '0:v', '-map', '1:a', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', intv]);
+  // copertura con il nero pieno: un riquadro che si muove su fondo nero (per vedere se il nero diventa morbido)
+  const nero = path.join(MATERIALE, 'regia-nero.mp4');
+  if (!fs.existsSync(nero)) ffmpeg(['-f', 'lavfi', '-i', 'color=c=black:s=1080x1920:r=30:d=16[b];testsrc2=s=320x320:r=30:d=16[t];[b][t]overlay=x=\'mod(t*150,760)\':y=700', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', nero]);
+  const p = await (await fetch(`${s.base}/progetto`, { method: 'POST', headers: H, body: JSON.stringify({ nome: 'regia sdg' }) })).json();
+  for (const f of [voce, intv, nero]) {
+    const r = await chiama(s.base, `/progetto/${p.progetto}/materiale`, { dati: { nome: path.basename(f), drive_id: f }, file: { file: f } });
+    assert.equal(r.stato, 200, JSON.stringify(r.json));
+  }
+  const piano = {
+    battute: [
+      { fonte: 'A01', inizio: 0, fine: 7.9, coperture: [{ scena: 'V02.1' }, { scena: 'V02.3' }] },
+      { fonte: 'V01', inizio: 0.5, fine: 5.4, nome: 'Mario Rossi', ruolo: 'barista' },
+    ],
+    chiusura: 'Vieni a trovarci',
+  };
+  const ctl = await (await fetch(`${s.base}/progetto/${p.progetto}/regia/controlla`, { method: 'POST', headers: H, body: JSON.stringify({ piano, stile: 'sdg' }) })).json();
+  assert.equal(ctl.bloccante, false, JSON.stringify(ctl.problemi));
+  for (const q of ctl.video) assert.ok(q.a - q.da >= 1 - 1e-3, `inquadratura sotto 1 s con il ritmo SDG: ${JSON.stringify(q)}`);
+  const r = await chiama(s.base, `/progetto/${p.progetto}/regia/monta`, { dati: { piano, stile: 'sdg' }, file: {} });
+  assert.equal(r.stato, 200, JSON.stringify(r.json));
+  const pv = path.join(TMP, 'regia-sdg.mp4');
+  fs.writeFileSync(pv, (await scarica(r.json.file[0].url)).buf);
+  const sv = sondaFile(pv).streams.find((x) => x.codec_type === 'video');
+  assert.deepEqual([sv.codec_name, sv.width, sv.height, sv.avg_frame_rate], ['h264', 1080, 1920, '25/1']);
+  const pacchetti = Number(execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-count_packets', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', pv]).toString().trim());
+  assert.equal(pacchetti, Math.round(ctl.durata * 25), 'fotogrammi = durata × 25');
+  const fotogramma = async (t) => {
+    const fg = path.join(TMP, `regia-sdg-${t}.png`);
+    ffmpeg(['-ss', String(t), '-i', pv, '-frames:v', '1', fg]);
+    return sharp(fg).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  };
+  // durante la voce: frase in avorio nella fascia dei sottotitoli, niente verde lime da nessuna parte
+  const { data, info: im } = await fotogramma((ctl.parole[0].da + ctl.parole[0].a) / 2);
+  let avorio = 0;
+  let lime = 0;
+  let neroPieno = 0;
+  for (let y = 0; y < im.height; y++) {
+    for (let x = 0; x < im.width; x++) {
+      const i = (y * im.width + x) * 3;
+      const [rr, gg, bb] = [data[i], data[i + 1], data[i + 2]];
+      if (y > 1920 - 560 && y < 1920 - 340 && rr > 225 && gg > 222 && bb > 212 && rr - bb < 25) avorio++;
+      if (y > 1920 - 560 && y < 1920 - 340 && Math.abs(rr - 0xd2) < 40 && gg > 215 && bb < 110) lime++;
+      if (Math.max(rr, gg, bb) < 6) neroPieno++;
+    }
+  }
+  assert.ok(avorio > 300, `pochi pixel avorio nella fascia dei sottotitoli: ${avorio}`);
+  assert.ok(lime < 30, `c'è del verde lime nei sottotitoli: ${lime}`);
+  // la copertura è quasi tutta nero pieno: con la curva SDG il nero diventa grigio-nero, mai 0
+  assert.ok(neroPieno < 2000, `troppi pixel nero pieno (${neroPieno}): il nero morbido non è stato applicato`);
+  const angolo = (y, x) => data[(y * im.width + x) * 3];
+  assert.ok(angolo(1000, 1000) >= 8 && angolo(1000, 1000) <= 20, `il nero della copertura vale ${angolo(1000, 1000)}: atteso grigio-nero (8-20)`);
+  // sul cartello: il filo d'oro a sinistra del nome
+  const cartello = ctl.cartelli[0];
+  const { data: d2, info: i2 } = await fotogramma(cartello.da + 1);
+  let oro = 0;
+  for (let y = 335; y < 435; y++) {
+    for (let x = 73; x < 76; x++) {
+      const i = (y * i2.width + x) * 3;
+      if (Math.abs(d2[i] - 0xe0) < 30 && Math.abs(d2[i + 1] - 0xa9) < 30 && Math.abs(d2[i + 2] - 0x5c) < 40) oro++;
+    }
+  }
+  assert.ok(oro > 240, `il filo d'oro del cartello non si vede: ${oro} pixel su 300`);
 });

@@ -24,7 +24,7 @@ import { materialiPubblici, testoCatalogo, celleProvini, disegnaProvini } from '
 import { controllaPiano } from './piano.js';
 import { montaContenuto } from './montaggio.js';
 import { leggiSceneggiatura } from './sceneggiatura.js';
-import { controllaRegia } from './regia.js';
+import { controllaRegia, regoleDelloStile } from './regia.js';
 import { montaRegia, stileDa } from './regia-render.js';
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
@@ -315,16 +315,19 @@ export async function creaServer(cfg = leggiConfig()) {
     const dati = await datiLeggeri(req);
     const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
-    return { progetto: progetto.id, ...controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null }) };
+    // il ritmo dipende dallo stile: la timeline controllata qui è la stessa che /regia/monta monterà con quello stile
+    const R = regoleDelloStile(stileDa(dati.stile, dati.marchio));
+    return { progetto: progetto.id, ...controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null, R }) };
   });
 
   rotta('/progetto/:pid/regia/monta', { logo: { min: 0, max: 1 }, musica: { min: 0, max: 1 } }, async ({ dati, file, lavoro, url, segnale, params }) => {
     const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
     // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
-    const tl = controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null });
+    const stile = stileDa(dati.stile, dati.marchio);
+    const tl = controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null, R: regoleDelloStile(stile) });
     if (!tl.video.length) throw errore(422, 'regia_non_valida', `Non posso montare: ${tl.problemi.filter((p) => p.gravita === 'blocca').map((p) => p.messaggio).join(' ') || 'la timeline è vuota.'}`);
-    const r = await montaRegia({ tl, progetto, dirProgetto: dir, stile: stileDa(dati.stile, dati.marchio), logo: file.logo?.[0], musicaFile: file.musica?.[0]?.percorso, lavoro, url, cfg, segnale });
+    const r = await montaRegia({ tl, progetto, dirProgetto: dir, stile, logo: file.logo?.[0], musicaFile: file.musica?.[0]?.percorso, lavoro, url, cfg, segnale });
     return { ...r, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
   }, { prima: controllaEsiste });
 

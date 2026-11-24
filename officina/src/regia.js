@@ -26,6 +26,18 @@ export const REGOLE = {
   scritta: 2.5, // durata di una scritta se non è detta (s)
 };
 
+// Le regole con il ritmo dello stile (es. Scatti di G: inquadrature più lunghe, «mai di fretta»). Si accettano solo
+// numeri positivi e solo le chiavi che esistono; minima resta fra 0,4 e 2 secondi, i massimi mai sotto i minimi.
+export function regoleDelloStile(stile) {
+  const R = { ...REGOLE };
+  for (const [k, v] of Object.entries(stile?.ritmo || {})) if (k in REGOLE && Number.isFinite(Number(v)) && Number(v) > 0) R[k] = Number(v);
+  R.minima = Math.min(2, Math.max(0.4, R.minima));
+  R.voltoMin = Math.max(R.voltoMin, R.minima);
+  R.coperturaMin = Math.max(R.coperturaMin, R.minima);
+  R.coperturaMax = Math.max(R.coperturaMax, R.coperturaMin);
+  return R;
+}
+
 const r3 = (n) => Math.round(n * 1000) / 1000;
 const virgola = (n) => Number(n).toFixed(1).replace('.', ',');
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
@@ -95,10 +107,10 @@ function posizioneValida(v) {
 
 // Una copertura del piano → pezzo disponibile {fonte, tipo, ci, cf, max} (cf = dove finirebbe da sola, max = fino a dove
 // si può allungare). null se non esiste.
-function coperturaDisponibile(c, idx) {
+function coperturaDisponibile(c, idx, R = REGOLE) {
   const codice = testo(typeof c === 'string' ? c : c?.scena ?? c?.foto ?? c?.codice).toUpperCase();
   if (/^F\d+$/.test(codice) && idx.materiali.get(codice)?.tipo === 'foto') {
-    return { fonte: codice, tipo: 'foto', ci: 0, cf: Number(c?.durata) > 0 ? Number(c.durata) : REGOLE.fotoBase, max: 8, etichetta: codice };
+    return { fonte: codice, tipo: 'foto', ci: 0, cf: Number(c?.durata) > 0 ? Number(c.durata) : R.fotoBase, max: Math.max(8, R.coperturaMax), etichetta: codice };
   }
   let voce = idx.scene.get(codice);
   if (!voce) {
@@ -183,8 +195,28 @@ export function senzaPezziCorti(pezzi, durataClip, R = REGOLE) {
       allunga(q, manca, cresce);
       continue;
     }
-    // 3) niente da fare senza uscire dalle clip (clip più corte di due volte la minima): il pezzo corto resta, e il
-    // controllo dei lampi più avanti lo segnala con l'avviso «inquadratura_corta»
+    // 3) nessun vicino da solo ha abbastanza tempo (succede con clip corte ripetute e una minima lunga, es. clip da
+    // 1,5 s e minima 1 s): il tempo che manca si prende un poco da ciascuno dei pezzi della battuta, dai più vicini,
+    // senza che nessuno scenda sotto la minima. Un pezzo si accorcia togliendo dalla fine: resta dentro la sua clip.
+    if (cresce) {
+      const ordine = lista.map((x, k) => ({ x, k })).filter((o) => o.k !== i).sort((a, b) => Math.abs(a.k - i) - Math.abs(b.k - i) || a.k - b.k);
+      const libero = ordine.reduce((t, o) => t + Math.max(0, o.x.durata - R.minima), 0);
+      if (libero >= manca - 1e-6) {
+        let resto = manca;
+        for (const { x } of ordine) {
+          if (resto <= 1e-9) break;
+          const d = Math.min(resto, Math.max(0, x.durata - R.minima));
+          if (d <= 1e-9) continue;
+          x.durata -= d;
+          x.fine -= d;
+          resto -= d;
+        }
+        allunga(q, manca, cresce);
+        continue;
+      }
+    }
+    // 4) niente da fare senza uscire dalle clip (clip più corte di due volte la minima e battuta senza tempo da
+    // dare): il pezzo corto resta, e il controllo dei lampi più avanti lo segnala con l'avviso «inquadratura_corta»
     break;
   }
   return lista.map((p) => ({ ...p, inizio: r3(p.inizio), fine: r3(p.fine) }));
@@ -207,10 +239,29 @@ export function evitaStessaDiFila(pezzi, ultimo, durataClip, riserva = [], R = R
         q.inizio = r3(prima.fine);
         q.fine = r3(prima.fine + q.durata);
       } else {
+        let fatto = false;
         const alt = riserva.find((c) => c.etichetta !== q.etichetta && (c.tipo === 'foto' || c.max - c.ci >= q.durata - 1e-6));
         if (alt) {
           const r = riempiConCoperture([alt], q.durata, R);
-          if (r.manca <= 1e-6 && r.pezzi.length === 1) q = r.pezzi[0];
+          if (r.manca <= 1e-6 && r.pezzi.length === 1) { q = r.pezzi[0]; fatto = true; }
+        }
+        // nessuna alternativa lunga quanto tutto il pezzo: un'altra scena ne prende la prima parte e la scena di prima
+        // torna solo dopo (succede con inquadrature lunghe, es. il ritmo lento di Scatti di G). Tutti e due i pezzi
+        // restano sopra la minima, la durata totale non cambia.
+        if (!fatto && q.durata >= 2 * R.minima - 1e-6) {
+          for (const c of riserva) {
+            if (c.etichetta === q.etichetta) continue;
+            const disponibile = c.tipo === 'foto' ? Math.max(8, R.coperturaMax) : c.max - c.ci;
+            const L1 = Math.min(disponibile, q.durata - R.minima, Math.max(q.durata / 2, R.minima));
+            if (L1 < R.minima - 1e-6) continue;
+            const r = riempiConCoperture([c], L1, R);
+            if (r.manca > 1e-6 || r.pezzi.length !== 1) continue;
+            out.push(r.pezzi[0]);
+            // la durata NON si arrotonda: la somma dei pezzi della battuta deve restare esatta (niente millesimi di buco)
+            const resto = q.durata - r.pezzi[0].durata;
+            q = { ...q, durata: resto, fine: r3(q.inizio + resto) };
+            break;
+          }
         }
       }
     }
@@ -237,7 +288,7 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
   const avviso = (n, codice, messaggio) => problemi.push({ n, gravita: 'avviso', codice, messaggio });
   const battuteIn = Array.isArray(piano?.battute) ? piano.battute : [];
   if (!battuteIn.length) blocca(0, 'piano_vuoto', 'Il piano di regia non ha nessuna battuta.');
-  const riserva = (Array.isArray(piano?.coperture_riserva) ? piano.coperture_riserva : []).map((c) => coperturaDisponibile(c, idx)).filter(Boolean);
+  const riserva = (Array.isArray(piano?.coperture_riserva) ? piano.coperture_riserva : []).map((c) => coperturaDisponibile(c, idx, R)).filter(Boolean);
   const durataMax = Number(piano?.durata_max ?? sceneggiatura?.durata_max) > 0 ? Number(piano?.durata_max ?? sceneggiatura?.durata_max) : null;
 
   // 1) battute: fonte, tempi agganciati alle parole, posto sulla timeline
@@ -246,7 +297,7 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
   battuteIn.forEach((b, i) => {
     const n = i + 1;
     const coperture = (Array.isArray(b?.coperture) ? b.coperture : []).map((c) => {
-      const d = coperturaDisponibile(c, idx);
+      const d = coperturaDisponibile(c, idx, R);
       if (!d) avviso(n, 'copertura_inesistente', `Battuta ${n}: la copertura «${testo(c?.scena ?? c)}» non esiste nel materiale, l'ho tolta.`);
       return d;
     }).filter(Boolean);

@@ -89,9 +89,9 @@ export function grafoAdattamento(info, { sfondo = 'sfocato', colore = '#000000' 
 
 export const CODIFICA_INTERMEDIA = (t) => ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-g', '60', '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2'];
 
-export const CODIFICA_FINALE = (t) => [
+export const CODIFICA_FINALE = (t, fps = FPS) => [
   '-c:v', 'libx264', '-preset', 'faster', '-crf', '21', '-profile:v', 'high', '-level:v', '4.1', '-pix_fmt', 'yuv420p',
-  '-r', String(FPS), '-g', '60', '-keyint_min', '30', '-maxrate', '10M', '-bufsize', '20M', '-threads', t,
+  '-r', String(fps), '-g', String(fps * 2), '-keyint_min', String(fps), '-maxrate', '10M', '-bufsize', '20M', '-threads', t,
   '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
   '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart',
 ];

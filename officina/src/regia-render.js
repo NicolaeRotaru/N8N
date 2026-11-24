@@ -2,7 +2,7 @@
 // 1) ogni inquadratura → un pezzo video della misura giusta (taglio al fotogramma, niente audio)
 // 2) i pezzi in fila senza ricodifica
 // 3) la voce: i pezzi audio della timeline in fila, con dissolvenze di pochi millesimi (niente schiocchi)
-// 4) l'ultimo passaggio: colore e grana dello stile, sottotitoli parola per parola, cartello col nome, scritte, logo,
+// 4) l'ultimo passaggio: colore dello stile (e grana, se lo stile la vuole), sottotitoli, cartello col nome, scritte, logo,
 //    musica che si abbassa quando qualcuno parla, volume a -14 LUFS (due passate)
 // 5) copertina, provino dei fotogrammi e controllo dei difetti sul file finito (neri, immagini ferme)
 import fs from 'node:fs/promises';
@@ -13,34 +13,78 @@ import { sonda, BASE, CODIFICA_FINALE, misuraVolume, filtroLoudnorm, durataFile,
 import { caricaFont, nomeFamigliaLibass } from './font.js';
 import { apri, preparaLogo } from './immagini.js';
 
-const FPS = 30;
+// Fotogrammi al secondo: li decide lo stile (Scatti di G gira e consegna a 25). Senza stile, 30.
+export const FPS_BASE = 30;
 export const FORMATI = {
   verticale: { w: 1080, h: 1920, alto: 250, basso: 340 },
   quadrato: { w: 1080, h: 1080, alto: 60, basso: 60 },
   orizzontale: { w: 1920, h: 1080, alto: 60, basso: 60 },
 };
 
-// Gli stili della regia. «sdg» = Scatti di G: nero inchiostro, avorio, verde lime, Bricolage Grotesque, grana da pellicola.
+// Gli stili della regia.
+// «sdg» = Scatti di G, dalla moodboard del 24/11/2026 (pagine 01-03): «mai di fretta», il nero è morbido (grigio-nero,
+//   mai nero pieno), una triade calda (fumo, avorio, oro), un solo accento di colore, testi che non invadono, niente effetti.
+//   Il ritmo (quanto dura un'inquadratura) è più lento di quello dei video virali: lo legge anche la regia (regia.js).
+// «virale» = lo stile dei video virali: tagli veloci, parola detta evidenziata, grana. Era il primo «sdg».
+// «pulito» = neutro, per i clienti senza un'identità visiva.
 export const STILI = {
   sdg: {
+    font_titoli: 'Poppins',
+    peso_titoli: 600,
+    font_testo: 'Poppins',
+    peso_testo: 500,
+    // segnaposto della triade finché Nicola non manda i codici esatti: Fumo, Avorio, Ambra (oro). L'accento lo può
+    // cambiare il marchio del cliente; fondo e testo restano quelli di Scatti di G.
+    colori: { fondo: '#2C2A27', testo: '#F4F1EC', accento: '#E0A95C' },
+    sottotitoli: { modo: 'frase', maiuscolo: false, parole_max: 7, caratteri_max: 30, dimensione: 60 },
+    cartello: 'linea',
+    scritte: 'ombra',
+    grana: 0,
+    // nero morbido: i neri si alzano un poco e le alte luci non bruciano mai (una curva, uguale per ogni inquadratura)
+    curva: '0/0.045 0.10/0.115 0.50/0.50 0.90/0.885 1/0.95',
+    contrasto: 1,
+    saturazione: 0.96,
+    zoom_foto: 0.06,
+    fps: 25,
+    ritmo: { minima: 1.0, coperturaMin: 2.5, coperturaMax: 6, voltoMin: 1.5, voltoPrima: 3, voltoPoi: 2, fotoBase: 3.5, salto: 1.0, cartello: 3.5, scritta: 3 },
+    volto: 'riempi',
+    coperture: 'auto',
+  },
+  virale: {
     font_titoli: 'Bricolage Grotesque',
+    peso_titoli: 800,
     font_testo: 'Inter',
+    peso_testo: 700,
     colori: { fondo: '#0B0B0D', testo: '#F3F0EA', accento: '#D2FF3A' },
-    sottotitoli: { maiuscolo: true, parole_max: 3, caratteri_max: 18, dimensione: 86 },
+    sottotitoli: { modo: 'parola', maiuscolo: true, parole_max: 3, caratteri_max: 18, dimensione: 86 },
+    cartello: 'riquadro',
+    scritte: 'riquadro',
     grana: 7,
+    curva: null,
     contrasto: 1.06,
     saturazione: 1.06,
+    zoom_foto: 0.12,
+    fps: 30,
+    ritmo: {},
     volto: 'riempi',
     coperture: 'auto',
   },
   pulito: {
     font_titoli: 'Inter',
+    peso_titoli: 700,
     font_testo: 'Inter',
+    peso_testo: 700,
     colori: { fondo: '#111111', testo: '#FFFFFF', accento: '#FFD400' },
-    sottotitoli: { maiuscolo: false, parole_max: 5, caratteri_max: 26, dimensione: 64 },
+    sottotitoli: { modo: 'parola', maiuscolo: false, parole_max: 5, caratteri_max: 26, dimensione: 64 },
+    cartello: 'riquadro',
+    scritte: 'riquadro',
     grana: 0,
+    curva: null,
     contrasto: 1,
     saturazione: 1,
+    zoom_foto: 0.12,
+    fps: 30,
+    ritmo: {},
     volto: 'riempi',
     coperture: 'auto',
   },
@@ -49,12 +93,20 @@ export const STILI = {
 const f3 = (n) => Number(n).toFixed(3);
 const RE_HEX = /^#[0-9a-fA-F]{6}$/;
 
-// Stile della richiesta = uno stile base + i colori del marchio del cliente (facoltativi).
+// Stile della richiesta = uno stile base + il marchio del cliente (facoltativo). Dal marchio arrivano solo l'accento
+// (colori.accento, o il colore primario) e il font dei titoli con il suo peso: fondo, testo, sottotitoli e ritmo
+// restano quelli dello stile (per Scatti di G: la moodboard). I sottotitoli restano nel font dello stile, che si legge.
 export function stileDa(nome, marchio) {
   const base = STILI[String(nome || 'sdg').toLowerCase()] || STILI.sdg;
   const s = JSON.parse(JSON.stringify(base));
   const c = marchio?.colori || {};
-  if (RE_HEX.test(c.accento || '')) s.colori.accento = c.accento;
+  const accento = [c.accento, c.primario].find((x) => RE_HEX.test(x || ''));
+  if (accento) s.colori.accento = accento;
+  if (typeof marchio?.font === 'string' && marchio.font.trim()) {
+    s.font_titoli = marchio.font.trim();
+    const peso = Number(marchio.peso_titolo);
+    s.peso_titoli = peso >= 100 && peso <= 900 ? Math.round(peso / 100) * 100 : 700;
+  }
   return s;
 }
 
@@ -93,24 +145,54 @@ export function gruppiDiParole(parole, { parole_max = 3, caratteri_max = 18 } = 
   return gruppi;
 }
 
-// Il file ASS della regia: sottotitoli (parola che si sta dicendo nel colore d'accento), cartello col nome, scritte.
+// Il file ASS della regia: sottotitoli, cartello col nome, scritte. Due modi per ogni pezzo, secondo lo stile:
+// - sottotitoli «parola» (virale): un evento per parola, la parola detta nel colore d'accento e un po' più grande;
+//   «frase» (sdg): la frase intera, sobria, che entra e esce piano, senza niente che salta.
+// - cartello «riquadro»: nome sul colore d'accento; «linea»: nome e ruolo nel colore del testo, con un filo d'accento a sinistra.
+// - scritte «riquadro»: testo su un fondo; «ombra»: solo testo, con un alone morbido per leggerlo su ogni immagine.
 export function creaAssRegia(tl, stile, fmt, famiglie) {
   const W = fmt.w;
   const H = fmt.h;
   const c = stile.colori;
   const verticale = H > W;
   const st = stile.sottotitoli;
+  const frase = st.modo === 'frase';
+  const linea = stile.cartello === 'linea';
+  const ombra = stile.scritte === 'ombra';
   const dim = verticale ? st.dimensione : Math.round(st.dimensione * 0.75);
-  const margineSotto = verticale ? fmt.basso + 160 : 90;
+  const margineSotto = verticale ? fmt.basso + (frase ? 120 : 160) : 90;
+  const alone = coloreAss(c.fondo, 0.45);
+  const stili = frase
+    ? [`Style: Sotto,${famiglie.testo},${dim},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${coloreAss(c.fondo, 0.7)},0,0,0,0,100,100,0.5,0,1,${verticale ? 3 : 2.5},0,2,80,80,${margineSotto},1`]
+    : [`Style: Sotto,${famiglie.titoli},${dim},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo)},${coloreAss('#000000', 0.6)},0,0,0,0,100,100,0,0,1,${verticale ? 7 : 5},2,2,60,60,${margineSotto},1`];
+  if (linea) {
+    stili.push(
+      `Style: Nome,${famiglie.titoli},${verticale ? 54 : 46},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,2.5,0,7,0,0,0,1`,
+      `Style: Ruolo,${famiglie.testo},${verticale ? 36 : 30},${coloreAss(c.testo, 0.12)},${coloreAss(c.testo, 0.12)},${alone},${alone},0,0,0,0,100,100,1,0,1,2,0,7,0,0,0,1`,
+      `Style: Filo,${famiglie.testo},10,${coloreAss(c.accento)},${coloreAss(c.accento)},${coloreAss(c.accento)},${coloreAss(c.accento)},0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1`,
+    );
+  } else {
+    stili.push(
+      `Style: Nome,${famiglie.titoli},${verticale ? 62 : 52},${coloreAss(c.fondo)},${coloreAss(c.fondo)},${coloreAss(c.accento)},${coloreAss(c.accento)},0,0,0,0,100,100,0,0,3,16,0,7,0,0,0,1`,
+      `Style: Ruolo,${famiglie.testo},${verticale ? 36 : 32},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo)},${coloreAss(c.fondo)},0,0,0,0,100,100,1,0,3,12,0,7,0,0,0,1`,
+    );
+  }
+  if (ombra) {
+    stili.push(
+      `Style: Scritta,${famiglie.titoli},${verticale ? 84 : 70},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,3,0,5,90,90,0,1`,
+      `Style: Chiusura,${famiglie.titoli},${verticale ? 70 : 58},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,3,0,5,90,90,0,1`,
+    );
+  } else {
+    stili.push(
+      `Style: Scritta,${famiglie.titoli},${verticale ? 100 : 84},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo, 0.2)},${coloreAss(c.fondo, 0.2)},0,0,0,0,100,100,0,0,3,24,0,5,80,80,0,1`,
+      `Style: Chiusura,${famiglie.titoli},${verticale ? 80 : 68},${coloreAss(c.fondo)},${coloreAss(c.fondo)},${coloreAss(c.accento)},${coloreAss(c.accento)},0,0,0,0,100,100,0,0,3,22,0,5,80,80,0,1`,
+    );
+  }
   const righe = [
     '[Script Info]', 'ScriptType: v4.00+', `PlayResX: ${W}`, `PlayResY: ${H}`, 'WrapStyle: 2', 'ScaledBorderAndShadow: yes', 'YCbCr Matrix: TV.709', '',
     '[V4+ Styles]',
     'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
-    `Style: Sotto,${famiglie.titoli},${dim},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo)},${coloreAss('#000000', 0.6)},0,0,0,0,100,100,0,0,1,${verticale ? 7 : 5},2,2,60,60,${margineSotto},1`,
-    `Style: Nome,${famiglie.titoli},${verticale ? 62 : 52},${coloreAss(c.fondo)},${coloreAss(c.fondo)},${coloreAss(c.accento)},${coloreAss(c.accento)},0,0,0,0,100,100,0,0,3,16,0,7,0,0,0,1`,
-    `Style: Ruolo,${famiglie.testo},${verticale ? 36 : 32},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo)},${coloreAss(c.fondo)},0,0,0,0,100,100,1,0,3,12,0,7,0,0,0,1`,
-    `Style: Scritta,${famiglie.titoli},${verticale ? 100 : 84},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo, 0.2)},${coloreAss(c.fondo, 0.2)},0,0,0,0,100,100,0,0,3,24,0,5,80,80,0,1`,
-    `Style: Chiusura,${famiglie.titoli},${verticale ? 80 : 68},${coloreAss(c.fondo)},${coloreAss(c.fondo)},${coloreAss(c.accento)},${coloreAss(c.accento)},0,0,0,0,100,100,0,0,3,22,0,5,80,80,0,1`,
+    ...stili,
     '',
     '[Events]',
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
@@ -121,12 +203,24 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
   };
   const maiuscolo = (s) => (st.maiuscolo ? s.toLocaleUpperCase('it-IT') : s);
   const accento = coloreAss(c.accento);
-  // sottotitoli: un evento per parola, con la parola detta evidenziata
   const gruppi = gruppiDiParole(tl.parole || [], st);
   gruppi.forEach((g, gi) => {
     const prossimo = gruppi[gi + 1];
+    const precedente = gruppi[gi - 1];
     const lunghezza = g.parole.map((p) => p.testo).join(' ').length;
     const scala = lunghezza > st.caratteri_max ? Math.max(55, Math.round((100 * st.caratteri_max) / lunghezza)) : 100;
+    if (frase) {
+      // la frase resta tutta insieme dalla prima all'ultima parola; entra e esce piano solo se prima o dopo c'è una pausa
+      // (fra due frasi attaccate il cambio è netto: una dissolvenza lì farebbe lampeggiare il testo)
+      const inizio = g.parole[0].da;
+      let fine = Math.min(g.parole[g.parole.length - 1].a + 0.25, tl.durata);
+      if (prossimo) fine = Math.min(fine, prossimo.parole[0].da);
+      const entra = !precedente || inizio - precedente.parole[precedente.parole.length - 1].a > 0.3 ? 140 : 0;
+      const esce = !prossimo || prossimo.parole[0].da - fine > 0.05 ? 160 : 0;
+      ev(inizio, fine, 'Sotto', `{\\blur3\\fad(${entra},${esce})\\fscx${scala}\\fscy${scala}}${assTesto(maiuscolo(g.parole.map((p) => p.testo).join(' ')))}`);
+      return;
+    }
+    // modo «parola»: un evento per parola, con la parola detta evidenziata
     g.parole.forEach((p, i) => {
       const inizio = p.da;
       let fine = i + 1 < g.parole.length ? g.parole[i + 1].da : p.a + 0.25;
@@ -136,29 +230,56 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
       ev(inizio, fine, 'Sotto', `{\\fscx${scala}\\fscy${scala}}${pezzi.join(' ')}`);
     });
   });
-  // cartello col nome: nome sul verde, ruolo sotto
-  // cartello in alto a sinistra in ogni formato: in basso ci sono i sottotitoli
+  // cartello col nome, in alto a sinistra in ogni formato: in basso ci sono i sottotitoli
   const x0 = verticale ? 72 : 96;
   const y0 = verticale ? fmt.alto + 70 : 60;
   for (const k of tl.cartelli || []) {
+    if (linea) {
+      const altezzaNome = verticale ? 70 : 60;
+      const altezza = k.sotto ? altezzaNome + (verticale ? 50 : 42) : altezzaNome;
+      ev(k.da, k.a, 'Filo', `{\\an7\\pos(${x0},${y0 + 6})\\fad(240,240)\\p1}m 0 0 l 5 0 l 5 ${altezza} l 0 ${altezza}{\\p0}`, 2);
+      ev(k.da + 0.08, k.a, 'Nome', `{\\an7\\pos(${x0 + 26},${y0})\\blur2\\fad(240,240)}${assTesto(maiuscolo(k.testo))}`, 2);
+      if (k.sotto) ev(k.da + 0.2, k.a, 'Ruolo', `{\\an7\\pos(${x0 + 26},${y0 + altezzaNome})\\blur2\\fad(240,240)}${assTesto(maiuscolo(k.sotto))}`, 2);
+      continue;
+    }
     ev(k.da, k.a, 'Nome', `{\\an7\\pos(${x0},${y0})\\fad(160,160)}${assTesto(maiuscolo(k.testo))}`, 2);
     if (k.sotto) ev(k.da + 0.12, k.a, 'Ruolo', `{\\an7\\pos(${x0},${y0 + (verticale ? 98 : 84)})\\fad(160,160)}${assTesto(maiuscolo(k.sotto))}`, 2);
   }
-  // scritte: titolo e scritte al centro, chiusura sul verde
   // scritte: titolo in alto, scritte al centro, chiusura più in basso (mai una sopra l'altra); \q0 = vanno a capo da sole
   const altezza = { titolo: 0.3, scritta: 0.44, chiusura: 0.6 };
+  const fade = ombra ? '\\fad(320,320)' : '\\fad(200,200)';
   for (const s of tl.scritte || []) {
     const y = Math.round(H * (altezza[s.tipo] ?? 0.44));
-    ev(s.da, s.a, s.tipo === 'chiusura' ? 'Chiusura' : 'Scritta', `{\\an5\\q0\\pos(${Math.round(W / 2)},${y})\\fad(200,200)}${assTesto(maiuscolo(s.testo))}`, 1);
+    const chiusura = s.tipo === 'chiusura';
+    ev(s.da, s.a, chiusura ? 'Chiusura' : 'Scritta', `{\\an5\\q0\\pos(${Math.round(W / 2)},${y})${ombra ? '\\blur2' : ''}${fade}}${assTesto(maiuscolo(s.testo))}`, 1);
+    // in modo «ombra» la chiusura ha sotto un filo corto del colore d'accento (l'unico accento del video)
+    if (chiusura && ombra && linea) ev(s.da + 0.2, s.a, 'Filo', `{\\an8\\pos(${Math.round(W / 2)},${y + Math.round((verticale ? 70 : 58) * 1.1)})\\fad(320,320)\\p1}m 0 0 l 120 0 l 120 5 l 0 5{\\p0}`, 1);
   }
   return `${righe.join('\n')}\n`;
 }
 
-// I nomi con cui libass trova i due font copiati in fontsdir (titoli all'800 se c'è, testo al 700).
-export function famiglieAss(fontTitoli, fontTesto) {
-  const t = fontTitoli.pesi[800] || fontTitoli.pesi[700];
-  const x = fontTesto.pesi[700] || fontTesto.pesi[400];
+// Il peso giusto di un font caricato: quello chiesto dallo stile, poi il più vicino fra quelli che ci sono.
+export function pesoDi(font, voluto) {
+  if (font.pesi[voluto]) return font.pesi[voluto];
+  const pesi = Object.keys(font.pesi).map(Number).sort((a, b) => Math.abs(a - voluto) - Math.abs(b - voluto) || b - a);
+  return font.pesi[pesi[0]];
+}
+
+// I nomi con cui libass trova i due font copiati in fontsdir (ogni peso diverso da regolare/grassetto ha un nome suo:
+// «Poppins SemiBold», «Bricolage Grotesque ExtraBold»).
+export function famiglieAss(fontTitoli, fontTesto, pesoTitoli = 800, pesoTesto = 700) {
+  const t = pesoDi(fontTitoli, pesoTitoli);
+  const x = pesoDi(fontTesto, pesoTesto);
   return { titoli: nomeFamigliaLibass(t.dati) || fontTitoli.famiglia, testo: nomeFamigliaLibass(x.dati) || fontTesto.famiglia };
+}
+
+// Il colore dello stile, uguale per ogni inquadratura: la curva (nero morbido) e poi contrasto e saturazione.
+export function filtroColore(stile) {
+  const f = [];
+  if (stile.curva) f.push(`curves=master='${stile.curva}'`);
+  if (stile.contrasto !== 1 || stile.saturazione !== 1) f.push(`eq=contrast=${stile.contrasto}:saturation=${stile.saturazione}`);
+  if (stile.grana > 0) f.push(`noise=c0s=${stile.grana}:allf=t`);
+  return f.length ? f.join(',') : 'null';
 }
 
 const HDR = ['smpte2084', 'arib-std-b67'];
@@ -166,7 +287,8 @@ const PRE_HDR = 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap
 const FINE = 'setsar=1,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p';
 
 // Filtro di un'inquadratura video: riempi (ritaglio, con la posizione del soggetto) o sfondo sfocato della stessa clip.
-export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centro' } = {}) {
+export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centro', fps = FPS_BASE } = {}) {
+  const FPS = fps;
   const { w: W, h: H } = fmt;
   const pre = HDR.includes(info.trasferimento) ? PRE_HDR : '';
   const r = info.larghezza / info.altezza;
@@ -187,26 +309,27 @@ export async function contaFotogrammi(file, cfg, segnale) {
   return Number.parseInt(stdout.toString().trim(), 10);
 }
 
-const CODIFICA_PEZZO = (t) => ['-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-g', '60', '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709'];
+const CODIFICA_PEZZO = (t, fps) => ['-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(fps), '-g', String(fps * 2), '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709'];
 
 async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale) {
   const t = String(cfg.threadFfmpeg);
+  const FPS = stile.fps || FPS_BASE;
   if (q.tipo === 'foto') {
     // la foto girata secondo l'EXIF e un po' più grande del quadro: poi uno zoom lento (le foto non restano ferme)
     const W2 = Math.round(fmt.w * 1.2 / 2) * 2;
     const H2 = Math.round(fmt.h * 1.2 / 2) * 2;
     const jpg = path.join(dirTmp, `${path.basename(uscita)}.jpg`);
     await apri(sorgente).flatten({ background: '#000000' }).resize(W2, H2, { fit: 'cover', position: 'attention' }).jpeg({ quality: 92 }).toFile(jpg);
-    const zoom = `zoompan=z='1+0.12*on/${Math.max(1, fotogrammi)}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${fmt.w}x${fmt.h}:fps=${FPS}`;
-    await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-loop', '1', '-framerate', String(FPS), '-i', jpg, '-filter_complex', `[0:v]${zoom},${FINE}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
+    const zoom = `zoompan=z='1+${stile.zoom_foto ?? 0.12}*on/${Math.max(1, fotogrammi)}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${fmt.w}x${fmt.h}:fps=${FPS}`;
+    await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-loop', '1', '-framerate', String(FPS), '-i', jpg, '-filter_complex', `[0:v]${zoom},${FINE}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
     return;
   }
   const modo = q.tipo === 'volto' ? (q.posizione === 'intera' ? 'intera' : stile.volto) : (q.posizione === 'intera' ? 'intera' : stile.coperture);
-  const grafo = grafoInquadratura(info, fmt, { modo, posizione: q.posizione || 'centro' }).replace('[v]', '[g]');
+  const grafo = grafoInquadratura(info, fmt, { modo, posizione: q.posizione || 'centro', fps: FPS }).replace('[v]', '[g]');
   // tpad: se la clip finisce prima (la regia non lo permette, ma un file può dichiarare una durata sbagliata), l'ultimo
   // fotogramma resta fino a riempire il pezzo: mai un pezzo più corto, quindi mai le immagini dopo che scivolano
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-ss', f3(q.inizio), '-t', f3(fotogrammi / FPS + 0.5), '-i', sorgente,
-    '-filter_threads', t, '-filter_complex', `${grafo};[g]tpad=stop_mode=clone:stop_duration=${f3(fotogrammi / FPS + 1)}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
+    '-filter_threads', t, '-filter_complex', `${grafo};[g]tpad=stop_mode=clone:stop_duration=${f3(fotogrammi / FPS + 1)}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
 }
 
 // Voce continua: i pezzi audio della timeline in fila (sample per sample), con dissolvenze brevissime ai tagli.
@@ -259,6 +382,7 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   const fmt = FORMATI[tl.formato] || FORMATI.verticale;
   const { dirTmp, dirOut } = lavoro;
   const t = String(cfg.threadFfmpeg);
+  const FPS = stile.fps || FPS_BASE;
   if (!(tl.durata >= 1) || !tl.video.length) throw errore(422, 'video_troppo_corto', 'La timeline dura meno di un secondo: niente da montare.');
   const materiali = new Map(progetto.materiali.map((m) => [m.codice, m]));
   const sorgenti = new Map();
@@ -302,18 +426,20 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   await voceContinua(tl, sorgenti, path.join(dirTmp, 'voce.wav'), cfg, segnale);
 
   // 4) testi (ASS) con i font dello stile, inclusi nell'officina
-  const fontTitoli = await caricaFont(stile.font_titoli, cfg, 800);
-  const fontTesto = await caricaFont(stile.font_testo, cfg);
+  const pesoT = stile.peso_titoli || 800;
+  const pesoX = stile.peso_testo || 700;
+  const fontTitoli = await caricaFont(stile.font_titoli, cfg, pesoT);
+  const fontTesto = await caricaFont(stile.font_testo, cfg, pesoX);
   if (fontTitoli.avviso) avvisi.push(fontTitoli.avviso);
+  if (fontTesto.avviso && fontTesto.avviso.messaggio !== fontTitoli.avviso?.messaggio) avvisi.push(fontTesto.avviso);
   const dirFont = path.join(dirTmp, 'font');
   await fs.mkdir(dirFont, { recursive: true });
-  const pesoTitoli = fontTitoli.pesi[800] || fontTitoli.pesi[700];
-  await fs.copyFile(pesoTitoli.file, path.join(dirFont, 'titoli.ttf'));
-  await fs.copyFile((fontTesto.pesi[700] || fontTesto.pesi[400]).file, path.join(dirFont, 'testo.ttf'));
-  const famiglie = famiglieAss(fontTitoli, fontTesto);
+  await fs.copyFile(pesoDi(fontTitoli, pesoT).file, path.join(dirFont, 'titoli.ttf'));
+  await fs.copyFile(pesoDi(fontTesto, pesoX).file, path.join(dirFont, 'testo.ttf'));
+  const famiglie = famiglieAss(fontTitoli, fontTesto, pesoT, pesoX);
   await fs.writeFile(path.join(dirTmp, 'regia.ass'), creaAssRegia(tl, stile, fmt, famiglie));
 
-  // 5) ultimo passaggio: colore, grana, testi, logo; voce + musica, -14 LUFS
+  // 5) ultimo passaggio: colore dello stile, testi, logo; voce + musica, -14 LUFS
   const ingressi = ['-i', 'video.mkv', '-i', 'voce.wav'];
   let iMusica = null;
   let musica = musicaFile;
@@ -323,7 +449,8 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
     iMusica = 2;
     ingressi.push('-stream_loop', '-1', '-i', musica);
   }
-  let grafoV = `[0:v]eq=contrast=${stile.contrasto}:saturation=${stile.saturazione}${stile.grana > 0 ? `,noise=c0s=${stile.grana}:allf=t` : ''},ass=regia.ass:fontsdir=font[v0]`;
+  // i testi vanno DOPO il colore: l'avorio e l'oro dei testi restano esatti, la curva tocca solo le immagini
+  let grafoV = `[0:v]${filtroColore(stile)},ass=regia.ass:fontsdir=font[v0]`;
   let ultimo = 'v0';
   if (logo) {
     const l = await preparaLogo(logo.percorso, Math.round(fmt.w * 0.16), 120);
@@ -340,7 +467,7 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   const grafoA = `${catenaAudio(1, iMusica, tl.durata, tl.musica?.volume ?? 0.3)};[mix]${filtroLoudnorm(misura)}[a]`;
   const finale = path.join(dirOut, 'video.mp4');
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, ...ingressi, '-filter_threads', t, '-filter_complex_threads', t,
-    '-filter_complex', `${grafoV};${grafoA}`, '-map', '[v]', '-map', '[a]', ...CODIFICA_FINALE(t), '-t', f3(tl.durata), finale], { segnale, timeoutMs: cfg.timeoutProcessoMs, cwd: dirTmp });
+    '-filter_complex', `${grafoV};${grafoA}`, '-map', '[v]', '-map', '[a]', ...CODIFICA_FINALE(t, FPS), '-t', f3(tl.durata), finale], { segnale, timeoutMs: cfg.timeoutProcessoMs, cwd: dirTmp });
 
   // 6) copertina, provino dei fotogrammi, controllo dei difetti
   const durata = await durataFile(finale, cfg, segnale);

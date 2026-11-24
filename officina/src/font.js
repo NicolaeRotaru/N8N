@@ -11,6 +11,8 @@ const INCLUSI = {
   archivo: { famiglia: 'Archivo', file: { 400: 'Archivo-400.ttf', 700: 'Archivo-700.ttf' } },
   // Scatti di G (SDG): il font dei titoli del marchio dell'agenzia, per lo stile «sdg» della regia.
   'bricolage grotesque': { famiglia: 'Bricolage Grotesque', file: { 400: 'BricolageGrotesque-400.ttf', 700: 'BricolageGrotesque-700.ttf', 800: 'BricolageGrotesque-800.ttf' } },
+  // Scatti di G (SDG), moodboard del 24/11/2026: Poppins per tutti i testi dei video (sobrio, leggibile sul telefono).
+  poppins: { famiglia: 'Poppins', file: { 300: 'Poppins-300.ttf', 400: 'Poppins-400.ttf', 500: 'Poppins-500.ttf', 600: 'Poppins-600.ttf', 700: 'Poppins-700.ttf' } },
 };
 const RISERVA = { sans: 'inter', serif: 'playfair display' };
 
