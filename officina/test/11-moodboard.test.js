@@ -7,11 +7,11 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { avviaServer, chiama, scarica, sondaFile, ffmpeg, MATERIALE, TMP, CHIAVE } from './aiuti.js';
-import { decidiRallenty, scalaMateriale, fpsDa } from '../src/rallenty.js';
+import { decidiRallenty, scalaMateriale, fpsDa, modoRallenty } from '../src/rallenty.js';
 import { controllaCube, nomeLut, filtroLut } from '../src/lut.js';
 import { controllaRegia, regoleDelloStile } from '../src/regia.js';
 import { controllaPiano } from '../src/piano.js';
-import { STILI } from '../src/regia-render.js';
+import { STILI, stileDa, filtroVoce, VOCE_STUDIO, grafoInquadratura, modoInquadratura, FORMATI } from '../src/regia-render.js';
 import { leggiConfig } from '../src/config.js';
 
 const H = { 'x-officina-chiave': CHIAVE, 'content-type': 'application/json' };
@@ -30,6 +30,14 @@ test('rallenty: si rallenta solo il girato veloce senza parlato; mai più di 4 v
   assert.equal(decidiRallenty({ fps: 50, parlato: parla }), null, 'un\'intervista girata a 50 resta a velocità normale');
   assert.equal(decidiRallenty({ fps: 50, parlato: parla, modo: 'si' }).fattore, 2);
   assert.equal(decidiRallenty({ fps: 100, parlato: null, modo: 'no' }), null);
+  // un audio che si sente e nessuna trascrizione (whisper assente, piantato, o trascrizione spenta): non si rallenta
+  assert.equal(decidiRallenty({ fps: 50, parlato: null, audio: true, volumeMax: -12 }), null, 'potrebbe essere un\'intervista: resta com\'è');
+  assert.equal(decidiRallenty({ fps: 50, parlato: [], audio: true, volumeMax: -12 }).fattore, 2, 'trascritta e nessuno parla: si rallenta');
+  assert.equal(decidiRallenty({ fps: 50, parlato: null, audio: true, volumeMax: -60 }).fattore, 2, 'audio quasi muto: si rallenta');
+  assert.equal(decidiRallenty({ fps: 50, parlato: null, audio: true, volumeMax: -12, modo: 'si' }).fattore, 2);
+  // il modo scritto come sì/no del modulo
+  assert.deepEqual([false, 0, 'no', 'NO', true, 1, 'si', 'sì', 'boh', undefined].map(modoRallenty), ['no', 'no', 'no', 'no', 'si', 'si', 'si', 'si', 'auto', 'auto']);
+  assert.equal(decidiRallenty({ fps: 50, parlato: null, modo: false }), null, 'false spegne il rallenty');
   const m = scalaMateriale({ codice: 'V03', durata: 4.2, audio: true, parlato: [{ testo: 'x' }], scene: [{ codice: 'V03.1', inizio: 0, fine: 2.1, parlato: 'x' }, { codice: 'V03.2', inizio: 2.1, fine: 4.2 }] }, 2);
   assert.deepEqual([m.durata, m.audio, m.parlato, m.scene[1].inizio, m.scene[1].fine, 'parlato' in m.scene[0]], [8.4, false, null, 4.2, 8.4, false]);
 });
@@ -73,6 +81,10 @@ test('regia con lo schema di Claude: campi vuoti, coperture come codici con la p
   assert.equal(tl.video.find((q) => q.tipo === 'volto').posizione, 'destra');
   assert.deepEqual(tl.cartelli.map((k) => k.testo), ['Mario']);
   assert.equal(tl.scritte.filter((s) => s.tipo === 'titolo').length, 0, 'titolo vuoto = niente titolo');
+  // coperture scritte come oggetti con i campi vuoti dello schema: vale il primo campo pieno
+  const oggetti = controllaRegia({ battute: [{ fonte: '', immagini: 6, coperture: [{ scena: '', foto: 'F01', codice: '' }, { scena: 'V02.1', foto: '', posizione: 'destra' }] }] }, P, { R });
+  assert.equal(oggetti.bloccante, false, JSON.stringify(oggetti.problemi));
+  assert.ok(oggetti.video.some((q) => q.fonte === 'F01') && oggetti.video.find((q) => q.fonte === 'V02').posizione === 'destra');
 });
 
 test('piano del mese con la regia: il reel si controlla con la regia, le ripetizioni si vedono fra contenuti, troppo lungo si toglie', () => {
@@ -102,10 +114,46 @@ test('piano del mese con la regia: il reel si controlla con la regia, le ripetiz
   const r2 = controllaPiano(lunga, P, { mese: '2026-12', R });
   assert.equal(r2.contenuti.length, 0);
   assert.ok(r2.problemi.some((p) => p.codice === 'troppo_lungo'), JSON.stringify(r2.problemi));
+  // una storia sotto i 2 secondi si toglie
+  const corta = controllaPiano({ contenuti: [{ ...reel('2026-12-04', ['V01.1'], 1), tipo: 'storia_video' }] }, P, { mese: '2026-12', R });
+  assert.ok(corta.problemi.some((p) => p.codice === 'troppo_corto'), JSON.stringify(corta.problemi));
+  // il ritmo conta: con lo stesso piano, quattro coperture su 9 secondi diventano 3 inquadrature (sdg) o 4 (virale)
+  const quattro = { contenuti: [reel('2026-12-04', ['V01.1', 'V02.1', 'V03.1', 'V01.1'], 9)] };
+  assert.equal(controllaPiano(quattro, P, { mese: '2026-12', R }).contenuti[0].pezzi_usati.length, 3);
+  assert.equal(controllaPiano(quattro, P, { mese: '2026-12', R: regoleDelloStile(STILI.virale) }).contenuti[0].pezzi_usati.length, 4);
   // una regia senza niente di montabile si toglie con il motivo
   const rotta = { contenuti: [{ ...reel('2026-12-04', ['Z99.1']) }] };
   const r3 = controllaPiano(rotta, P, { mese: '2026-12', R });
   assert.ok(r3.problemi.some((p) => p.codice === 'regia_non_valida'), JSON.stringify(r3.problemi));
+});
+
+test('identità dal Config, voce da studio, volto verticale nel formato orizzontale', () => {
+  const id = stileDa('sdg', null, { fondo: '#1E1C1A', testo: '#FAF7F2', accento: '#C9A227', font_titoli: 'Playfair Display', font_testo: 'rotto<script>' });
+  assert.deepEqual(id.colori, { fondo: '#1E1C1A', testo: '#FAF7F2', accento: '#C9A227' });
+  assert.deepEqual([id.font_titoli, id.font_testo], ['Playfair Display', 'Poppins'], 'un nome di font non valido si ignora');
+  assert.equal(stileDa('sdg', { colori: { primario: '#D94F3D' } }, { accento: '#C9A227' }).colori.accento, '#D94F3D', 'il colore del cliente vince sull\'oro di Scatti di G');
+  assert.equal(stileDa('sdg', null, { fondo: 'nero' }).colori.fondo, '#2C2A27');
+  assert.equal(filtroVoce(stileDa('sdg')), `${VOCE_STUDIO},`);
+  assert.equal(filtroVoce(stileDa('virale')), '');
+  const vert = { larghezza: 1080, altezza: 1920, trasferimento: '' };
+  const oriz = { larghezza: 1920, altezza: 1080, trasferimento: '' };
+  const sdg = stileDa('sdg');
+  assert.equal(modoInquadratura({ tipo: 'volto' }, vert, FORMATI.orizzontale, sdg), 'intera', 'un volto verticale in 16:9 esce intero, non tagliato sotto gli occhi');
+  assert.equal(modoInquadratura({ tipo: 'volto' }, oriz, FORMATI.verticale, sdg), 'riempi');
+  assert.equal(modoInquadratura({ tipo: 'copertura' }, oriz, FORMATI.verticale, sdg), 'riempi');
+  assert.equal(modoInquadratura({ tipo: 'copertura', posizione: 'intera' }, oriz, FORMATI.verticale, sdg), 'intera');
+  assert.match(grafoInquadratura(vert, FORMATI.orizzontale, { modo: 'riempi' }), /crop=1920:1080:max\(0\\,min\(iw-ow\\,iw\/2-ow\/2\)\):\(ih-oh\)\*0\.3,/, 'una copertura verticale in 16:9 si ritaglia dal terzo alto');
+  assert.match(grafoInquadratura(oriz, FORMATI.verticale, { modo: 'riempi' }), /\(ih-oh\)\/2/);
+});
+
+test('il caso del millesimo: 4,931 s da coprire con 4,93 s di clip non lascia un volto da 1 ms', () => {
+  const P = { materiali: [
+    { codice: 'V01', tipo: 'video', durata: 60, audio: true, parlato: null, scene: [{ codice: 'V01.1', inizio: 0, fine: 60 }] },
+    { codice: 'V02', tipo: 'video', durata: 4.93, audio: false, scene: [{ codice: 'V02.1', inizio: 0, fine: 4.93 }] },
+  ] };
+  const tl = controllaRegia({ battute: [{ fonte: 'V01', inizio: 5, fine: 12.931, coperture: ['V02.1'] }] }, P, { R });
+  assert.equal(tl.bloccante, false, JSON.stringify(tl.problemi));
+  assert.ok(tl.video.every((q) => q.a - q.da > 0.03), JSON.stringify(tl.video));
 });
 
 test('conservazione: i progetti restano 14 giorni di serie; serve spazio libero per caricare', () => {
@@ -161,10 +209,23 @@ test('rallenty vero: una clip a 50 fotogrammi senza voce entra rallentata (doppi
   const no = await carica(s.base, pid, f50, { rallenta: 'no' });
   assert.equal(no.stato, 200, JSON.stringify(no.json));
   assert.ok(Math.abs(no.json.materiale.durata - 4) < 0.1, `con «no» la durata resta 4: ${no.json.materiale.durata}`);
-  // il file rallentato si monta: una regia di 7 secondi di sole immagini sulla clip da 8
+  // il file rallentato si monta: una regia di 7 secondi di sole immagini sulla clip da 8, e si MUOVE per tutti i 7
+  // secondi (se il rallenty allungasse solo la durata scritta, dopo 4 s l'immagine resterebbe ferma)
   const piano = { battute: [{ immagini: 7, coperture: ['V01.1'] }] };
   const mt = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, stile: 'sdg' }, file: {} });
   assert.equal(mt.stato, 200, JSON.stringify(mt.json));
+  assert.deepEqual(mt.json.controllo.fermi, [], `immagine ferma nel rallenty: ${JSON.stringify(mt.json.controllo)}`);
+  // un'intervista a 50 fotogrammi con la voce, senza trascrizione (qui whisper non c'è): resta a velocità normale
+  const voce50 = clip('mb-voce-50.mp4', ['-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=50:duration=4', '-f', 'lavfi', '-i', 'sine=frequency=220:sample_rate=48000:duration=4', '-map', '0:v', '-map', '1:a', '-r', '50', '-c:a', 'aac']);
+  const iv = await carica(s.base, pid, voce50);
+  assert.equal(iv.stato, 200, JSON.stringify(iv.json));
+  assert.ok(Math.abs(iv.json.materiale.durata - 4) < 0.1, `l'intervista non va rallentata: ${iv.json.materiale.durata}`);
+  assert.ok(iv.json.avvisi.some((a) => a.codice === 'rallenty_incerto'), JSON.stringify(iv.json.avvisi));
+  // la clip rallentata ricaricata senza id di Drive (stessi byte dell'originale) è la stessa
+  const doppia = await chiama(s.base, `/progetto/${pid}/materiale`, { dati: { nome: path.basename(f50) }, file: { file: f50 } });
+  const ancora = await chiama(s.base, `/progetto/${pid}/materiale`, { dati: { nome: path.basename(f50) }, file: { file: f50 } });
+  assert.equal(doppia.stato, 200);
+  assert.equal(ancora.json.gia_caricato, true, 'riconosciuta dai byte dell\'originale, non da quelli del file rallentato');
   const pv = path.join(TMP, 'mb-rallenty.mp4');
   fs.writeFileSync(pv, (await scarica(mt.json.file[0].url)).buf);
   assert.equal(pacchetti(pv), 175, '7 s × 25 fotogrammi');
@@ -206,6 +267,24 @@ test('LUT vera: si carica una volta, la regia la applica alle clip giuste; una L
   assert.ok(senza > 200, `senza LUT il bianco resta bianco: ${senza}`);
   assert.ok(con < 50, `con la LUT il bianco diventa nero: ${con}`);
   assert.ok((await luce({ lut: 'inverti-prova', lut_materiali: { V01: 'no' } })) > 200, '«no» per una clip toglie la LUT a quella clip');
+  // la LUT data al caricamento del materiale vale da sola, senza dirla al montaggio
+  const conLut = await carica(s.base, pid, bianca, { lut: 'Inverti Prova' });
+  assert.equal(conLut.json.materiale.codice, 'V02');
+  const pianoV02 = { battute: [{ immagini: 4, coperture: ['V02.1'] }] };
+  const mt2 = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: pianoV02, stile: 'pulito' }, file: {} });
+  assert.equal(mt2.stato, 200, JSON.stringify(mt2.json));
+  const pv2 = path.join(TMP, 'mb-lut2.mp4');
+  fs.writeFileSync(pv2, (await scarica(mt2.json.file[0].url)).buf);
+  const fg2 = path.join(TMP, 'mb-lut2.png');
+  ffmpeg(['-ss', '2', '-i', pv2, '-frames:v', '1', '-y', fg2]);
+  const { data: d2 } = await sharp(fg2).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  assert.ok(d2[(1500 * 1080 + 540) * 3] < 50, 'la LUT del materiale è stata applicata');
+  // anche il montaggio del piano (/monta) vuole una LUT che esiste
+  const vuota = { battute: [], coperture_riserva: [], titolo: '', scritte: [], chiusura: '', musica: false };
+  const cont = { tipo: 'reel', data: '2026-12-04', ora: '18:30', titolo: 'x', idea: '', perche: '', pezzi: [], foto: [], intro: '', outro: '', righe: [], musica: false, didascalia: '', regia: { ...vuota, battute: [{ fonte: '', inizio: 0, fine: 0, immagini: 6, nome: '', ruolo: '', posizione_volto: '', coperture: ['V01.1'] }] } };
+  const lm = await chiama(s.base, `/progetto/${pid}/monta`, { dati: { contenuto: cont, lut: 'non-esiste' }, file: {} });
+  assert.equal(lm.stato, 422);
+  assert.equal(lm.json.errore, 'lut_mancante');
   const manca = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, lut: 'non-esiste' }, file: {} });
   assert.equal(manca.stato, 422);
   assert.equal(manca.json.errore, 'lut_mancante');

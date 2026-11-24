@@ -446,9 +446,25 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
         restoVolto = (b.durata - lead) - pezzi.reduce((t2, p) => t2 + p.durata, 0);
       }
     }
-    const coperte = inFila(evitaStessaDiFila(pezzi, null, durataClip, riserva, R), b.da + lead);
-    const fineCoperture = coperte.length ? coperte[coperte.length - 1].a : b.da + lead;
-    video.push({ ...voltoIntero, fine: r3(b.inizio + lead), a: r3(b.da + lead) });
+    let leadVero = lead;
+    let coperte = inFila(evitaStessaDiFila(pezzi, null, durataClip, riserva, R), b.da + lead);
+    const mancaAlVolto = b.a - (coperte.length ? coperte[coperte.length - 1].a : b.da + lead);
+    const ultimaCop = coperte[coperte.length - 1];
+    if (mancaAlVolto > 1e-6 && mancaAlVolto <= 0.02 && ultimaCop) {
+      // un avanzo di meno di mezzo fotogramma (arrotondamenti) non diventa un volto da 1 ms: l'ultima copertura arriva
+      // in fondo se ha ancora clip, altrimenti il primo volto dura quel poco di più e le coperture scivolano
+      const spazioUltima = ultimaCop.tipo === 'foto' ? 8 - (ultimaCop.a - ultimaCop.da) : durataClip(ultimaCop.fonte) - ultimaCop.fine;
+      if (spazioUltima >= mancaAlVolto) {
+        ultimaCop.a = r3(b.a);
+        ultimaCop.fine = r3(ultimaCop.fine + mancaAlVolto);
+      } else {
+        leadVero = lead + mancaAlVolto;
+        coperte = coperte.map((q) => ({ ...q, da: r3(q.da + mancaAlVolto), a: r3(q.a + mancaAlVolto) }));
+        coperte[coperte.length - 1].a = r3(b.a);
+      }
+    }
+    const fineCoperture = coperte.length ? coperte[coperte.length - 1].a : b.da + leadVero;
+    video.push({ ...voltoIntero, fine: r3(b.inizio + leadVero), a: r3(b.da + leadVero) });
     video.push(...coperte);
     if (b.a - fineCoperture > 1e-3) {
       // le coperture finiscono prima della battuta: si torna sul volto, in sincrono
@@ -468,7 +484,16 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
     const prima = video.find((q) => q.da < T - 1e-6 && q.a >= T - 1e-6);
     const dopo = video.find((q) => q.da <= T + 1e-6 && q.a > T + 1e-6);
     if (!prima || !dopo || prima.tipo !== 'volto' || dopo.tipo !== 'volto') continue; // già coperto da una copertura
-    const candidata = B.coperture.find((c) => !video.some((q) => q.fonte === c.fonte && q.etichetta === c.etichetta)) || A.coperture.find((c) => !video.some((q) => q.fonte === c.fonte && q.etichetta === c.etichetta)) || usaRiserva.shift() || null;
+    // dalla riserva, prima una scena diversa da quelle subito prima e subito dopo i due volti (se no ricomincerebbe da capo)
+    const vicine = new Set([video[video.indexOf(prima) - 1], video[video.indexOf(dopo) + 1]].filter(Boolean).map((q) => q.etichetta));
+    const usata = (c) => video.some((q) => q.fonte === c.fonte && q.etichetta === c.etichetta);
+    let candidata = B.coperture.find((c) => !usata(c)) || A.coperture.find((c) => !usata(c)) || null;
+    if (!candidata) {
+      const k = usaRiserva.findIndex((c) => !vicine.has(c.etichetta));
+      if (k >= 0) candidata = usaRiserva.splice(k, 1)[0];
+    }
+    // tutto già usato: meglio un'immagine già vista altrove che la stessa scena ricominciata accanto a sé
+    if (!candidata) candidata = [...B.coperture, ...A.coperture, ...riserva].find((c) => !vicine.has(c.etichetta)) || usaRiserva.shift() || null;
     if (!candidata) {
       saltiScoperti++;
       avviso(B.n, 'taglio_scoperto', `Fra la battuta ${A.n} e la ${B.n} c'è un salto nell'intervista di ${A.fonte} e non avevo una copertura da metterci sopra: si vedrà il salto.`);
@@ -552,6 +577,14 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
   video = unite.map((q) => ({ ...q, da: r3(q.da), a: r3(q.a) }));
   const lampi = video.filter((q) => q.a - q.da < R.minima - 1e-3);
   for (const q of lampi) avviso(0, 'inquadratura_corta', `Un'inquadratura di ${q.etichetta || q.fonte} a ${virgola(q.da)} s dura ${virgola(q.a - q.da)} s: troppo poco, ma non avevo altro da allungare.`);
+  // un volto stretto fra due coperture più corto di voltoMin (se il materiale non ha permesso di allungarlo) si dice
+  video.forEach((q, i) => {
+    const p = video[i - 1];
+    const d = video[i + 1];
+    if (q.tipo === 'volto' && p && d && p.tipo !== 'volto' && d.tipo !== 'volto' && q.a - q.da < R.voltoMin - 1e-3 && q.a - q.da >= R.minima - 1e-3) {
+      avviso(0, 'volto_corto', `A ${virgola(q.da)} s il volto di ${q.fonte} fra due immagini dura ${virgola(q.a - q.da)} s (meno di ${virgola(R.voltoMin)}): si vede appena.`);
+    }
+  });
 
   // 5) ripetizioni e difetti dei momenti usati
   const coperture = video.filter((q) => q.tipo === 'copertura');

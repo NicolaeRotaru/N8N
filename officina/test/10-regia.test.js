@@ -701,6 +701,10 @@ test('regia vera in stile Scatti di G (moodboard): 25 fotogrammi, sottotitoli av
     }
   }
   assert.ok(avorio > 300, `pochi pixel avorio nella fascia dei sottotitoli: ${avorio}`);
+  // i testi vanno DOPO la curva del colore: l'avorio resta pieno (con la curva sopra scenderebbe sotto 236)
+  let avorioPieno = 0;
+  for (let y = 1920 - 560; y < 1920 - 340; y++) for (let x = 0; x < im.width; x++) { const i = (y * im.width + x) * 3; if (data[i] >= 240 && data[i + 1] >= 237 && data[i + 2] >= 230) avorioPieno++; }
+  assert.ok(avorioPieno > 80, `l'avorio dei sottotitoli non è pieno (${avorioPieno} pixel): i testi passano sotto la curva?`);
   assert.ok(lime < 30, `c'è del verde lime nei sottotitoli: ${lime}`);
   // la copertura è quasi tutta nero pieno: con la curva SDG il nero diventa grigio-nero, mai 0
   assert.ok(neroPieno < 2000, `troppi pixel nero pieno (${neroPieno}): il nero morbido non è stato applicato`);

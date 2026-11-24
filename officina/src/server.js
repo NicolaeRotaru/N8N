@@ -26,7 +26,7 @@ import { montaContenuto } from './montaggio.js';
 import { leggiSceneggiatura } from './sceneggiatura.js';
 import { controllaRegia, regoleDelloStile } from './regia.js';
 import { montaRegia, stileDa, FORMATI } from './regia-render.js';
-import { forseRallenta } from './rallenty.js';
+import { forseRallenta, modoRallenty } from './rallenty.js';
 import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
 
 // Spazio libero sul volume dei dati (byte). null se il sistema non lo dice.
@@ -262,7 +262,9 @@ export async function creaServer(cfg = leggiConfig()) {
     const nomeOriginale = String(dati.nome || f.nome).slice(0, 200);
     const driveId = dati.drive_id ? String(dati.drive_id).slice(0, 200) : null;
     // Lo stesso file mandato due volte (es. «Retry on Fail» di n8n): si restituisce quello già caricato.
-    const gia = progetto.materiali.find((m) => (driveId && m.drive_id === driveId) || (!driveId && !m.drive_id && m.nome_originale === nomeOriginale && m.byte === f.byte));
+    // (una clip rallentata ricaricata con «rallenta: no» entra di nuovo, a velocità normale; i byte sono quelli dell'originale)
+    const gia = progetto.materiali.find((m) => ((driveId && m.drive_id === driveId) || (!driveId && !m.drive_id && m.nome_originale === nomeOriginale && (m.byte_originale ?? m.byte) === f.byte))
+      && !(m.rallenty && modoRallenty(dati.rallenta) === 'no'));
     if (gia) {
       const pub = materialiPubblici(progetto).find((m) => m.codice === gia.codice);
       return { progetto: progetto.id, materiale: pub, gia_caricato: true, avvisi: [{ codice: 'gia_caricato', messaggio: `«${nomeOriginale}» era già nel progetto come ${gia.codice}: non l'ho caricato due volte.` }] };
@@ -306,7 +308,7 @@ export async function creaServer(cfg = leggiConfig()) {
     // la LUT della camera, se il materiale è girato in log (facoltativa: si può dare anche al montaggio)
     const lut = tipo === 'video' && dati.lut ? nomeLut(dati.lut) : null;
     const byte = relFinale === rel ? f.byte : (await fsp.stat(path.join(dir, relFinale))).size;
-    fresco.materiali.push({ ...r.materiale, ...(lut ? { lut } : {}), nome_originale: nomeOriginale, cartella: String(dati.cartella || '').slice(0, 100), drive_id: driveId, file: relFinale, byte, caricato: new Date().toISOString() });
+    fresco.materiali.push({ ...r.materiale, ...(lut ? { lut } : {}), nome_originale: nomeOriginale, cartella: String(dati.cartella || '').slice(0, 100), drive_id: driveId, file: relFinale, byte, byte_originale: f.byte, caricato: new Date().toISOString() });
     await salvaProgetto(dir, fresco);
     const pub = materialiPubblici(fresco).find((m) => m.codice === codice);
     return { progetto: fresco.id, materiale: pub, avvisi: r.avvisi };

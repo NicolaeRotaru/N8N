@@ -30,7 +30,8 @@ Esempio. L'autore scrive tre righe: «VOCE: Da trent'anni la famiglia Rossi impa
   - la voce fuori campo è sempre coperta da immagini.
   - un salto nell'intervista è sempre coperto.
   - nessuna inquadratura dura meno di 1 secondo (0,6 nello stile `virale`).
-  - un volto tra due immagini dura almeno 1,5 secondi (1 nello stile `virale`).
+  - un volto tra due immagini dura almeno 1,5 secondi (1 nello stile `virale`) quando il materiale lo permette; se no arriva l'avviso «volto corto».
+  - sul salto di un'intervista non torna la scena appena vista: meglio un'immagine già usata altrove.
   - un volto si vede solo quando si sente la sua voce.
   - la stessa scena non ricomincia subito dopo sé stessa: si cambia ordine, o la clip continua da dove era arrivata.
   - se le immagini sono poche si ripetono (con un avviso), ma non si allunga mai una clip oltre la sua fine.

@@ -24,14 +24,32 @@ export function fpsDa(testo) {
   return b > 0 ? a / b : a;
 }
 
-// Decide se e quanto rallentare. modo: 'auto' (di serie: solo se nessuno parla), 'si' (sempre, se la clip è veloce),
-// 'no' (mai). Restituisce null se non si rallenta.
-export function decidiRallenty({ fps, parlato, modo = 'auto', fpsUscita = 25 }) {
-  const m = String(modo || 'auto').trim().toLowerCase();
-  if (['no', 'false', '0'].includes(m)) return null;
+// Il modo scritto in qualunque forma: false/0/«no» = mai, true/1/«si» = sempre, il resto = auto.
+export function modoRallenty(v) {
+  if (v === false || v === 0) return 'no';
+  if (v === true || v === 1) return 'si';
+  const m = String(v ?? 'auto').trim().toLowerCase();
+  if (['no', 'false', '0'].includes(m)) return 'no';
+  if (['si', 'sì', 'true', '1'].includes(m)) return 'si';
+  return 'auto';
+}
+
+// C'è un audio che si sente ma non si sa se qualcuno parla (trascrizione spenta, non disponibile o fallita).
+export function parlatoIncerto({ audio, volumeMax, parlato }) {
+  const udibile = audio === true && volumeMax !== null && volumeMax !== undefined && volumeMax > -45;
+  return udibile && !Array.isArray(parlato);
+}
+
+// Decide se e quanto rallentare. modo: 'auto' (di serie), 'si' (sempre, se la clip è veloce), 'no' (mai).
+// In auto si rallenta solo quando si SA che nessuno parla: audio assente o muto, oppure trascrizione fatta con meno di
+// 3 parole. Con un audio che si sente e nessuna trascrizione non si rallenta: un'intervista girata a 50 resterebbe muta.
+// Restituisce null se non si rallenta.
+export function decidiRallenty({ fps, parlato, modo = 'auto', fpsUscita = 25, audio = false, volumeMax = null }) {
+  const m = modoRallenty(modo);
+  if (m === 'no') return null;
   if (!(fps >= SOGLIA_FPS) || !(fpsUscita > 0)) return null;
   const parole = (parlato || []).reduce((t, s) => t + (s.parole?.length || String(s.testo || '').split(/\s+/).filter(Boolean).length), 0);
-  if (m !== 'si' && parole >= 3) return null;
+  if (m !== 'si' && (parole >= 3 || parlatoIncerto({ audio, volumeMax, parlato }))) return null;
   const fattore = Math.min(FATTORE_MAX, fps / fpsUscita);
   if (fattore < 1.5) return null;
   return { fps_origine: r2(fps), fps: fpsUscita, fattore: Math.round(fattore * 10000) / 10000 };
@@ -66,8 +84,13 @@ export async function conformaFile(sorgente, uscita, r, cfg, segnale) {
 // Dopo l'analisi di un video: se va rallentato, crea il file conformato al posto dell'originale e restituisce il
 // materiale con i tempi nuovi e il percorso relativo nuovo. Altrimenti restituisce tutto com'era.
 export async function forseRallenta({ materiale, fps, assoluto, rel, dati, cfg, segnale }) {
-  const r = decidiRallenty({ fps, parlato: materiale.parlato, modo: dati.rallenta ?? cfg.rallenty, fpsUscita: Number(dati.fps_uscita) > 0 ? Number(dati.fps_uscita) : cfg.fpsRallenty });
-  if (!r) return { materiale, rel, avvisi: [] };
+  const modo = dati.rallenta ?? cfg.rallenty;
+  const fpsUscita = Number(dati.fps_uscita) > 0 ? Number(dati.fps_uscita) : cfg.fpsRallenty;
+  const r = decidiRallenty({ fps, parlato: materiale.parlato, modo, fpsUscita, audio: materiale.audio, volumeMax: materiale.volume_max_db });
+  if (!r) {
+    const dubbio = fps >= SOGLIA_FPS && modoRallenty(modo) === 'auto' && parlatoIncerto({ audio: materiale.audio, volumeMax: materiale.volume_max_db, parlato: materiale.parlato });
+    return { materiale, rel, avvisi: dubbio ? [{ codice: 'rallenty_incerto', messaggio: `Il video ${materiale.codice} è girato a ${Math.round(fps)} fotogrammi al secondo e ha un audio, ma non so se qualcuno parla (trascrizione non disponibile): non l'ho rallentato. Se è un'immagine senza voce, ricaricalo con «rallenta: si».` }] : [] };
+  }
   const relNuovo = rel.replace(/\.[^./]+$/, '') + '-rallenty.mp4';
   const nuovo = path.join(path.dirname(assoluto), path.basename(relNuovo));
   await conformaFile(assoluto, nuovo, r, cfg, segnale);

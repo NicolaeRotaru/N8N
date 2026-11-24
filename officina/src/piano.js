@@ -191,7 +191,7 @@ export function controllaContenuto(c, n, idx, { mese, progetto = null, R = REGOL
         pezzi: [],
         foto: [],
         // i momenti e le foto usati davvero, per il controllo delle ripetizioni fra contenuti
-        pezzi_usati: tl.video.filter((q) => q.tipo !== 'foto').map((q) => ({ scena: q.etichetta, video: q.fonte, inizio: q.inizio, fine: q.fine })),
+        pezzi_usati: tl.video.filter((q) => q.tipo !== 'foto').map((q) => ({ scena: q.etichetta || q.fonte, video: q.fonte, inizio: q.inizio, fine: q.fine })),
         foto_usate: [...new Set(tl.video.filter((q) => q.tipo === 'foto').map((q) => q.fonte))],
       },
       problemi,

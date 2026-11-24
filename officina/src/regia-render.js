@@ -328,7 +328,9 @@ export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centr
   }
   const centro = { sinistra: 'iw/3', destra: '2*iw/3', centro: 'iw/2' }[posizione] || 'iw/2';
   const x = `max(0\\,min(iw-ow\\,${centro}-ow/2))`;
-  return `[0:v]${pre}fps=${FPS},scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H}:${x}:(ih-oh)/2,${FINE}[v]`;
+  // una clip più alta del quadro (verticale in orizzontale) si ritaglia dall'alto: le persone stanno nel terzo superiore
+  const y = r < t ? '(ih-oh)*0.3' : '(ih-oh)/2';
+  return `[0:v]${pre}fps=${FPS},scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H}:${x}:${y},${FINE}[v]`;
 }
 
 // Fotogrammi di un file (si contano i pacchetti del flusso video: veloce, senza decodificare).
@@ -338,6 +340,14 @@ export async function contaFotogrammi(file, cfg, segnale) {
 }
 
 const CODIFICA_PEZZO = (t, fps) => ['-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(fps), '-g', String(fps * 2), '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709'];
+
+// Come entra un'inquadratura nel quadro. Un volto girato in verticale in un formato orizzontale esce intero (con lo
+// sfondo sfocato della stessa clip): ritagliato terrebbe un terzo dell'altezza e taglierebbe la testa.
+export function modoInquadratura(q, info, fmt, stile) {
+  if (q.posizione === 'intera') return 'intera';
+  if (q.tipo === 'volto') return info && info.altezza > info.larghezza && fmt.w > fmt.h ? 'intera' : stile.volto;
+  return stile.coperture;
+}
 
 async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null) {
   const t = String(cfg.threadFfmpeg);
@@ -352,7 +362,7 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
     await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-loop', '1', '-framerate', String(FPS), '-i', jpg, '-filter_complex', `[0:v]${zoom},${FINE}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
     return;
   }
-  const modo = q.tipo === 'volto' ? (q.posizione === 'intera' ? 'intera' : stile.volto) : (q.posizione === 'intera' ? 'intera' : stile.coperture);
+  const modo = modoInquadratura(q, info, fmt, stile);
   const grafo = grafoInquadratura(info, fmt, { modo, posizione: q.posizione || 'centro', fps: FPS, lut }).replace('[v]', '[g]');
   // tpad: se la clip finisce prima (la regia non lo permette, ma un file può dichiarare una durata sbagliata), l'ultimo
   // fotogramma resta fino a riempire il pezzo: mai un pezzo più corto, quindi mai le immagini dopo che scivolano
