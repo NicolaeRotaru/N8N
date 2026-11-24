@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
 import {
-  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16,
+  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16,
 } from '../16-nuovo-cliente-da-mycity/genera.mjs';
 
 const richiesta = (attivita = {}, extra = {}) => [{ json: { headers: {}, body: {
@@ -305,4 +305,74 @@ test("l'analisi riceve l'attività, com'è andata la scheda Clienti e la lettura
   const fermata = await eseguiCodice(CODICE_PREPARA_ANALISI, { nodi: { 'Modulo nuovo cliente': CREATO()['Modulo nuovo cliente'], 'Avvisa: ricerca fermata': [{ json: {} }] } });
   assert.equal(fermata[0].json.esito_scheda, 'non scritta: la ricerca sul web si è fermata');
   assert.equal(fermata[0].json.scheda, null, 'senza proposta non c\'è scheda da passare');
+});
+
+// --- La scheda al sito (formato concordato con la sessione «Servizi SDG») ------------------------
+
+const conSito = (extra = {}) => trasforma(modulo12Mini(), { credenziale, analisi: 'id-18', sito: 'https://mycity.example', credenzialeSito: { id: 'cs', name: 'MyCity - Segreto scheda cliente' }, ...extra });
+
+test("con --sito la scheda va al sito dallo stesso ultimo passo dell'analisi, e se il sito non la prende avvisa", () => {
+  const w = conSito({ modalita: 'vero' });
+  assert.deepEqual(controlla(w), []);
+  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Analizza l'attività (flusso 18)", 'Prepara la scheda per il sito']);
+  const manda = w.nodes.find((n) => n.name === 'Manda la scheda al sito');
+  assert.equal(manda.parameters.method, 'POST');
+  assert.match(manda.parameters.url, /MYCITY_SITO \}\}\/api\/agenzia\/scheda-cliente$/);
+  assert.equal(manda.credentials.httpHeaderAuth.id, 'cs');
+  const cfg = w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  assert.equal(cfg.find((a) => a.name === 'MYCITY_SITO').value, 'https://mycity.example');
+  assert.deepEqual(w.connections['Il sito ha preso la scheda?'].main[1].map((v) => v.node), ['Avvisa: scheda non arrivata al sito']);
+  // il testo dell'avviso si legge come espressione n8n
+  const avviso = w.nodes.find((n) => n.name === 'Avvisa: scheda non arrivata al sito').parameters.text.match(/^=\{\{ ([\s\S]*) \}\}$/)[1];
+  const testo = new Function('$', '$json', `return (${avviso});`)(() => ({ first: () => ({ json: { nome_locale: 'Bar <X>' } }) }), { statusCode: 500 });
+  assert.match(testo, /La scheda non è arrivata al sito/);
+  assert.match(testo, /Bar &lt;X&gt;/);
+  // senza --sito il 16 resta com'era
+  assert.equal(trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' }).nodes.some((n) => n.name === 'Manda la scheda al sito'), false);
+});
+
+test('la scheda al sito vuole https e la sua credenziale', () => {
+  assert.throws(() => conSito({ sito: 'http://mycity.example' }), /https/);
+  assert.match(controlla(conSito({ credenzialeSito: undefined })).join('\n'), /scheda al sito non ha la credenziale/);
+});
+
+const PROPOSTA = { ok: true, chiave_proposta: 'bar-roma', sito_ufficiale: 'https://barroma.it', da_confermare: ['orari', 'menu_testo'],
+  analisi: { tipo_di_locale: 'bar', pubblico: 'impiegati', punti_di_forza: ['brioche'], idee_contenuti: ['colazione'], cosa_chiedere_al_titolare: ['domenica?'] },
+  campi: {
+    indirizzo: { valore: 'Via Roma 1', stato: 'confermato', fonte: 'https://comune.example/bar' },
+    telefono: { valore: '0523 1', stato: 'frammento', fonte: 'ricerca' },
+    orari: { valore: 'Lun-Sab 7-19', stato: 'non_trovata', fonte: 'https://x.example' },
+    link_menu: { valore: '', stato: 'nessuna', fonte: '' },
+    menu_testo: { valore: 'Brioche\nCappuccino', stato: 'foto', fonte: 'foto 1' },
+    menu_con_prezzi: { valore: 'Brioche 1,50 €', stato: 'foto', fonte: 'foto 1' },
+  } };
+const NODI_SCHEDA = (modalita, proposta = PROPOSTA) => ({
+  Config: [{ json: { MODALITA: modalita } }],
+  'Modulo nuovo cliente': [{ json: { id_mycity: 'c0b240c0-2a86-4218-9d0f-5154f08ff929', nome_locale: 'Bar Roma' } }],
+  ...(proposta ? { 'Controlla la proposta': [{ json: proposta }] } : {}),
+});
+
+test('la scheda per il sito: il formato concordato, senza prezzi, mai in prova', async () => {
+  const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA('vero') });
+  assert.equal(json.mandare, true);
+  const c = json.corpo;
+  assert.equal(c.tipo, 'scheda-cliente');
+  assert.equal(c.origine, 'n8n-16');
+  assert.equal(c.id_attivita, 'c0b240c0-2a86-4218-9d0f-5154f08ff929');
+  assert.equal(c.chiave_cliente, 'bar-roma');
+  assert.deepEqual(c.campi.indirizzo, { valore: 'Via Roma 1', stato: 'confermato', fonte: 'https://comune.example/bar' });
+  assert.deepEqual(c.campi.telefono, { valore: '0523 1', stato: 'frammento', fonte: null }, 'una fonte che non è un indirizzo https diventa null');
+  assert.equal(c.campi.orari.stato, 'da_confermare', 'citazione non trovata = da confermare');
+  assert.deepEqual(c.campi.link_menu, { valore: null, stato: 'nessuna', fonte: null });
+  assert.equal(c.campi.menu_testo.valore, 'Brioche\nCappuccino');
+  assert.equal('menu_con_prezzi' in c.campi, false, 'i prezzi non escono mai');
+  assert.equal(JSON.stringify(c).includes('1,50'), false);
+  assert.deepEqual(c.campi.sito_ufficiale, { valore: 'https://barroma.it', stato: 'da_confermare', fonte: 'https://barroma.it' });
+  assert.deepEqual(c.analisi.punti_di_forza, ['brioche']);
+  assert.deepEqual(c.da_confermare, ['orari', 'menu_testo']);
+  for (const [modalita, proposta, motivo] of [['prova', PROPOSTA, /prova/], ['vero', null, /nessuna scheda/], ['vero', { ok: false }, /nessuna scheda/]]) {
+    const [{ json: j }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA(modalita, proposta) });
+    assert.equal(j.mandare, false);
+    assert.match(j.motivo, motivo);
+  }
 });

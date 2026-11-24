@@ -26,6 +26,7 @@
 //   N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id> [--vero] [--manda]
 //     --credenziale  l'id della credenziale «Header Auth» col segreto (nome x-mycity-segreto)
 //     --analisi <id> il flusso 18 da chiamare alla fine (di serie lo cerca per nome su n8n)
+//     --sito <https://…> e --credenziale-sito <id>: manda la scheda anche al sito (/api/agenzia/scheda-cliente)
 //     --vero         il 16 scrive davvero nel foglio Clienti (di serie «prova»: cerca ma non scrive)
 //     --manda        crea o aggiorna il flusso su n8n (resta come è: acceso o spento)
 //     --file <path>  invece di scaricare il 12 da n8n, lo legge da un file esportato
@@ -49,6 +50,9 @@ const PAGINE = { 'Pagina 1 · Chi è': 'pagina1', 'Pagina 2 · Come parliamo': '
 const PAGINA_4 = 'Pagina 4 · Conferma o annulla';
 const PREPARA_ANALISI = "Prepara l'analisi dell'attività";
 const ANALIZZA = "Analizza l'attività (flusso 18)";
+const SCHEDA_SITO = 'Prepara la scheda per il sito';
+const MANDA_SITO = 'Manda la scheda al sito';
+export const PERCORSO_SCHEDA_SITO = '/api/agenzia/scheda-cliente';
 // Va dentro un testo fra apici di un'espressione n8n: l'a capo si scrive \\n, mai un a capo vero.
 const DA_MYCITY = '🛒 <b>Da MyCity, in automatico</b>\\n';
 const FRASE_PAGINE = "Correggi nelle pagine del modulo che si aprono nel browser; nell'ultima pagina scegli Conferma o Annulla.";
@@ -155,8 +159,44 @@ const p = fatto('Controlla la proposta') ? $('Controlla la proposta').first().js
 const scheda = p && p.ok ? { analisi: p.analisi || {}, da_confermare: p.da_confermare || [], sito_ufficiale: p.sito_ufficiale || '' } : null;
 return [{ json: { id: f.id_mycity, nome: f.nome_locale, origine: 'iscrizione su MyCity', esito_scheda: esito, scheda } }];`;
 
+/** Dopo la scheda: la stessa scheda va al sito, che la conserva e la mostra al venditore da confermare. */
+export const CODICE_SCHEDA_SITO = String.raw`// 16 · La scheda va anche al sito (formato concordato con la sessione «Servizi SDG», 24/11/2026):
+// il sito la conserva per intero, la mostra al venditore nella dashboard e in vetrina mette solo quello
+// che il titolare conferma. «confermato» qui vuol dire «trovato in una fonte», non «confermato dal titolare».
+// Mai in modalità prova, mai senza una scheda, e i prezzi non escono mai (menu_con_prezzi resta qui).
+const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();
+const cfg = $('Config').first().json;
+const prova = testo(cfg.MODALITA).toLowerCase() !== 'vero';
+const f = $('Modulo nuovo cliente').first().json;
+const p = $('Controlla la proposta').isExecuted ? $('Controlla la proposta').first().json : null;
+if (prova) return [{ json: { mandare: false, motivo: 'modalità prova' } }];
+if (!p || !p.ok) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
+const STATI = { confermato: 'confermato', da_confermare: 'da_confermare', foto: 'foto', frammento: 'frammento', proposta: 'proposta',
+  nessuna: 'nessuna', non_trovata: 'da_confermare', bloccata: 'nessuna' };
+const MANDO = ['indirizzo', 'telefono', 'orari', 'link_prenotazione', 'link_menu', 'tono_di_voce', 'regole_risposte', 'hashtag_fissi', 'note_piano', 'menu_testo'];
+const soloHttps = (u) => (/^https:\/\//i.test(testo(u)) ? testo(u) : null);
+const campi = {};
+for (const nome of MANDO) {
+  const c = (p.campi || {})[nome];
+  if (!c) continue;
+  const valore = testo(c.valore);
+  campi[nome] = { valore: valore || null, stato: valore ? STATI[c.stato] || 'da_confermare' : 'nessuna', fonte: soloHttps(c.fonte) };
+}
+const sito = testo(p.sito_ufficiale);
+campi.sito_ufficiale = { valore: /^https?:\/\//i.test(sito) ? sito : null, stato: sito ? 'da_confermare' : 'nessuna', fonte: soloHttps(sito) };
+const a = p.analisi || {};
+const lista = (x, quanti) => (Array.isArray(x) ? x.map((v) => testo(v)).filter(Boolean).slice(0, quanti) : []);
+return [{ json: { mandare: true, corpo: {
+  tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(),
+  id_attivita: f.id_mycity, chiave_cliente: testo(p.chiave_proposta) || null, campi,
+  analisi: { tipo_di_locale: testo(a.tipo_di_locale) || null, pubblico: testo(a.pubblico) || null,
+    punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6) },
+  da_confermare: lista(p.da_confermare, 20),
+} } }];`;
+
 // Testo HTML sicuro per Telegram dentro un'espressione n8n.
-const escExpr = (expr) => `String(${expr} ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`;
+// Fra parentesi: un'espressione con || dentro accanto a ?? senza parentesi non si legge (errore di sintassi).
+const escExpr = (expr) => `String((${expr}) ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`;
 
 // ---------------------------------------------------------------------------------------------
 // La trasformazione
@@ -311,6 +351,47 @@ export function trasforma(modulo12, opzioni = {}) {
     c[PREPARA_ANALISI] = { main: [[{ node: ANALIZZA, type: 'main', index: 0 }]] };
   }
 
+  // La scheda al sito (solo con --sito e --credenziale-sito): accanto all'analisi, dallo stesso ultimo passo.
+  if (opzioni.analisi && opzioni.sito) {
+    const base = String(opzioni.sito).replace(/\/+$/, '');
+    if (!/^https:\/\//i.test(base)) throw new Error("L'indirizzo del sito deve cominciare con https://");
+    assegnazioni.push({ id: randomUUID(), name: 'MYCITY_SITO', value: base, type: 'string' });
+    const prepara = w.nodes.find((n) => n.name === PREPARA_ANALISI);
+    const [px, py] = prepara.position;
+    const schedaCodice = nodoCodice(null, SCHEDA_SITO, CODICE_SCHEDA_SITO);
+    schedaCodice.position = [px + 220, py + 220];
+    const siManda = {
+      id: randomUUID(), name: 'Si manda la scheda?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: [px + 440, py + 220],
+      parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 3 },
+        conditions: [{ id: randomUUID(), leftValue: '={{ $json.mandare }}', rightValue: '', operator: { type: 'boolean', operation: 'true', singleValue: true } }],
+        combinator: 'and' }, looseTypeValidation: true, options: {} },
+    };
+    const manda = {
+      id: randomUUID(), name: MANDA_SITO, type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [px + 660, py + 220],
+      onError: 'continueRegularOutput', retryOnFail: true, maxTries: 2, waitBetweenTries: 5000,
+      parameters: { method: 'POST', url: `={{ $('Config').first().json.MYCITY_SITO }}${PERCORSO_SCHEDA_SITO}`,
+        authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.corpo) }}',
+        options: { response: { response: { fullResponse: true, neverError: true } }, timeout: 15000 } },
+      credentials: { httpHeaderAuth: opzioni.credenzialeSito || { id: 'DA_IMPOSTARE', name: 'MyCity - Segreto scheda cliente' } },
+    };
+    const arrivata = {
+      id: randomUUID(), name: 'Il sito ha preso la scheda?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: [px + 880, py + 220],
+      parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 3 },
+        conditions: [{ id: randomUUID(), leftValue: '={{ Number($json.statusCode) >= 200 && Number($json.statusCode) < 300 }}', rightValue: '', operator: { type: 'boolean', operation: 'true', singleValue: true } }],
+        combinator: 'and' }, looseTypeValidation: true, options: {} },
+    };
+    const avvisa = nodoTelegram(telegram, null, 'Avvisa: scheda non arrivata al sito',
+      `'${DA_MYCITY}⚠️ <b>La scheda non è arrivata al sito</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nRisposta: ' + ${escExpr("$json.statusCode || ($json.error && $json.error.message) || 'nessuna'")} + '\\nLa riga nella scheda Clienti c\\'è; il venditore non la vede ancora nella sua dashboard.'`, chatId);
+    avvisa.position = [px + 1100, py + 320];
+    w.nodes.push(schedaCodice, siManda, manda, arrivata, avvisa);
+    c[PREPARA_ANALISI] = { main: [[{ node: ANALIZZA, type: 'main', index: 0 }, { node: SCHEDA_SITO, type: 'main', index: 0 }]] };
+    c[SCHEDA_SITO] = { main: [[{ node: siManda.name, type: 'main', index: 0 }]] };
+    c[siManda.name] = { main: [[{ node: MANDA_SITO, type: 'main', index: 0 }], []] };
+    c[MANDA_SITO] = { main: [[{ node: arrivata.name, type: 'main', index: 0 }]] };
+    c[arrivata.name] = { main: [[], [{ node: avvisa.name, type: 'main', index: 0 }]] };
+  }
+
   w.name = NOME_16;
   w.settings = { ...(w.settings || {}), saveManualExecutions: false };
   delete w.id; delete w.active; delete w.versionId; delete w.triggerCount; delete w.shared; delete w.tags;
@@ -375,6 +456,12 @@ export function controlla(w) {
       if (!giu.has(ANALIZZA)) problemi.push(`dopo «${arrivo}» l'analisi dell'attività non parte`);
     }
   }
+  const manda = w.nodes.find((n) => n.name === MANDA_SITO);
+  if (manda) {
+    if (!manda.credentials?.httpHeaderAuth?.id || manda.credentials.httpHeaderAuth.id === 'DA_IMPOSTARE') problemi.push('la scheda al sito non ha la credenziale del segreto');
+    const scheda = w.nodes.find((n) => n.name === SCHEDA_SITO);
+    if (!scheda || /MANDO = \[[^\]]*menu_con_prezzi/.test(scheda.parameters.jsCode || '')) problemi.push('i prezzi non devono andare al sito');
+  }
   const cfg = w.nodes.find((n) => n.name === 'Config');
   const mod = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
   if (!['prova', 'vero'].includes(mod)) problemi.push(`MODALITA nel Config è «${mod}»`);
@@ -411,6 +498,8 @@ async function principale(argv) {
     credenziale: idCredenziale ? { id: idCredenziale, name: NOME_CREDENZIALE } : undefined,
     webhookId,
     analisi: idAnalisi,
+    sito: valore('--sito'),
+    credenzialeSito: valore('--credenziale-sito') ? { id: valore('--credenziale-sito'), name: 'MyCity - Segreto scheda cliente' } : undefined,
   });
   const problemi = controlla(w);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
