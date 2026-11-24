@@ -48,6 +48,8 @@ export const STILI = {
     saturazione: 0.96,
     zoom_foto: 0.06,
     fps: 25,
+    // la voce come in studio: via il rimbombo basso, via il soffio di fondo, frasi a volume uniforme, «s» meno taglienti
+    voce: 'studio',
     ritmo: { minima: 1.0, coperturaMin: 2.5, coperturaMax: 6, voltoMin: 1.5, voltoPrima: 3, voltoPoi: 2, fotoBase: 3.5, salto: 1.0, cartello: 3.5, scritta: 3 },
     volto: 'riempi',
     // a tutto schermo: niente bande sfocate (si ritaglia dove sta il soggetto; «intera» solo se la regia lo chiede)
@@ -96,6 +98,14 @@ export const STILI = {
 const f3 = (n) => Number(n).toFixed(3);
 const RE_HEX = /^#[0-9a-fA-F]{6}$/;
 
+// Catena della voce «studio» (registrazioni da telefono e da camera): taglio sotto 80 Hz (rimbombo, vento, colpi sul
+// microfono), riduzione del rumore che segue il fondo, compressione dolce (le frasi sussurrate e quelle forti si
+// avvicinano), de-esser. Il volume finale lo decide dopo il loudnorm a -14 LUFS.
+export const VOCE_STUDIO = 'highpass=f=80,afftdn=nr=12:nf=-42:tn=1,acompressor=threshold=0.1:ratio=2.5:attack=8:release=150:makeup=1.5,deesser=i=0.3';
+export function filtroVoce(stile) {
+  return stile?.voce === 'studio' ? `${VOCE_STUDIO},` : '';
+}
+
 // Luminanza relativa (0 nero, 1 bianco) di un colore #RRGGBB.
 export function luminanza(hex) {
   const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
@@ -105,9 +115,16 @@ export function luminanza(hex) {
 // Stile della richiesta = uno stile base + il marchio del cliente (facoltativo). Dal marchio arrivano solo l'accento
 // (colori.accento, o il colore primario) e il font dei titoli con il suo peso: fondo, testo, sottotitoli e ritmo
 // restano quelli dello stile (per Scatti di G: la moodboard). I sottotitoli restano nel font dello stile, che si legge.
-export function stileDa(nome, marchio) {
+// identita = i colori e i font di Scatti di G scritti nel Config del workflow: quando il marchio dell'agenzia cambia
+// (colori, font) si cambia lì, senza toccare il codice né ripubblicare l'officina. Solo valori validi.
+export function stileDa(nome, marchio, identita = null) {
   const base = STILI[String(nome || 'sdg').toLowerCase()] || STILI.sdg;
   const s = JSON.parse(JSON.stringify(base));
+  const id = identita && typeof identita === 'object' ? identita : {};
+  for (const k of ['fondo', 'testo', 'accento']) if (RE_HEX.test(id[k] || '')) s.colori[k] = id[k];
+  const fontValido = (v) => typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9 ]{0,59}$/.test(v.trim());
+  if (fontValido(id.font_titoli)) s.font_titoli = id.font_titoli.trim();
+  if (fontValido(id.font_testo)) s.font_testo = id.font_testo.trim();
   const c = marchio?.colori || {};
   // l'accento del cliente si usa solo se si vede sul fondo scuro (un filo da 5 px nero su grigio-nero non si vede)
   const accento = [c.accento, c.primario].find((x) => RE_HEX.test(x || '') && luminanza(x) >= 0.12);
@@ -371,8 +388,8 @@ async function voceContinua(tl, sorgenti, uscita, cfg, segnale) {
 }
 
 // Audio finale: la voce, più la musica che si abbassa da sola quando qualcuno parla (sidechain).
-function catenaAudio(iVoce, iMusica, durata, volume) {
-  let c = `[${iVoce}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,asplit=2[vm][vk]`;
+function catenaAudio(iVoce, iMusica, durata, volume, voce = '') {
+  let c = `[${iVoce}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,${voce}asplit=2[vm][vk]`;
   if (iMusica === null) return `${c};[vk]anullsink;[vm]anull[mix]`;
   c += `;[${iMusica}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,atrim=0:${f3(durata)},volume=${volume},afade=t=in:st=0:d=0.6,afade=t=out:st=${f3(Math.max(0, durata - 1.5))}:d=1.5[mus]`;
   c += ';[mus][vk]sidechaincompress=threshold=0.015:ratio=10:attack=15:release=450:makeup=1[musd]';
@@ -473,9 +490,9 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   }
   grafoV += `;[${ultimo}]format=yuv420p[v]`;
   const ingressiMisura = ['-i', 'voce.wav', ...(iMusica !== null ? ['-stream_loop', '-1', '-i', musica] : [])];
-  const misura = await misuraVolume(ingressiMisura, catenaAudio(0, iMusica !== null ? 1 : null, tl.durata, tl.musica?.volume ?? 0.3), cfg, segnale, dirTmp);
+  const misura = await misuraVolume(ingressiMisura, catenaAudio(0, iMusica !== null ? 1 : null, tl.durata, tl.musica?.volume ?? 0.3, filtroVoce(stile)), cfg, segnale, dirTmp);
   if (!misura) avvisi.push(AVVISO_MUTO);
-  const grafoA = `${catenaAudio(1, iMusica, tl.durata, tl.musica?.volume ?? 0.3)};[mix]${filtroLoudnorm(misura)}[a]`;
+  const grafoA = `${catenaAudio(1, iMusica, tl.durata, tl.musica?.volume ?? 0.3, filtroVoce(stile))};[mix]${filtroLoudnorm(misura)}[a]`;
   const finale = path.join(dirOut, 'video.mp4');
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, ...ingressi, '-filter_threads', t, '-filter_complex_threads', t,
     '-filter_complex', `${grafoV};${grafoA}`, '-map', '[v]', '-map', '[a]', ...CODIFICA_FINALE(t, FPS), '-t', f3(tl.durata), finale], { segnale, timeoutMs: cfg.timeoutProcessoMs, cwd: dirTmp });

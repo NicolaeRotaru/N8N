@@ -16,4 +16,6 @@ return [{ json: {
   fotogrammi: fotogrammi ? percorsoOfficina(fotogrammi.url) : '',
   file: r.file.filter((f) => f.tipo !== 'fotogrammi').map((f) => ({ tipo: f.tipo, percorso: percorsoOfficina(f.url), durata: f.durata || null })),
   avvisi: (r.avvisi || []).map((a) => testo(a.messaggio)).filter(Boolean),
+  // il contenuto come l'ha ricontrollato l'officina (per la regia: motore, durata, momenti usati)
+  contenuto: r.contenuto && typeof r.contenuto === 'object' ? r.contenuto : null,
 } }];

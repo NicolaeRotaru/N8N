@@ -12,7 +12,8 @@ const max = Math.max(1, intero(J.MAX_RITOCCHI, 3));
 const no = (messaggio) => [{ json: { ok: false, messaggio } }];
 if (r.error) return no('⚠️ <b>Correzione non arrivata</b> · ' + nome + '\nTelegram non ha accettato la domanda. Il contenuto resta su Drive, non è nel Calendario.');
 if (!nota) return no('⏳ <b>Nessuna correzione scritta</b> · ' + nome + '\nIl contenuto resta su Drive, non è nel Calendario.');
-if (c.motore !== 'regia') return no('✏️ <b>Da sistemare a mano</b> · ' + nome + '\nLa vostra nota: «' + h(accorcia(nota, 500)) + '». Le foto non si rimontano da qui: il contenuto resta su Drive, non è nel Calendario.');
+const conRegia = c.motore === 'regia' || (c.regia && Array.isArray(c.regia.battute) && c.regia.battute.length > 0);
+if (!conRegia) return no('✏️ <b>Da sistemare a mano</b> · ' + nome + '\nLa vostra nota: «' + h(accorcia(nota, 500)) + '». Le foto non si rimontano da qui: il contenuto resta su Drive, non è nel Calendario.');
 if (v > max) return no('✋ <b>Già ritoccato ' + (v - 1) + ' volte</b> · ' + nome + '\nLa vostra nota: «' + h(accorcia(nota, 500)) + '». Oltre ' + max + ' ritocchi lo sistemate a mano: il contenuto resta su Drive.');
 const contenuto = { tipo: c.tipo, data: c.data, ora: c.ora, titolo: c.titolo, idea: c.idea, durata: c.durata, regia: c.regia };
 const testoUtente = [

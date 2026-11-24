@@ -17,7 +17,7 @@ const MOODBOARD = `<moodboard>\n${leggi('moodboard', 'sdg.md').trim()}\n</moodbo
 const PROMPT = {
   PROMPT_CAPIRE: leggi('prompt', 'capire.md').trim(),
   PROMPT_PIANO: `${leggi('prompt', 'piano.md').trim()}\n\n${MOODBOARD}`,
-  PROMPT_CONTROLLO: leggi('prompt', 'controllo.md').trim(),
+  PROMPT_CONTROLLO: `${leggi('prompt', 'controllo.md').trim()}\n\n${MOODBOARD}`,
   PROMPT_RITOCCO: `${leggi('prompt', 'ritocco.md').trim()}\n\n${MOODBOARD}`,
 };
 
@@ -231,6 +231,13 @@ export const CONFIG = {
   USA_CONTROLLO: 'si',
   // regia e stile dei reel (moodboard di Scatti di G); LUT della camera se il girato è in log (vuoto = nessuna)
   STILE_VIDEO: 'sdg',
+  // l'identità di Scatti di G: colori (segnaposti fumo, avorio, oro finché non arrivano i codici esatti) e font.
+  // Cambiano qui, senza toccare l'officina. L'accento lo sostituisce il colore del cliente, se si vede sul fondo scuro.
+  SDG_COLORE_FONDO: '#2C2A27',
+  SDG_COLORE_TESTO: '#F4F1EC',
+  SDG_COLORE_ACCENTO: '#E0A95C',
+  SDG_FONT_TITOLI: 'Poppins',
+  SDG_FONT_TESTO: 'Poppins',
   LUT: '',
   // revisione su Telegram: una scheda per contenuto con ✅ Approva / ✏️ Correggi («no» = come prima, righe scritte dal giro)
   REVISIONE: 'telegram',
@@ -336,7 +343,7 @@ nodo('Telegram: non parto', 'n8n-nodes-base.telegram', 1.2, {
   resource: 'message',
   operation: 'sendMessage',
   chatId: "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
-  text: "={{ ('⚠️ Servizio nuovo nella cartella di ' + String($('Config').first().json.cliente || '') + ', ma non parto: ' + String($json.messaggio || '')).slice(0, 4000) }}",
+  text: "={{ ('⚠️ Servizio nuovo «' + String($('Config').first().json.servizio_nome || '') + '» (cliente ' + String($('Config').first().json.cliente || '') + '), ma non parto: ' + String($json.messaggio || '') + ' Il guardiano non riprova da solo: quando è sistemato, usate il modulo.').slice(0, 4000) }}",
   additionalFields: { appendAttribution: false, disable_web_page_preview: true },
 }, [COL(17), RIGA.modulo + 300], { credentials: CRED.telegram, ...RIPROVA(2, 3000), onError: 'continueRegularOutput', webhookId: uuid('Telegram: non parto:webhook') });
 collega('Dal modulo?', 'Fine: problema', 0);
@@ -579,8 +586,11 @@ function telegramMedia(nome, operazione, pos) {
     additionalFields: { caption: "={{ $('Prepara la scheda').first().json.didascalia_anteprima }}", disable_notification: true },
   }, pos, { credentials: CRED.telegram, ...RIPROVA(2, 3000), onError: 'continueRegularOutput', webhookId: uuid(`${nome}:webhook`) });
 }
+// le schede partono scaglionate (ritardo_s): Telegram accetta un messaggio al secondo nella stessa chat
+nodo('Aspetta il turno', 'n8n-nodes-base.wait', 1.1, { amount: "={{ Number($('Config').first().json.ritardo_s) || 0 }}", unit: 'seconds' }, [COL(2) + 120, V], { webhookId: uuid('Aspetta il turno:webhook') });
 codice('Prepara la scheda', 'prepara-la-scheda.js', [COL(3), V]);
-collega('Quale lavoro?', 'Prepara la scheda', USCITA.rivedi);
+collega('Quale lavoro?', 'Aspetta il turno', USCITA.rivedi);
+collega('Aspetta il turno', 'Prepara la scheda');
 se("C'è l'anteprima?", '$json.anteprima', [COL(4), V]);
 driveScarica("Scarica l'anteprima", "$('Prepara la scheda').first().json.anteprima_id", 'anteprima', [COL(5), V - 150], { onError: 'continueRegularOutput' });
 se("È un video?", "$('Prepara la scheda').first().json.anteprima_video", [COL(6), V - 150]);
@@ -597,7 +607,9 @@ nodo('Chiedi: va bene?', 'n8n-nodes-base.telegram', 1.2, {
     limitWaitTime: { values: { limitType: 'afterTimeInterval', resumeAmount: "={{ Number($('Config').first().json.ATTESA_REVISIONE_GIORNI) || 7 }}", resumeUnit: 'days' } },
     appendAttribution: false,
   },
-}, [COL(8), V], { credentials: CRED.telegram, onError: 'continueRegularOutput', webhookId: uuid('Chiedi: va bene?:webhook') });
+}, [COL(8), V], { credentials: CRED.telegram, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', webhookId: uuid('Chiedi: va bene?:webhook') });
+// dopo l'anteprima si riparte puliti: un'anteprima non riuscita non deve sembrare una scheda non partita
+nodo("Dopo l'anteprima", 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// L'esito dell'anteprima non conta per la scheda: si passa avanti un elemento vuoto.\nreturn [{ json: {} }];" }, [COL(7) + 120, V - 150]);
 codice('Decisione sulla scheda', 'decisione-sulla-scheda.js', [COL(9), V]);
 nodo('Cosa ha deciso?', 'n8n-nodes-base.switch', 3.2, {
   rules: { values: ['approva', 'correggi'].map((k) => ({
@@ -636,7 +648,7 @@ nodo('Chiedi: cosa cambio?', 'n8n-nodes-base.telegram', 1.2, {
     limitWaitTime: { values: { limitType: 'afterTimeInterval', resumeAmount: 2, resumeUnit: 'days' } },
     appendAttribution: false,
   },
-}, [COL(11), V + 100], { credentials: CRED.telegram, onError: 'continueRegularOutput', webhookId: uuid('Chiedi: cosa cambio?:webhook') });
+}, [COL(11), V + 100], { credentials: CRED.telegram, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', webhookId: uuid('Chiedi: cosa cambio?:webhook') });
 codice('Domanda di ritocco', 'domanda-di-ritocco.js', [COL(12), V + 100]);
 se('Ritocco possibile?', '$json.ok', [COL(13), V + 100]);
 claude('Claude: ritocca la regia', [COL(14), V + 50], 600000);
@@ -660,8 +672,9 @@ collega("C'è l'anteprima?", 'Chiedi: va bene?', 1);
 catena("Scarica l'anteprima", 'È un video?');
 collega('È un video?', 'Telegram: il video', 0);
 collega('È un video?', 'Telegram: la foto', 1);
-collega('Telegram: il video', 'Chiedi: va bene?');
-collega('Telegram: la foto', 'Chiedi: va bene?');
+collega('Telegram: il video', "Dopo l'anteprima");
+collega('Telegram: la foto', "Dopo l'anteprima");
+collega("Dopo l'anteprima", 'Chiedi: va bene?');
 catena('Chiedi: va bene?', 'Decisione sulla scheda', 'Cosa ha deciso?');
 collega('Cosa ha deciso?', 'Riga approvata', 0);
 collega('Cosa ha deciso?', 'Chiedi: cosa cambio?', 1);

@@ -18,7 +18,8 @@ $input.all().forEach((x, i) => {
 const out = [];
 for (const [id, e] of per) {
   if (e.errori) continue; // Drive non ha risposto: si riguarda al prossimo giro
-  const materiale = [...e.file.values()].filter((f) => eVideo(f) || eFoto(f) || eAudio(f) || eHeic(f));
+  // conta solo il materiale che si monta: una cartella con sola musica o sole HEIC non «consuma» la partenza
+  const materiale = [...e.file.values()].filter((f) => eVideo(f) || eFoto(f));
   if (!materiale.length) continue;
   const ultimo = Math.max(...materiale.map((f) => Date.parse(f.createdTime) || 0));
   if (ora - ultimo < quiete) continue; // si sta ancora copiando

@@ -345,7 +345,7 @@ export async function creaServer(cfg = leggiConfig()) {
     const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
     // il ritmo dipende dallo stile: la timeline controllata qui è la stessa che /regia/monta monterà con quello stile
-    const R = regoleDelloStile(stileDa(dati.stile, dati.marchio));
+    const R = regoleDelloStile(stileDa(dati.stile, dati.marchio, dati.identita));
     return { progetto: progetto.id, ...controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null, R }) };
   });
 
@@ -353,7 +353,7 @@ export async function creaServer(cfg = leggiConfig()) {
     const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
     // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
-    const stile = stileDa(dati.stile, dati.marchio);
+    const stile = stileDa(dati.stile, dati.marchio, dati.identita);
     const R = regoleDelloStile(stile);
     const lut = await lutPerMateriali(cfg, progetto.materiali, { lut: dati.lut ?? null, lut_materiali: dati.lut_materiali ?? null });
     // più formati dalla stessa regia (es. ["verticale","orizzontale"]): stessi tagli, inquadrature ritagliate per ognuno

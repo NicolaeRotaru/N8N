@@ -13,7 +13,7 @@ COME SI CORREGGE
 - «Togli quella scena»: toglila da tutte le battute e dalle coperture di riserva, e mettine un'altra adatta dal catalogo.
 - Una scena descritta a parole («la scena del forno»): trovala nel catalogo dalla descrizione.
 - Se la correzione chiede di cambiare giorno o ora, scrivili in "data" (AAAA-MM-GG) e "ora" (HH:MM); altrimenti ripeti quelli di prima.
-- Le regole di regia sono le stesse del montaggio: battute con i secondi DENTRO i file presi dalle frasi del catalogo, coperture per codice ("V07.2", "F03", con facoltativa la posizione: "V07.2 sinistra"), una copertura ogni 3-6 secondi, da largo a stretto, il ritmo e lo stile della <moodboard>.
+- Le regole di regia sono le stesse del montaggio: battute con i secondi DENTRO i file presi dalle frasi del catalogo, coperture per codice ("V07.2", "F03", con facoltativa la posizione: "V07.2 sinistra"), una copertura ogni 3-6 secondi, da largo a stretto (l'inquadratura di ogni scena è nel catalogo: largo, medio, dettaglio, volto; mai tre dettagli di fila), il ritmo e lo stile della <moodboard>.
 - Ogni battuta ha tutti i campi {"fonte","inizio","fine","immagini","nome","ruolo","posizione_volto","coperture"}; quelli che non servono vuoti ("" o 0).
 
 ONESTÀ

@@ -10,14 +10,14 @@ for (const it of $input.all()) {
   if (!x.ok) { falliti++; continue; }
   for (const s of (x.dati.scene || [])) {
     const k = testo(s.codice).toUpperCase();
-    if (k) descr[k] = { cosa: accorcia(dato(s.cosa_si_vede), 140), soggetto: testo(s.soggetto), valore: Math.max(1, Math.min(5, intero(s.valore, 3))), aggancio: !!s.aggancio, problemi: (s.problemi || []).map(dato).filter(Boolean).slice(0, 4) };
+    if (k) descr[k] = { cosa: accorcia(dato(s.cosa_si_vede), 140), soggetto: testo(s.soggetto), inquadratura: ['largo', 'medio', 'dettaglio', 'volto'].includes(testo(s.inquadratura)) ? testo(s.inquadratura) : '', valore: Math.max(1, Math.min(5, intero(s.valore, 3))), aggancio: !!s.aggancio, problemi: (s.problemi || []).map(dato).filter(Boolean).slice(0, 4) };
   }
 }
 const arricchito = testo(cat.testo).split('\n').map((r) => {
   const k = r.trim().split(/\s/)[0];
   const d = descr[k];
   if (!d) return r;
-  return r + ' · vede: «' + d.cosa + '» · ' + d.soggetto + ' · valore ' + d.valore + '/5' + (d.aggancio ? ' · aggancio' : '') + (d.problemi.length ? ' · problemi: ' + d.problemi.join(', ') : '');
+  return r + ' · vede: «' + d.cosa + '» · ' + d.soggetto + (d.inquadratura ? ' · ' + d.inquadratura : '') + ' · valore ' + d.valore + '/5' + (d.aggancio ? ' · aggancio' : '') + (d.problemi.length ? ' · problemi: ' + d.problemi.join(', ') : '');
 }).join('\n');
 const mese = J.mese;
 const oggi = partiRoma();

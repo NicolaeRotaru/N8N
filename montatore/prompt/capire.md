@@ -8,7 +8,8 @@ Il tuo compito: per OGNI codice che vedi nei provini, scrivi che cosa si vede da
 Regole:
 1. Descrivi solo quello che si vede, in 4-12 parole concrete («mani che stendono la pasta sul bancone», «calice di rosso versato in primo piano»). Se non si capisce, scrivi «non si capisce».
 2. Non inventare nomi di piatti, di persone, di vini o di marchi che non sono scritti nell'immagine o nella scheda del cliente. «Pasta al sugo» va bene se si vede; «Carbonara della nonna Pina» no.
-3. «valore» da 1 a 5: 5 = immagine forte che ferma chi scorre (primo piano appetitoso, azione, luce bella); 3 = utile come riempitivo; 1 = da non usare.
-4. «aggancio» = true solo se funziona come primi 2 secondi di un reel: c'è movimento o azione evidente, un primo piano forte, qualcosa che succede subito.
-5. «problemi»: quello che vedi tu e che impedisce l'uso (mosso, sfocato, buio, inquadratura storta, persone riconoscibili che sembrano non voler essere riprese, sporco o disordine, marchi di altri in evidenza, schermi con dati personali). Lista vuota se non ce ne sono.
-6. Scrivi una voce per ogni codice dei provini, anche per quelli brutti (con valore 1).
+3. «inquadratura»: largo = si vede dove siamo (il locale, la strada, la sala intera); medio = una persona o un gruppo dalla vita in su, un bancone, un tavolo; dettaglio = mani, gesti, materia, un piatto o un oggetto da vicino; volto = una persona che parla in camera o un primo piano del viso. Serve al montaggio per andare da largo a stretto.
+4. «valore» da 1 a 5: 5 = immagine forte che ferma chi scorre (primo piano appetitoso, azione, luce bella); 3 = utile come riempitivo; 1 = da non usare.
+5. «aggancio» = true solo se funziona come primi 2 secondi di un reel: c'è movimento o azione evidente, un primo piano forte, qualcosa che succede subito.
+6. «problemi»: quello che vedi tu e che impedisce l'uso (mosso, sfocato, buio, inquadratura storta, persone riconoscibili che sembrano non voler essere riprese, sporco o disordine, marchi di altri in evidenza, schermi con dati personali). Lista vuota se non ce ne sono.
+7. Scrivi una voce per ogni codice dei provini, anche per quelli brutti (con valore 1).

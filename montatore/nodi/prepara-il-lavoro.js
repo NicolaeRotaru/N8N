@@ -53,7 +53,7 @@ const lavoro = {
   servizio: S,
   mese,
   richiesta,
-  note: accorcia(testo(CFG.note), 2000),
+  note: accorcia(testo(CFG.note).replace(/\brifai\b/gi, '').trim(), 2000),
   file,
   musica,
   scartati,
@@ -66,4 +66,16 @@ const messaggio = 'Ho trovato ' + nv + ' video' + (secondi ? ' (' + durataTesto 
   + 'Ci vorrà circa ' + (minuti >= 90 ? Math.round(minuti / 60) + ' ore' : minuti + ' minuti') + ': ti scrivo su Telegram a ogni passo.'
   + (scartati.length ? ' File saltati: ' + accorcia(scartati.join('; '), 400) + '.' : '')
   + (norm(CFG.MODALITA) === 'attivo' ? '' : ' Modalità PROVA: i contenuti finiscono su Drive, nel Calendario non scrivo niente.');
+// Lo stesso servizio non parte due volte: il modulo e il guardiano delle cartelle segnano nella memoria del workflow
+// (static data) le cartelle avviate. Dal modulo, una cartella partita nelle ultime 12 ore si ferma, salvo «rifai» nelle note.
+const ST = $getWorkflowStaticData('global');
+ST.servizi = ST.servizi || {};
+const gia = ST.servizi[S.id];
+const daGuardiano = CFG.origine === 'cartella';
+const adesso = new Date();
+if (!daGuardiano && gia && gia.avviato && !/\brifai\b/i.test(testo(CFG.note)) && adesso - (Date.parse(gia.avviato) || 0) < 12 * 3600000) {
+  const quando = partiRoma(new Date(gia.avviato));
+  return [{ json: { ok: false, messaggio: 'Il servizio «' + S.nome + '» è già partito il ' + quando.giorno + '/' + quando.mese + ' alle ' + quando.ora + (gia.da === 'cartella' ? ', da solo (il guardiano delle cartelle)' : ', dal modulo') + ': i messaggi arrivano su Telegram. Se vuoi rifarlo davvero, scrivi «rifai» nelle note.' } }];
+}
+ST.servizi[S.id] = { ...(gia || {}), visto: (gia && gia.visto) || adesso.toISOString(), avviato: adesso.toISOString(), nome: S.nome, cliente: T.cliente, da: daGuardiano ? 'cartella' : 'modulo' };
 return [{ json: { ok: true, lavoro, messaggio } }];

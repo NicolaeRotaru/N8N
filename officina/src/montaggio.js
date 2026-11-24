@@ -51,7 +51,7 @@ export async function montaContenuto({ progetto, dirProgetto, dati, file, lavoro
   const idx = indice(progetto);
   // lo stile della regia (di serie Scatti di G) decide anche il ritmo con cui si controllano le battute
   const marchioRegia = dati.marchio_valido === false ? null : dati.marchio;
-  const stile = stileDa(dati.stile, marchioRegia);
+  const stile = stileDa(dati.stile, marchioRegia, dati.identita);
   const R = regoleDelloStile(stile);
   const r = controllaContenuto(dati.contenuto, Number(dati.contenuto?.n) || 1, idx, { progetto, R });
   if (!r.contenuto) {

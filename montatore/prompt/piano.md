@@ -14,6 +14,7 @@ COME SI MONTA (regole dell'officina, il montaggio è solo tagli veri: niente eff
     · un tratto di sole immagini con la musica: {"fonte":"","inizio":0,"fine":0,"immagini":8,"nome":"","ruolo":"","posizione_volto":"","coperture":["V07.2","F03"]} ("immagini" = i secondi che deve durare).
     · Puoi togliere un pezzo in mezzo a quello che dice una persona facendo due battute dello stesso video: il salto lo copre l'officina con le coperture di riserva.
   - Le coperture vanno sopra le voci quando la persona parla di qualcosa che si può mostrare, e sempre nei tratti di sole immagini. Una ogni 3-6 secondi, da largo a stretto (dove siamo → chi e cosa → il gesto).
+  - Nel catalogo ogni scena ha la sua inquadratura (largo, medio, dettaglio, volto). Ogni sequenza di coperture comincia da un largo o da un medio prima dei dettagli; mai tre dettagli di fila; il dettaglio più bello va sulla frase più importante.
   - "coperture_riserva": 3-6 scene belle e generiche per coprire salti e buchi.
   - L'aggancio: i primi 2 secondi devono far fermare chi scorre (la scena o la frase più forte), ma senza fretta: nessun montaggio nervoso.
   - "titolo": massimo 6 parole sui primi secondi, o stringa vuota. "scritte": poche, solo dati veri che non si sentono. "chiusura": frase finale breve coerente con la scheda (per esempio «Prenota al link in bio») o stringa vuota.

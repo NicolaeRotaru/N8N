@@ -1,7 +1,8 @@
 // (esecuzione «monta») Il contenuto è su Drive: restituisco al giro i link e il giudizio.
 const J = $('Config').first().json;
 const E = $('Esito del montaggio').first().json;
-const c = J.contenuto;
+// il contenuto ricontrollato dall'officina vince su quello arrivato (dopo un ritocco porta di nuovo motore e durata)
+const c = E.contenuto && E.contenuto.tipo ? { ...J.contenuto, ...E.contenuto } : J.contenuto;
 const base = { n: J.n, contenuto: c };
 if (!E.ok) return [{ json: { ...base, ok: false, motivo: E.motivo } }];
 const elenco = $('File da caricare').all().map((x) => x.json);

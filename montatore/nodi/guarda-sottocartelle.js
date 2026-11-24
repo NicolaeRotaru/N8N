@@ -8,7 +8,9 @@ $input.all().forEach((x, i) => {
   const voci = x.json.files || [];
   const cartelle = voci.filter((f) => eCartella(f) && ruoloCartella(f.name) && !/pronti/i.test(testo(f.name)));
   const diretti = voci.filter((f) => !eCartella(f)).map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, createdTime: f.createdTime }));
-  const dove = cartelle.length ? cartelle.map((f) => f.id) : [s.servizio_id];
-  dove.forEach((id, k) => out.push({ json: { ...s, cartella: id, diretti: k === 0 && cartelle.length ? diretti : [] } }));
+  // un servizio è una cartella con le sottocartelle del servizio (video verticali, video orizzontali, foto…): una cartella
+  // qualunque («Grafiche», «Menu») non fa partire niente. I servizi con i file sciolti si lanciano dal modulo.
+  if (!cartelle.length) return;
+  cartelle.forEach((f, k) => out.push({ json: { ...s, cartella: f.id, diretti: k === 0 ? diretti : [] } }));
 });
 return out;

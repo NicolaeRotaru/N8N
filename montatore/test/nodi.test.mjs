@@ -120,6 +120,22 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.match(r.messaggio, /Modalità PROVA/);
   const vuoto = esegui('prepara-il-lavoro.js', { nodi: { Config: CFG_MODULO, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC }, input: [{ files: [] }] })[0].json;
   assert.equal(vuoto.ok, false);
+  // lo stesso servizio non parte due volte: il modulo segna la cartella, il secondo modulo si ferma, «rifai» lo forza;
+  // il guardiano vede la cartella segnata dal modulo e non la rilancia
+  const S = {};
+  const nodiP = (cfg) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC });
+  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiP({}), input: [files], statico: S })[0].json.ok, true);
+  const id = SERVIZIO.servizio.id;
+  assert.equal(S.servizi[id].da, 'modulo');
+  const doppio = esegui('prepara-il-lavoro.js', { nodi: nodiP({}), input: [files], statico: S })[0].json;
+  assert.equal(doppio.ok, false);
+  assert.match(doppio.messaggio, /è già partito .* dal modulo.*«rifai»/);
+  const rifai = esegui('prepara-il-lavoro.js', { nodi: nodiP({ note: 'rifai, venerdì serata salsa' }), input: [files], statico: S })[0].json;
+  assert.equal(rifai.ok, true);
+  assert.equal(rifai.lavoro.note, ', venerdì serata salsa');
+  const servizi = esegui('guarda-servizi.js', { nodi: { 'Guarda: cartelle dei clienti': [{ cliente: 'el-tropico', nome_locale: 'El Tropico Latino', cartella_cliente: 'x', dopo: '' }] }, input: [{ files: [{ id, name: 'Servizio novembre', createdTime: '2026-11-24T10:00:00Z' }] }], statico: S });
+  assert.deepEqual(servizi, [], 'il guardiano non rilancia una cartella partita dal modulo');
+  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiP({ origine: 'cartella' }), input: [files], statico: S })[0].json.ok, true, 'il guardiano passa (si è già controllato da solo)');
 });
 
 test('Domande sul materiale: provini a gruppi, righe del catalogo giuste, prompt e schema', () => {
@@ -279,14 +295,19 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
     { files: [{ id: 'y1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: new Date(Date.now() - 5 * 60000).toISOString() }] },
   ];
   const sub = esegui('guarda-sottocartelle.js', { nodi: { 'Guarda: servizi nuovi': sv }, input: dentro }).map((x) => x.json);
-  assert.deepEqual(sub.map((x) => x.cartella), ['sub1', 'sub2', 'svc2aaaaaaaaaaaaaaaaaaaa']);
+  assert.deepEqual(sub.map((x) => x.cartella), ['sub1', 'sub2'], 'una cartella senza le sottocartelle del servizio non parte da sola');
   assert.equal(sub[0].diretti.length, 1, 'i file sciolti del servizio contano una volta');
   const vecchio = new Date(Date.now() - 45 * 60000).toISOString();
-  const file = [{ files: [{ id: 'v1', name: 'c.mov', mimeType: 'video/quicktime', createdTime: vecchio }] }, { files: [{ id: 'f1', name: 'p.jpg', mimeType: 'image/jpeg', createdTime: vecchio }] }, { files: [] }];
+  const file = [{ files: [{ id: 'v1', name: 'c.mov', mimeType: 'video/quicktime', createdTime: vecchio }] }, { files: [{ id: 'f1', name: 'p.jpg', mimeType: 'image/jpeg', createdTime: vecchio }] }];
+  // si sta ancora copiando: un file di 5 minuti fa ferma la partenza
+  const giovane = [{ files: [{ id: 'v1', name: 'c.mov', mimeType: 'video/quicktime', createdTime: vecchio }] }, { files: [{ id: 'f9', name: 'q.jpg', mimeType: 'image/jpeg', createdTime: new Date(Date.now() - 5 * 60000).toISOString() }] }];
+  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': sub }, input: giovane, statico: { servizi: {} } }), []);
+  // solo musica o sole HEIC: non parte (e non consuma la partenza)
+  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': sub.map((x) => ({ ...x, diretti: [] })) }, input: [{ files: [{ id: 'h1', name: 'a.HEIC', mimeType: 'image/heif', createdTime: vecchio }] }, { files: [{ id: 'm1', name: 'b.mp3', mimeType: 'audio/mpeg', createdTime: vecchio }] }], statico: { servizi: {} } }), []);
   const pronti = esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': sub }, input: file, statico: S }).map((x) => x.json);
-  assert.equal(pronti.length, 1, 'il secondo servizio ha un file di 5 minuti fa: si sta ancora copiando');
+  assert.equal(pronti.length, 1);
   assert.deepEqual([pronti[0].lavoro, pronti[0].origine, pronti[0].cliente, pronti[0].cartella, pronti[0].reel], ['avvia', 'cartella', 'el-tropico', 'https://drive.google.com/drive/folders/svc1aaaaaaaaaaaaaaaaaaaa', 10]);
-  assert.match(pronti[0].messaggio, /Servizio nuovo.*El Tropico Latino.*Servizio dicembre[\s\S]*3 file/);
+  assert.match(pronti[0].messaggio, /Servizio nuovo.*El Tropico Latino.*Servizio dicembre[\s\S]*2 file/);
   assert.ok(S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.avviato);
   // al giro dopo il servizio avviato non torna
   const di2 = esegui('guarda-servizi.js', { nodi: { 'Guarda: cartelle dei clienti': cl }, input: cartelle, statico: S }).map((x) => x.json);
@@ -326,7 +347,7 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
   }
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo
   const uscite = workflow.connections['Quale lavoro?'].main.map((u) => u.map((x) => x.node));
-  assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Prepara la scheda'], ['Guarda: leggi Clienti'], ['Leggi Clienti'], ['Leggi Clienti']]);
+  assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: leggi Clienti'], ['Leggi Clienti'], ['Leggi Clienti']]);
   assert.deepEqual(workflow.connections['Ogni 15 minuti'].main[0].map((x) => x.node), ['Segna: guarda']);
   // la scheda su Telegram: due pulsanti, attesa in giorni dal Config; la correzione è testo libero
   const scheda = NODO('Chiedi: va bene?').parameters;
@@ -494,6 +515,14 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
     const storia = esegui('riga-approvata.js', { nodi: { Config: { ...CONFIG, MODALITA: 'attivo', ...schede[2] } } })[0].json;
     assert.equal(storia.riga.stato, 'approvato', 'una storia approvata è pronta per il 01');
     assert.equal(esegui('riga-approvata.js', { nodi: { Config: { ...R, MODALITA: 'prova' } } })[0].json.scrivi, false);
+    // approvata dopo la data: «bozza», mai «approvato» in ritardo
+    const vecchia = esegui('riga-approvata.js', { nodi: { Config: { ...R, esito: { ...R.esito, contenuto: { ...R.esito.contenuto, data: '2020-01-01' } } } } })[0].json;
+    assert.deepEqual([vecchia.riga.stato, /data è passata/.test(vecchia.messaggio)], ['bozza', true]);
+    // un asterisco nel titolo non rompe il grassetto di Telegram
+    const stella = esegui('prepara-la-scheda.js', { nodi: { Config: { ...R, esito: { ...R.esito, contenuto: { ...R.esito.contenuto, titolo: 'Pizza * e _birra_' } } } } })[0].json;
+    assert.match(stella.messaggio_scheda, /^\*Pizza e birra\* · esce/m);
+    assert.equal(schede[1].ritardo_s, 4, 'le schede partono una ogni 4 secondi');
+    assert.deepEqual(workflow.connections["Dopo l'anteprima"].main[0].map((x) => x.node), ['Chiedi: va bene?']);
     // Correggi
     const dr = esegui('domanda-di-ritocco.js', { nodi: { Config: R }, input: [{ data: { text: 'più corto e senza la scena V01.3' } }] })[0].json;
     assert.equal(dr.ok, true);
@@ -524,6 +553,14 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
     assert.match(er.messaggio, /Rimontato.*versione 2[\s\S]*Più corto: 6 secondi/);
     const sch2 = esegui('prepara-la-scheda.js', { nodi: { Config: { ...CONFIG, ...er.scheda } } })[0].json;
     assert.match(sch2.messaggio_scheda, /versione 2/);
+    // la versione 2 è ancora un video con la regia: durata, «Correggi = … lo rimonto», secondo ritocco possibile
+    assert.equal(er.scheda.esito.contenuto.motore, 'regia');
+    assert.equal(er.scheda.esito.contenuto.durata, 6);
+    assert.match(sch2.messaggio_scheda, /Durata: 6,0 s/);
+    assert.match(sch2.messaggio_scheda, /Correggi = mi scrivi cosa cambiare e lo rimonto/);
+    const R2 = { ...CONFIG, MODALITA: 'attivo', ...er.scheda };
+    assert.equal(esegui('domanda-di-ritocco.js', { nodi: { Config: R2 }, input: [{ data: { text: 'ancora più corto' } }] })[0].json.ok, true, 'secondo ritocco');
+    assert.match(esegui('riga-approvata.js', { nodi: { Config: R2 } })[0].json.riga.brief, /\(V01\.1, V02\.2/);
     // «Officina: chiudi il progetto»
     const ch = await richiestaDelNodo('Officina: chiudi il progetto', C(giro, { json: tot }));
     assert.equal(ch.stato, 200, JSON.stringify(ch.json));
