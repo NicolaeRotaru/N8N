@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
 import { avviaServer, chiama, scarica, creaClip, creaImmagine, creaLogo, sondaFile, ffmpeg, loudnessIntegrata, MATERIALE, TMP, RADICE, CHIAVE } from './aiuti.js';
 import { leggiSceneggiatura, leggiIntervallo, leggiTempo } from '../src/sceneggiatura.js';
-import { controllaRegia, agganciaAlleParole, riempiConCoperture, paroleDi, REGOLE } from '../src/regia.js';
+import { controllaRegia, agganciaAlleParole, riempiConCoperture, paroleDi, senzaPezziCorti, REGOLE } from '../src/regia.js';
 import { creaAssRegia, gruppiDiParole, coloreAss, leggiDifetti, grafoInquadratura, stileDa, famiglieAss, FORMATI } from '../src/regia-render.js';
 import { nomeFamigliaLibass, caricaFont } from '../src/font.js';
 import { leggiConfig } from '../src/config.js';
@@ -66,6 +66,10 @@ Ore 7:30 apertura`);
   const altre = leggiSceneggiatura('INTERVISTA: Mario, fornaio\nCiao.\nVOCE FUORI CAMPO: voce.wav\nTesto.\nV.O.: Altra voce.\nIntervista (Giulia Rossi): Lievito madre.\nINTRVISTA: Luca');
   assert.deepEqual(altre.blocchi.map((b) => [b.tipo, b.chi || b.file || '', b.testo]), [['intervista', 'Mario', 'Ciao.'], ['voce', 'voce.wav', 'Testo.'], ['voce', '', 'Altra voce.'], ['intervista', 'Giulia Rossi', 'Lievito madre. INTRVISTA: Luca']]);
   assert.match(altre.avvisi[0].messaggio, /«INTRVISTA:» non è una parola che conosco/);
+  // parole comuni nel testo normale non aprono blocchi («Parla del lievito:», «Montaggio:», «Finale:»)
+  const comuni = leggiSceneggiatura('VOCE: voce.wav\nParla del lievito: «lo rinfresca ogni giorno».\nMontaggio: veloce, sul ritmo.\nFinale: sorpresa.');
+  assert.equal(comuni.blocchi.length, 1);
+  assert.equal(comuni.blocchi[0].testo, 'Parla del lievito: «lo rinfresca ogni giorno». Montaggio: veloce, sul ritmo. Finale: sorpresa.');
 });
 
 test('paroleConTempi: ogni parola finisce dove comincia la dopo, l\'ultima col segmento', () => {
@@ -286,6 +290,89 @@ test('famiglieAss: il render usa il nome libass dei font inclusi (Bricolage Grot
   const cfg = { ...leggiConfig({}), fontRete: false };
   const f = famiglieAss(await caricaFont('Bricolage Grotesque', cfg, 800), await caricaFont('Inter', cfg));
   assert.deepEqual(f, { titoli: 'Bricolage Grotesque ExtraBold', testo: 'Inter' });
+});
+
+// Generatore pseudo-casuale con seme (le prove danno sempre lo stesso risultato).
+function casuale(seme) {
+  let x = seme >>> 0;
+  return () => {
+    x = (x + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(x ^ (x >>> 15), 1 | x);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+test('regia su 3000 piani casuali di lavoro normale: niente lampi, niente pezzi da 0 fotogrammi, fotogrammi esatti, niente stessa scena di fila evitabile', () => {
+  const rnd = casuale(20261124);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const conteggi = { piani: 0, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 };
+  for (let it = 0; it < 3000; it++) {
+    // clip da telefono da 1,5 a 8 s (durate a 2 decimali come le scrive l'analisi), una voce, un'intervista, un'altra voce
+    const clip = Array.from({ length: 6 }, (_, k) => { const d = r2(1.5 + rnd() * 6.5); return { codice: `V${10 + k}`, tipo: 'video', durata: d, audio: false, scene: [{ codice: `V${10 + k}.1`, inizio: 0, fine: d, nitidezza: 80, luminosita: 120, movimento: 3 }] }; });
+    const audio = (codice, L, tipo = 'audio') => {
+      const n = Math.max(3, Math.round(L * 2.5));
+      return { codice, tipo, durata: 60, audio: true, orientamento: 'verticale', scene: [{ codice: `${codice}.1`, inizio: 0, fine: 60, nitidezza: 80, luminosita: 120, movimento: 3 }], parlato: [{ inizio: 1, fine: 1 + L, testo: 'x', parole: Array.from({ length: n }, (_, k) => ({ testo: `p${k}`, inizio: +(1 + (k * L) / n).toFixed(3), fine: +(1 + ((k + 0.85) * L) / n).toFixed(3) })) }] };
+    };
+    const L1 = 2 + rnd() * 12;
+    const L2 = 3 + rnd() * 16;
+    const L3 = 2 + rnd() * 10;
+    const progetto = { materiali: [audio('A01', L1), audio('V01', L2, 'video'), audio('A02', L3), ...clip] };
+    const scegli = (n) => Array.from({ length: n }, () => `V${10 + Math.floor(rnd() * 6)}.1`).filter((c, i, a) => a.indexOf(c) === i);
+    const piano = { battute: [
+      { fonte: 'A01', inizio: 1, fine: 1 + L1, coperture: scegli(1 + Math.floor(rnd() * 3)) },
+      { fonte: 'V01', inizio: 1, fine: 1 + L2, nome: 'Mario', coperture: rnd() < 0.5 ? scegli(1 + Math.floor(rnd() * 2)) : [] },
+      { fonte: 'A02', inizio: 1, fine: 1 + L3, coperture: scegli(1 + Math.floor(rnd() * 3)) },
+    ], ...(rnd() < 0.5 ? { coperture_riserva: scegli(2) } : {}) };
+    const tl = controllaRegia(piano, progetto);
+    conteggi.piani++;
+    if (tl.problemi.some((p) => p.codice === 'timeline_incoerente')) conteggi.incoerenti++;
+    let fotogrammi = 0;
+    for (const q of tl.video) {
+      const f = Math.round(q.a * 30) - Math.round(q.da * 30);
+      if (q.a - q.da < REGOLE.minima - 1e-3) conteggi.sotto++;
+      if (f <= 0) conteggi.zero++;
+      fotogrammi += Math.max(0, f);
+    }
+    if (fotogrammi !== Math.round(tl.durata * 30)) conteggi.conti++;
+    // stessa scena due volte di fila, ricominciata da capo, quando la battuta (con la riserva) aveva un'alternativa
+    for (let i = 1; i < tl.video.length; i++) {
+      const a = tl.video[i - 1];
+      const b = tl.video[i];
+      if (a.tipo !== 'copertura' || b.etichetta !== a.etichetta || Math.abs(a.fine - b.inizio) < 0.01) continue;
+      const k = tl.audio.findIndex((x) => b.da >= x.da - 1e-6 && b.da < x.a);
+      const battuta = piano.battute[k];
+      const scelte = new Set([...(battuta?.coperture || []), ...(piano.coperture_riserva || [])]);
+      // evitabile = c'era un'altra scena E il materiale bastava senza ripetere; con materiale corto la ripetizione è
+      // obbligata, e allora deve esserci l'avviso «coperture_corte»
+      const materiale = [...scelte].reduce((t, c) => t + (progetto.materiali.find((m) => `${m.codice}.1` === c)?.durata || 0), 0);
+      const bastava = materiale >= (tl.audio[k]?.a - tl.audio[k]?.da) - 1e-6;
+      if (scelte.size >= 2 && bastava) conteggi.evitabili++;
+      if (!bastava && !tl.problemi.some((p) => p.codice === 'coperture_corte' || p.codice === 'ripetizione')) conteggi.senzaAvviso = (conteggi.senzaAvviso || 0) + 1;
+    }
+  }
+  assert.deepEqual(conteggi, { piani: 3000, sotto: 0, zero: 0, conti: 0, incoerenti: 0, evitabili: 0 });
+});
+
+test('i due casi esatti del secondo collaudo: avanzo di 1 centesimo e lampo da 1 fotogramma', () => {
+  const P = JSON.parse(JSON.stringify(PROGETTO));
+  P.materiali.push({ codice: 'V10', tipo: 'video', durata: 4.53, audio: false, scene: [{ codice: 'V10.1', inizio: 0, fine: 4.53, nitidezza: 80, luminosita: 120, movimento: 3 }] });
+  P.materiali.push({ codice: 'V08', tipo: 'video', durata: 5, audio: false, scene: [{ codice: 'V08.1', inizio: 0, fine: 5, nitidezza: 80, luminosita: 120, movimento: 3 }] });
+  for (const piano of [
+    { battute: [{ fonte: 'A01', inizio: 0.4, fine: 9.9, coperture: ['V10.1', 'V08.1'] }, { fonte: 'V01', inizio: 1, fine: 5 }] },
+    { battute: [{ fonte: 'A01', inizio: 0.4, fine: 9.9, coperture: ['V03.2', 'V08.1'] }, { fonte: 'V01', inizio: 1, fine: 5 }] },
+  ]) {
+    const tl = controllaRegia(piano, P);
+    assert.equal(tl.bloccante, false, JSON.stringify(tl.problemi));
+    for (const q of tl.video) assert.ok(q.a - q.da >= REGOLE.minima - 1e-3, `inquadratura corta: ${JSON.stringify(q)}`);
+    const fotogrammi = tl.video.reduce((t, q) => t + Math.round(q.a * 30) - Math.round(q.da * 30), 0);
+    assert.equal(fotogrammi, Math.round(tl.durata * 30));
+  }
+  // senzaPezziCorti: l'avanzo da 0,01 s va al vicino che ha spazio; se nessuno ha spazio, cresce prendendo dal vicino
+  const durate = { V10: 4.53, V08: 5 };
+  const a = senzaPezziCorti([{ fonte: 'V10', tipo: 'copertura', inizio: 0, fine: 4.53, durata: 4.53 }, { fonte: 'V08', tipo: 'copertura', inizio: 0, fine: 5, durata: 5 }, { fonte: 'V10', tipo: 'copertura', inizio: 0, fine: 0.01, durata: 0.01 }], (c) => durate[c]);
+  assert.deepEqual(a.map((p) => [p.fonte, p.inizio, p.fine]), [['V10', 0, 4.53], ['V08', 0, 4.41], ['V10', 0, 0.6]]);
+  assert.ok(Math.abs(a.reduce((t, p) => t + p.durata, 0) - 9.54) < 1e-9, 'la durata totale non cambia');
 });
 
 // ---------------------------------------------------------------- testi dello stile

@@ -29,8 +29,8 @@ Esempio. L'autore scrive tre righe: «VOCE: Da trent'anni la famiglia Rossi impa
   - nessuna inquadratura dura meno di 0,6 secondi.
   - un volto tra due immagini dura almeno 1 secondo.
   - un volto si vede solo quando si sente la sua voce.
-  - nessun momento si usa due volte.
-  - se le immagini sono poche si ripetono, ma non si allunga mai una clip oltre la sua fine.
+  - la stessa scena non ricomincia subito dopo sé stessa: si cambia ordine, o la clip continua da dove era arrivata.
+  - se le immagini sono poche si ripetono (con un avviso), ma non si allunga mai una clip oltre la sua fine.
   - a montaggio finito si contano i fotogrammi: se voce e immagini non tornano al fotogramma, il video non si consegna.
   - A video finito controlla anche che non ci siano fotogrammi neri o immagini ferme.
 
@@ -110,4 +110,4 @@ CHIUSURA: Ordina su MyCity
   "musica": true
 }
 ```
-- Prove: `cd officina && node --test --test-concurrency=1 test/10-regia.test.js` (16 prove, due con il render vero).
+- Prove: `cd officina && node --test --test-concurrency=1 test/10-regia.test.js` (18 prove: due con il render vero, una su 3000 piani casuali).

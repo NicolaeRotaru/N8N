@@ -150,10 +150,79 @@ export function riempiConCoperture(coperture, durata, R = REGOLE) {
   return { pezzi, manca: Math.max(0, r3(durata - somma)) };
 }
 
+// Dentro una battuta nessun pezzo resta sotto la durata minima: un avanzo corto non diventa mai un pezzo nuovo.
+// Prima si dà il suo tempo a un vicino che ha ancora materiale nella sua clip; se nessuno ne ha, il pezzo corto
+// cresce fino alla minima togliendo tempo al vicino (che resta sopra la minima). La durata totale non cambia mai.
+export function senzaPezziCorti(pezzi, durataClip, R = REGOLE) {
+  const lista = pezzi.map((p) => ({ ...p }));
+  const spazioDopo = (p) => (p.tipo === 'foto' ? 8 - p.durata : durataClip(p.fonte) - p.fine);
+  const spazioPrima = (p) => (p.tipo === 'foto' ? 8 - p.durata : p.inizio);
+  const allunga = (p, d, verso) => {
+    p.durata += d;
+    if (p.tipo === 'foto') { p.fine += d; return; }
+    if (verso > 0) p.fine += d;
+    else p.inizio -= d;
+  };
+  for (let giro = 0; giro < lista.length * 3 && lista.length > 1; giro++) {
+    const i = lista.findIndex((p) => p.durata < R.minima - 1e-6);
+    if (i < 0) break;
+    const q = lista[i];
+    const prima = lista[i - 1];
+    const dopo = lista[i + 1];
+    // 1) il vicino si allunga dentro la sua clip e il pezzo corto sparisce
+    if (prima && spazioDopo(prima) >= q.durata - 1e-6) { allunga(prima, q.durata, 1); lista.splice(i, 1); continue; }
+    if (dopo && spazioPrima(dopo) >= q.durata - 1e-6) { allunga(dopo, q.durata, -1); lista.splice(i, 1); continue; }
+    // 2) il pezzo corto cresce fino alla minima, prendendo tempo a un vicino che resta sopra la minima
+    const manca = R.minima - q.durata;
+    const donatore = [prima, dopo].find((x) => x && x.durata - manca >= R.minima - 1e-6);
+    const cresce = spazioDopo(q) >= manca - 1e-6 ? 1 : spazioPrima(q) >= manca - 1e-6 ? -1 : 0;
+    if (donatore && cresce) {
+      donatore.durata -= manca;
+      if (donatore.tipo === 'foto' || donatore === prima) donatore.fine -= manca;
+      else donatore.inizio += manca;
+      allunga(q, manca, cresce);
+      continue;
+    }
+    // 3) niente da fare senza uscire dalle clip: il pezzo corto si unisce al vicino più lungo (che si ripete un attimo)
+    break;
+  }
+  return lista.map((p) => ({ ...p, inizio: r3(p.inizio), fine: r3(p.fine) }));
+}
+
+// La stessa scena subito dopo sé stessa, ricominciata da capo, è un salto visibile. I pezzi si mettono in un ordine
+// in cui la scena cambia ogni volta che si può; quando non si può: se la clip ha ancora materiale dopo il pezzo di
+// prima si continua da lì (nessun taglio), altrimenti si usa una copertura di riserva della stessa durata.
+export function evitaStessaDiFila(pezzi, ultimo, durataClip, riserva = [], R = REGOLE) {
+  const restanti = pezzi.map((p) => ({ ...p }));
+  const uguale = (a, b) => a && b && b.tipo === 'copertura' && a.tipo === 'copertura' && a.etichetta === b.etichetta && a.fonte === b.fonte;
+  const out = [];
+  let prima = ultimo;
+  while (restanti.length) {
+    let k = restanti.findIndex((p) => !uguale(prima, p));
+    if (k < 0) k = 0;
+    let q = restanti.splice(k, 1)[0];
+    if (uguale(prima, q) && Math.abs(prima.fine - q.inizio) >= 0.01) {
+      if (durataClip(q.fonte) - prima.fine >= q.durata - 1e-6) {
+        q.inizio = r3(prima.fine);
+        q.fine = r3(prima.fine + q.durata);
+      } else {
+        const alt = riserva.find((c) => c.etichetta !== q.etichetta && (c.tipo === 'foto' || c.max - c.ci >= q.durata - 1e-6));
+        if (alt) {
+          const r = riempiConCoperture([alt], q.durata, R);
+          if (r.manca <= 1e-6 && r.pezzi.length === 1) q = r.pezzi[0];
+        }
+      }
+    }
+    out.push(q);
+    prima = q;
+  }
+  return out;
+}
+
 // Mette in fila i pezzi da `da`, restituendo inquadrature con da/a sulla timeline.
 function inFila(pezzi, da) {
   let t = da;
-  return pezzi.map((p) => {
+  return pezzi.filter((p) => p.durata > 1e-6).map((p) => {
     const q = { fonte: p.fonte, tipo: p.tipo, inizio: p.inizio, fine: p.fine, da: r3(t), a: r3(t + p.durata), etichetta: p.etichetta, ...(p.posizione ? { posizione: p.posizione } : {}) };
     t += p.durata;
     return q;
@@ -239,6 +308,7 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
   const durataTot = battute.length ? battute[battute.length - 1].a : 0;
 
   // 2) inquadrature di ogni battuta
+  const durataClip = (codice) => idx.materiali.get(codice)?.durata ?? 0;
   const visti = new Set();
   let video = [];
   for (const b of battute) {
@@ -246,22 +316,31 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
       if (!b.coperture.length) avviso(b.n, 'coperture_dalla_riserva', `Battuta ${b.n}: senza coperture sue, ho usato quelle di riserva.`);
       // giro 1: le coperture della battuta (o la riserva); giro 2: la riserva; poi si ripetono tutte. Ogni pezzo resta
       // dentro la sua clip: se il materiale è corto si ripete un'immagine, mai si allunga oltre la fine della clip.
-      const giri = [b.coperture.length ? b.coperture : riserva];
-      if (b.coperture.length && riserva.length) giri.push(riserva);
-      const tutte = [...b.coperture, ...riserva];
+      // la riserva senza le coperture che la battuta ha già (niente la stessa scena due volte di fila)
+      const propria = new Set(b.coperture.map((c) => c.etichetta));
+      const riservaNuova = riserva.filter((c) => !propria.has(c.etichetta));
+      const giri = [b.coperture.length ? b.coperture : riservaNuova.length ? riservaNuova : riserva];
+      if (b.coperture.length && riservaNuova.length) giri.push(riservaNuova);
+      const tutte = [...b.coperture, ...riservaNuova];
       let resto = b.durata;
-      let da = b.da;
       let ripetuto = false;
+      const pezzi = [];
       for (let g = 0; resto > 1e-3 && g < 40; g++) {
-        const lista = g < giri.length ? giri[g] : tutte;
-        if (g >= giri.length) ripetuto = true;
+        let lista = g < giri.length ? giri[g] : tutte;
+        if (g >= giri.length) {
+          ripetuto = true;
+          // nel ripetere, mai ricominciare dalla stessa scena appena vista se ce n'è un'altra
+          const ultima = pezzi[pezzi.length - 1]?.etichetta;
+          const k = lista.findIndex((c) => c.etichetta !== ultima);
+          if (k > 0) lista = [...lista.slice(k), ...lista.slice(0, k)];
+        }
         const r = riempiConCoperture(lista, resto, R);
         const fatto = resto - r.manca;
         if (!r.pezzi.length || fatto <= 1e-6) break;
-        video.push(...inFila(r.pezzi, da));
-        da += fatto;
+        pezzi.push(...r.pezzi);
         resto = r.manca;
       }
+      video.push(...inFila(evitaStessaDiFila(senzaPezziCorti(pezzi, durataClip, R), video[video.length - 1], durataClip, riservaNuova, R), b.da));
       if (ripetuto) avviso(b.n, 'coperture_corte', `Battuta ${b.n}: le coperture non bastavano per ${virgola(b.durata)} s, ho ripetuto delle immagini.`);
       if (resto > 1e-3) blocca(b.n, 'coperture_insufficienti', `Battuta ${b.n}: non sono riuscito a coprire ${virgola(resto)} s di voce.`);
       continue;
@@ -277,17 +356,31 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
       continue;
     }
     const r = riempiConCoperture(b.coperture, b.durata - lead, R);
-    const coperte = inFila(r.pezzi, b.da + lead);
+    let pezzi = senzaPezziCorti(r.pezzi, durataClip, R);
+    let restoVolto = (b.durata - lead) - pezzi.reduce((t2, p) => t2 + p.durata, 0);
+    if (restoVolto > 1e-3 && restoVolto < R.voltoMin && pezzi.length) {
+      const ultimo = pezzi[pezzi.length - 1];
+      const spazio = ultimo.tipo === 'foto' ? 8 - ultimo.durata : durataClip(ultimo.fonte) - ultimo.fine;
+      if (spazio >= restoVolto - 1e-6) {
+        // resto troppo corto per un volto: l'ultima copertura arriva fino in fondo (dentro la sua clip)
+        ultimo.durata += restoVolto;
+        ultimo.fine = r3(ultimo.fine + restoVolto);
+        restoVolto = 0;
+      } else {
+        // altrimenti l'ultima copertura si accorcia (o si toglie) perché il volto che torna duri almeno voltoMin
+        const togli = R.voltoMin - restoVolto;
+        if (ultimo.durata - togli >= R.minima - 1e-6) {
+          ultimo.durata -= togli;
+          ultimo.fine = r3(ultimo.fine - togli);
+        } else pezzi = pezzi.slice(0, -1);
+        restoVolto = (b.durata - lead) - pezzi.reduce((t2, p) => t2 + p.durata, 0);
+      }
+    }
+    const coperte = inFila(evitaStessaDiFila(pezzi, null, durataClip, riserva, R), b.da + lead);
     const fineCoperture = coperte.length ? coperte[coperte.length - 1].a : b.da + lead;
     video.push({ ...voltoIntero, fine: r3(b.inizio + lead), a: r3(b.da + lead) });
     video.push(...coperte);
-    const restoVolto = b.a - fineCoperture;
-    const ultimaC = coperte[coperte.length - 1];
-    if (restoVolto > 1e-3 && restoVolto < R.voltoMin && ultimaC && ultimaC.tipo !== 'foto' && ultimaC.fine + restoVolto <= (idx.materiali.get(ultimaC.fonte)?.durata ?? 0)) {
-      // resto troppo corto per un volto: l'ultima copertura arriva fino in fondo (dentro la sua clip)
-      ultimaC.a = r3(b.a);
-      ultimaC.fine = r3(ultimaC.fine + restoVolto);
-    } else if (restoVolto > 1e-3) {
+    if (b.a - fineCoperture > 1e-3) {
       // le coperture finiscono prima della battuta: si torna sul volto, in sincrono
       video.push({ ...voltoIntero, inizio: r3(b.inizio + (fineCoperture - b.da)), da: r3(fineCoperture) });
     }
@@ -316,8 +409,18 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
     if (da - prima.da < R.minima) da = prima.da;
     if (dopo.a - a < R.minima) a = dopo.a;
     const r = riempiConCoperture([candidata], a - da, R);
-    const nuove = inFila(r.pezzi, da);
-    if (r.manca > 0.01 && nuove.length) nuove[nuove.length - 1].a = r3(a);
+    if (r.manca > 0.01) {
+      // la copertura non basta per tutta la finestra: la finestra si stringe, sempre a cavallo del taglio
+      const coperto = (a - da) - r.manca;
+      da = Math.max(prima.da, Math.min(T - 0.15, T - coperto / 2));
+      a = Math.min(dopo.a, da + coperto);
+      if (a <= T + 0.1) {
+        saltiScoperti++;
+        avviso(B.n, 'taglio_scoperto', `Fra la battuta ${A.n} e la ${B.n} c'è un salto nell'intervista di ${A.fonte} e la copertura disponibile era troppo corta: si vedrà il salto.`);
+        continue;
+      }
+    }
+    const nuove = inFila(riempiConCoperture([candidata], a - da, R).pezzi, da);
     const resto = [];
     for (const q of video) {
       if (q !== prima && q !== dopo) { resto.push(q); continue; }
@@ -373,16 +476,18 @@ export function controllaRegia(piano, progetto, { sceneggiatura = null, formato 
 
   // 5) ripetizioni e difetti dei momenti usati
   const coperture = video.filter((q) => q.tipo === 'copertura');
+  const ripetuti = [];
   for (let i = 0; i < coperture.length; i++) {
     for (let k = 0; k < i; k++) {
       const a = coperture[i];
       const b = coperture[k];
       if (a.fonte === b.fonte && Math.min(a.fine, b.fine) - Math.max(a.inizio, b.inizio) > 0.3) {
-        avviso(0, 'ripetizione', `Lo stesso momento di ${a.fonte} (${virgola(Math.max(a.inizio, b.inizio))} s) si vede due volte, a ${virgola(b.da)} s e a ${virgola(a.da)} s.`);
+        ripetuti.push(`${a.etichetta || a.fonte} a ${virgola(b.da)} e ${virgola(a.da)} s`);
         break;
       }
     }
   }
+  if (ripetuti.length) avviso(0, 'ripetizione', `${ripetuti.length === 1 ? 'Un momento si vede' : `${ripetuti.length} momenti si vedono`} due volte: ${ripetuti.slice(0, 4).join('; ')}${ripetuti.length > 4 ? '…' : ''}.`);
   for (const q of video) {
     const et = idx.qualita.get(q.etichetta) || [];
     if (q.tipo !== 'volto' && et.length) avviso(0, 'difetto', `La copertura ${q.etichetta} a ${virgola(q.da)} s ha un difetto (${et.join(', ')}).`);

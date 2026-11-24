@@ -29,16 +29,16 @@ export const FORMATI_SCENEGGIATURA = ['verticale', 'quadrato', 'orizzontale'];
 const parola = (alternative) => new RegExp(`^(?:${alternative})(?=[\\s:(]|$)`, 'i');
 const PAROLE = [
   ['voce', parola('voce fuori campo|voce off|voce narrante|speakeraggio|speaker|narratore|narrazione|v\\.\\s?o\\.?|voice ?over|voce|vo')],
-  ['intervista', parola('intervista|dichiarazione|sound ?bite|parla')],
+  ['intervista', parola('intervista|dichiarazione|sound ?bite')],
   ['scritta', parola('testo a schermo|titolo a schermo|scritta|super|sovrimpressione')],
-  ['immagini', parola('musica e immagini|solo immagini|immagini|montaggio')],
+  ['immagini', parola('musica e immagini|solo immagini|immagini')],
   ['copertura', parola('copertura|coperture|copri con|b-?roll')],
   ['titolo', parola('titolo')],
   ['formato', parola('formato')],
   ['durata', parola('durata')],
   ['musica', parola('musica')],
   ['stile', parola('stile')],
-  ['chiusura', parola('call to action|chiusura|finale|cta')],
+  ['chiusura', parola('call to action|chiusura|cta')],
   ['nota', parola('note|nota')],
 ];
 

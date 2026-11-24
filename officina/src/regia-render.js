@@ -275,7 +275,10 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   // 1-2) inquadrature → pezzi, poi in fila. I confini si arrotondano al fotogramma sulla timeline assoluta: niente deriva.
   const lista = [];
   for (const [k, q] of tl.video.entries()) {
-    const fotogrammi = Math.max(1, Math.round(q.a * FPS) - Math.round(q.da * FPS));
+    // un'inquadratura che arrotondata al fotogramma vale 0 non occupa nessun fotogramma: si salta (non si gonfia a 1,
+    // che sposterebbe tutto il resto di un fotogramma)
+    const fotogrammi = Math.round(q.a * FPS) - Math.round(q.da * FPS);
+    if (fotogrammi <= 0) continue;
     const nome = `inq-${String(k).padStart(3, '0')}.mkv`;
     await pezzoVideo(q, sorgenti.get(q.fonte), info.get(q.fonte), fmt, stile, fotogrammi, path.join(dirTmp, nome), dirTmp, cfg, segnale);
     if (info.get(q.fonte) && HDR.includes(info.get(q.fonte).trasferimento) && !avvisi.some((a) => a.codice === 'hdr_convertito')) {

@@ -342,7 +342,11 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
    - Un pezzo non va mai oltre la fine della sua clip.
    - Una voce senza volto e senza nessuna copertura (né di riserva) si toglie: errore `voce_scoperta`, che blocca.
 3. Un salto nell'intervista (stessa fonte, due pezzi non di seguito, volto prima e dopo) si copre con una copertura da 0,6 s prima a 0,6 s dopo il taglio. Senza coperture disponibili arriva l'avviso `taglio_scoperto`.
-4. Nessuna inquadratura sotto 0,6 s. Un volto stretto fra due coperture deve durare almeno 1 s, altrimenti resta coperto.
+4. Nessuna inquadratura sotto 0,6 s, e nessun pezzo da 0 fotogrammi.
+   - Un avanzo corto non diventa mai un pezzo nuovo: va al vicino che ha ancora materiale nella sua clip.
+   - Se nessun vicino ha materiale, il pezzo corto cresce fino a 0,6 s togliendo tempo al vicino (`senzaPezziCorti`).
+   - Un volto stretto fra due coperture deve durare almeno 1 s: se il resto è più corto, l'ultima copertura arriva in fondo, oppure si accorcia o si toglie.
+   - La stessa scena non ricomincia subito dopo sé stessa. Si cambia ordine; se non si può, si continua la clip da dove era arrivata; se la clip è finita, si usa una copertura di riserva (`evitaStessaDiFila`). Con materiale troppo corto la ripetizione è obbligata, e arriva l'avviso `coperture_corte`.
 5. Un volto si vede solo in sincrono con la sua voce.
 6. La prima volta che parla una persona ci sono almeno 2 s di volto, col cartello del nome; le volte dopo 1,2 s.
 7. Lo stesso momento usato due volte e le coperture con difetti si segnalano.
@@ -367,9 +371,13 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 
 **Trascrizione.** `/video/trascrivi` con `dati.parole: true` (e il materiale dei progetti) restituisce anche `parole:[{testo, inizio, fine}]` per ogni segmento, quando whisper dà i tempi per parola (`-dtw`). Senza `parole: true` la risposta è quella di prima.
 
-**Sceneggiatura.** Le parole chiave si riconoscono anche scritte in altri modi: «VOCE FUORI CAMPO:», «V.O.:», «SPEAKERAGGIO:», «Intervista (Mario Rossi):», «INTERVISTA Mario Rossi (fornaio): file.mov». Una parola in maiuscolo con «:» che non è una parola chiave dà un avviso, invece di finire in silenzio nel blocco prima.
+**Sceneggiatura.** Parole comuni nel testo normale («Parla del…:», «Montaggio:», «Finale:») non aprono blocchi. Le parole chiave si riconoscono anche scritte in altri modi: «VOCE FUORI CAMPO:», «V.O.:», «SPEAKERAGGIO:», «Intervista (Mario Rossi):», «INTERVISTA Mario Rossi (fornaio): file.mov». Una parola in maiuscolo con «:» che non è una parola chiave dà un avviso, invece di finire in silenzio nel blocco prima.
 
 **Errori nuovi:** 415 `audio_non_leggibile`, 422 `audio_troppo_corto`, 422 `regia_non_valida`, 422 `timeline_non_valida`, 500 `timeline_desincronizzata`.
+
+**Problemi della regia** (in `problemi`, con `gravita`):
+- **blocca** (la battuta si toglie): `fonte_inesistente`, `fonte_senza_audio`, `battuta_troppo_corta`, `immagini_senza_coperture`, `voce_scoperta`, `coperture_insufficienti`, `timeline_incoerente` (la timeline resta vuota);
+- **avviso**: `copertura_inesistente`, `coperture_dalla_riserva`, `coperture_corte`, `taglio_scoperto`, `senza_parole`, `tempi_stimati`, `parole_ripetute`, `ripetizione` (uno solo per piano), `difetto`, `inquadratura_corta`, `oltre_durata`, `testo_lungo`, `scritta_senza_battuta`, `scritta_senza_spazio`.
 
 ### Come chiamarla da n8n (nodo HTTP Request 4.5)
 - **Metodo** POST; **URL** `{{ $('Config').item.json.OFFICINA_URL }}/video/reel`.
@@ -392,7 +400,7 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 ```
 cd officina
 npm ci
-npm test                      # 95 prove (12 del montatore, 16 della regia), circa 8 minuti, senza Docker (usa /usr/bin/ffmpeg)
+npm test                      # 97 prove (12 del montatore, 18 della regia), circa 8 minuti, senza Docker (usa /usr/bin/ffmpeg)
 npm run prepara-whisper       # facoltativo: compila whisper-cli e whisper-vad-speech-segments, scarica "small" e la voce italiana in .locale/
 npm run mutazioni             # rompe il codice di proposito in 39 punti e controlla che le prove se ne accorgano
 node test/mutazioni.mjs --controllo   # le stesse prove sulla copia intatta: devono essere tutte verdi
