@@ -37,7 +37,8 @@ export const STILI = {
     // segnaposto della triade finché Nicola non manda i codici esatti: Fumo, Avorio, Ambra (oro). L'accento lo può
     // cambiare il marchio del cliente; fondo e testo restano quelli di Scatti di G.
     colori: { fondo: '#2C2A27', testo: '#F4F1EC', accento: '#E0A95C' },
-    sottotitoli: { modo: 'frase', maiuscolo: false, parole_max: 7, caratteri_max: 30, dimensione: 60 },
+    // Poppins ha molto spazio sopra e sotto le lettere: a dimensione ASS 74 le lettere sono alte come un 52 normale
+    sottotitoli: { modo: 'frase', maiuscolo: false, parole_max: 7, caratteri_max: 26, dimensione: 74, orizzontale: 0.8 },
     cartello: 'linea',
     scritte: 'ombra',
     grana: 0,
@@ -49,7 +50,8 @@ export const STILI = {
     fps: 25,
     ritmo: { minima: 1.0, coperturaMin: 2.5, coperturaMax: 6, voltoMin: 1.5, voltoPrima: 3, voltoPoi: 2, fotoBase: 3.5, salto: 1.0, cartello: 3.5, scritta: 3 },
     volto: 'riempi',
-    coperture: 'auto',
+    // a tutto schermo: niente bande sfocate (si ritaglia dove sta il soggetto; «intera» solo se la regia lo chiede)
+    coperture: 'riempi',
   },
   virale: {
     font_titoli: 'Bricolage Grotesque',
@@ -167,7 +169,7 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
   const frase = st.modo === 'frase';
   const linea = stile.cartello === 'linea';
   const ombra = stile.scritte === 'ombra';
-  const dim = verticale ? st.dimensione : Math.round(st.dimensione * 0.75);
+  const dim = verticale ? st.dimensione : Math.round(st.dimensione * (st.orizzontale || 0.75));
   const margineSotto = verticale ? fmt.basso + (frase ? 120 : 160) : 90;
   const alone = coloreAss(c.fondo, 0.45);
   const stili = frase
@@ -175,8 +177,8 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
     : [`Style: Sotto,${famiglie.titoli},${dim},${coloreAss(c.testo)},${coloreAss(c.testo)},${coloreAss(c.fondo)},${coloreAss('#000000', 0.6)},0,0,0,0,100,100,0,0,1,${verticale ? 7 : 5},2,2,60,60,${margineSotto},1`];
   if (linea) {
     stili.push(
-      `Style: Nome,${famiglie.titoli},${verticale ? 54 : 46},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,2.5,0,7,0,0,0,1`,
-      `Style: Ruolo,${famiglie.testo},${verticale ? 36 : 30},${coloreAss(c.testo, 0.12)},${coloreAss(c.testo, 0.12)},${alone},${alone},0,0,0,0,100,100,1,0,1,2,0,7,0,0,0,1`,
+      `Style: Nome,${famiglie.titoli},${verticale ? 64 : 56},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,2.5,0,7,0,0,0,1`,
+      `Style: Ruolo,${famiglie.testo},${verticale ? 42 : 38},${coloreAss(c.testo, 0.12)},${coloreAss(c.testo, 0.12)},${alone},${alone},0,0,0,0,100,100,1,0,1,2,0,7,0,0,0,1`,
       `Style: Filo,${famiglie.testo},10,${coloreAss(c.accento)},${coloreAss(c.accento)},${coloreAss(c.accento)},${coloreAss(c.accento)},0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1`,
     );
   } else {
@@ -187,8 +189,8 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
   }
   if (ombra) {
     stili.push(
-      `Style: Scritta,${famiglie.titoli},${verticale ? 84 : 70},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,3,0,5,90,90,0,1`,
-      `Style: Chiusura,${famiglie.titoli},${verticale ? 70 : 58},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,3,0,5,90,90,0,1`,
+      `Style: Scritta,${famiglie.titoli},${verticale ? 96 : 84},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,3,0,5,90,90,0,1`,
+      `Style: Chiusura,${famiglie.titoli},${verticale ? 84 : 72},${coloreAss(c.testo)},${coloreAss(c.testo)},${alone},${alone},0,0,0,0,100,100,0.5,0,1,3,0,5,90,90,0,1`,
     );
   } else {
     stili.push(
@@ -243,8 +245,8 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
   const y0 = verticale ? fmt.alto + 70 : 60;
   for (const k of tl.cartelli || []) {
     if (linea) {
-      const altezzaNome = verticale ? 70 : 60;
-      const altezza = k.sotto ? altezzaNome + (verticale ? 50 : 42) : altezzaNome;
+      const altezzaNome = verticale ? 82 : 72;
+      const altezza = k.sotto ? altezzaNome + (verticale ? 56 : 50) : altezzaNome;
       ev(k.da, k.a, 'Filo', `{\\an7\\pos(${x0},${y0 + 6})\\fad(240,240)\\p1}m 0 0 l 5 0 l 5 ${altezza} l 0 ${altezza}{\\p0}`, 2);
       ev(k.da + 0.08, k.a, 'Nome', `{\\an7\\pos(${x0 + 26},${y0})\\blur2\\fad(240,240)}${assTesto(maiuscolo(k.testo))}`, 2);
       if (k.sotto) ev(k.da + 0.2, k.a, 'Ruolo', `{\\an7\\pos(${x0 + 26},${y0 + altezzaNome})\\blur2\\fad(240,240)}${assTesto(maiuscolo(k.sotto))}`, 2);
@@ -261,7 +263,7 @@ export function creaAssRegia(tl, stile, fmt, famiglie) {
     const chiusura = s.tipo === 'chiusura';
     ev(s.da, s.a, chiusura ? 'Chiusura' : 'Scritta', `{\\an5\\q0\\pos(${Math.round(W / 2)},${y})${ombra ? '\\blur2' : ''}${fade}}${assTesto(maiuscolo(s.testo))}`, 1);
     // in modo «ombra» la chiusura ha sotto un filo corto del colore d'accento (l'unico accento del video)
-    if (chiusura && ombra && linea) ev(s.da + 0.2, s.a, 'Filo', `{\\an8\\pos(${Math.round(W / 2)},${y + Math.round((verticale ? 70 : 58) * 1.1)})\\fad(320,320)\\p1}m 0 0 l 120 0 l 120 5 l 0 5{\\p0}`, 1);
+    if (chiusura && ombra && linea) ev(s.da + 0.2, s.a, 'Filo', `{\\an8\\pos(${Math.round(W / 2)},${y + Math.round((verticale ? 84 : 72) * 1.05)})\\fad(320,320)\\p1}m 0 0 l 120 0 l 120 5 l 0 5{\\p0}`, 1);
   }
   return `${righe.join('\n')}\n`;
 }

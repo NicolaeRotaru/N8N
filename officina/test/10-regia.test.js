@@ -416,7 +416,7 @@ test('testi ASS Scatti di G: frase intera in avorio, niente parola evidenziata, 
   const fam = famiglieAss(await caricaFont('Poppins', cfg, 600), await caricaFont('Poppins', cfg, 500), 600, 500);
   assert.deepEqual(fam, { titoli: 'Poppins SemiBold', testo: 'Poppins Medium' });
   const ass = creaAssRegia(tl, stileDa('sdg'), FORMATI.verticale, fam);
-  assert.match(ass, /^Style: Sotto,Poppins Medium,60,&H00ECF1F4,/m, 'sottotitoli in Poppins, avorio');
+  assert.match(ass, /^Style: Sotto,Poppins Medium,74,&H00ECF1F4,/m, 'sottotitoli in Poppins, avorio');
   assert.ok(!/\\c&H005CA9E0/.test(ass.split('[Events]')[1].split('\n').filter((r) => r.includes(',Sotto,')).join('\n')), 'nessuna parola cambia colore');
   const sotto = ass.split('\n').filter((r) => r.startsWith('Dialogue: 0,'));
   assert.ok(sotto.length >= 1 && sotto.length < tl.parole.length, 'un evento per frase, non per parola');
@@ -427,12 +427,15 @@ test('testi ASS Scatti di G: frase intera in avorio, niente parola evidenziata, 
   const fasce = sotto.map((r) => r.split(',').slice(1, 3).map(tempo));
   for (let i = 1; i < fasce.length; i++) assert.ok(fasce[i][0] >= fasce[i - 1][1] - 0.011, `frasi sovrapposte: ${JSON.stringify(fasce)}`);
   assert.match(ass, /^Style: Filo,.*,&H005CA9E0,/m, 'il filo è nel colore d\'accento (oro)');
-  assert.match(ass, /Dialogue: 2,[^,]+,[^,]+,Filo,,0,0,0,,\{\\an7\\pos\(72,326\)\\fad\(240,240\)\\p1\}m 0 0 l 5 0 l 5 120 l 0 120\{\\p0\}/);
+  assert.match(ass, /Dialogue: 2,[^,]+,[^,]+,Filo,,0,0,0,,\{\\an7\\pos\(72,326\)\\fad\(240,240\)\\p1\}m 0 0 l 5 0 l 5 138 l 0 138\{\\p0\}/);
   assert.match(ass, /,Nome,,0,0,0,,\{\\an7\\pos\(98,320\)\\blur2\\fad\(240,240\)\}Mario Rossi/);
-  assert.match(ass, /,Ruolo,,0,0,0,,\{\\an7\\pos\(98,390\)\\blur2\\fad\(240,240\)\}fornaio/);
+  assert.match(ass, /,Ruolo,,0,0,0,,\{\\an7\\pos\(98,402\)\\blur2\\fad\(240,240\)\}fornaio/);
   assert.match(ass, /,Chiusura,.*Ordina su MyCity/);
   assert.match(ass, /Dialogue: 1,[^,]+,[^,]+,Filo,,0,0,0,,\{\\an8\\pos\(540,\d+\)\\fad\(320,320\)\\p1\}m 0 0 l 120 0/);
-  assert.match(ass, /^Style: Nome,Poppins SemiBold,54,&H00ECF1F4,/m, 'il nome è avorio, non su un riquadro colorato');
+  assert.match(ass, /^Style: Nome,Poppins SemiBold,64,&H00ECF1F4,/m, 'il nome è avorio, non su un riquadro colorato');
+  // in orizzontale i sottotitoli restano leggibili (0,8 della dimensione verticale)
+  assert.match(creaAssRegia(tl, stileDa('sdg'), FORMATI.orizzontale, fam), /^Style: Sotto,Poppins Medium,59,/m);
+  assert.equal(stileDa('sdg').coperture, 'riempi', 'coperture a tutto schermo, niente bande sfocate');
 });
 
 test('i due casi esatti del secondo collaudo: avanzo di 1 centesimo e lampo da 1 fotogramma', () => {
