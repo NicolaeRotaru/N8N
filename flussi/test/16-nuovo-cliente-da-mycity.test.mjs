@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
 import {
-  CODICE_RICHIESTA, CODICE_PAGINA_4, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16,
+  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16,
 } from '../16-nuovo-cliente-da-mycity/genera.mjs';
 
 const richiesta = (attivita = {}, extra = {}) => [{ json: { headers: {}, body: {
@@ -194,6 +194,10 @@ test('il 16 non ha più nodi del modulo, parte dal webhook col segreto e arriva 
 test('dopo lo stop della ricerca il 16 si ferma: niente scheda vuota', () => {
   const w = trasforma(modulo12Mini(), { credenziale });
   assert.equal(w.connections['Nuovo cliente? (dopo lo stop)'], undefined);
+  // Con l'analisi agganciata, dopo lo stop si va solo all'analisi.
+  const conAnalisi = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  assert.deepEqual(conAnalisi.connections['Nuovo cliente? (dopo lo stop)'].main.flat().map((v) => v.node), ["Prepara l'analisi dell'attività"]);
+  assert.deepEqual(controlla(conAnalisi), []);
   assert.match(w.nodes.find((n) => n.name === 'Avvisa: ricerca fermata').parameters.text, /Non ho scritto niente/);
 });
 
@@ -245,4 +249,50 @@ test('se il modulo 12 cambia nome a un nodo che serve, il generatore si ferma in
   const m = modulo12Mini();
   m.nodes.find((n) => n.name === 'Pagina 4 · Conferma o annulla').name = 'Pagina 4 · Conferma';
   assert.throws(() => trasforma(m, { credenziale }), /non ha più questi nodi/);
+});
+
+// --- L'analisi dell'attività, ultimo passo del 16 -------------------------------------------------
+
+test("ogni punto d'arrivo del 16 fa partire l'analisi dell'attività, senza far aspettare", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  assert.deepEqual(controlla(w), []);
+  const chiama = w.nodes.find((n) => n.name === "Analizza l'attività (flusso 18)");
+  assert.equal(chiama.type, 'n8n-nodes-base.executeWorkflow');
+  assert.equal(chiama.parameters.workflowId.value, 'id-18');
+  assert.equal(chiama.parameters.options.waitForSubWorkflow, false);
+  for (const arrivo of ['Fine: cliente creato', 'Fine: annullato', 'Fine: da correggere', 'Nuovo cliente? (dopo lo stop)']) {
+    assert.deepEqual(w.connections[arrivo].main.flat().map((v) => v.node), ["Prepara l'analisi dell'attività"], arrivo);
+  }
+  // Il ramo della richiesta scartata non arriva all'analisi: non c'è un'attività valida da guardare.
+  assert.equal(w.connections['Avvisa: richiesta scartata'], undefined);
+  // Senza --analisi il 16 resta come prima.
+  assert.equal(trasforma(modulo12Mini(), { credenziale }).nodes.some((n) => n.name === "Analizza l'attività (flusso 18)"), false);
+});
+
+test("se un punto d'arrivo non porta all'analisi, il controllo lo dice", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  delete w.connections['Fine: annullato'];
+  assert.match(controlla(w).join('\n'), /dopo «Fine: annullato» l'analisi dell'attività non parte/);
+  const w2 = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  w2.nodes.find((n) => n.name === "Analizza l'attività (flusso 18)").parameters.options.waitForSubWorkflow = true;
+  assert.match(controlla(w2).join('\n'), /senza far aspettare/);
+});
+
+const CREATO = (extra = {}) => ({
+  'Modulo nuovo cliente': [{ json: { id_mycity: 'c0b240c0-2a86-4218-9d0f-5154f08ff929', nome_locale: 'Pane Quotidiano' } }],
+  'Controlla la proposta': [{ json: { ok: true, analisi: { tipo_di_locale: 'negozio bio', punti_di_forza: ['centro'] }, da_confermare: ['orari'], sito_ufficiale: '' } }],
+  ...extra,
+});
+
+test("l'analisi riceve l'attività, com'è andata la scheda Clienti e la lettura del web del 12", async () => {
+  const scritta = await eseguiCodice(CODICE_PREPARA_ANALISI, { nodi: CREATO({ 'Avvisa: cliente creato': [{ json: {} }] }) });
+  assert.deepEqual(scritta[0].json, { id: 'c0b240c0-2a86-4218-9d0f-5154f08ff929', nome: 'Pane Quotidiano', origine: 'iscrizione su MyCity',
+    esito_scheda: 'scritta, con attivo = no', scheda: { analisi: { tipo_di_locale: 'negozio bio', punti_di_forza: ['centro'] }, da_confermare: ['orari'], sito_ufficiale: '' } });
+  const prova = await eseguiCodice(CODICE_PREPARA_ANALISI, { nodi: CREATO({ 'Avvisa: non scritto': [{ json: {} }], 'Ancora libera?': [{ json: { prova: true } }] }) });
+  assert.equal(prova[0].json.esito_scheda, 'non scritta: modalità prova');
+  const doppione = await eseguiCodice(CODICE_PREPARA_ANALISI, { nodi: CREATO({ 'Fine: annullato': [{ json: {} }] }) });
+  assert.equal(doppione[0].json.esito_scheda, 'non scritta: possibile doppione');
+  const fermata = await eseguiCodice(CODICE_PREPARA_ANALISI, { nodi: { 'Modulo nuovo cliente': CREATO()['Modulo nuovo cliente'], 'Avvisa: ricerca fermata': [{ json: {} }] } });
+  assert.equal(fermata[0].json.esito_scheda, 'non scritta: la ricerca sul web si è fermata');
+  assert.equal(fermata[0].json.scheda, null, 'senza proposta non c\'è scheda da passare');
 });

@@ -25,6 +25,7 @@
 // Uso:
 //   N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id> [--vero] [--manda]
 //     --credenziale  l'id della credenziale «Header Auth» col segreto (nome x-mycity-segreto)
+//     --analisi <id> il flusso 18 da chiamare alla fine (di serie lo cerca per nome su n8n)
 //     --vero         il 16 scrive davvero nel foglio Clienti (di serie «prova»: cerca ma non scrive)
 //     --manda        crea o aggiorna il flusso su n8n (resta come è: acceso o spento)
 //     --file <path>  invece di scaricare il 12 da n8n, lo legge da un file esportato
@@ -46,6 +47,8 @@ const SCARTATA = 'Avvisa: richiesta scartata';
 const DOPO_LO_STOP = 'Nuovo cliente? (dopo lo stop)';
 const PAGINE = { 'Pagina 1 · Chi è': 'pagina1', 'Pagina 2 · Come parliamo': 'pagina2', 'Pagina 3 · Menu e fatti': 'pagina3' };
 const PAGINA_4 = 'Pagina 4 · Conferma o annulla';
+const PREPARA_ANALISI = "Prepara l'analisi dell'attività";
+const ANALIZZA = "Analizza l'attività (flusso 18)";
 // Va dentro un testo fra apici di un'espressione n8n: l'a capo si scrive \\n, mai un a capo vero.
 const DA_MYCITY = '🛒 <b>Da MyCity, in automatico</b>\\n';
 const FRASE_PAGINE = "Correggi nelle pagine del modulo che si aprono nel browser; nell'ultima pagina scegli Conferma o Annulla.";
@@ -132,6 +135,22 @@ if (doppioni.length) {
   return [{ json: { pagina: 'decisione', decisione: 'Annulla', motivo_auto: 'possibile doppione: ' + doppioni.join('; '), formMode: 'mycity' } }];
 }
 return [{ json: { pagina: 'decisione', decisione: 'Conferma e salva', motivo_auto: '', formMode: 'mycity' } }];`;
+
+/** Ultimo passo del 16: prepara quello che serve al flusso 18 per analizzare l'attività. */
+export const CODICE_PREPARA_ANALISI = String.raw`// 16 · Ultimo passo, comunque sia andata la scheda Clienti: si passa l'attività al flusso 18
+// («Analisi di un'attività»), con la lettura del web che il 12 ha appena fatto. Il 18 lavora per conto
+// suo: se si guasta, la scheda Clienti resta com'è.
+const f = $('Modulo nuovo cliente').first().json;
+const fatto = (nome) => $(nome).isExecuted;
+let esito = 'non scritta';
+if (fatto('Avvisa: cliente creato')) esito = 'scritta, con attivo = no';
+else if (fatto('Fine: annullato')) esito = 'non scritta: possibile doppione';
+else if (fatto('Fine: da correggere')) esito = 'non scritta: dati da correggere';
+else if (fatto('Avvisa: ricerca fermata')) esito = 'non scritta: la ricerca sul web si è fermata';
+else if (fatto('Avvisa: non scritto')) esito = fatto('Ancora libera?') && $('Ancora libera?').first().json.prova ? 'non scritta: modalità prova' : 'non scritta';
+const p = fatto('Controlla la proposta') ? $('Controlla la proposta').first().json : null;
+const scheda = p && p.ok ? { analisi: p.analisi || {}, da_confermare: p.da_confermare || [], sito_ufficiale: p.sito_ufficiale || '' } : null;
+return [{ json: { id: f.id_mycity, nome: f.nome_locale, origine: 'iscrizione su MyCity', esito_scheda: esito, scheda } }];`;
 
 // Testo HTML sicuro per Telegram dentro un'espressione n8n.
 const escExpr = (expr) => `String(${expr} ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`;
@@ -259,6 +278,36 @@ export function trasforma(modulo12, opzioni = {}) {
   // Dopo lo stop della ricerca il 12 apre la parte 1 vuota da compilare a mano: qui ci si ferma.
   delete c[DOPO_LO_STOP];
 
+  // Ultimo passo: l'analisi dell'attività (flusso 18). Si collega a ogni punto d'arrivo del 16
+  // (un nodo raggiungibile dal Config che non porta da nessuna parte): una corsa ne tocca uno solo.
+  if (opzioni.analisi) {
+    const raggiunti = new Set();
+    const coda = ['Config'];
+    while (coda.length) {
+      const nodoCorrente = coda.shift();
+      if (raggiunti.has(nodoCorrente)) continue;
+      raggiunti.add(nodoCorrente);
+      for (const ramo of c[nodoCorrente]?.main || []) for (const v of ramo || []) coda.push(v.node);
+    }
+    const arrivi = [...raggiunti].filter((nome) => {
+      const n = w.nodes.find((x) => x.name === nome);
+      return n && n.type !== 'n8n-nodes-base.stickyNote' && !(c[nome]?.main || []).some((ramo) => (ramo || []).length);
+    });
+    const prepara = nodoCodice(null, PREPARA_ANALISI, CODICE_PREPARA_ANALISI);
+    const maxX = Math.max(...w.nodes.map((n) => n.position[0]));
+    prepara.position = [maxX + 300, y];
+    const chiama = {
+      id: randomUUID(), name: ANALIZZA, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [maxX + 520, y],
+      onError: 'continueRegularOutput',
+      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: opzioni.analisi },
+        workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+        mode: 'once', options: { waitForSubWorkflow: false } },
+    };
+    w.nodes.push(prepara, chiama);
+    for (const nome of arrivi) c[nome] = { main: [[{ node: PREPARA_ANALISI, type: 'main', index: 0 }]] };
+    c[PREPARA_ANALISI] = { main: [[{ node: ANALIZZA, type: 'main', index: 0 }]] };
+  }
+
   w.name = NOME_16;
   w.settings = { ...(w.settings || {}), saveManualExecutions: false };
   delete w.id; delete w.active; delete w.versionId; delete w.triggerCount; delete w.shared; delete w.tags;
@@ -308,7 +357,21 @@ export function controlla(w) {
   for (const tappa of ['Config', 'Cerca il locale con Claude', 'Controlla il cliente', 'Ancora libera?', 'Scrivi il cliente', 'Avvisa: cliente creato']) {
     if (nomi.has(tappa) && !raggiunti.has(tappa)) problemi.push(`dal webhook non si arriva a «${tappa}»`);
   }
-  if (w.connections[DOPO_LO_STOP]) problemi.push('dopo lo stop della ricerca il 16 andrebbe avanti a scrivere una scheda vuota');
+  // Dopo lo stop della ricerca si può andare solo all'analisi dell'attività, mai verso le pagine.
+  const dopoLoStop = (w.connections[DOPO_LO_STOP]?.main || []).flat().filter(Boolean).map((v) => v.node);
+  if (dopoLoStop.some((nome) => nome !== PREPARA_ANALISI)) problemi.push('dopo lo stop della ricerca il 16 andrebbe avanti a scrivere una scheda vuota');
+  const analisi = w.nodes.find((n) => n.name === ANALIZZA);
+  if (analisi) {
+    if (analisi.parameters?.options?.waitForSubWorkflow !== false) problemi.push("l'analisi deve partire senza far aspettare il 16");
+    if (!analisi.parameters?.workflowId?.value) problemi.push("la chiamata dell'analisi non dice quale flusso");
+    for (const arrivo of ['Avvisa: cliente creato', 'Fine: annullato', 'Fine: da correggere', 'Avvisa: non scritto', 'Avvisa: ricerca fermata']) {
+      if (!nomi.has(arrivo)) continue;
+      const giu = new Set();
+      const coda = [arrivo];
+      while (coda.length) { const x = coda.shift(); if (giu.has(x)) continue; giu.add(x); for (const ramo of w.connections[x]?.main || []) for (const v of ramo || []) coda.push(v.node); }
+      if (!giu.has(ANALIZZA)) problemi.push(`dopo «${arrivo}» l'analisi dell'attività non parte`);
+    }
+  }
   const cfg = w.nodes.find((n) => n.name === 'Config');
   const mod = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
   if (!['prova', 'vero'].includes(mod)) problemi.push(`MODALITA nel Config è «${mod}»`);
@@ -336,10 +399,15 @@ async function principale(argv) {
     const gia = (await api.elencoFlussi()).find((w) => w.name === NOME_16);
     webhookId = gia?.nodes?.find((n) => n.name === WEBHOOK)?.webhookId;
   } catch { /* senza API: un id nuovo */ }
+  let idAnalisi = valore('--analisi');
+  if (!idAnalisi && !valore('--file')) {
+    idAnalisi = (await api.elencoFlussi()).find((x) => x.name === "18 · Analisi di un'attività")?.id;
+  }
   const w = trasforma(modulo12, {
     modalita: argv.includes('--vero') ? 'vero' : 'prova',
     credenziale: idCredenziale ? { id: idCredenziale, name: NOME_CREDENZIALE } : undefined,
     webhookId,
+    analisi: idAnalisi,
   });
   const problemi = controlla(w);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));

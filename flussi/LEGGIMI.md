@@ -26,6 +26,12 @@ copia dove:
 
 Tutto il resto è il codice del 12, copiato com'è. **Quando cambi il modulo 12, rilancia il generatore.**
 
+**Ultimo passo: l'analisi dell'attività.** Comunque sia andata la scheda Clienti (scritta, doppione,
+ricerca fermata, prova), il 16 chiama il flusso **18 · Analisi di un'attività** e gli passa la lettura
+del web che il 12 ha appena fatto. Non lo aspetta: se l'analisi si guasta, la scheda resta com'è. Il
+generatore trova il 18 per nome su n8n (o con `--analisi <id>`). n8n vuole il 18 acceso prima di
+accettare il 16 che lo chiama.
+
 ```bash
 N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id credenziale del segreto> --vero --manda
 ```
@@ -35,6 +41,29 @@ Senza `--vero` il 16 resta in «prova»: cerca (e costa) ma non scrive. Senza `-
 **Dal lato del sito** (repository `mycity`): le variabili `N8N_NUOVO_CLIENTE_WEBHOOK_URL`
 (`https://n8n-shdy.sliplane.app/webhook/mycity-nuovo-cliente`) e `N8N_NUOVO_CLIENTE_SEGRETO` (lo stesso
 valore della credenziale «MyCity - Segreto nuovo cliente» in n8n). Senza tutte e due il sito non manda niente.
+
+## 18 · Analisi di un'attività
+
+**A cosa serve.** La stessa analisi del 17, fatta su una sola attività di MyCity: a che punto è per
+arrivare al primo incasso. Legge in sola lettura, e senza dati personali del titolare, la scheda
+dell'attività, i suoi prodotti, i suoi ordini, le sue recensioni e quanti prodotti hanno in media gli
+altri negozi. Calcola approvazione, pagamenti con carta, vetrina (logo, foto, descrizione, orari,
+indirizzo, sito, social), prodotti senza foto o senza prezzo, ordini, incassi, clienti tornati, coi
+segnali del giro (payout fermo, ordini fermi, negozio fermo da 14 giorni, recensioni basse) e quelli
+dell'avvio (da approvare, nessun prodotto, vetrina incompleta, niente carta). Claude scrive il punto
+adesso, le prossime mosse e le domande per il titolare, dentro i paletti di MyCity. Tutto va a Nicola
+su Telegram.
+
+**Chi lo fa partire.** Il 16, alla fine di ogni iscrizione. Oppure a mano, col webhook protetto dallo
+stesso segreto del 16:
+
+```bash
+curl -X POST https://n8n-shdy.sliplane.app/webhook/mycity-analisi-attivita -H "x-mycity-segreto: <segreto>" -H "content-type: application/json" -d '{"id":"<id MyCity dell attività>"}'
+```
+
+```bash
+N8N_API_KEY=… node flussi/18-analisi-attivita/costruisci.mjs --manda --marketplace <id credenziale Supabase> --segreto <id credenziale del segreto>
+```
 
 ## 17 · Analisi del marketplace
 
