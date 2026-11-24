@@ -60,6 +60,7 @@ export function materialiPubblici(progetto) {
   return progetto.materiali.map((m) => {
     const base = { codice: m.codice, tipo: m.tipo, nome_originale: m.nome_originale, cartella: m.cartella, orientamento: m.orientamento, larghezza: m.larghezza, altezza: m.altezza };
     if (m.tipo === 'foto') return { ...base, qualita: q.get(m.codice) || [] };
+    if (m.tipo === 'audio') return { codice: m.codice, tipo: m.tipo, nome_originale: m.nome_originale, cartella: m.cartella, durata: m.durata, parlato: Array.isArray(m.parlato) && m.parlato.length > 0, frasi: (m.parlato || []).map((f) => ({ inizio: f.inizio, fine: f.fine, testo: f.testo })) };
     return {
       ...base,
       durata: m.durata,
@@ -95,6 +96,9 @@ export function testoCatalogo(progetto) {
         else if (s.parlato) parti.push(`dice: «${pulito(s.parlato).slice(0, 160)}»`);
         righe.push(parti.join(' · '));
       }
+    } else if (m.tipo === 'audio') {
+      righe.push(`${m.codice} · audio · ${virgola(m.durata)} s · ${m.parlato?.length ? 'qualcuno parla' : 'senza parlato (musica o ambiente)'} · file «${nome}»`);
+      for (const f of m.parlato || []) righe.push(`  ${virgola(f.inizio)}–${virgola(f.fine)} s · «${pulito(f.testo).slice(0, 200)}»`);
     } else {
       const et = q.get(m.codice) || [];
       righe.push(`${m.codice} · foto ${m.orientamento} ${m.larghezza}×${m.altezza} · ${et.length ? et.join(', ') : 'buona'} · file «${nome}»`);

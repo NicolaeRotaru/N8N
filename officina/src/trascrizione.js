@@ -149,10 +149,10 @@ function dividiConParole(parole, candidati) {
   parole.forEach((p, i) => {
     if (k[i] < 0) return;
     const ultimo = pezzi[pezzi.length - 1];
-    if (ultimo && ultimo.k === k[i]) ultimo.parole.push(p.testo);
-    else pezzi.push({ k: k[i], parole: [p.testo] });
+    if (ultimo && ultimo.k === k[i]) ultimo.parole.push(p);
+    else pezzi.push({ k: k[i], parole: [p] });
   });
-  return pezzi.map((x) => ({ gruppo: candidati[x.k], testo: unisci(x.parole) })).filter((x) => x.testo);
+  return pezzi.map((x) => ({ gruppo: candidati[x.k], testo: unisci(x.parole.map((p) => p.testo)), parole: x.parole })).filter((x) => x.testo);
 }
 
 // Ripiego senza tempi per parola: il testo si divide in proporzione al parlato di ogni tratto, sui confini fra
@@ -207,18 +207,19 @@ function dividiSulParlato(s, gruppi) {
   if (parole) pezzi = dividiConParole(parole, candidati);
   else if (candidati.length === 1) pezzi = [{ gruppo: candidati[0], testo: s.testo }];
   else pezzi = dividiInProporzione(s, candidati);
-  return pezzi.map(({ gruppo, testo }) => ({
+  return pezzi.map(({ gruppo, testo, parole: pp }) => ({
     inizio: Math.max(s.inizio, gruppo.inizio - PRIMA),
     fine: Math.min(s.fine, gruppo.fine + DOPO),
     testo,
+    ...(pp ? { parole: pp } : {}),
   }));
 }
 
 // Tempi di whisper (a grana grossa) divisi sui silenzi e stretti sulle zone dove si parla davvero: mai allargati.
 // Una frase che non tocca nessuna zona di parlato sta sul silenzio: è inventata e si scarta.
 // zone = null → zone sconosciute: restano i tempi di whisper.
-export function correggiTempi(segmenti, zone) {
-  if (!Array.isArray(zone)) return segmenti;
+export function correggiTempi(segmenti, zone, { conParole = false } = {}) {
+  if (!Array.isArray(zone)) return conParole ? segmenti : segmenti.map(({ parole, ...x }) => x);
   const gruppi = gruppiParlato(zone);
   const out = [];
   for (const s of segmenti.flatMap((x) => dividiSulParlato(x, gruppi))) {
@@ -227,7 +228,8 @@ export function correggiTempi(segmenti, zone) {
     const inizio = Math.max(s.inizio, Math.min(...tocca.map((z) => z.inizio)) - PRIMA);
     let fine = Math.min(s.fine, Math.max(...tocca.map((z) => z.fine)) + DOPO);
     if (fine - inizio < MINIMO) fine = Math.min(s.fine, inizio + MINIMO);
-    out.push({ ...s, inizio: r3(inizio), fine: r3(fine) });
+    const { parole, ...resto } = s;
+    out.push({ ...resto, inizio: r3(inizio), fine: r3(fine), ...(conParole && parole ? { parole } : {}) });
   }
   for (let i = 0; i + 1 < out.length; i++) {
     if (out[i].fine > out[i + 1].inizio && out[i + 1].inizio > out[i].inizio) out[i].fine = out[i + 1].inizio;
@@ -301,6 +303,24 @@ async function zoneParlato(wav, durata, picco, cfg, segnale) {
   }
 }
 
+// Parole di un segmento con inizio e fine: l'inizio è il tempo allineato di whisper (stretto dentro il segmento),
+// la fine è l'inizio della parola dopo (l'ultima finisce con il segmento). Servono ai sottotitoli parola per parola
+// e a tagliare l'intervista fra una parola e l'altra. null se mancano i tempi per parola.
+export function paroleConTempi(seg) {
+  const pp = Array.isArray(seg.parole) ? seg.parole : null;
+  if (!pp || !pp.length || !pp.every((p) => Number.isFinite(p.t))) return null;
+  const out = [];
+  let prima = seg.inizio;
+  for (const p of pp) {
+    const inizio = Math.min(seg.fine, Math.max(prima, p.t));
+    out.push({ testo: String(p.testo).trim(), inizio: r3(inizio), fine: seg.fine });
+    prima = inizio;
+  }
+  for (let i = 0; i + 1 < out.length; i++) out[i].fine = r3(Math.max(out[i].inizio, out[i + 1].inizio));
+  out[out.length - 1].fine = r3(seg.fine);
+  return out.filter((p) => p.testo);
+}
+
 export function pulisciSegmenti(transcription, durata) {
   const out = [];
   for (const s of transcription || []) {
@@ -365,8 +385,9 @@ export async function trascrivi({ clip, dati, lavoro, url, cfg, segnale }) {
         } catch {
           throw errore(500, 'trascrizione_fallita', `Whisper non ha prodotto un risultato leggibile per la clip ${k}.`);
         }
-        for (const s of correggiTempi(pulisciSegmenti(json.transcription, durata), parlato.zone)) {
-          segmenti.push({ clip: k, inizio: s.inizio, fine: s.fine, testo: s.testo });
+        for (const s of correggiTempi(pulisciSegmenti(json.transcription, durata), parlato.zone, { conParole: dati.parole === true })) {
+          const parole = dati.parole === true ? paroleConTempi(s) : null;
+          segmenti.push({ clip: k, inizio: s.inizio, fine: s.fine, testo: s.testo, ...(parole ? { parole } : {}) });
           frasiSrt.push({ inizio: partenza + s.inizio, fine: partenza + s.fine, testo: s.testo });
         }
       }

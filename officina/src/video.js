@@ -69,7 +69,7 @@ export function modoAdattamento(info) {
   return tenuto >= 0.8 ? 'riempi' : 'sfondo';
 }
 
-const FINE_VIDEO = 'setsar=1,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p';
+export const FINE_VIDEO = 'setsar=1,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p';
 
 export function grafoAdattamento(info, { sfondo = 'sfocato', colore = '#000000' } = {}) {
   const hdr = ['smpte2084', 'arib-std-b67'].includes(info.trasferimento);
@@ -87,16 +87,16 @@ export function grafoAdattamento(info, { sfondo = 'sfocato', colore = '#000000' 
   return { modo, hdr, grafo };
 }
 
-const CODIFICA_INTERMEDIA = (t) => ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-g', '60', '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2'];
+export const CODIFICA_INTERMEDIA = (t) => ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-g', '60', '-threads', t, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-c:a', 'pcm_s16le', '-ar', '48000', '-ac', '2'];
 
-const CODIFICA_FINALE = (t) => [
+export const CODIFICA_FINALE = (t) => [
   '-c:v', 'libx264', '-preset', 'faster', '-crf', '21', '-profile:v', 'high', '-level:v', '4.1', '-pix_fmt', 'yuv420p',
   '-r', String(FPS), '-g', '60', '-keyint_min', '30', '-maxrate', '10M', '-bufsize', '20M', '-threads', t,
   '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv',
   '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart',
 ];
 
-const BASE = ['-hide_banner', '-nostdin', '-y'];
+export const BASE = ['-hide_banner', '-nostdin', '-y'];
 
 async function normalizzaSegmento(info, file, inizio, durata, uscita, opz, cfg, segnale) {
   const t = String(cfg.threadFfmpeg);
@@ -114,7 +114,7 @@ async function normalizzaSegmento(info, file, inizio, durata, uscita, opz, cfg, 
 }
 
 // Misura del volume (prima passata di loudnorm). null se l'audio è muto.
-async function misuraVolume(ingressi, catena, cfg, segnale, cwd) {
+export async function misuraVolume(ingressi, catena, cfg, segnale, cwd) {
   const args = [...BASE, '-nostats', ...ingressi, '-filter_complex', `${catena};[mix]loudnorm=I=-14:TP=-1.5:LRA=18:print_format=json[fuori]`, '-map', '[fuori]', '-f', 'null', '-'];
   const { stderr } = await esegui(cfg.ffmpeg, args, { segnale, timeoutMs: cfg.timeoutProcessoMs, cwd });
   const m = stderr.match(/\{[^{}]*"input_i"[^{}]*\}/s);
@@ -125,14 +125,14 @@ async function misuraVolume(ingressi, catena, cfg, segnale, cwd) {
   return j;
 }
 
-function filtroLoudnorm(m) {
+export function filtroLoudnorm(m) {
   if (!m) return 'anull';
   return `loudnorm=I=-14:TP=-1.5:LRA=18:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true:print_format=none,aresample=48000`;
 }
 
-const AVVISO_MUTO = { codice: 'audio_silenzioso', messaggio: "Nel video non c'è audio udibile: esce con una traccia muta. Se serve, aggiungi una musica con licenza." };
+export const AVVISO_MUTO = { codice: 'audio_silenzioso', messaggio: "Nel video non c'è audio udibile: esce con una traccia muta. Se serve, aggiungi una musica con licenza." };
 
-async function durataFile(file, cfg, segnale) {
+export async function durataFile(file, cfg, segnale) {
   const { stdout } = await esegui(cfg.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { segnale, timeoutMs: 60_000 });
   return Math.round(Number(stdout.toString().trim()) * 100) / 100;
 }
@@ -151,7 +151,7 @@ function mmss(t) {
 }
 
 // Provino di 6 fotogrammi (3×2) con il minuto:secondo, lato lungo ≤ 1568 px.
-async function creaFotogrammi(file, durata, dirTmp, dirOut, cfg, segnale) {
+export async function creaFotogrammi(file, durata, dirTmp, dirOut, cfg, segnale) {
   const cw = 428;
   const chh = 761;
   const sp = 12;
@@ -177,7 +177,7 @@ async function creaFotogrammi(file, durata, dirTmp, dirOut, cfg, segnale) {
 }
 
 // Copertina: il fotogramma più nitido fra 6 candidati, con gli strati (logo/titolo) sopra.
-async function creaCopertina(file, durata, strati, dirTmp, dirOut, cfg, segnale) {
+export async function creaCopertina(file, durata, strati, dirTmp, dirOut, cfg, segnale, dim = { w: W, h: H }) {
   let migliore = null;
   for (const [i, t] of istanti(durata).entries()) {
     const f = path.join(dirTmp, `cand-${i}.jpg`);
@@ -186,7 +186,7 @@ async function creaCopertina(file, durata, strati, dirTmp, dirOut, cfg, segnale)
     const v = varianzaLaplaciano(data, info.width, info.height, info.channels);
     if (!migliore || v > migliore.v) migliore = { f, v };
   }
-  const tela = await sharp(migliore.f).resize(W, H, { fit: 'cover' }).composite(strati).removeAlpha().png({ compressionLevel: 1 }).toBuffer();
+  const tela = await sharp(migliore.f).resize(dim.w, dim.h, { fit: 'cover' }).composite(strati).removeAlpha().png({ compressionLevel: 1 }).toBuffer();
   const { buf } = await jpegEntro(tela, MAX_ANTEPRIMA, { qualita: 88 });
   await fs.writeFile(path.join(dirOut, 'copertina.jpg'), buf);
   return 'copertina.jpg';

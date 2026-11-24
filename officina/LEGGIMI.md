@@ -19,6 +19,11 @@ Non inventa niente. Ritaglia, corregge luce e colore su tutta la foto, mette scr
 Non allarga mai una foto e non crea sfondi finti. Le scritte sono solo quelle che le passa n8n.
 
 ## Cosa cambia per te
+**Versione 1.3.0 (24/11/2026): la regia di Scatti di G.** L'officina monta un video seguendo una sceneggiatura.
+La voce fuori campo o l'intervista stanno sotto, e sopra ci sono le coperture scelte da Claude. Il risultato è un MP4 finito nello stile SDG.
+I salti si coprono da soli, i tagli cadono tra le parole, e i sottotitoli escono parola per parola.
+La voce fuori campo entra come materiale audio (A01…). Il font Bricolage Grotesque è incluso. Guida: `../montatore/REGIA-SDG.md`.
+
 **Versione 1.2.0 (24/11/2026): il montatore.** L'officina sa tenere tutto il materiale di un servizio in un «progetto» per 72 ore.
 Lo guarda una volta sola: divide ogni video in momenti, misura nitidezza, luce e movimento, e trascrive il parlato.
 Poi controlla il piano del mese scritto da Claude e monta ogni contenuto senza ricaricare niente.
@@ -46,7 +51,7 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.2.0", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.3.0", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
 
 ## Cosa non ho verificato
 - **L'immagine Docker non l'ho costruita.** Qui il programma Docker c'è, ma il suo servizio non gira, e Docker Hub non è tra le fonti che potevo usare.
@@ -316,6 +321,56 @@ Avvisi senza correzione: lo stesso momento o la stessa foto in due contenuti, du
 
 **Errori nuovi:** 404 `progetto_non_trovato`, 409 `progetto_in_uso`, 413 `progetto_troppo_grande`, 422 `progetto_vuoto`, 422 `contenuto_non_valido`, 422 `video_troppo_corto` (materiale sotto 1 s).
 
+### La regia (1.3.0)
+Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse rotte `/progetto` e `/materiale`; un file audio diventa `A01`, `A02`…).
+
+| Indirizzo | Coda | Corpo | Cosa fa |
+|---|---|---|---|
+| `POST /sceneggiatura/leggi` | no | `{testo}` | legge la sceneggiatura → `{titolo, formato, durata_max, musica, stile, chiusura, note, blocchi:[{n, tipo, testo, file?, chi?, ruolo?, tempi?, coperture, durata?}], avvisi}` |
+| `POST /progetto/:pid/regia/controlla` | no | `{piano, sceneggiatura?, formato?}` | dal piano di regia alla timeline piatta → `{durata, formato, audio, video, parole, cartelli, scritte, musica, problemi, bloccante, conti}` |
+| `POST /progetto/:pid/regia/monta` | sì | multipart: `dati {piano, sceneggiatura?, formato?, stile?, marchio?}` + `logo?` + `musica?` | ricalcola la timeline dal piano (non si fida di una timeline arrivata da fuori) e monta → `{file:[video, copertina, fotogrammi], controllo:{neri, fermi}, timeline, problemi, avvisi}` |
+
+**Il piano di regia** (lo scrive Claude con `montatore/prompt/regia.md`): `battute` in ordine.
+- Una battuta parlata: `{fonte:"A01"|"V03", inizio, fine}`. Facoltativi: `volto` (di serie vero per i video), `posizione_volto` (`sinistra`/`centro`/`destra`/`intera`), `nome`, `ruolo`, `scritta`, `coperture:[{scena|foto, inizio?, fine?, posizione?}]`.
+- Una battuta di sole immagini: `{immagini: secondi, coperture}`.
+- Poi: `coperture_riserva`, `scritte:[{testo, battuta, durata?}]`, `titolo`, `chiusura`, `musica`, `volume_musica`, `musica_fonte` (un audio del progetto), `durata_max`.
+
+**Le regole contro i «bolli»** (in `src/regia.js`, valgono per ogni video):
+1. Ogni battuta si aggancia alle parole: prende le parole intere toccate, con 0,08 s prima e 0,15 s dopo, senza entrare nella parola vicina.
+2. La voce fuori campo, l'audio senza video e le parti `immagini` sono sempre coperti.
+   - Se le coperture non bastano si allungano dentro la loro clip, poi si usa la riserva, poi si ripetono (avviso `coperture_corte`).
+   - Un pezzo non va mai oltre la fine della sua clip.
+   - Una voce senza volto e senza nessuna copertura (né di riserva) si toglie: errore `voce_scoperta`, che blocca.
+3. Un salto nell'intervista (stessa fonte, due pezzi non di seguito, volto prima e dopo) si copre con una copertura da 0,6 s prima a 0,6 s dopo il taglio. Senza coperture disponibili arriva l'avviso `taglio_scoperto`.
+4. Nessuna inquadratura sotto 0,6 s. Un volto stretto fra due coperture deve durare almeno 1 s, altrimenti resta coperto.
+5. Un volto si vede solo in sincrono con la sua voce.
+6. La prima volta che parla una persona ci sono almeno 2 s di volto, col cartello del nome; le volte dopo 1,2 s.
+7. Lo stesso momento usato due volte e le coperture con difetti si segnalano.
+8. `durata_max` toglie le ultime battute intere, mai a metà. Se la prima battuta da sola è più lunga arriva l'avviso.
+9. Due battute che usano lo stesso pezzo di un file si segnalano (`parole_ripetute`): quelle parole si sentirebbero due volte.
+10. Le scritte non si sovrappongono mai nel tempo e vanno a capo da sole. Hanno tre altezze diverse: titolo al 30% dell'altezza, scritte al 44%, chiusura al 60%. Il titolo e la chiusura si accorciano a 40 caratteri, le scritte a 48.
+11. Controllo finale: nessun buco, nessun pezzo fuori dalla clip, ogni pezzo lungo quanto il suo posto, volti in sincrono. Se qualcosa non torna esce l'errore `timeline_incoerente` e la timeline resta vuota: non si monta.
+
+**Il render** (`src/regia-render.js`):
+- ogni inquadratura diventa un pezzo tagliato al fotogramma sulla timeline assoluta (niente deriva);
+- se una clip finisce prima del previsto, l'ultimo fotogramma resta fino a riempire il pezzo;
+- dopo il montaggio si contano i fotogrammi: se non sono esattamente durata × 30, errore 500 `timeline_desincronizzata` e nessun video consegnato;
+- il volto si ritaglia nella posizione detta; una copertura orizzontale in verticale esce intera, con lo sfondo sfocato, se il ritaglio terrebbe meno dell'80%;
+- le foto si girano secondo l'EXIF e hanno uno zoom lento del 12%;
+- la voce è fatta dai pezzi audio in fila, campione per campione, con dissolvenze di 15/25 ms;
+- l'ultimo passaggio fa colore e grana dello stile, i testi ASS e il logo; la musica passa in sidechain (si abbassa sotto le voci) e il volume va a -14 LUFS in due passate;
+- alla fine ci sono copertina e provino dei fotogrammi;
+- il controllo `blackdetect` + `freezedetect` gira sulle immagini montate prima della grana e dei testi, perché la grana nasconderebbe le immagini ferme;
+- il cartello col nome sta in alto a sinistra in ogni formato, i sottotitoli in basso.
+
+**Stile `sdg`:** Bricolage Grotesque ExtraBold (incluso, licenza OFL) per sottotitoli, cartello e scritte; Inter per il ruolo. Avorio `#F3F0EA`, inchiostro `#0B0B0D`, lime `#D2FF3A` (sostituibile con `marchio.colori.accento`). Sottotitoli in maiuscolo, al massimo 3 parole o 18 lettere per volta, sopra i 340 px in basso. Contrasto e saturazione 1,06, grana 7. Lo stile `pulito` usa Inter, niente grana, 5 parole per volta.
+
+**Trascrizione.** `/video/trascrivi` con `dati.parole: true` (e il materiale dei progetti) restituisce anche `parole:[{testo, inizio, fine}]` per ogni segmento, quando whisper dà i tempi per parola (`-dtw`). Senza `parole: true` la risposta è quella di prima.
+
+**Sceneggiatura.** Le parole chiave si riconoscono anche scritte in altri modi: «VOCE FUORI CAMPO:», «V.O.:», «SPEAKERAGGIO:», «Intervista (Mario Rossi):», «INTERVISTA Mario Rossi (fornaio): file.mov». Una parola in maiuscolo con «:» che non è una parola chiave dà un avviso, invece di finire in silenzio nel blocco prima.
+
+**Errori nuovi:** 415 `audio_non_leggibile`, 422 `audio_troppo_corto`, 422 `regia_non_valida`, 422 `timeline_non_valida`, 500 `timeline_desincronizzata`.
+
 ### Come chiamarla da n8n (nodo HTTP Request 4.5)
 - **Metodo** POST; **URL** `{{ $('Config').item.json.OFFICINA_URL }}/video/reel`.
 - **Authentication**: Generic Credential Type → Header Auth → credenziale **'Officina - Chiave'**.
@@ -337,7 +392,7 @@ Avvisi senza correzione: lo stesso momento o la stessa foto in due contenuti, du
 ```
 cd officina
 npm ci
-npm test                      # 79 prove (12 del montatore), circa 6 minuti, senza Docker (usa /usr/bin/ffmpeg)
+npm test                      # 95 prove (12 del montatore, 16 della regia), circa 8 minuti, senza Docker (usa /usr/bin/ffmpeg)
 npm run prepara-whisper       # facoltativo: compila whisper-cli e whisper-vad-speech-segments, scarica "small" e la voce italiana in .locale/
 npm run mutazioni             # rompe il codice di proposito in 39 punti e controlla che le prove se ne accorgano
 node test/mutazioni.mjs --controllo   # le stesse prove sulla copia intatta: devono essere tutte verdi
@@ -370,8 +425,11 @@ officina/
   src/catalogo.js     montatore: etichette di qualità, provini con i codici, catalogo in testo
   src/piano.js        montatore: controllo del piano di Claude contro il materiale vero
   src/montaggio.js    montatore: monta un contenuto dal materiale del progetto
+  src/sceneggiatura.js regia: lettore della sceneggiatura in testo semplice
+  src/regia.js        regia: dal piano di Claude alla timeline piatta, con le regole contro i «bolli»
+  src/regia-render.js regia: render della timeline (stile SDG), controllo neri e immagini ferme
   src/trascrizione.js whisper.cpp senza --vad, con i tempi per parola (-dtw) + zone di parlato (silero o silenzi di FFmpeg); segmenti divisi sui silenzi
-  font/               Inter, Playfair Display, Archivo (licenza OFL) e Roboto Slab (licenza Apache 2.0)
+  font/               Inter, Playfair Display, Archivo, Bricolage Grotesque (licenza OFL) e Roboto Slab (licenza Apache 2.0)
   strumenti/          prepara-whisper-locale.sh, voce_it.py (voce italiana per le prove)
   test/               prove (npm test), finti whisper e VAD, mutazioni
 ```

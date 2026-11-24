@@ -19,10 +19,13 @@ import path from 'node:path';
 import fsp from 'node:fs/promises';
 import { errore, nonValido } from './errori.js';
 import { creaProgetto, apriProgetto, chiudiProgetto, salvaProgetto, prossimoCodice, byteProgetto, scadenza, pulisciProgetti, Registro } from './progetti.js';
-import { analizzaVideo, analizzaFoto, tipoDelFile } from './analisi.js';
+import { analizzaVideo, analizzaFoto, analizzaAudio, tipoDelFile } from './analisi.js';
 import { materialiPubblici, testoCatalogo, celleProvini, disegnaProvini } from './catalogo.js';
 import { controllaPiano } from './piano.js';
 import { montaContenuto } from './montaggio.js';
+import { leggiSceneggiatura } from './sceneggiatura.js';
+import { controllaRegia } from './regia.js';
+import { montaRegia, stileDa } from './regia-render.js';
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
 
@@ -201,6 +204,7 @@ export async function creaServer(cfg = leggiConfig()) {
       nome: progetto.nome,
       video: conta('video'),
       foto: conta('foto'),
+      audio: conta('audio'),
       scene: progetto.materiali.filter((m) => m.tipo === 'video').reduce((s, m) => s + m.scene.length, 0),
       durata_video: Math.round(progetto.materiali.filter((m) => m.tipo === 'video').reduce((s, m) => s + m.durata, 0) * 10) / 10,
       byte: byteProgetto(progetto),
@@ -254,16 +258,16 @@ export async function creaServer(cfg = leggiConfig()) {
     }
     const tipo = await tipoDelFile(f, cfg, segnale);
     const codice = prossimoCodice(progetto, tipo);
-    const est = path.extname(f.percorso).toLowerCase() || (tipo === 'video' ? '.mp4' : '.jpg');
+    const est = path.extname(f.percorso).toLowerCase() || (tipo === 'video' ? '.mp4' : tipo === 'audio' ? '.wav' : '.jpg');
     const rel = `materiale/${codice}${est}`;
     const assoluto = path.join(dir, rel);
     await fsp.rename(f.percorso, assoluto);
     const fileMat = { percorso: assoluto, nome: nomeOriginale };
     let r;
     try {
-      r = tipo === 'video'
-        ? await analizzaVideo({ file: fileMat, codice, dirProgetto: dir, dirTmp: lavoro.dirTmp, dati, cfg, segnale })
-        : await analizzaFoto({ file: fileMat, codice, dirProgetto: dir, progetto, dati });
+      if (tipo === 'video') r = await analizzaVideo({ file: fileMat, codice, dirProgetto: dir, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
+      else if (tipo === 'audio') r = await analizzaAudio({ file: fileMat, codice, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
+      else r = await analizzaFoto({ file: fileMat, codice, dirProgetto: dir, progetto, dati });
     } catch (e) {
       await fsp.rm(assoluto, { force: true });
       for (const n of await fsp.readdir(path.join(dir, 'miniature')).catch(() => [])) {
@@ -298,6 +302,30 @@ export async function creaServer(cfg = leggiConfig()) {
     const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
     if (!dati.contenuto || typeof dati.contenuto !== 'object') throw nonValido('dati_non_validi', 'Manca «contenuto»: uno dei contenuti del piano controllato.');
     return montaContenuto({ progetto, dirProgetto: dir, dati, file, lavoro, url, cfg, segnale });
+  }, { prima: controllaEsiste });
+
+  // ------------------------------------------------------------ REGIA (montaggio da sceneggiatura)
+  app.post('/sceneggiatura/leggi', { bodyLimit: 1024 * 1024 }, async (req) => {
+    const dati = await datiLeggeri(req);
+    if (typeof dati.testo !== 'string') throw nonValido('dati_non_validi', 'Manca «testo»: il testo della sceneggiatura.');
+    return leggiSceneggiatura(dati.testo);
+  });
+
+  app.post('/progetto/:pid/regia/controlla', { bodyLimit: 4 * 1024 * 1024 }, async (req) => {
+    const dati = await datiLeggeri(req);
+    const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
+    return { progetto: progetto.id, ...controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null }) };
+  });
+
+  rotta('/progetto/:pid/regia/monta', { logo: { min: 0, max: 1 }, musica: { min: 0, max: 1 } }, async ({ dati, file, lavoro, url, segnale, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
+    // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
+    const tl = controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null });
+    if (!tl.video.length) throw errore(422, 'regia_non_valida', `Non posso montare: ${tl.problemi.filter((p) => p.gravita === 'blocca').map((p) => p.messaggio).join(' ') || 'la timeline è vuota.'}`);
+    const r = await montaRegia({ tl, progetto, dirProgetto: dir, stile: stileDa(dati.stile, dati.marchio), logo: file.logo?.[0], musicaFile: file.musica?.[0]?.percorso, lavoro, url, cfg, segnale });
+    return { ...r, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
   }, { prima: controllaEsiste });
 
   // Pulizia: all'avvio e poi a intervalli regolari.

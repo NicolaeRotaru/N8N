@@ -139,6 +139,48 @@ function mediana(v) {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+// Frasi dette in un materiale, con le parole e i loro tempi (se whisper li ha dati).
+async function trascriviMateriale(file, dirT, dati, cfg, segnale) {
+  const r = await trascrivi({ clip: [file], dati: { lingua: dati.lingua ?? 'it', parole: true }, lavoro: { dirTmp: dirT, dirOut: dirT }, url: (n) => n, cfg, segnale });
+  return r.segmenti.map((s) => ({ inizio: r2(s.inizio), fine: r2(s.fine), testo: s.testo, ...(s.parole ? { parole: s.parole } : {}) }));
+}
+
+// ---------------------------------------------------------------- AUDIO (voce fuori campo, intervista solo audio, musica)
+export async function analizzaAudio({ file, codice, dirTmp, dati, cfg, segnale }) {
+  const avvisi = [];
+  const info = await sonda(file.percorso, file.nome, cfg, segnale);
+  if (!info.audio) throw errore(415, 'audio_non_leggibile', `Nel file «${file.nome}» non c'è una traccia audio.`);
+  if (!(info.durata >= 0.5)) throw errore(422, 'audio_troppo_corto', `L'audio «${file.nome}» dura meno di mezzo secondo.`);
+  let volumeMax = null;
+  try {
+    const stderr = await passata(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-nostats', '-v', 'info', '-i', file.percorso, '-map', '0:a:0', '-af', 'volumedetect', '-f', 'null', '-'], { suPezzo: () => {}, segnale, timeoutMs: cfg.timeoutProcessoMs });
+    volumeMax = leggiVolumeMassimo(stderr);
+  } catch (e) {
+    if (e.annullato) throw e;
+    throw errore(415, 'audio_non_leggibile', `Non riesco a leggere l'audio «${file.nome}» fino in fondo.`);
+  }
+  let parlato = null;
+  const vuoleParlato = !['false', 'no', '0'].includes(String(dati.trascrivi ?? '').trim().toLowerCase());
+  if (vuoleParlato && volumeMax !== null && volumeMax > -45) {
+    if (!whisperDisponibile(cfg)) {
+      avvisi.push({ codice: 'trascrizione_non_disponibile', messaggio: `Nell'audio ${codice} c'è parlato, ma la trascrizione non è disponibile sul server: la regia non saprà dove cade ogni frase.` });
+    } else {
+      const dirT = path.join(dirTmp, `trascrizione-${codice}`);
+      await fs.mkdir(dirT, { recursive: true });
+      try {
+        parlato = await trascriviMateriale(file, dirT, dati, cfg, segnale);
+      } catch (e) {
+        if (e.annullato || segnale?.aborted) throw e;
+        avvisi.push({ codice: 'trascrizione_fallita', messaggio: `La trascrizione dell'audio ${codice} non è riuscita${e.scaduto ? ' (tempo scaduto)' : ''}.` });
+      } finally {
+        await fs.rm(dirT, { recursive: true, force: true });
+      }
+    }
+  }
+  if (volumeMax !== null && volumeMax <= -45) avvisi.push({ codice: 'audio_silenzioso', messaggio: `L'audio ${codice} («${file.nome}») è quasi muto.` });
+  return { materiale: { codice, tipo: 'audio', durata: r2(info.durata), volume_max_db: volumeMax, parlato }, avvisi };
+}
+
 // ---------------------------------------------------------------- VIDEO
 export async function analizzaVideo({ file, codice, dirProgetto, dirTmp, dati, cfg, segnale }) {
   const avvisi = [];
@@ -211,8 +253,7 @@ export async function analizzaVideo({ file, codice, dirProgetto, dirTmp, dati, c
       const dirT = path.join(dirTmp, `trascrizione-${codice}`);
       await fs.mkdir(dirT, { recursive: true });
       try {
-        const r = await trascrivi({ clip: [file], dati: { lingua: dati.lingua ?? 'it' }, lavoro: { dirTmp: dirT, dirOut: dirT }, url: (n) => n, cfg, segnale });
-        parlato = r.segmenti.map((s) => ({ inizio: r2(s.inizio), fine: r2(s.fine), testo: s.testo }));
+        parlato = await trascriviMateriale(file, dirT, dati, cfg, segnale);
       } catch (e) {
         // whisper che si pianta o va oltre il tempo: si perde il parlato, non la clip
         if (e.annullato || segnale?.aborted) throw e;
@@ -330,8 +371,9 @@ export async function tipoDelFile(file, cfg, segnale) {
   }
   const i = await sonda(file.percorso, file.nome, cfg, segnale).catch(() => null);
   if (i && i.video && !i.immagine && i.durata > 0) return 'video';
+  if (i && !i.video && i.audio && i.durata > 0) return 'audio';
   if (/\.(heic|heif)$/i.test(file.nome)) {
     throw errore(415, 'formato_file_non_supportato', `La foto «${file.nome}» è in HEIC: esportala in JPEG (sull'iPhone: Impostazioni › Fotocamera › Formati › Più compatibile).`);
   }
-  throw errore(415, 'formato_file_non_supportato', `Il file «${file.nome}» non è né una foto né un video leggibile.`);
+  throw errore(415, 'formato_file_non_supportato', `Il file «${file.nome}» non è una foto, un video o un audio leggibile.`);
 }

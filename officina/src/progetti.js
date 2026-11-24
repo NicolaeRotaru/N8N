@@ -61,9 +61,9 @@ export async function chiudiProgetto(datiDir, id) {
   await fs.rm(path.join(cartellaProgetti(datiDir), id), { recursive: true, force: true });
 }
 
-// V01, V02… per i video; F01, F02… per le foto. Sono i codici che Claude legge sui provini e usa nel piano.
+// V01, V02… per i video; F01, F02… per le foto; A01, A02… per gli audio (voce fuori campo, musica). Sono i codici che Claude legge sui provini e usa nel piano.
 export function prossimoCodice(progetto, tipo) {
-  const lettera = tipo === 'video' ? 'V' : 'F';
+  const lettera = tipo === 'video' ? 'V' : tipo === 'audio' ? 'A' : 'F';
   const n = progetto.materiali.filter((m) => m.tipo === tipo).length + 1;
   return `${lettera}${String(n).padStart(2, '0')}`;
 }
