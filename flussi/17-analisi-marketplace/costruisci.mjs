@@ -68,7 +68,9 @@ export function costruisci({ telegram, anthropic, chatId, marketplace } = {}) {
         ['SITO_URL', 'https://mycity-phi.vercel.app'],
         ['TELEGRAM_CHAT_ID', chatId || 'DA_IMPOSTARE'],
         ['CLAUDE_MODEL', 'claude-sonnet-5-5'],
-        ['COMMENTO_CLAUDE', 'si'],
+        // Spento di serie: «non si paga MAI un'API di IA» (registro-fatti.json, voce ad.uso-e-crediti,
+        // Nicola 1/11/2026). Numeri e segnali non ne hanno bisogno. «si» solo se Nicola decide di pagarla.
+        ['COMMENTO_CLAUDE', 'no'],
         // Negozi in attesa concordata con Nicola (non sono churn): «id:AAAA-MM-GG», separati da virgola.
         // Dopo la data tornano normali. Fonte: registro-fatti.json, voce negozi.attesa-concordata.
         ['NEGOZI_IN_ATTESA', 'c0b240c0-2a86-4218-9d0f-5154f08ff929:2026-11-30'],
@@ -146,7 +148,9 @@ export function costruisci({ telegram, anthropic, chatId, marketplace } = {}) {
     parameters: { width: 760, height: 380, content: [
       '## 17 · Analisi del marketplace',
       '',
-      "**Cosa fa.** Ogni mattina alle 8:10 legge il database di MyCity (solo lettura), calcola i numeri chiave e le sentinelle del giro dell'AD, li confronta col giro prima, chiede a Claude il commento e manda il briefing a Nicola su Telegram. La radiografia non c'è.",
+      "**Cosa fa.** Ogni mattina alle 8:10 legge il database di MyCity (solo lettura), calcola i numeri chiave e le sentinelle del giro dell'AD, li confronta col giro prima e manda il briefing a Nicola su Telegram. La radiografia non c'è.",
+      '',
+      "**Il commento di Claude** (COMMENTO_CLAUDE nel Config) è spento di serie: «non si paga MAI un'API di IA» (registro dei fatti, ad.uso-e-crediti). Si accende con «si» solo se Nicola lo decide.",
       '',
       "**Regole.** I numeri li fa il codice, mai Claude. Una tabella che non si legge è «non misurato», mai zero. Nessun dato personale letto.",
       '',

@@ -317,3 +317,8 @@ test('il controllo del flusso ferma una scrittura sul database del marketplace',
   w.nodes.find((n) => n.name === 'Leggi i prodotti').parameters.method = 'PATCH';
   assert.match(controlla(w).join('\n'), /si legge e basta/);
 });
+
+test("il commento di Claude nasce spento: «non si paga MAI un'API di IA» (registro dei fatti)", () => {
+  const cfg = costruisci().nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  assert.equal(cfg.find((a) => a.name === 'COMMENTO_CLAUDE').value, 'no');
+});

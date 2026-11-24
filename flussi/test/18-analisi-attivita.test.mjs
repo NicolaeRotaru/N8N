@@ -267,3 +267,8 @@ test('il flusso 18: due ingressi, legge soltanto, i nodi citati dal codice esist
   // Senza credenziali il controllo dice cosa manca.
   assert.match(controlla(costruisci()).join('\n'), /credenziale/);
 });
+
+test("il commento di Claude nasce spento: «non si paga MAI un'API di IA» (registro dei fatti)", () => {
+  const cfg = costruisci().nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  assert.equal(cfg.find((a) => a.name === 'COMMENTO_CLAUDE').value, 'no');
+});
