@@ -1,0 +1,1309 @@
+{
+  "name": "09 - Radar negozio",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📸 Radar negozio\nFai la foto a un negozio e mandala al bot Telegram dell'agenzia.\nIn 2-3 minuti arriva la scheda: **Google, sito e social**, con un voto, cosa proporre e una frase per rompere il ghiaccio.\n\n**Prima di attivarlo**\n1. Nodo **Config**: `CHAT_AUTORIZZATE` (i codici chat di chi può usarlo; il bot ti dice il tuo) e `CITTA_PREDEFINITA`.\n2. Credenziali: *Telegram - Radar negozio* (un bot dedicato), *Anthropic - Claude*, *Google - Chiave API* (Header Auth, nome `X-Goog-Api-Key`).\n3. Premi **Publish**.\n\nGuida completa: `radar-negozio/LEGGIMI.md` nel repository N8N.\nNon modificare il codice dei nodi qui: si cambia in `radar-negozio/sorgenti/` e si ricostruisce.",
+        "height": 560,
+        "width": 400,
+        "color": 4
+      },
+      "id": "7e86e179-7e4f-401d-a895-87d6a3a928b5",
+      "name": "Nota: come funziona",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 1 · La foto\nChi scrive, se c'è una foto, cosa ci legge Claude (nome, tipo, contatti, adesivi).",
+        "height": 760,
+        "width": 1980,
+        "color": 7
+      },
+      "id": "90062223-f46a-4649-ad29-d37bfe329c0f",
+      "name": "Nota 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        200,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 2 · Google\nCerca il negozio su Google Maps e dà un voto alla scheda con regole fisse.",
+        "height": 760,
+        "width": 640,
+        "color": 5
+      },
+      "id": "078486d9-01fb-4407-a5ab-8fd6febcd48c",
+      "name": "Nota 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 3 · Sito\nScarica la home e la misura con Google PageSpeed (da telefono).",
+        "height": 760,
+        "width": 820,
+        "color": 6
+      },
+      "id": "40364cee-5767-4cb9-a031-7ceaff95ac83",
+      "name": "Nota 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 4 · Social\nClaude cerca sul web Instagram, Facebook, TikTok e le altre piattaforme.",
+        "height": 760,
+        "width": 1260,
+        "color": 3
+      },
+      "id": "50774b6d-4f53-49f7-a89e-262db3f193f3",
+      "name": "Nota 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 5 · La scheda\nClaude scrive la scheda; arrivano due messaggi.\nPer tenere lo storico nel foglio «Prospetti»: configura e **attiva** il nodo «Salva nel foglio Prospetti» (di serie è spento).",
+        "height": 760,
+        "width": 1720,
+        "color": 2
+      },
+      "id": "7eddbddb-2b0c-4d47-ab84-4da0da7543a8",
+      "name": "Nota 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5080,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "d10d01fe-4942-459b-aa66-64ca2cdcd7fb",
+      "name": "Foto dal telefono",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram - Radar negozio"
+        }
+      },
+      "webhookId": "7d0b2f4e-5a8c-4e61-9a3b-2c1f0e8d6b47"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a4c0fe38-4d22-4028-af1f-e18dd6f17edc",
+              "name": "CHAT_AUTORIZZATE",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "907d6ada-480b-410e-a35d-2e0f40091a29",
+              "name": "CITTA_PREDEFINITA",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "b18096da-da53-4020-a8f0-23e655142f29",
+              "name": "CLAUDE_MODELLO",
+              "value": "claude-opus-5-5",
+              "type": "string"
+            },
+            {
+              "id": "c2ac15b2-c2f2-4460-a27f-803138735913",
+              "name": "CLAUDE_EFFORT",
+              "value": "medium",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "include": "all",
+        "options": {}
+      },
+      "id": "64de0fd1-08d5-4035-ada7-9a8a3b6778c7",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Controlla il messaggio arrivato su Telegram.\n// - Chi non è in CHAT_AUTORIZZATE riceve il proprio codice chat e nient'altro (nessun costo, nessun download).\n// - Senza foto: risponde con le istruzioni.\n// - Con la foto: sceglie la versione più grande che Claude può leggere (sotto i 4,5 MB) e la fa scaricare.\nconst cfg = $input.first().json;\nconst msg = cfg.message || cfg.edited_message || null;\n\n// Aggiornamenti senza chat (per esempio il bot aggiunto a un gruppo): non si risponde.\nif (!msg || !msg.chat) return [];\n\nconst chatId = msg.chat.id;\nconst mittente =\n  [msg.from && msg.from.first_name, msg.from && msg.from.last_name].filter(Boolean).join(' ') ||\n  (msg.from && msg.from.username) ||\n  'qualcuno';\nconst autorizzate = String(cfg.CHAT_AUTORIZZATE || '')\n  .split(/[\\s,;]+/)\n  .map((s) => s.trim())\n  .filter(Boolean);\n\nfunction rispondi(testo) {\n  return [{ json: { azione: 'rispondi', chat_id: chatId, testo } }];\n}\n\nif (!autorizzate.includes(String(chatId))) {\n  return rispondi(\n    'Questo bot è riservato all\\'agenzia SDG.\\n' +\n      'Il tuo codice chat è <code>' + chatId + '</code>: chiedi a chi gestisce n8n ' +\n      'di aggiungerlo nel nodo Config, alla voce CHAT_AUTORIZZATE.',\n  );\n}\n\nconst ISTRUZIONI =\n  '📸 Mandami una <b>foto del negozio</b>, con l\\'insegna ben leggibile.\\n' +\n  'Se vuoi, nella didascalia scrivi la città o la via (per esempio «via Roma, Torino»): ' +\n  'mi aiuta a trovare il negozio giusto su Google.\\n\\n' +\n  'In 2-3 minuti ti rispondo con come è messo su Google, sul sito e sui social, e cosa proporgli.';\n\n// Claude accetta immagini fino a 5 MB: si resta sotto i 4,5 MB per sicurezza.\nconst PESO_MAX = 4.5 * 1024 * 1024;\nlet fileId = '';\nlet peso = 0;\nif (Array.isArray(msg.photo) && msg.photo.length) {\n  // Telegram manda la stessa foto in più misure, dalla più piccola alla più grande.\n  const adatte = msg.photo.filter((f) => !f.file_size || f.file_size <= PESO_MAX);\n  const scelta = adatte.length ? adatte[adatte.length - 1] : msg.photo[0];\n  fileId = scelta.file_id;\n  peso = scelta.file_size || 0;\n} else if (msg.document && /^image\\//i.test(msg.document.mime_type || '')) {\n  if (msg.document.file_size && msg.document.file_size > PESO_MAX) {\n    return rispondi('La foto è troppo pesante. Mandala come <b>foto normale</b> (non come file), così Telegram la alleggerisce.');\n  }\n  fileId = msg.document.file_id;\n  peso = msg.document.file_size || 0;\n} else if (msg.document || msg.video || msg.video_note || msg.animation) {\n  return rispondi('Mi serve una <b>foto</b> (non un video o un altro file).\\n\\n' + ISTRUZIONI);\n} else {\n  return rispondi(ISTRUZIONI);\n}\n\nreturn [\n  {\n    json: {\n      azione: 'analizza',\n      chat_id: chatId,\n      mittente,\n      didascalia: String(msg.caption || '').trim().slice(0, 300),\n      ricevuta_il: new Date((msg.date || Date.now() / 1000) * 1000).toISOString(),\n      file_id: fileId,\n      peso_dichiarato: peso,\n    },\n  },\n];\n"
+      },
+      "id": "dda1c9c0-9af3-43dc-a40c-6e071622af82",
+      "name": "Controlla messaggio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "779b40bc-cb28-4793-abf6-d266241f4d6d",
+              "leftValue": "={{ $json.azione || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "analizza"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "efdf801b-932e-4aff-a508-4dcb995e798f",
+      "name": "Si analizza?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.file_id }}",
+        "download": true,
+        "additionalFields": {}
+      },
+      "id": "8cfd44ca-b13b-4c23-a9d8-b1e3a82e064e",
+      "name": "Scarica la foto",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        940,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram - Radar negozio"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Controlla la foto scaricata da Telegram e prepara la richiesta a Claude per leggerla:\n// nome, tipo di attività, contatti e segni di presenza online.\nconst scaricata = $input.first();\nconst m = $('Controlla messaggio').first().json;\nconst cfg = $('Config').first().json;\n\nfunction rispondi(testo) {\n  return [{ json: { azione: 'rispondi', chat_id: m.chat_id, testo } }];\n}\n\nif (!scaricata.binary || !scaricata.binary.data) {\n  return rispondi('Non sono riuscito a scaricare la foto da Telegram. Riprova a mandarla tra un momento.');\n}\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nif (buffer.length > 4.5 * 1024 * 1024) {\n  return rispondi('La foto è troppo pesante. Mandala come <b>foto normale</b> (non come file), così Telegram la alleggerisce.');\n}\nfunction tipoImmagine(b) {\n  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';\n  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';\n  if (b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';\n  if (b.length > 6 && b.toString('ascii', 0, 4) === 'GIF8') return 'image/gif';\n  return null;\n}\nconst mediaType = tipoImmagine(buffer);\nif (!mediaType) {\n  return rispondi(\n    'Non riesco ad aprire questo formato di foto (forse HEIC dell\\'iPhone). Mandala come <b>foto normale</b>, non come file.',\n  );\n}\n\nconst SISTEMA = `Sei l'assistente di SDG, un'agenzia di marketing (siti, social, foto e video).\nUn collega ha fotografato un negozio dalla strada. Leggi la foto con attenzione e riporta solo quello che si vede davvero.\n\nCosa ci serve:\n- nome dell'attività, scritto come sull'insegna;\n- tipo di attività (per esempio pasticceria, parrucchiere, ferramenta, ristorante);\n- città e indirizzo, se si leggono sulla foto o nella nota del collega;\n- contatti scritti: telefono, sito, profili social;\n- segni di presenza online: adesivi (Google, TripAdvisor, TheFork, Glovo, Deliveroo, Just Eat, Satispay...), QR code, nomi di profili;\n- com'è la vetrina vista da un'agenzia: insegna, ordine, luce, orari esposti.\n\nRegole:\n- Non inventare. Se un dato non si vede, lascia la stringa vuota o la lista vuota.\n- Se il nome non si legge con sicurezza, metti \"leggibile\" a false e spiega perché in \"motivo\".\n  Se però il collega ha scritto il nome nella nota, usalo e metti \"leggibile\" a true.\n- \"ricerca_google\" è la frase migliore da cercare su Google Maps per trovare questo negozio:\n  nome + tipo di attività + via e città se le conosci (dalla foto o dalla nota).\n- \"osservazioni\": al massimo 3 note brevi utili a un'agenzia (per esempio «orari scritti a mano», «insegna sbiadita», «logo diverso tra insegna e tenda»).`;\n\nconst nota = m.didascalia\n  ? `Nota del collega (può contenere città, via o nome del negozio): «${m.didascalia}»`\n  : 'Il collega non ha scritto note.';\n\nconst testo = (descrizione) => ({ type: 'string', description: descrizione });\nconst lista = (descrizione) => ({ type: 'array', items: { type: 'string' }, description: descrizione });\n\nconst schema = {\n  type: 'object',\n  properties: {\n    leggibile: { type: 'boolean', description: 'true se il nome dell\\'attività si legge con sicurezza' },\n    motivo: testo('Se non leggibile: perché (foto mossa, insegna coperta...). Altrimenti stringa vuota'),\n    nome_attivita: testo('Nome come scritto sull\\'insegna'),\n    tipo_attivita: testo('Tipo di attività, in italiano, minuscolo'),\n    citta: testo('Città o paese, se si legge sulla foto o nella nota. Altrimenti stringa vuota'),\n    indirizzo: testo('Via e numero, se si leggono. Altrimenti stringa vuota'),\n    telefono: testo('Telefono scritto sulla vetrina o sull\\'insegna'),\n    sito: testo('Indirizzo del sito scritto sulla vetrina'),\n    profili_social: lista('Nomi o indirizzi di profili social scritti o su adesivi'),\n    segni_online: lista('Adesivi, QR code, loghi di piattaforme visibili'),\n    insegna: {\n      type: 'string',\n      enum: ['curata', 'datata o rovinata', 'assente o illeggibile', 'non si vede'],\n    },\n    vetrina: testo('Una frase su vetrina, luce e ordine, vista da un\\'agenzia'),\n    osservazioni: lista('Al massimo 3 note brevi utili a un\\'agenzia'),\n    ricerca_google: testo('Frase da cercare su Google Maps per trovare questo negozio'),\n  },\n  required: [\n    'leggibile', 'motivo', 'nome_attivita', 'tipo_attivita', 'citta', 'indirizzo', 'telefono', 'sito',\n    'profili_social', 'segni_online', 'insegna', 'vetrina', 'osservazioni', 'ricerca_google',\n  ],\n  additionalProperties: false,\n};\n\nconst richiesta = {\n  model: cfg.CLAUDE_MODELLO || 'claude-opus-5-5',\n  max_tokens: 16000,\n  // Se il modello rifiuta per un filtro di sicurezza, l'API riprova da sola con un modello di riserva.\n  fallbacks: 'default',\n  output_config: {\n    effort: cfg.CLAUDE_EFFORT || 'medium',\n    format: { type: 'json_schema', schema },\n  },\n  system: SISTEMA,\n  messages: [\n    {\n      role: 'user',\n      content: [\n        { type: 'image', source: { type: 'base64', media_type: mediaType, data: buffer.toString('base64') } },\n        { type: 'text', text: nota },\n      ],\n    },\n  ],\n};\n\nreturn [\n  {\n    json: {\n      azione: 'analizza',\n      chat_id: m.chat_id,\n      mittente: m.mittente,\n      didascalia: m.didascalia,\n      ricevuta_il: m.ricevuta_il,\n      richiesta,\n    },\n  },\n];\n"
+      },
+      "id": "86fc326b-3da4-4a04-a350-1d648a25f8f9",
+      "name": "Prepara lettura foto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0396594d-3d87-4760-a822-5720b80d0a1a",
+              "leftValue": "={{ $json.azione || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "analizza"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "f3ed71cd-4d19-48e5-a10b-32e36535fb55",
+      "name": "Foto pronta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1380,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2026-10-21"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "server-side-fallback-2026-07-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.richiesta) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "1bc84d25-014c-43c0-af19-632dd351349c",
+      "name": "Claude: leggi la foto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        120
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "Anthropic - Claude"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Legge cosa ha visto Claude nella foto e prepara la ricerca su Google Maps.\n// ---- comune: leggere le risposte di Claude (lo stesso codice in ogni nodo che ne ha bisogno) ----\n// Restituisce il motivo dell'errore, oppure null se la risposta è buona.\nfunction erroreClaude(r) {\n  if (!r || typeof r !== 'object') return 'nessuna risposta';\n  // Il nodo HTTP, quando fallisce dopo i tentativi, passa avanti { error: ... } (impostazione \"On Error: Continue\").\n  if (r.error && r.type !== 'error') {\n    const e = r.error;\n    if (typeof e === 'string') return e.slice(0, 300);\n    const parti = [e.message, e.description].filter((x) => typeof x === 'string' && x);\n    return (parti.join(' — ') || 'errore di collegamento').slice(0, 300);\n  }\n  if (r.type === 'error') return String((r.error && r.error.message) || 'errore dell\\'API').slice(0, 300);\n  if (r.stop_reason === 'refusal') {\n    const cat = r.stop_details && r.stop_details.category;\n    return 'Claude non ha voluto rispondere' + (cat ? ' (' + cat + ')' : '');\n  }\n  if (r.stop_reason === 'max_tokens') return 'la risposta era troppo lunga ed è stata interrotta';\n  if (!Array.isArray(r.content)) return 'risposta senza contenuto';\n  return null;\n}\n\nfunction testoClaude(r) {\n  return ((r && r.content) || [])\n    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')\n    .map((b) => b.text)\n    .join('');\n}\n\n// Per le risposte con output_config.format (JSON garantito dallo schema).\nfunction jsonClaude(r) {\n  const errore = erroreClaude(r);\n  if (errore) return { errore };\n  try {\n    return { dati: JSON.parse(testoClaude(r)) };\n  } catch (e) {\n    return { errore: 'la risposta non era nel formato atteso' };\n  }\n}\n\n// Stima del costo in dollari, dai token che l'API dichiara. Prezzi di listino per milione di token (novembre 2026).\nconst PREZZI_CLAUDE = {\n  'claude-opus-5-5': [4, 20, 0.2],\n  'claude-sonnet-5-5': [2, 10, 0.1],\n  'claude-haiku-5-5': [0.1, 0.5, 0.01],\n  'claude-fable-5-2': [8, 40, 0.2],\n};\nfunction costoClaude(r) {\n  if (!r || !r.usage) return 0;\n  const u = r.usage;\n  const [entrata, uscita, letturaCache] = PREZZI_CLAUDE[r.model] || PREZZI_CLAUDE['claude-opus-5-5'];\n  const ricerche = (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;\n  return (\n    ((u.input_tokens || 0) * entrata +\n      (u.cache_creation_input_tokens || 0) * entrata * 1.25 +\n      (u.cache_read_input_tokens || 0) * letturaCache +\n      (u.output_tokens || 0) * uscita) /\n      1e6 +\n    ricerche * 0.01\n  );\n}\n// ---- fine comune ----\nconst r = $input.first().json;\nconst m = $('Prepara lettura foto').first().json;\nconst cfg = $('Config').first().json;\n\nfunction rispondi(testo) {\n  return [{ json: { azione: 'rispondi', chat_id: m.chat_id, testo } }];\n}\nfunction esc(s) {\n  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\nconst esito = jsonClaude(r);\nif (esito.errore) {\n  return rispondi(\n    '⚠️ Non sono riuscito a far leggere la foto a Claude: ' + esc(esito.errore) + '.\\nRiprova tra qualche minuto.',\n  );\n}\n\nconst lettura = esito.dati;\nconst pulisci = (s) => String(s == null ? '' : s).replace(/\\s+/g, ' ').trim();\nfor (const k of ['motivo', 'nome_attivita', 'tipo_attivita', 'citta', 'indirizzo', 'telefono', 'sito', 'vetrina', 'ricerca_google']) {\n  lettura[k] = pulisci(lettura[k]);\n}\nfor (const k of ['profili_social', 'segni_online', 'osservazioni']) {\n  lettura[k] = (Array.isArray(lettura[k]) ? lettura[k] : []).map(pulisci).filter(Boolean).slice(0, 8);\n}\n\nlet query = lettura.ricerca_google || lettura.nome_attivita;\nif (!query || (!lettura.leggibile && !m.didascalia)) {\n  return rispondi(\n    '🤔 Non riesco a leggere bene l\\'insegna' + (lettura.motivo ? ': ' + esc(lettura.motivo) : '') + '.\\n' +\n      'Prova a rifare la foto più da vicino, con l\\'insegna dritta e ben illuminata. ' +\n      'Oppure scrivi il nome del negozio nella didascalia.',\n  );\n}\n\n// Se dalla foto e dalla nota non si capisce la città, si usa quella del Config.\nlet citta = lettura.citta;\nif (!citta && cfg.CITTA_PREDEFINITA) {\n  citta = String(cfg.CITTA_PREDEFINITA).trim();\n  query = query + ', ' + citta;\n}\n\nconst nome = lettura.nome_attivita || query;\nreturn [\n  {\n    json: {\n      azione: 'analizza',\n      chat_id: m.chat_id,\n      mittente: m.mittente,\n      didascalia: m.didascalia,\n      ricevuta_il: m.ricevuta_il,\n      lettura,\n      ricerca: { query: query.slice(0, 200), citta },\n      costo_usd: costoClaude(r),\n      testo:\n        '🔎 Ho letto <b>' + esc(nome) + '</b>' + (lettura.tipo_attivita ? ' (' + esc(lettura.tipo_attivita) + ')' : '') + '.\\n' +\n        'Controllo Google, sito e social: ci vogliono 2-3 minuti.',\n    },\n  },\n];\n"
+      },
+      "id": "239abfd2-ab18-4cc7-af3f-f3fbe9cf4600",
+      "name": "Leggi risposta foto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c2c3b158-9116-4622-ad0b-21ee123d6878",
+              "leftValue": "={{ $json.azione || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "analizza"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "d4d0dd31-4214-4c25-ab29-50dc1ca99ae1",
+      "name": "Foto letta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2040,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.testo }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "cf7eb21a-2aab-4a49-a62b-09265a0aa450",
+      "name": "Rispondi",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1820,
+        480
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram - Radar negozio"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.testo }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "a2675f4d-5578-43a0-a1bc-c90f0542a307",
+      "name": "Avvisa: sto analizzando",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2240,
+        60
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram - Radar negozio"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.formattedAddress,places.googleMapsUri,places.primaryTypeDisplayName,places.businessStatus,places.rating,places.userRatingCount,places.websiteUri,places.nationalPhoneNumber,places.internationalPhoneNumber,places.regularOpeningHours,places.photos,places.reviews,places.editorialSummary"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ textQuery: $('Leggi risposta foto').first().json.ricerca.query, languageCode: 'it', regionCode: 'IT', pageSize: 3 }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "4e54b1c2-0e85-4d2f-a854-1935eb43dfc2",
+      "name": "Google: cerca il negozio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2460,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": null,
+          "name": "Google - Chiave API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sceglie, tra i risultati di Google Maps, la scheda del negozio fotografato e le dà un voto da 0 a 10.\n// Decide anche quale sito controllare.\nconst r = $input.first().json;\nconst base = $('Leggi risposta foto').first().json;\nconst lettura = base.lettura;\n\n// ---------- abbinamento ----------\nconst PAROLE_VUOTE = new Set([\n  'di', 'da', 'del', 'della', 'dello', 'dei', 'degli', 'delle', 'il', 'lo', 'la', 'le', 'gli', 'un', 'una',\n  'e', 'ed', 'al', 'alla', 'allo', 'ai', 'agli', 'alle', 'in', 'srl', 'srls', 'snc', 'sas', 'spa', 'the', 'and',\n]);\nfunction norma(s) {\n  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();\n}\nfunction parole(s) {\n  return norma(s).split(' ').filter((w) => w.length > 1 && !PAROLE_VUOTE.has(w));\n}\nfunction somiglianza(a, b) {\n  const A = new Set(parole(a));\n  const B = new Set(parole(b));\n  if (!A.size || !B.size) return 0;\n  let comuni = 0;\n  for (const w of A) if (B.has(w)) comuni++;\n  return comuni / Math.min(A.size, B.size);\n}\nfunction cifre(s) {\n  return String(s || '').replace(/\\D/g, '');\n}\nfunction stessoTelefono(a, b) {\n  const x = cifre(a);\n  const y = cifre(b);\n  return x.length >= 7 && y.length >= 7 && x.slice(-7) === y.slice(-7);\n}\n\n// Con \"On Error: Continue\" il nodo HTTP passa avanti { error: ... } se Google ha risposto con un errore.\nlet erroreApi = '';\nif (r.error) {\n  erroreApi = typeof r.error === 'string' ? r.error : [r.error.message, r.error.description].filter(Boolean).join(' — ');\n  erroreApi = String(erroreApi || 'errore sconosciuto').slice(0, 200);\n}\nconst candidati = Array.isArray(r.places) ? r.places : [];\nconst nomeCercato = lettura.nome_attivita || base.ricerca.query;\n\nlet scelto = null;\nlet migliore = -1;\nconst valutati = candidati.map((p, i) => {\n  const nome = (p.displayName && p.displayName.text) || '';\n  const sim = somiglianza(nomeCercato, nome);\n  const tel = stessoTelefono(lettura.telefono, p.nationalPhoneNumber || p.internationalPhoneNumber);\n  const via = lettura.indirizzo ? somiglianza(lettura.indirizzo, p.formattedAddress) >= 0.5 : false;\n  const punti = sim * 3 + (tel ? 3 : 0) + (via ? 1 : 0) + (i === 0 ? 0.5 : 0);\n  return { p, nome, sim, tel, via, punti };\n});\nfor (const v of valutati) {\n  if (v.punti > migliore) {\n    migliore = v.punti;\n    scelto = v;\n  }\n}\n// Un risultato con un nome completamente diverso e senza lo stesso telefono non è il nostro negozio.\nif (scelto && scelto.sim === 0 && !scelto.tel) scelto = null;\n\nlet abbinamento = 'nessuno';\nif (scelto) abbinamento = scelto.tel || scelto.sim >= 0.6 ? 'alta' : scelto.sim >= 0.34 ? 'media' : 'bassa';\n\n// ---------- dati e voto della scheda Google ----------\nconst google = {\n  trovato: !!scelto,\n  errore: erroreApi || '',\n  abbinamento,\n  ricerca: base.ricerca.query,\n  altri_risultati: valutati\n    .filter((v) => !scelto || v.p !== scelto.p)\n    .map((v) => v.nome + ' — ' + (v.p.formattedAddress || ''))\n    .slice(0, 3),\n  voto: 0,\n  dettaglio_voto: [],\n};\n\nif (scelto) {\n  const p = scelto.p;\n  const recensioni = Array.isArray(p.reviews) ? p.reviews : [];\n  const date = recensioni.map((x) => Date.parse(x.publishTime)).filter((t) => !isNaN(t));\n  const ultima = date.length ? Math.max(...date) : null;\n  const giorni = ultima ? Math.floor((Date.now() - ultima) / 86400000) : null;\n  Object.assign(google, {\n    nome: scelto.nome,\n    indirizzo: p.formattedAddress || '',\n    maps_url: p.googleMapsUri || '',\n    categoria: (p.primaryTypeDisplayName && p.primaryTypeDisplayName.text) || '',\n    stato: p.businessStatus || '',\n    stelle: typeof p.rating === 'number' ? p.rating : null,\n    recensioni: typeof p.userRatingCount === 'number' ? p.userRatingCount : 0,\n    telefono: p.nationalPhoneNumber || p.internationalPhoneNumber || '',\n    sito: p.websiteUri || '',\n    orari: (p.regularOpeningHours && p.regularOpeningHours.weekdayDescriptions) || [],\n    foto: Array.isArray(p.photos) ? p.photos.length : 0,\n    descrizione: (p.editorialSummary && p.editorialSummary.text) || '',\n    giorni_ultima_recensione: giorni,\n    ultime_recensioni: recensioni.slice(0, 5).map((x) => ({\n      stelle: x.rating,\n      quando: x.relativePublishTimeDescription || '',\n      testo: String((x.text && x.text.text) || (x.originalText && x.originalText.text) || '').slice(0, 220),\n    })),\n  });\n\n  const voci = [];\n  const voce = (nome, punti, max) => voci.push({ voce: nome, punti, max });\n  voce('scheda presente', 2, 2);\n  const s = google.stelle || 0;\n  voce('stelle', s >= 4.5 ? 2 : s >= 4 ? 1.5 : s >= 3.5 ? 1 : s > 0 ? 0.5 : 0, 2);\n  const n = google.recensioni;\n  voce('numero di recensioni', n >= 200 ? 2 : n >= 50 ? 1.5 : n >= 15 ? 1 : n >= 1 ? 0.5 : 0, 2);\n  voce('orari', google.orari.length ? 1 : 0, 1);\n  voce('telefono', google.telefono ? 0.5 : 0, 0.5);\n  voce('sito collegato', google.sito ? 1 : 0, 1);\n  voce('foto', google.foto >= 10 ? 1 : google.foto >= 3 ? 0.5 : 0, 1);\n  voce('recensione negli ultimi 3 mesi', giorni !== null && giorni <= 90 ? 0.5 : 0, 0.5);\n  google.dettaglio_voto = voci;\n  google.voto = Math.min(10, voci.reduce((t, v) => t + v.punti, 0));\n}\n\n// ---------- quale sito controllare ----------\nconst NON_SITI = [\n  ['facebook.com', 'Facebook'], ['fb.com', 'Facebook'], ['fb.me', 'Facebook'], ['instagram.com', 'Instagram'],\n  ['tiktok.com', 'TikTok'], ['linktr.ee', 'Linktree'], ['wa.me', 'WhatsApp'], ['whatsapp.com', 'WhatsApp'],\n  ['t.me', 'Telegram'], ['linkedin.com', 'LinkedIn'], ['youtube.com', 'YouTube'], ['tripadvisor.', 'TripAdvisor'],\n  ['thefork.', 'TheFork'], ['business.site', 'sito gratuito di Google (chiuso nel 2024)'], ['g.page', 'Google'],\n  ['google.com', 'Google'], ['goo.gl', 'Google'], ['paginegialle.it', 'PagineGialle'], ['booking.com', 'Booking'],\n  ['glovoapp.com', 'Glovo'], ['deliveroo.', 'Deliveroo'], ['justeat.', 'Just Eat'], ['treatwell.', 'Treatwell'],\n  ['fresha.com', 'Fresha'], ['uala.', 'Uala'], ['beacons.ai', 'Beacons'], ['linkin.bio', 'link in bio'],\n];\n// Niente `new URL()`: nei nodi Code di n8n 2.x (task runner) non esiste. Si legge l'indirizzo con le espressioni regolari.\nconst RE_INDIRIZZO = /^(https?):\\/\\/(?:[^\\/?#@]*@)?(\\[[0-9a-f:.]+\\]|[a-z0-9.-]+)(:\\d{1,5})?([\\/?#].*)?$/i;\nfunction normalizzaUrl(u) {\n  let s = String(u || '').trim().replace(/\\s+/g, '');\n  if (!s) return '';\n  if (!/^https?:\\/\\//i.test(s)) s = 'http://' + s.replace(/^\\/+/, '');\n  const m = s.match(RE_INDIRIZZO);\n  if (!m || !/[a-z0-9]\\.[a-z0-9]/i.test(m[2])) return '';\n  return m[1].toLowerCase() + '://' + m[2].toLowerCase() + (m[3] || '') + (m[4] || '/');\n}\nfunction nomeHost(url) {\n  const m = String(url || '').match(RE_INDIRIZZO);\n  return m ? m[2].toLowerCase().replace(/^www\\./, '') : '';\n}\nfunction piattaforma(url) {\n  const h = nomeHost(url);\n  if (!h) return null;\n  for (const [dominio, nome] of NON_SITI) {\n    if (dominio.endsWith('.') ? h.includes(dominio) : h === dominio || h.endsWith('.' + dominio)) return nome;\n  }\n  return null;\n}\n\nconst daGoogle = normalizzaUrl(google.sito);\nconst dallaFoto = normalizzaUrl(lettura.sito);\nlet sitoUrl = daGoogle || dallaFoto;\nlet sitoFonte = daGoogle ? 'google' : dallaFoto ? 'foto' : '';\n// Se Google rimanda a Facebook ma sulla vetrina c'è un sito vero, si controlla quello.\nif (daGoogle && piattaforma(daGoogle) && dallaFoto && !piattaforma(dallaFoto)) {\n  sitoUrl = dallaFoto;\n  sitoFonte = 'foto';\n}\nconst sitoPiattaforma = sitoUrl ? piattaforma(sitoUrl) : null;\nconst sitoTipo = !sitoUrl ? 'nessuno' : sitoPiattaforma ? 'social' : 'proprio';\n\nif (google.trovato && google.sito && piattaforma(daGoogle)) {\n  // Un link a Facebook o Instagram al posto del sito vale metà punto.\n  const v = google.dettaglio_voto.find((x) => x.voce === 'sito collegato');\n  if (v) {\n    v.punti = 0.5;\n    v.voce = 'sito collegato (è un profilo ' + piattaforma(daGoogle) + ')';\n    google.voto = Math.min(10, google.dettaglio_voto.reduce((t, x) => t + x.punti, 0));\n  }\n}\n\nconst uscita = Object.assign({}, base);\ndelete uscita.testo;\ndelete uscita.azione;\nObject.assign(uscita, {\n  google,\n  sito_url: sitoUrl,\n  sito_tipo: sitoTipo,\n  sito_piattaforma: sitoPiattaforma || '',\n  sito_fonte: sitoFonte,\n});\nreturn [{ json: uscita }];\n"
+      },
+      "id": "5a965eb3-68bb-44df-aa6c-4b9d4e83656e",
+      "name": "Scegli scheda Google",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1b863646-8db9-4999-afc4-d2a7fe21ef0d",
+              "leftValue": "={{ $json.sito_tipo || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "proprio"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "6a25fa8b-389a-492d-a994-534292de3b98",
+      "name": "C'è un sito da controllare?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.sito_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "it-IT,it;q=0.9"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "3cee4ef9-0652-4e38-ad79-18687f33caa6",
+      "name": "Sito: scarica la home",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        60
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={{ encodeURIComponent($('Scegli scheda Google').first().json.sito_url) }}&strategy=mobile&category=performance&category=seo&category=accessibility&category=best-practices&locale=it",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "ce39352d-f9b3-4353-a679-7bfa2a23b34c",
+      "name": "Sito: misura velocità",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3340,
+        60
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": null,
+          "name": "Google - Chiave API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analizza il sito (la home scaricata e la misura di Google PageSpeed) e gli dà un voto da 0 a 10.\n// Se il negozio non ha un sito suo, lo scrive e basta.\nconst base = $('Scegli scheda Google').first().json;\nconst ANNO = new Date().getFullYear();\n\nconst sito = {\n  tipo: base.sito_tipo, // proprio | social | nessuno\n  url: base.sito_url,\n  fonte: base.sito_fonte,\n  piattaforma: base.sito_piattaforma,\n  voto: 0,\n  dettaglio_voto: [],\n};\n\nfunction uscita() {\n  const o = Object.assign({}, base);\n  delete o.sito_url;\n  delete o.sito_tipo;\n  delete o.sito_piattaforma;\n  delete o.sito_fonte;\n  o.sito = sito;\n  return [{ json: o }];\n}\n\nif (sito.tipo !== 'proprio') return uscita();\n\nconst scaricata = $('Sito: scarica la home').isExecuted ? $('Sito: scarica la home').first().json : null;\nconst misura = $('Sito: misura velocità').isExecuted ? $('Sito: misura velocità').first().json : null;\n\n// ---------- la home ----------\nfunction messaggioErrore(e) {\n  if (!e) return '';\n  if (typeof e === 'string') return e.slice(0, 200);\n  return String([e.message, e.description].filter(Boolean).join(' — ') || 'errore').slice(0, 200);\n}\n\nlet html = '';\nsito.stato_http = null;\nsito.errore_home = '';\nif (scaricata) {\n  if (scaricata.error) {\n    sito.errore_home = messaggioErrore(scaricata.error);\n  } else {\n    sito.stato_http = scaricata.statusCode || null;\n    const corpo = scaricata.body !== undefined ? scaricata.body : scaricata.data;\n    if (typeof corpo === 'string') html = corpo;\n    if (sito.stato_http && sito.stato_http >= 400) {\n      sito.errore_home = 'il sito risponde con errore ' + sito.stato_http;\n      html = '';\n    }\n  }\n}\n\nfunction attributi(tag) {\n  const o = {};\n  const re = /([a-zA-Z_:-]+)\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+))/g;\n  let m;\n  while ((m = re.exec(tag))) o[m[1].toLowerCase()] = m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : m[5];\n  return o;\n}\nfunction decodifica(s) {\n  return String(s || '')\n    .replace(/&amp;/g, '&').replace(/&quot;/g, '\"').replace(/&#0?39;|&apos;/g, \"'\")\n    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')\n    .replace(/\\s+/g, ' ').trim();\n}\n\nfunction analizzaHtml(h) {\n  const a = { letta: true };\n  a.dimensione_kb = Math.round(h.length / 1024); // circa: caratteri, non byte\n  const t = h.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i);\n  a.titolo = t ? decodifica(t[1]).slice(0, 150) : '';\n  const meta = {};\n  for (const tag of h.match(/<meta\\b[^>]*>/gi) || []) {\n    const at = attributi(tag);\n    const chiave = (at.name || at.property || '').toLowerCase();\n    if (chiave && at.content !== undefined && meta[chiave] === undefined) meta[chiave] = at.content;\n  }\n  a.descrizione = decodifica(meta.description || '').slice(0, 200);\n  a.adatto_telefono = /width\\s*=\\s*device-width/i.test(meta.viewport || '');\n  const lingua = h.match(/<html[^>]*\\slang\\s*=\\s*[\"']?([a-zA-Z-]+)/i);\n  a.lingua = lingua ? lingua[1] : '';\n\n  const CMS = [\n    [/wp-content|wp-includes/i, 'WordPress'], [/wixstatic\\.com|wix\\.com/i, 'Wix'], [/cdn\\.shopify\\.com|myshopify\\.com/i, 'Shopify'],\n    [/squarespace/i, 'Squarespace'], [/jimdo/i, 'Jimdo'], [/webnode/i, 'Webnode'], [/img1\\.wsimg\\.com/i, 'GoDaddy'],\n    [/weebly/i, 'Weebly'], [/site123/i, 'SITE123'], [/\\/media\\/jui\\/|joomla/i, 'Joomla'], [/prestashop/i, 'PrestaShop'],\n    [/webflow/i, 'Webflow'], [/framerusercontent|framer\\.com/i, 'Framer'], [/aruba|sitebuilder/i, 'costruttore di siti dell\\'hosting'],\n  ];\n  a.fatto_con = '';\n  if (meta.generator) a.fatto_con = decodifica(meta.generator).split(/[;,]/)[0].slice(0, 40);\n  if (!a.fatto_con) for (const [re, nome] of CMS) if (re.test(h)) { a.fatto_con = nome; break; }\n\n  const link = [];\n  const reHref = /href\\s*=\\s*[\"']([^\"']+)[\"']/gi;\n  let m;\n  while ((m = reHref.exec(h))) link.push(decodifica(m[1]));\n  const social = {};\n  const aggiungi = (dove, valore) => {\n    social[dove] = social[dove] || [];\n    if (!social[dove].includes(valore) && social[dove].length < 3) social[dove].push(valore);\n  };\n  for (const l of link) {\n    let x;\n    if ((x = l.match(/instagram\\.com\\/([A-Za-z0-9_.]{2,30})/i)) && !/^(p|reel|reels|explore|accounts|stories|tv)$/i.test(x[1])) aggiungi('instagram', 'https://www.instagram.com/' + x[1]);\n    else if ((x = l.match(/facebook\\.com\\/([^?#\"']+)/i)) && !/^(sharer|share|plugins|tr|dialog|login|events\\/?$)/i.test(x[1])) aggiungi('facebook', 'https://www.facebook.com/' + x[1].replace(/\\/$/, ''));\n    else if ((x = l.match(/tiktok\\.com\\/(@[A-Za-z0-9_.]{2,30})/i))) aggiungi('tiktok', 'https://www.tiktok.com/' + x[1]);\n    else if ((x = l.match(/youtube\\.com\\/((?:@|channel\\/|c\\/|user\\/)[^?#\"'/]+)/i))) aggiungi('youtube', 'https://www.youtube.com/' + x[1]);\n    else if ((x = l.match(/linkedin\\.com\\/((?:company|in)\\/[^?#\"'/]+)/i))) aggiungi('linkedin', 'https://www.linkedin.com/' + x[1]);\n  }\n  a.social = social;\n  a.whatsapp = link.some((l) => /wa\\.me\\/|api\\.whatsapp\\.com|whatsapp:\\/\\//i.test(l));\n  a.telefono_cliccabile = link.some((l) => /^tel:/i.test(l));\n  a.email_cliccabile = link.some((l) => /^mailto:/i.test(l));\n  a.privacy = link.some((l) => /privacy/i.test(l));\n\n  const PRENOTA = [\n    [/thefork\\.|lafourchette/i, 'TheFork'], [/quandoo/i, 'Quandoo'], [/opentable/i, 'OpenTable'], [/treatwell/i, 'Treatwell'],\n    [/fresha\\.com/i, 'Fresha'], [/uala\\./i, 'Uala'], [/booksy/i, 'Booksy'], [/glovoapp/i, 'Glovo'], [/deliveroo/i, 'Deliveroo'],\n    [/justeat|just-eat/i, 'Just Eat'], [/calendly/i, 'Calendly'], [/booking\\.com/i, 'Booking'], [/plateform|prenota/i, 'pagina prenotazioni'],\n  ];\n  a.prenotazioni = [];\n  for (const [re, nome] of PRENOTA) if (link.some((l) => re.test(l)) && !a.prenotazioni.includes(nome)) a.prenotazioni.push(nome);\n  a.negozio_online = /woocommerce|cdn\\.shopify\\.com|prestashop|add[-_]to[-_]cart|aggiungi al carrello/i.test(h);\n\n  const testo = decodifica(\n    h.replace(/<script[\\s\\S]*?<\\/script>/gi, ' ').replace(/<style[\\s\\S]*?<\\/style>/gi, ' ').replace(/<[^>]+>/g, ' '),\n  );\n  const piva = testo.match(/(?:p\\.?\\s*iva|partita\\s+iva|vat(?:\\s+number)?|p\\.\\s*i\\.)[^0-9]{0,25}(?:it\\s*)?(\\d{11})/i) || testo.match(/\\bIT\\s?(\\d{11})\\b/);\n  a.partita_iva = piva ? piva[1] : '';\n  let annoMax = null;\n  const reAnno = /(?:©|copyright)[^0-9]{0,40}((?:19|20)\\d{2})(?:\\s*[-–—/]\\s*((?:19|20)\\d{2}))?/gi;\n  while ((m = reAnno.exec(testo))) {\n    for (const y of [m[1], m[2]]) if (y && Number(y) <= ANNO + 1) annoMax = Math.max(annoMax || 0, Number(y));\n  }\n  a.anno_copyright = annoMax;\n\n  a.statistiche_google = /googletagmanager\\.com|google-analytics\\.com|gtag\\(|GTM-[A-Z0-9]{4,}/.test(h);\n  a.pixel_meta = /connect\\.facebook\\.net\\/[^\"']*fbevents|fbq\\(\\s*['\"]init/.test(h);\n  const COOKIE = [\n    [/iubenda/i, 'iubenda'], [/cookiebot/i, 'Cookiebot'], [/cookieyes/i, 'CookieYes'], [/complianz/i, 'Complianz'],\n    [/onetrust/i, 'OneTrust'], [/cookie-law-info|cookielawinfo/i, 'Cookie Law Info'], [/cookie-notice/i, 'Cookie Notice'],\n    [/usercentrics/i, 'Usercentrics'], [/cookiefirst/i, 'CookieFirst'], [/cookie-script/i, 'Cookie-Script'], [/termly/i, 'Termly'],\n  ];\n  a.banner_cookie = '';\n  for (const [re, nome] of COOKIE) if (re.test(h)) { a.banner_cookie = nome; break; }\n  a.dati_strutturati = /\"@type\"\\s*:\\s*\\[?\\s*\"(LocalBusiness|Restaurant|Store|[A-Za-z]*Shop|[A-Za-z]*Store|Bakery|BeautySalon|HairSalon|CafeOrCoffeeShop|BarOrPub|FoodEstablishment|HealthAndBeautyBusiness|Dentist|AutoRepair|Hotel|LodgingBusiness|ProfessionalService|MedicalBusiness|Pharmacy|Optician)\"/.test(h);\n  return a;\n}\n\n// ---------- PageSpeed ----------\nfunction leggiPageSpeed(ps) {\n  if (!ps) return { errore: 'misura non eseguita' };\n  if (ps.error) return { errore: messaggioErrore(ps.error) };\n  const lr = ps.lighthouseResult;\n  if (!lr) return { errore: 'Google PageSpeed non ha dato risultati' };\n  if (lr.runtimeError && lr.runtimeError.code && lr.runtimeError.code !== 'NO_ERROR') {\n    return { errore: String(lr.runtimeError.message || lr.runtimeError.code).slice(0, 200) };\n  }\n  const cat = lr.categories || {};\n  const pct = (c) => (c && typeof c.score === 'number' ? Math.round(c.score * 100) : null);\n  const au = lr.audits || {};\n  const dv = (k) => (au[k] && au[k].displayValue ? String(au[k].displayValue) : '');\n  return {\n    velocita: pct(cat.performance),\n    seo: pct(cat.seo),\n    accessibilita: pct(cat.accessibility),\n    buone_pratiche: pct(cat['best-practices']),\n    caricamento: dv('largest-contentful-paint'),\n    primo_contenuto: dv('first-contentful-paint'),\n    url_finale: lr.finalDisplayedUrl || lr.finalUrl || '',\n    viewport_ok: au.viewport ? au.viewport.score === 1 : null,\n    dati_reali: (ps.loadingExperience && ps.loadingExperience.overall_category) || '',\n  };\n}\n\nconst h = html ? analizzaHtml(html) : { letta: false };\nconst ps = leggiPageSpeed(misura);\nObject.assign(sito, { pagina: h, pagespeed: ps });\n\nconst raggiungibile = !!html || ps.velocita !== undefined;\nsito.raggiungibile = raggiungibile;\nif (!raggiungibile) {\n  sito.voto = 1;\n  sito.dettaglio_voto = [{ voce: 'il sito non si apre', punti: 1, max: 10 }];\n  return uscita();\n}\n\nlet https = null;\nif (ps.url_finale) https = /^https:/i.test(ps.url_finale);\nelse if (html && /^https:/i.test(sito.url)) https = true;\nsito.https = https;\n\nconst voci = [];\nconst voce = (nome, punti, max) => voci.push({ voce: nome, punti, max });\nconst nonLetta = !h.letta;\nvoce('il sito si apre', 2, 2);\nvoce('sicuro (https)', https === true ? 1 : https === null ? 0.5 : 0, 1);\nconst telefono = h.letta ? h.adatto_telefono : ps.viewport_ok;\nvoce('adatto al telefono', telefono === true ? 1 : telefono === false ? 0 : 0.5, 1);\nconst vel = typeof ps.velocita === 'number' ? ps.velocita : null;\nvoce('velocità da telefono', vel === null ? 1 : vel >= 90 ? 2 : vel >= 50 ? 1 : 0, 2);\nconst seo = typeof ps.seo === 'number' ? ps.seo : null;\nvoce('base per Google (SEO)', seo === null ? 0.5 : seo >= 90 ? 1 : seo >= 70 ? 0.5 : 0, 1);\nvoce('titolo e descrizione', nonLetta ? 0.5 : (h.titolo ? 0.5 : 0) + (h.descrizione ? 0.5 : 0), 1);\nvoce('contatti cliccabili', nonLetta ? 0.25 : h.telefono_cliccabile || h.whatsapp || h.email_cliccabile ? 0.5 : 0, 0.5);\nvoce('link ai social', nonLetta ? 0.25 : Object.keys(h.social).length ? 0.5 : 0, 0.5);\nvoce('partita IVA in pagina', nonLetta ? 0.25 : h.partita_iva ? 0.5 : 0, 0.5);\nconst annoOk = h.anno_copyright === null || h.anno_copyright === undefined ? 0.25 : h.anno_copyright >= ANNO - 1 ? 0.5 : 0;\nvoce('aggiornato di recente', nonLetta ? 0.25 : annoOk, 0.5);\nsito.dettaglio_voto = voci;\nsito.voto = Math.min(10, voci.reduce((t, v) => t + v.punti, 0));\n\nreturn uscita();\n"
+      },
+      "id": "95c0b995-6032-40d9-a2c6-da84eec1939f",
+      "name": "Analizza il sito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara la ricerca dei social (e delle altre piattaforme) con la ricerca web di Claude.\nconst d = $input.first().json;\nconst cfg = $('Config').first().json;\nconst g = d.google || {};\nconst l = d.lettura || {};\nconst s = d.sito || {};\n\nconst SISTEMA = `Sei un ricercatore dell'agenzia di marketing SDG. Devi scoprire come si presenta online un'attività locale, partendo dai dati già raccolti. Usa la ricerca web.\n\nCerca, in quest'ordine:\n1. Instagram, Facebook e TikTok dell'attività: indirizzo del profilo, numero di follower o di «mi piace», e quando ha pubblicato l'ultima volta (anche approssimativo, se lo dicono i risultati).\n2. Il sito ufficiale, solo se non lo conosciamo già.\n3. Le altre piattaforme che contano per questo tipo di attività, solo quelle pertinenti: per esempio TripAdvisor, TheFork, Glovo, Deliveroo, Just Eat, Booking, Treatwell, Fresha, Uala, Amazon, Etsy.\n\nRegole:\n- Controlla che il profilo sia proprio di questa attività: stessa città, indirizzo, telefono o nome molto simile. Se ci sono omonimi e non sei sicuro, dillo.\n- Non inventare numeri. Riporta solo quello che leggi nei risultati, con la pagina da cui viene. Se un dato non c'è, scrivi «non trovato».\n- Instagram e Facebook spesso non si aprono senza accesso: va bene usare i numeri che compaiono nei risultati di ricerca, dicendo che sono approssimativi.\n- Bastano poche ricerche mirate: fermati quando hai trovato i profili o quando è chiaro che non ci sono.\n\nRispondi in italiano, in modo asciutto, con una riga per piattaforma in questo formato:\nPIATTAFORMA | indirizzo del profilo | follower o mi piace | ultimo post | sicurezza (alta, media o bassa) | fonte\nScrivi anche le piattaforme cercate e non trovate (es. «TikTok | non trovato»).\nAlla fine una riga «ALTRO:» con fatti utili trovati per strada (premi, articoli, valutazioni su altri siti), se ci sono.`;\n\nconst noti = {\n  nome: g.nome || l.nome_attivita,\n  tipo_attivita: l.tipo_attivita || g.categoria || '',\n  indirizzo: g.indirizzo || [l.indirizzo, d.ricerca && d.ricerca.citta].filter(Boolean).join(', '),\n  telefono: g.telefono || l.telefono || '',\n  sito: s.tipo === 'proprio' ? s.url : '',\n  link_al_posto_del_sito: s.tipo === 'social' ? s.url : '',\n  social_visti_sulla_foto: l.profili_social || [],\n  adesivi_e_loghi_sulla_vetrina: l.segni_online || [],\n  social_collegati_dal_sito: (s.pagina && s.pagina.social) || {},\n};\n\nconst citta = (d.ricerca && d.ricerca.citta) || '';\nconst ricercaWeb = { type: 'web_search_20260209', name: 'web_search', max_uses: 5 };\nricercaWeb.user_location = citta\n  ? { type: 'approximate', country: 'IT', city: citta, timezone: 'Europe/Rome' }\n  : { type: 'approximate', country: 'IT', timezone: 'Europe/Rome' };\n\nconst richiesta = {\n  model: cfg.CLAUDE_MODELLO || 'claude-opus-5-5',\n  max_tokens: 16000,\n  fallbacks: 'default',\n  output_config: { effort: cfg.CLAUDE_EFFORT || 'medium' },\n  system: SISTEMA,\n  tools: [ricercaWeb, { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 3 }],\n  messages: [\n    {\n      role: 'user',\n      content: 'Dati già raccolti sull\\'attività (JSON):\\n' + JSON.stringify(noti, null, 2),\n    },\n  ],\n};\n\nreturn [{ json: Object.assign({}, d, { richiesta_ricerca: richiesta }) }];\n"
+      },
+      "id": "8b0a3ac0-b738-46ec-a1a2-faa68f956014",
+      "name": "Prepara ricerca social",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2026-10-21"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "server-side-fallback-2026-07-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.richiesta_ricerca) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "ff69d633-b003-4bff-a68a-97549840c4f5",
+      "name": "Claude: cerca social",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4020,
+        200
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "Anthropic - Claude"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1549164e-9f69-4606-a7ba-d2ea79588938",
+              "leftValue": "={{ $json.stop_reason || '' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "pause_turn"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "c024d8aa-0497-4b7e-a038-c7fc1070c119",
+      "name": "Ricerca in pausa?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// La ricerca web di Claude si è fermata a metà (pause_turn): si rimanda la stessa conversazione\n// con la risposta parziale in coda, e Claude riprende da dove era rimasto. Nessun messaggio in più.\nconst prima = $input.first().json;\nconst d = $('Prepara ricerca social').first().json;\nconst richiesta = Object.assign({}, d.richiesta_ricerca, {\n  messages: d.richiesta_ricerca.messages.concat([{ role: 'assistant', content: prima.content }]),\n});\nreturn [{ json: { richiesta_seguito: richiesta } }];\n"
+      },
+      "id": "2a289ff2-994c-4312-a271-7dd5d2834f91",
+      "name": "Prepara seguito ricerca",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4460,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2026-10-21"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "server-side-fallback-2026-07-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.richiesta_seguito) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "50aa5143-e148-4f00-aba8-f0265bcc80a1",
+      "name": "Claude: continua ricerca",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4680,
+        60
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "Anthropic - Claude"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Raccoglie il risultato della ricerca dei social (con l'eventuale seguito) e le fonti consultate.\n// ---- comune: leggere le risposte di Claude (lo stesso codice in ogni nodo che ne ha bisogno) ----\n// Restituisce il motivo dell'errore, oppure null se la risposta è buona.\nfunction erroreClaude(r) {\n  if (!r || typeof r !== 'object') return 'nessuna risposta';\n  // Il nodo HTTP, quando fallisce dopo i tentativi, passa avanti { error: ... } (impostazione \"On Error: Continue\").\n  if (r.error && r.type !== 'error') {\n    const e = r.error;\n    if (typeof e === 'string') return e.slice(0, 300);\n    const parti = [e.message, e.description].filter((x) => typeof x === 'string' && x);\n    return (parti.join(' — ') || 'errore di collegamento').slice(0, 300);\n  }\n  if (r.type === 'error') return String((r.error && r.error.message) || 'errore dell\\'API').slice(0, 300);\n  if (r.stop_reason === 'refusal') {\n    const cat = r.stop_details && r.stop_details.category;\n    return 'Claude non ha voluto rispondere' + (cat ? ' (' + cat + ')' : '');\n  }\n  if (r.stop_reason === 'max_tokens') return 'la risposta era troppo lunga ed è stata interrotta';\n  if (!Array.isArray(r.content)) return 'risposta senza contenuto';\n  return null;\n}\n\nfunction testoClaude(r) {\n  return ((r && r.content) || [])\n    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')\n    .map((b) => b.text)\n    .join('');\n}\n\n// Per le risposte con output_config.format (JSON garantito dallo schema).\nfunction jsonClaude(r) {\n  const errore = erroreClaude(r);\n  if (errore) return { errore };\n  try {\n    return { dati: JSON.parse(testoClaude(r)) };\n  } catch (e) {\n    return { errore: 'la risposta non era nel formato atteso' };\n  }\n}\n\n// Stima del costo in dollari, dai token che l'API dichiara. Prezzi di listino per milione di token (novembre 2026).\nconst PREZZI_CLAUDE = {\n  'claude-opus-5-5': [4, 20, 0.2],\n  'claude-sonnet-5-5': [2, 10, 0.1],\n  'claude-haiku-5-5': [0.1, 0.5, 0.01],\n  'claude-fable-5-2': [8, 40, 0.2],\n};\nfunction costoClaude(r) {\n  if (!r || !r.usage) return 0;\n  const u = r.usage;\n  const [entrata, uscita, letturaCache] = PREZZI_CLAUDE[r.model] || PREZZI_CLAUDE['claude-opus-5-5'];\n  const ricerche = (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;\n  return (\n    ((u.input_tokens || 0) * entrata +\n      (u.cache_creation_input_tokens || 0) * entrata * 1.25 +\n      (u.cache_read_input_tokens || 0) * letturaCache +\n      (u.output_tokens || 0) * uscita) /\n      1e6 +\n    ricerche * 0.01\n  );\n}\n// ---- fine comune ----\nconst d = $('Prepara ricerca social').first().json;\nconst prima = $('Claude: cerca social').first().json;\nconst seguito = $('Claude: continua ricerca').isExecuted ? $('Claude: continua ricerca').first().json : null;\n\nconst risposte = [prima, seguito].filter(Boolean);\nlet testo = '';\nconst fonti = [];\nlet costo = 0;\nlet ricerche = 0;\nlet errore = '';\n\nfunction aggiungiFonte(url, titolo) {\n  if (typeof url !== 'string' || !/^https?:\\/\\//.test(url)) return;\n  if (fonti.some((f) => f.url === url)) return;\n  if (fonti.length < 15) fonti.push({ url, titolo: String(titolo || '').slice(0, 100) });\n}\n\nfor (const r of risposte) {\n  costo += costoClaude(r);\n  const e = erroreClaude(r);\n  if (e) {\n    errore = e;\n    continue;\n  }\n  if (r.usage && r.usage.server_tool_use) ricerche += r.usage.server_tool_use.web_search_requests || 0;\n  testo += testoClaude(r);\n  for (const b of r.content) {\n    if (b.type === 'text' && Array.isArray(b.citations)) for (const c of b.citations) aggiungiFonte(c.url, c.title);\n  }\n  for (const b of r.content) {\n    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const x of b.content) aggiungiFonte(x.url, x.title);\n  }\n}\n\nconst ultima = risposte[risposte.length - 1];\nconst completa = !errore && ultima && ultima.stop_reason !== 'pause_turn';\n\nconst o = Object.assign({}, d);\ndelete o.richiesta_ricerca;\no.ricerca_social = {\n  testo: testo.trim().slice(0, 6000),\n  fonti,\n  ricerche_web: ricerche,\n  completa: !!completa,\n  errore: testo ? '' : errore || (completa ? '' : 'ricerca interrotta prima della fine'),\n};\no.costo_usd = (d.costo_usd || 0) + costo;\nreturn [{ json: o }];\n"
+      },
+      "id": "924e99cf-42dc-4788-ae6d-f02ccc767e65",
+      "name": "Leggi ricerca",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara la richiesta finale a Claude: la scheda per il collega che sta per entrare nel negozio.\nconst d = $input.first().json;\nconst cfg = $('Config').first().json;\n\nconst SERVIZI = [\n  { servizio: 'Brand & Strategia', cosa: 'posizionamento, logo e identità visiva, tono di voce, naming' },\n  { servizio: 'Web & Digital', cosa: 'siti vetrina, e-commerce, landing page, SEO tecnica e locale, manutenzione' },\n  { servizio: 'Social & Advertising', cosa: 'gestione social con calendario editoriale, campagne Meta, Google e TikTok, report mensile' },\n  { servizio: 'Foto & Video Making', cosa: 'shooting di prodotto e locale, ritratti, spot, reel verticali, video di eventi, drone' },\n  { servizio: 'Editing & Post-produzione', cosa: 'montaggio, color grading, grafiche animate, ritocco foto, anche su materiale del cliente' },\n];\n\nconst SISTEMA = `Sei il consulente commerciale di SDG, agenzia creativa (web, marketing, foto e video).\nUn collega è davanti a un negozio e sta per entrare a proporsi. Scrivi per lui una scheda breve e concreta su come il negozio è messo online: scheda Google, sito, social.\n\nRegole:\n- Usa solo i dati che ti passo. Non inventare numeri, nomi o profili. Se un dato è incerto, dillo.\n- Italiano semplice, frasi brevi, niente gergo (per esempio «interazioni», non «engagement»). Il collega legge dal telefono, per strada.\n- I voti di Google e del sito sono già calcolati da regole fisse: non cambiarli, spiega da cosa dipendono con i numeri.\n- Il voto dei social lo dai tu, da 0 a 10:\n  0 = nessun profilo trovato;\n  1-3 = profili presenti ma fermi da più di 3 mesi, o quasi senza seguito;\n  4-6 = attivi almeno una volta al mese, seguito modesto;\n  7-8 = attivi ogni settimana, buon seguito e interazioni;\n  9-10 = eccellenti su più piattaforme.\n  Se i dati dei social sono incerti, resta prudente e dillo nel titolo.\n- \"titolo\" di ogni area: una riga sola, con i numeri chiave (per esempio «4,6★ con 212 recensioni, mancano le foto»).\n- \"punti_forti\" e \"problemi\": al massimo 3 per area, brevi, ognuno con il fatto concreto.\n- \"proposte\": da 1 a 3, in ordine di impatto per il negozio, ognuna legata a uno dei servizi dell'agenzia.\n  Dì cosa faremmo e cosa ci guadagna lui (più chiamate da Google Maps, più prenotazioni, più clienti dal quartiere...).\n  Proponi solo ciò che i dati giustificano.\n- \"rompighiaccio\": una frase che il collega può dire entrando. Parte da un complimento vero, basato sui dati, e poi accenna a un'opportunità. Mai offensiva verso il lavoro del titolare.\n- \"da_verificare\": cose da chiedere o controllare a voce (chi gestisce i social, se la scheda Google è rivendicata dal titolare, dati incerti).\n- \"dalla_foto\": una frase su insegna e vetrina, solo se c'è qualcosa di utile; altrimenti stringa vuota.`;\n\nconst testo = { type: 'string' };\nconst lista = { type: 'array', items: { type: 'string' } };\nconst area = {\n  type: 'object',\n  properties: { titolo: testo, punti_forti: lista, problemi: lista },\n  required: ['titolo', 'punti_forti', 'problemi'],\n  additionalProperties: false,\n};\nconst schema = {\n  type: 'object',\n  properties: {\n    sintesi: { type: 'string', description: 'Due frasi: com\\'è messo online e dove sta l\\'opportunità principale' },\n    google: area,\n    sito: area,\n    social: {\n      type: 'object',\n      properties: {\n        voto: { type: 'integer', description: 'Da 0 a 10, secondo la scala data' },\n        titolo: testo,\n        profili: {\n          type: 'array',\n          items: {\n            type: 'object',\n            properties: {\n              piattaforma: testo,\n              indirizzo: { type: 'string', description: 'Indirizzo del profilo, oppure stringa vuota se non trovato' },\n              seguito: { type: 'string', description: 'Follower o mi piace, come trovati (es. «circa 1.200 follower»), oppure «non trovato»' },\n              ultimo_post: { type: 'string', description: 'Quando ha pubblicato l\\'ultima volta, oppure «non trovato»' },\n              sicurezza: { type: 'string', enum: ['alta', 'media', 'bassa'] },\n            },\n            required: ['piattaforma', 'indirizzo', 'seguito', 'ultimo_post', 'sicurezza'],\n            additionalProperties: false,\n          },\n        },\n        problemi: lista,\n      },\n      required: ['voto', 'titolo', 'profili', 'problemi'],\n      additionalProperties: false,\n    },\n    altre_piattaforme: { type: 'array', items: { type: 'string' }, description: 'Es. «TripAdvisor: 4,5 su 80 recensioni»' },\n    dalla_foto: testo,\n    proposte: {\n      type: 'array',\n      items: {\n        type: 'object',\n        properties: {\n          servizio: { type: 'string', enum: SERVIZI.map((s) => s.servizio) },\n          cosa: testo,\n          perche: testo,\n        },\n        required: ['servizio', 'cosa', 'perche'],\n        additionalProperties: false,\n      },\n    },\n    rompighiaccio: testo,\n    da_verificare: lista,\n  },\n  required: ['sintesi', 'google', 'sito', 'social', 'altre_piattaforme', 'dalla_foto', 'proposte', 'rompighiaccio', 'da_verificare'],\n  additionalProperties: false,\n};\n\n// Si tolgono i campi lunghi che a Claude non servono.\nconst google = Object.assign({}, d.google);\nconst sito = JSON.parse(JSON.stringify(d.sito || {}));\nconst dati = {\n  oggi: new Date().toISOString().slice(0, 10),\n  servizi_agenzia: SERVIZI,\n  dalla_foto: d.lettura,\n  nota_del_collega: d.didascalia || '',\n  scheda_google: google,\n  sito,\n  ricerca_social: d.ricerca_social,\n};\n\nconst richiesta = {\n  model: cfg.CLAUDE_MODELLO || 'claude-opus-5-5',\n  max_tokens: 16000,\n  fallbacks: 'default',\n  output_config: {\n    effort: cfg.CLAUDE_EFFORT || 'medium',\n    format: { type: 'json_schema', schema },\n  },\n  system: SISTEMA,\n  messages: [{ role: 'user', content: 'Dati raccolti (JSON):\\n' + JSON.stringify(dati, null, 1) }],\n};\n\nreturn [{ json: Object.assign({}, d, { richiesta_scheda: richiesta }) }];\n"
+      },
+      "id": "830e8c88-c151-47a0-a892-8b6de17aa589",
+      "name": "Prepara scheda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2026-10-21"
+            },
+            {
+              "name": "anthropic-beta",
+              "value": "server-side-fallback-2026-07-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.richiesta_scheda) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "43e02c89-80e2-47f7-a85c-f8959af5b9e8",
+      "name": "Claude: scrivi la scheda",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5340,
+        200
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "Anthropic - Claude"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compone i due messaggi Telegram (la scheda e i dettagli) e la riga per il foglio.\n// Se la parte scritta da Claude manca, i messaggi escono lo stesso con i soli dati misurati.\n// ---- comune: leggere le risposte di Claude (lo stesso codice in ogni nodo che ne ha bisogno) ----\n// Restituisce il motivo dell'errore, oppure null se la risposta è buona.\nfunction erroreClaude(r) {\n  if (!r || typeof r !== 'object') return 'nessuna risposta';\n  // Il nodo HTTP, quando fallisce dopo i tentativi, passa avanti { error: ... } (impostazione \"On Error: Continue\").\n  if (r.error && r.type !== 'error') {\n    const e = r.error;\n    if (typeof e === 'string') return e.slice(0, 300);\n    const parti = [e.message, e.description].filter((x) => typeof x === 'string' && x);\n    return (parti.join(' — ') || 'errore di collegamento').slice(0, 300);\n  }\n  if (r.type === 'error') return String((r.error && r.error.message) || 'errore dell\\'API').slice(0, 300);\n  if (r.stop_reason === 'refusal') {\n    const cat = r.stop_details && r.stop_details.category;\n    return 'Claude non ha voluto rispondere' + (cat ? ' (' + cat + ')' : '');\n  }\n  if (r.stop_reason === 'max_tokens') return 'la risposta era troppo lunga ed è stata interrotta';\n  if (!Array.isArray(r.content)) return 'risposta senza contenuto';\n  return null;\n}\n\nfunction testoClaude(r) {\n  return ((r && r.content) || [])\n    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')\n    .map((b) => b.text)\n    .join('');\n}\n\n// Per le risposte con output_config.format (JSON garantito dallo schema).\nfunction jsonClaude(r) {\n  const errore = erroreClaude(r);\n  if (errore) return { errore };\n  try {\n    return { dati: JSON.parse(testoClaude(r)) };\n  } catch (e) {\n    return { errore: 'la risposta non era nel formato atteso' };\n  }\n}\n\n// Stima del costo in dollari, dai token che l'API dichiara. Prezzi di listino per milione di token (novembre 2026).\nconst PREZZI_CLAUDE = {\n  'claude-opus-5-5': [4, 20, 0.2],\n  'claude-sonnet-5-5': [2, 10, 0.1],\n  'claude-haiku-5-5': [0.1, 0.5, 0.01],\n  'claude-fable-5-2': [8, 40, 0.2],\n};\nfunction costoClaude(r) {\n  if (!r || !r.usage) return 0;\n  const u = r.usage;\n  const [entrata, uscita, letturaCache] = PREZZI_CLAUDE[r.model] || PREZZI_CLAUDE['claude-opus-5-5'];\n  const ricerche = (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;\n  return (\n    ((u.input_tokens || 0) * entrata +\n      (u.cache_creation_input_tokens || 0) * entrata * 1.25 +\n      (u.cache_read_input_tokens || 0) * letturaCache +\n      (u.output_tokens || 0) * uscita) /\n      1e6 +\n    ricerche * 0.01\n  );\n}\n// ---- fine comune ----\nconst r = $input.first().json;\nconst d = Object.assign({}, $('Prepara scheda').first().json);\ndelete d.richiesta_scheda;\n\nconst esito = jsonClaude(r);\nconst scheda = esito.dati || null;\nconst costo = (d.costo_usd || 0) + costoClaude(r);\nconst g = d.google || {};\nconst s = d.sito || {};\nconst l = d.lettura || {};\nconst rs = d.ricerca_social || {};\n\n// ---------- aiuti ----------\nconst esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst attr = (x) => esc(x).replace(/\"/g, '&quot;');\nconst taglia = (x, n) => {\n  const t = String(x == null ? '' : x).replace(/\\s+/g, ' ').trim();\n  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;\n};\nconst link = (url, testo) => (/^https?:\\/\\/[^\\s\"<>]+$/i.test(String(url || '')) ? '<a href=\"' + attr(url) + '\">' + esc(testo) + '</a>' : esc(testo));\nconst numero = (x, dec) => Number(x).toLocaleString('it-IT', { maximumFractionDigits: dec == null ? 1 : dec });\nconst si = (v) => (v === true ? '✔' : v === false ? '✖' : '?');\nconst semaforo = (v) => (v === null || v === undefined ? '⚪' : v >= 7 ? '🟢' : v >= 4 ? '🟡' : '🔴');\nconst lista = (a, n) => (Array.isArray(a) ? a : []).map((x) => taglia(x, 170)).filter(Boolean).slice(0, n);\n// Niente `new URL()`: nei nodi Code di n8n 2.x non esiste.\nfunction dominio(u) {\n  const m = String(u || '').match(/^https?:\\/\\/(?:[^\\/?#@]*@)?([^\\/?#:]+)/i);\n  return m ? m[1].replace(/^www\\./i, '') : String(u || '');\n}\nfunction visibile(html) {\n  return html.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/&amp;/g, '&');\n}\n// Telegram accetta al massimo 4096 caratteri visibili per messaggio: i blocchi che non ci stanno si saltano.\nfunction componi(blocchi, max) {\n  let out = '';\n  for (const b of blocchi) {\n    if (b === null || b === undefined) continue; // '' è una riga vuota e resta\n    const prova = out ? out + '\\n' + b : b;\n    if (visibile(prova).length <= max) out = prova;\n  }\n  return out;\n}\n\n// ---------- voti ----------\nconst votoGoogle = g.trovato ? Number(g.voto) || 0 : 0;\nconst votoSito = Number(s.voto) || 0;\nlet votoSocial = null;\nif (scheda && scheda.social && Number.isFinite(Number(scheda.social.voto))) {\n  votoSocial = Math.max(0, Math.min(10, Math.round(Number(scheda.social.voto))));\n}\nconst pesi = [[votoGoogle, 0.4], [votoSito, 0.3]];\nif (votoSocial !== null) pesi.push([votoSocial, 0.3]);\nconst totale = pesi.reduce((t, [v, p]) => t + v * p, 0) / pesi.reduce((t, [, p]) => t + p, 0);\nconst voti = {\n  totale: Math.round(totale * 10) / 10,\n  google: votoGoogle,\n  sito: votoSito,\n  social: votoSocial,\n};\nconst v10 = (v) => (v === null ? 'n.d.' : numero(Math.round(v), 0) + '/10');\n\n// ---------- titoli di riserva (senza Claude) ----------\nfunction titoloGoogleMisurato() {\n  if (!g.trovato) return g.errore ? 'ricerca su Google non riuscita' : 'scheda Google non trovata';\n  const parti = [];\n  if (g.stelle !== null && g.stelle !== undefined) parti.push(numero(g.stelle) + '★');\n  parti.push(numero(g.recensioni, 0) + ' recensioni');\n  if (!g.orari || !g.orari.length) parti.push('senza orari');\n  if (!g.sito) parti.push('nessun sito collegato');\n  return parti.join(', ');\n}\nfunction titoloSitoMisurato() {\n  if (s.tipo === 'nessuno') return 'nessun sito';\n  if (s.tipo === 'social') return 'al posto del sito c\\'è ' + (s.piattaforma || 'un profilo social');\n  if (!s.raggiungibile) return 'il sito non si apre';\n  const ps = s.pagespeed || {};\n  return typeof ps.velocita === 'number' ? 'velocità da telefono ' + ps.velocita + '/100' : 'sito presente';\n}\n\nconst nome = g.nome || l.nome_attivita || 'Negozio';\nconst tipo = l.tipo_attivita || g.categoria || '';\n\n// ---------- messaggio 1: la scheda ----------\nfunction area(titoloArea, voto, dati, titoloRiserva) {\n  const righe = [semaforo(voto) + ' <b>' + titoloArea + ' ' + v10(voto) + '</b> — ' + esc(taglia((dati && dati.titolo) || titoloRiserva, 170))];\n  if (dati) {\n    for (const p of lista(dati.punti_forti, 2)) righe.push('   ✔ ' + esc(p));\n    for (const p of lista(dati.problemi, 2)) righe.push('   ✖ ' + esc(p));\n  }\n  return righe.join('\\n');\n}\n\nconst m1 = [];\nm1.push('🏪 <b>' + esc(taglia(nome, 80)) + '</b>' + (tipo ? ' · ' + esc(taglia(tipo, 40)) : ''));\nif (g.indirizzo) m1.push('📍 ' + link(g.maps_url, taglia(g.indirizzo, 120)));\nm1.push(semaforo(voti.totale) + ' <b>Presenza online: ' + v10(voti.totale) + '</b>');\nif (g.trovato && g.abbinamento === 'bassa') m1.push('⚠️ <i>Non sono sicuro che la scheda Google sia quella giusta: controlla nei dettagli.</i>');\nif (g.stato && g.stato !== 'OPERATIONAL') {\n  m1.push('⚠️ <b>Su Google risulta ' + (g.stato === 'CLOSED_PERMANENTLY' ? 'chiuso definitivamente' : 'chiuso temporaneamente') + '.</b>');\n}\nif (scheda && scheda.sintesi) m1.push('<i>' + esc(taglia(scheda.sintesi, 400)) + '</i>');\nif (!scheda) m1.push('⚠️ <i>La parte scritta da Claude non è arrivata (' + esc(taglia(esito.errore, 150)) + '): qui ci sono solo i dati misurati.</i>');\nm1.push('');\nm1.push(area('Google', votoGoogle, scheda && scheda.google, titoloGoogleMisurato()));\nm1.push(area('Sito', votoSito, scheda && scheda.sito, titoloSitoMisurato()));\nm1.push(area('Social', votoSocial, scheda && scheda.social, rs.errore ? 'ricerca non riuscita' : 'non valutati'));\nconst proposte = scheda && Array.isArray(scheda.proposte) ? scheda.proposte.slice(0, 3) : [];\nif (proposte.length) {\n  m1.push('');\n  m1.push('💡 <b>Cosa proporre</b>');\n  proposte.forEach((p, i) => {\n    m1.push((i + 1) + '. <b>' + esc(p.servizio) + '</b>: ' + esc(taglia(p.cosa, 220)) + (p.perche ? ' — <i>' + esc(taglia(p.perche, 200)) + '</i>' : ''));\n  });\n}\nif (scheda && scheda.rompighiaccio) {\n  m1.push('');\n  m1.push('🗣 <b>Per rompere il ghiaccio</b>');\n  m1.push('«' + esc(taglia(scheda.rompighiaccio, 400)) + '»');\n}\nconst messaggio1 = componi(m1, 4000);\n\n// ---------- messaggio 2: i dettagli ----------\nconst m2 = [];\nm2.push('📋 <b>Dettagli</b> · ' + esc(taglia(nome, 80)));\nm2.push('');\nm2.push('<b>Google</b>');\nif (g.trovato) {\n  m2.push('• ' + link(g.maps_url, 'Apri la scheda su Maps') + ' · abbinamento: ' + esc(g.abbinamento));\n  const stelle = g.stelle !== null && g.stelle !== undefined ? numero(g.stelle) + '★ · ' : '';\n  const giorni = g.giorni_ultima_recensione;\n  const recente = giorni !== null && giorni !== undefined ? ' · la più recente tra le 5 che Google mostra: ' + (giorni === 0 ? 'oggi' : giorni + ' giorni fa') : '';\n  m2.push('• ' + stelle + numero(g.recensioni, 0) + ' recensioni' + recente);\n  m2.push('• Orari ' + si(!!(g.orari && g.orari.length)) + ' · Telefono ' + si(!!g.telefono) + ' · Foto ' + (g.foto >= 10 ? '10 o più' : g.foto) + ' · Sito collegato ' + si(!!g.sito));\n  m2.push('• Voto: ' + (g.dettaglio_voto || []).map((v) => esc(v.voce) + ' ' + numero(v.punti) + '/' + numero(v.max)).join(', '));\n  if (g.altri_risultati && g.altri_risultati.length && g.abbinamento !== 'alta') m2.push('• Altri risultati: ' + esc(taglia(g.altri_risultati.join(' | '), 250)));\n} else if (g.errore) {\n  m2.push('• Ricerca su Google non riuscita: ' + esc(taglia(g.errore, 200)));\n} else {\n  m2.push('• Nessuna scheda trovata cercando «' + esc(taglia(g.ricerca, 120)) + '».');\n  if (g.altri_risultati && g.altri_risultati.length) m2.push('• Google proponeva (nome diverso): ' + esc(taglia(g.altri_risultati.join(' | '), 250)));\n  m2.push('• Controlla a mano: se davvero non c\\'è, è la prima cosa da proporre.');\n}\n\nm2.push('');\nm2.push('<b>Sito</b>');\nif (s.tipo === 'nessuno') {\n  m2.push('• Nessun sito trovato, né su Google né sulla vetrina.');\n} else if (s.tipo === 'social') {\n  m2.push('• Al posto del sito: ' + link(s.url, s.piattaforma || dominio(s.url)) + '.');\n} else {\n  m2.push('• ' + link(s.url, dominio(s.url)) + ' (preso da ' + (s.fonte === 'foto' ? 'vetrina' : 'Google') + ')');\n  if (!s.raggiungibile) {\n    m2.push('• Non si apre: ' + esc(taglia(s.errore_home || (s.pagespeed && s.pagespeed.errore) || 'nessuna risposta', 200)));\n  } else {\n    const h = s.pagina || {};\n    const ps = s.pagespeed || {};\n    m2.push('• https ' + si(s.https) + ' · Adatto al telefono ' + si(h.letta ? h.adatto_telefono : ps.viewport_ok));\n    if (typeof ps.velocita === 'number') {\n      m2.push('• Velocità da telefono ' + ps.velocita + '/100' + (ps.caricamento ? ' (pagina pronta in ' + esc(ps.caricamento) + ')' : '') + (typeof ps.seo === 'number' ? ' · SEO ' + ps.seo + '/100' : ''));\n    } else {\n      m2.push('• Velocità non misurata: ' + esc(taglia(ps.errore || 'nessun risultato', 150)));\n    }\n    if (h.letta) {\n      m2.push('• Contatti cliccabili: telefono ' + si(h.telefono_cliccabile) + ', WhatsApp ' + si(h.whatsapp) + ', email ' + si(h.email_cliccabile) + ' · P.IVA ' + si(!!h.partita_iva) + (h.anno_copyright ? ' · © ' + h.anno_copyright : ''));\n      m2.push('• Fatto con: ' + esc(h.fatto_con || 'non riconosciuto') + ' · Statistiche Google ' + si(h.statistiche_google) + ' · Pixel Meta ' + si(h.pixel_meta) + ' · Banner cookie ' + (h.banner_cookie ? esc(h.banner_cookie) : '✖'));\n      if (h.prenotazioni && h.prenotazioni.length) m2.push('• Prenotazioni / consegne: ' + esc(h.prenotazioni.join(', ')));\n    } else {\n      m2.push('• La pagina non si è lasciata leggere (' + esc(taglia(s.errore_home || 'blocca i controlli automatici', 120)) + ').');\n    }\n    m2.push('• Voto: ' + (s.dettaglio_voto || []).map((v) => esc(v.voce) + ' ' + numero(v.punti) + '/' + numero(v.max)).join(', '));\n  }\n}\n\nm2.push('');\nm2.push('<b>Social</b>');\nif (scheda && scheda.social && Array.isArray(scheda.social.profili) && scheda.social.profili.length) {\n  for (const p of scheda.social.profili.slice(0, 6)) {\n    if (!p.indirizzo) {\n      m2.push('• ' + esc(p.piattaforma) + ': non trovato');\n      continue;\n    }\n    const dove = link(p.indirizzo, p.indirizzo.replace(/^https?:\\/\\/(www\\.)?/, '').replace(/\\/$/, ''));\n    m2.push('• ' + esc(p.piattaforma) + ': ' + dove + ' · ' + esc(taglia(p.seguito, 60)) + ' · ultimo post: ' + esc(taglia(p.ultimo_post, 60)) + ' (sicurezza ' + esc(p.sicurezza) + ')');\n  }\n} else if (rs.testo) {\n  m2.push(esc(taglia(rs.testo, 900)));\n} else {\n  m2.push('• ' + esc(rs.errore ? 'Ricerca non riuscita: ' + taglia(rs.errore, 200) : 'Nessun profilo trovato.'));\n}\nif (scheda && Array.isArray(scheda.altre_piattaforme) && scheda.altre_piattaforme.length) {\n  m2.push('');\n  m2.push('<b>Altre piattaforme</b>');\n  for (const x of lista(scheda.altre_piattaforme, 5)) m2.push('• ' + esc(x));\n}\nconst fotoRighe = [];\nif (scheda && scheda.dalla_foto) fotoRighe.push(taglia(scheda.dalla_foto, 250));\nelse if (l.vetrina) fotoRighe.push('Insegna ' + (l.insegna || 'non valutata') + '. ' + taglia(l.vetrina, 200));\nif (l.segni_online && l.segni_online.length) fotoRighe.push('Sulla vetrina: ' + taglia(l.segni_online.join(', '), 200));\nif (fotoRighe.length) {\n  m2.push('');\n  m2.push('<b>Dalla foto</b>');\n  for (const x of fotoRighe) m2.push('• ' + esc(x));\n}\nif (scheda && Array.isArray(scheda.da_verificare) && scheda.da_verificare.length) {\n  m2.push('');\n  m2.push('❓ <b>Da verificare a voce</b>');\n  for (const x of lista(scheda.da_verificare, 5)) m2.push('• ' + esc(x));\n}\nconst quando = $now.setLocale('it').toFormat('dd/LL/yyyy HH:mm');\nconst quante = (n, uno, tanti) => n + ' ' + (n === 1 ? uno : tanti);\nconst piede =\n  '<i>Analisi del ' + quando + ' per ' + esc(d.mittente || '') + ' · ' + quante(rs.ricerche_web || 0, 'ricerca web', 'ricerche web') + ' · ' +\n  quante(rs.fonti ? rs.fonti.length : 0, 'fonte', 'fonti') + ' · costo stimato ' + numero(costo, 2) + ' $</i>';\nconst messaggio2 = componi(m2.concat(['', piede]), 4000);\n\n// ---------- riga per il foglio «Prospetti» ----------\nconst profilo = (nomePiattaforma) => {\n  if (!scheda || !scheda.social) return '';\n  const p = (scheda.social.profili || []).find((x) => String(x.piattaforma).toLowerCase().includes(nomePiattaforma));\n  return p ? p.indirizzo : '';\n};\nconst riga = {\n  Data: quando,\n  Negozio: nome,\n  Tipo: tipo,\n  Indirizzo: g.indirizzo || [l.indirizzo, d.ricerca && d.ricerca.citta].filter(Boolean).join(', '),\n  Telefono: g.telefono || l.telefono || '',\n  'Voto totale': voti.totale,\n  'Voto Google': voti.google,\n  'Voto sito': voti.sito,\n  'Voto social': voti.social === null ? '' : voti.social,\n  Stelle: g.stelle === null || g.stelle === undefined ? '' : g.stelle,\n  Recensioni: g.recensioni || 0,\n  Sito: s.url || '',\n  Instagram: profilo('instagram'),\n  Facebook: profilo('facebook'),\n  TikTok: profilo('tiktok'),\n  'Scheda Maps': g.maps_url || '',\n  Proposte: proposte.map((p) => p.servizio + ': ' + p.cosa).join(' | '),\n  Rompighiaccio: (scheda && scheda.rompighiaccio) || '',\n  'Inviato da': d.mittente || '',\n  'Costo stimato $': Math.round(costo * 100) / 100,\n};\n\nreturn [\n  {\n    json: {\n      chat_id: d.chat_id,\n      messaggio_1: messaggio1,\n      messaggio_2: messaggio2,\n      voti,\n      costo_usd: costo,\n      scheda_claude: scheda,\n      errore_scheda: esito.errore || '',\n      riga,\n    },\n  },\n];\n"
+      },
+      "id": "09b12fef-d213-409f-a23e-b002073e6b1d",
+      "name": "Componi messaggi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.messaggio_1 }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "fed45490-c977-4fa9-aa5e-dfb5ac55907e",
+      "name": "Manda la scheda",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        5780,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram - Radar negozio"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Componi messaggi').first().json.chat_id }}",
+        "text": "={{ $('Componi messaggi').first().json.messaggio_2 }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "b658fbf3-8014-455b-a3cc-15a27aa3da2d",
+      "name": "Manda i dettagli",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        6000,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": null,
+          "name": "Telegram - Radar negozio"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// La riga per il foglio «Prospetti»: le intestazioni del foglio devono avere questi stessi nomi.\nreturn [{ json: $('Componi messaggi').first().json.riga }];\n"
+      },
+      "id": "c62f98ed-7753-468d-aace-e1f99eb205df",
+      "name": "Prepara riga",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Prospetti",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "59127aab-3e17-431d-ae58-275f7178754b",
+      "name": "Salva nel foglio Prospetti",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        6440,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": null,
+          "name": "Google Sheets"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Foto dal telefono": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Controlla messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Controlla messaggio": {
+      "main": [
+        [
+          {
+            "node": "Si analizza?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si analizza?": {
+      "main": [
+        [
+          {
+            "node": "Scarica la foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rispondi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica la foto": {
+      "main": [
+        [
+          {
+            "node": "Prepara lettura foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara lettura foto": {
+      "main": [
+        [
+          {
+            "node": "Foto pronta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foto pronta?": {
+      "main": [
+        [
+          {
+            "node": "Claude: leggi la foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rispondi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: leggi la foto": {
+      "main": [
+        [
+          {
+            "node": "Leggi risposta foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leggi risposta foto": {
+      "main": [
+        [
+          {
+            "node": "Foto letta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foto letta?": {
+      "main": [
+        [
+          {
+            "node": "Avvisa: sto analizzando",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rispondi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avvisa: sto analizzando": {
+      "main": [
+        [
+          {
+            "node": "Google: cerca il negozio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google: cerca il negozio": {
+      "main": [
+        [
+          {
+            "node": "Scegli scheda Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scegli scheda Google": {
+      "main": [
+        [
+          {
+            "node": "C'è un sito da controllare?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "C'è un sito da controllare?": {
+      "main": [
+        [
+          {
+            "node": "Sito: scarica la home",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analizza il sito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sito: scarica la home": {
+      "main": [
+        [
+          {
+            "node": "Sito: misura velocità",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sito: misura velocità": {
+      "main": [
+        [
+          {
+            "node": "Analizza il sito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizza il sito": {
+      "main": [
+        [
+          {
+            "node": "Prepara ricerca social",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara ricerca social": {
+      "main": [
+        [
+          {
+            "node": "Claude: cerca social",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: cerca social": {
+      "main": [
+        [
+          {
+            "node": "Ricerca in pausa?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ricerca in pausa?": {
+      "main": [
+        [
+          {
+            "node": "Prepara seguito ricerca",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Leggi ricerca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara seguito ricerca": {
+      "main": [
+        [
+          {
+            "node": "Claude: continua ricerca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: continua ricerca": {
+      "main": [
+        [
+          {
+            "node": "Leggi ricerca",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leggi ricerca": {
+      "main": [
+        [
+          {
+            "node": "Prepara scheda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara scheda": {
+      "main": [
+        [
+          {
+            "node": "Claude: scrivi la scheda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: scrivi la scheda": {
+      "main": [
+        [
+          {
+            "node": "Componi messaggi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Componi messaggi": {
+      "main": [
+        [
+          {
+            "node": "Manda la scheda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manda la scheda": {
+      "main": [
+        [
+          {
+            "node": "Manda i dettagli",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manda i dettagli": {
+      "main": [
+        [
+          {
+            "node": "Prepara riga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara riga": {
+      "main": [
+        [
+          {
+            "node": "Salva nel foglio Prospetti",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -11,3 +11,11 @@ Come pubblicarlo su Sliplane: `officina/LEGGIMI.md`, sezione
 Docker context `/officina`, servizio non pubblico, volume `/dati`, variabile `OFFICINA_CHIAVE`, porta 8080).
 
 Versione: 1.1.1.
+
+## radar-negozio/
+Workflow n8n «09 - Radar negozio»: si fotografa un negozio, si manda la foto a un bot Telegram
+e in pochi minuti arriva la scheda su come è messo online (Google, sito, social), con un voto,
+cosa proporre e una frase per rompere il ghiaccio.
+
+Il file da importare in n8n è `radar-negozio/09-radar-negozio.json`. Come prepararlo e come si usa:
+`radar-negozio/LEGGIMI.md`.

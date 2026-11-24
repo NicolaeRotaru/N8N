@@ -1,0 +1,12 @@
+{
+  "name": "radar-negozio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Workflow n8n: dalla foto di un negozio alla scheda su Google, sito e social.",
+  "type": "module",
+  "scripts": {
+    "costruisci": "node sorgenti/costruisci.mjs",
+    "prepara-n8n": "sh prove/prepara-n8n.sh",
+    "prova": "node prove/prova-n8n.mjs"
+  }
+}
