@@ -820,3 +820,24 @@ test("contratto (AD, fonte unica): il giudizio sui social sta solo in analisi-ca
     assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio');
   }
 });
+
+test("dal secondo collaudo: telefoni con barra, parentesi o lineetta lunga non passano; fonti che non si aprono, proposte senza servizio e date assurde nemmeno", async () => {
+  const r = structuredClone(RISPOSTA_COMPLETA);
+  r.opportunita = [
+    { testo: 'Nessuno pubblica foto della colazione in zona.', fonte: 'https://x.it/a', servizio: 'foto_video', proposta: 'Chiama 0523/123456 per le foto' },
+    { testo: 'Il sito non permette di prenotare un tavolo.', fonte: 'https://x.it/b', servizio: null, proposta: 'Rifacciamo il sito con le prenotazioni.' },
+    { testo: 'Mancano le foto del bancone in vetrina.', fonte: 'https://%zz', servizio: 'foto_video', proposta: 'Fotografiamo il bancone e le colazioni.' },
+  ];
+  r.giudizio_sito.nota = 'Numero in alto: tel (0523) 123456 ben visibile.';
+  r.social.instagram.migliorie = 'Scriveteci al +39 (0523) 123456 o allo 0523–123456 ogni giorno.';
+  r.social.instagram.ultimo_post_il = '0000-01-01';
+  const u = await unisci(r);
+  assert.deepEqual(u.scheda.analisi.business.opportunita.map((v) => [v.servizio, v.proposta]), [['foto_video', null], [null, null]]);
+  assert.equal(u.scheda.analisi.giudizio_sito.nota, null);
+  assert.equal(u.analisi_canali.instagram.giudizio.migliorie, null);
+  assert.equal(u.analisi_canali.instagram.numeri.ultimo_post_il, undefined);
+  // Un anno o un orario restano: non sono telefoni.
+  const r2 = structuredClone(RISPOSTA_COMPLETA);
+  r2.giudizio_sito.nota = 'Aperto dal 1980, orari 7-19 dal lunedì al sabato.';
+  assert.equal((await unisci(r2)).scheda.analisi.giudizio_sito.nota, 'Aperto dal 1980, orari 7-19 dal lunedì al sabato.');
+});

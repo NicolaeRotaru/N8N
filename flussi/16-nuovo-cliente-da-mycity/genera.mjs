@@ -225,7 +225,7 @@ const GIUDIZIO_SITO = { type: 'object', additionalProperties: false,
     pagine: scelta(['una', 'poche', 'molte'], 'Quante pagine ha.'),
     funzioni: { type: 'array', maxItems: 8, items: { type: 'string', enum: ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti'] }, description: 'Le funzioni che hai visto davvero sul sito.' },
     migliorie: forse('string', "Al massimo 240 caratteri: cosa daremmo di più rifacendolo nel Premium, scritto in modo che stia dopo «Rifacciamo il tuo sito: …» (per esempio «le prenotazioni dal telefono e il menu in inglese», non «Aggiungere…»). null se non c'è niente da migliorare davvero."),
-    nota: forse('string', 'Una frase, al massimo 30 parole, su cosa hai visto.'),
+    nota: forse('string', 'Una frase di 3-200 caratteri su cosa hai visto.'),
     fonte: forse('string', "L'indirizzo https del sito che hai aperto."),
     non_trovato: nonTrovato,
   } };
@@ -246,7 +246,7 @@ const CANALE = (nome) => ({ type: 'object', additionalProperties: false,
     valutazione: forse('number', 'La media delle stelle da 0 a 5, se il canale la mostra.'),
     recensioni: forse('integer', 'Quante recensioni, se il canale le mostra.'),
     osservazioni: { type: 'array', maxItems: 3, items: { type: 'string' }, description: 'Al massimo 3 frasi corte su cosa hai visto.' },
-    migliorie: forse('string', 'Una frase, al massimo 40 parole: cosa daremmo di più seguendo noi questo canale.'),
+    migliorie: forse('string', 'Una frase di 10-240 caratteri: cosa daremmo di più seguendo noi questo canale.'),
     non_trovato: nonTrovato,
   } });
 const SCHEMA = { type: 'object', additionalProperties: false,
@@ -305,7 +305,7 @@ const r = $input.first().json || {};
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
 const SEZIONI = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
 const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
-const VIETATO = /€|\b(eur|euro|euri|chf)\b|\beur\d|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
+const VIETATO = /€|\b(eur|euro|euri|chf)\b|\beur\d|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\(?\d[\d\s.\/()–—-]{7,}\d/i;
 // Come il sito (mycity/lib/agenzia/scheda-cliente.ts, NUMERO_DA_PREZZO): «2.-» e «2 E». Senza /i: «1980 e» non è un prezzo.
 const VIETATO_MAIUSCOLO = /\d+[.,]-|\d\s?E\b/;
 const vietato = (t) => VIETATO.test(t) || VIETATO_MAIUSCOLO.test(t);
@@ -317,6 +317,7 @@ try {
   letta = typeof t === 'string' ? JSON.parse(t) : null;
 } catch (e) { letta = null; }
 // La proposta (cosa facciamo noi) come la vuole il sito: 10-160 caratteri, senza prezzi né contatti.
+const fonteBuona = (u) => { try { return new URL(u).protocol === 'https:'; } catch (e) { return false; } };
 const proposta = (v) => { const t = typeof v === 'string' ? testo(v) : ''; return t.length >= 10 && t.length <= 160 && !vietato(t) ? t : null; };
 let business = null;
 if (letta && typeof letta === 'object') {
@@ -325,8 +326,8 @@ if (letta && typeof letta === 'object') {
   for (const s of SEZIONI) {
     const voci = Array.isArray(letta[s]) ? letta[s] : [];
     business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte),
-      ...(s === 'opportunita' || s === 'prime_mosse' ? { servizio: SERVIZI.includes(v && v.servizio) ? v.servizio : null, proposta: proposta(v && v.proposta) } : {}) }))
-      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !vietato(v.testo.replace(VOTO, 'voto')))
+      ...(s === 'opportunita' || s === 'prime_mosse' ? { servizio: SERVIZI.includes(v && v.servizio) ? v.servizio : null, proposta: SERVIZI.includes(v && v.servizio) ? proposta(v && v.proposta) : null } : {}) }))
+      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && fonteBuona(v.fonte) && v.fonte.length <= 500 && !vietato(v.testo.replace(VOTO, 'voto')))
       .slice(0, 3);
     quante += business[s].length;
   }
@@ -342,7 +343,7 @@ const frase = (v, max) => { const t = typeof v === 'string' ? testo(v) : ''; ret
 const mancano = (x) => (Array.isArray(x) ? [...new Set(x.map((v) => frase(v, 120)).filter(Boolean))].slice(0, 8) : []);
 // Una data vera e non nel futuro: «2026-13-45» il sito la mostrerebbe com'è.
 const giorno = (v) => { const t = testo(v); if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return undefined; const d = new Date(t + 'T00:00:00Z');
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === t && d.getTime() <= Date.now() ? t : undefined; };
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === t && t >= '2004-01-01' && d.getTime() <= Date.now() ? t : undefined; };
 // Le migliorie come le vuole il sito: 10-240 caratteri, senza prezzi né telefoni.
 const migliorie = (v) => { const t = frase(v, 240); return t && t.length >= 10 ? t : null; };
 const intero = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : undefined);
