@@ -90,6 +90,6 @@ export function costruisci({ telegram, chatId, marketplace, errorWorkflow, vero 
 export const controlla = (w) => controllaBase(w);
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  principaleComune(process.argv.slice(2), { nome: '21', costruisci, controlla, conMarketplace: true })
+  principaleComune(process.argv.slice(2), { nome: '21', costruisci, controlla, conMarketplace: true, famiglia: '2x marketplace' })
     .catch((e) => { console.error(e.message); process.exit(1); });
 }

@@ -1,0 +1,138 @@
+[
+ {
+  "id": "liberta-attualita",
+  "nome": "Libertà — Attualità",
+  "url": "https://www.liberta.it/attualita",
+  "tipo": "news-locale",
+  "cosa_cercare": "commercio, centro, chiusure/aperture botteghe, istituzioni, eventi",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "liberta-citta",
+  "nome": "Libertà — Città di Piacenza",
+  "url": "https://www.liberta.it/territorio/citta/piacenza",
+  "tipo": "news-locale",
+  "cosa_cercare": "botteghe storiche, vie del commercio, decoro/ZTL, cronaca utile al delivery",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "ilpiacenza-economia",
+  "nome": "IlPiacenza — Economia",
+  "url": "https://www.ilpiacenza.it/economia/",
+  "tipo": "news-locale",
+  "cosa_cercare": "aperture/chiusure attività, retail, food, immobiliare commerciale",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "piacenzasera",
+  "nome": "PiacenzaSera",
+  "url": "https://www.piacenzasera.it/",
+  "tipo": "news-locale",
+  "cosa_cercare": "commercio, desertificazione centro, eventi, bandi",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "comune-news",
+  "nome": "Comune di Piacenza — News",
+  "url": "https://www.comune.piacenza.it/it/menu/news",
+  "tipo": "istituzionale",
+  "cosa_cercare": "ZTL, ordinanze traffico, commercio, bandi, dehors, mercati",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "comune-eventi",
+  "nome": "Comune di Piacenza — Eventi",
+  "url": "https://www.comune.piacenza.it/it/categorie-eventi/76806",
+  "tipo": "eventi",
+  "cosa_cercare": "sagre, fiere, mercati, manifestazioni, chiusure/picchi delivery a 7-14 giorni",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "comune-imprese",
+  "nome": "Comune — Imprese e commercio / bandi",
+  "url": "https://www.comune.piacenza.it/it/page/imprese-e-commercio-139",
+  "tipo": "bandi",
+  "cosa_cercare": "bandi commercio, voucher, scadenze, agevolazioni per le botteghe",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "cciaa-emilia-bandi",
+  "nome": "Camera Commercio Emilia — Bandi 2026",
+  "url": "https://www.emilia.camcom.it/promuovere-limpresa-e-il-territorio/contributi-alle-imprese/bandi-emanati-nel-corso-del-2026",
+  "tipo": "bandi",
+  "cosa_cercare": "PI26 innovazione digitale, piccole imprese territorio, scadenze sportello, fondo perduto",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "unionecommercianti-bandi",
+  "nome": "Unione Commercianti PC — Bandi e agevolazioni",
+  "url": "https://www.unionecommerciantipc.it/category/bandi/",
+  "tipo": "bandi",
+  "cosa_cercare": "PI26, piccole imprese territorio, scadenze, kit domanda negozi",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "vitaincentro",
+  "nome": "Vita in Centro a Piacenza",
+  "url": "https://www.vitaincentroapiacenza.com/category/news/",
+  "tipo": "istituzionale",
+  "cosa_cercare": "Sbaracco, saldi, iniziative del centro, partnership possibili",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "unionecommercianti",
+  "nome": "Unione Commercianti Piacenza",
+  "url": "https://www.unionecommerciantipc.it/",
+  "tipo": "associazione",
+  "cosa_cercare": "iniziative associazione, eventi commercio, aperture, possibili alleanze",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "cna-piacenza",
+  "nome": "CNA Piacenza / CompraPiacenza",
+  "url": "https://piacenza.cna.it/",
+  "tipo": "associazione",
+  "cosa_cercare": "CompraPiacenza novità, artigiani, bandi, posizionamento (postura complementare)",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "glovo-piacenza",
+  "nome": "Glovo — Piacenza",
+  "url": "https://glovoapp.com/it/it/piacenza/",
+  "tipo": "concorrente",
+  "cosa_cercare": "nuovi negozi, categorie, promo, fee, zone coperte (contro-argomento '30% Glovo')",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "conad-consegna",
+  "nome": "Conad — Spesa online Piacenza",
+  "url": "https://spesaonline.conad.it/aree-coperte-dal-servizio/piacenza",
+  "tipo": "concorrente",
+  "cosa_cercare": "zone consegna, slot, soglie spedizione gratis (il vero concorrente di abitudine)",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "cortilia",
+  "nome": "Cortilia / q-commerce filiera corta",
+  "url": "https://www.cortilia.it/",
+  "tipo": "concorrente",
+  "cosa_cercare": "modello, prezzi, espansione zone, cosa imitare o evitare",
+  "cadenza": "settimanale"
+ },
+ {
+  "id": "meteo-piacenza",
+  "nome": "Meteo Piacenza (ARPAE/3B)",
+  "url": "https://www.arpae.it/it/temi-ambientali/meteo",
+  "tipo": "meteo",
+  "cosa_cercare": "caldo/freddo estremo, pioggia/neve, nebbia, allerte, PM10/blocchi traffico nei prossimi 7gg",
+  "cadenza": "giornaliera"
+ },
+ {
+  "id": "sagre-provincia",
+  "nome": "Sagre & mercatini Piacenza e provincia",
+  "url": "https://www.quatarobpavia.it/eventi-mercatini-sagre-piacenza-provincia/",
+  "tipo": "eventi",
+  "cosa_cercare": "sagre DOP, mercatini, fiere → domanda stagionale e picchi delivery",
+  "cadenza": "settimanale"
+ }
+]

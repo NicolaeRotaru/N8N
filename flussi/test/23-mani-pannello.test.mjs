@@ -71,3 +71,9 @@ test('il flusso 23: webhook col segreto, risponde al Pannello, Telegram solo ver
   w.nodes.find((n) => n.name === 'Manda con Telegram').parameters.chatId = '12345';
   assert.ok(controlla(w).some((p) => /non è quella di Nicola/.test(p)));
 });
+
+test('collaudo 25/11: un’azione per un’altra persona non si dice «fatta»', async () => {
+  const r = await controlla_(azione({ destinatario: '@cliente_rossi' }));
+  assert.equal(r.esegui, null);
+  assert.match(r.risposta.dettaglio, /solo a Nicola/);
+});

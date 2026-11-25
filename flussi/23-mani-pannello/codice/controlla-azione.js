@@ -34,6 +34,9 @@ if (a.id && memoria.eseguite[a.id]) return coda(`azione già eseguita il ${memor
 const CANALI = { telegram: 'telegram', 'telegram-nicola': 'telegram', avviso: 'telegram' };
 const via = CANALI[a.canale] || null;
 if (!via) return coda(`il canale «${a.canale}» non è ancora collegato in n8n`);
+// Telegram qui scrive SOLO a Nicola: un'azione per qualcun altro non si può fare, e non va detta
+// «fatta» (difetto trovato dal collaudo del 25/11).
+if (a.destinatario && !/^(nicola|me|io)$/i.test(a.destinatario)) return coda(`Telegram qui scrive solo a Nicola: «${a.destinatario}» non è raggiungibile da n8n`);
 
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const PALLINO = { verde: '🟢', giallo: '🟡', rosso: '🔴' };

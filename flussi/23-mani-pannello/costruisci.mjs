@@ -93,6 +93,7 @@ async function principale(argv) {
   if (api) {
     const esito = await api.creaOAggiorna(w);
     console.log(`${esito.creato ? 'Creato' : 'Aggiornato'} su n8n: id ${esito.id}, ${esito.attivo ? 'ACCESO' : 'spento'}.`);
+    await api.etichetta(esito.id, ['9x sistema']);
   }
 }
 

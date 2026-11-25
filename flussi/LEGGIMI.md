@@ -133,7 +133,7 @@ N8N_API_KEY=… node flussi/17-analisi-marketplace/costruisci.mjs --manda --mark
 **Per accenderlo:** in n8n apri la credenziale «Supabase MyCity - Marketplace (lettura)», incolla la
 chiave del database di MyCity (la stessa che l'AD usa come `MARKETPLACE_SUPABASE_KEY`), poi accendi il flusso.
 
-## Il lavoro meccanico del server dell'AD (21, 22, 23, 98)
+## Il lavoro meccanico del server dell'AD (21-25, 98)
 
 Dal 25/11/2026. Il server dell'AD è spento per sempre (Nicola, 24/11): i lavori a orario che un
 programma fa sempre uguale girano qui, **senza IA e senza token**. Tutti nascono **spenti** e in
@@ -158,10 +158,20 @@ ricostruendo con `--vero`. Ogni errore va al «99 · Avvisi errori». I pezzi co
   collegato è `telegram`, gli altri tornano «in coda» col motivo. Vuole la credenziale «MyCity -
   Segreto mani del Pannello» (Header Auth `x-mycity-segreto`), con lo stesso valore di
   `N8N_WEBHOOK_SEGRETO` nel Pannello, e `N8N_WEBHOOK_URL` = l'indirizzo di produzione del webhook.
+- **24 · Radar del web** — alle 6:30 scarica le fonti del radar dell'AD (`24-radar-web/codice/fonti.json`,
+  copia di `ad-mycity/cervello/radar-fonti.json` senza la ricerca Google; le settimanali il lunedì),
+  tiene solo i titoli nuovi e chiede all'AD, tramite «Chiedi all'AD», quali contano per MyCity. Se l'AD
+  non risponde arrivano i titoli per fonte; senza novità nessun messaggio.
+- **25 · Numeri del mattino e della sera** — alle 6 il piano del mattino, alle 18 il report della sera.
+  I numeri li calcola lo stesso codice del 17 (`17-analisi-marketplace/codice/calcola-numeri.js`), il
+  testo lo scrive l'AD tramite «Chiedi all'AD». Se l'AD non risponde arrivano i soli numeri, detto.
+  In prova i lavori partono con `non_mandare`: la routine dell'AD non si accende e non si conta.
 
 ```bash
 N8N_API_KEY=… node flussi/21-sentinella-dati/costruisci.mjs --manda   # la chiave del database la prende dal 17
 N8N_API_KEY=… node flussi/22-sito-risponde/costruisci.mjs --manda
+N8N_API_KEY=… node flussi/24-radar-web/costruisci.mjs --manda               # trova «Chiedi all'AD» per nome
+N8N_API_KEY=… node flussi/25-numeri-mattino-sera/costruisci.mjs --manda
 N8N_API_KEY=… node flussi/98-salute-n8n/costruisci.mjs --manda        # poi rilancia il 17: trova il 98 per nome
 N8N_API_KEY=… node flussi/23-mani-pannello/costruisci.mjs --manda --segreto <id credenziale>
 ```

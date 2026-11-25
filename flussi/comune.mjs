@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 
 export const NOME_AVVISI_ERRORI = '99 · Avvisi errori';
 export const NOME_MODULO_12 = '12 · Nuovo cliente (automatico)';
+export const NOME_CHIEDI = "Chiedi all'AD";
 export const CREDENZIALE_MARKETPLACE = { id: 'SEGNAPOSTO_SUPABASE_MARKETPLACE', name: 'Supabase MyCity - Marketplace (lettura)' };
 
 /** Una voce del nodo Config. */
@@ -40,6 +41,17 @@ export const nodoTelegram = (nome, testoExpr, position, telegram) => ({
   parameters: { resource: 'message', operation: 'sendMessage', chatId: "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
     text: testoExpr, additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
   credentials: { telegramApi: telegram || { id: 'DA_IMPOSTARE', name: 'Telegram - Bot agenzia' } },
+});
+
+/**
+ * Il nodo che chiama il sotto-flusso «Chiedi all'AD» (sessione B): aspetta la risposta (al massimo
+ * 15 minuti dentro il sotto-flusso) e non ferma il flusso se si guasta: c'è sempre un ripiego.
+ */
+export const nodoChiediAllAD = (nome, idChiedi, position) => ({
+  id: randomUUID(), name: nome, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position, onError: 'continueRegularOutput',
+  parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: idChiedi || 'DA_IMPOSTARE', cachedResultName: NOME_CHIEDI },
+    workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+    mode: 'once', options: { waitForSubWorkflow: true } },
 });
 
 /** Le impostazioni comuni: ogni errore va al 99, gli esiti buoni non si salvano (girano spesso). */
@@ -77,6 +89,9 @@ export function controllaBase(w, { scrittureAmmesse = [] } = {}) {
     if (!nomi.has(da)) problemi.push(`collegamento da un nodo che non esiste: «${da}»`);
     for (const ramo of uscite.main || []) for (const v of ramo || []) if (!nomi.has(v.node)) problemi.push(`collegamento verso «${v.node}», che non esiste`);
   }
+  for (const n of w.nodes.filter((x) => x.type === 'n8n-nodes-base.executeWorkflow')) {
+    if (n.parameters.workflowId?.value === 'DA_IMPOSTARE') problemi.push(`«${n.name}» non sa quale flusso chiamare`);
+  }
   const cfg = w.nodes.find((n) => n.name === 'Config');
   const chat = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID');
   if (chat && chat.value === 'DA_IMPOSTARE') problemi.push('manca la chat Telegram di Nicola');
@@ -93,11 +108,12 @@ export async function pezziDaN8n(api) {
   if (!avvisi) throw new Error(`Non trovo «${NOME_AVVISI_ERRORI}» su n8n.`);
   const telegram = m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi;
   const chat = m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value;
-  return { telegram, chatId: chat ? String(chat) : undefined, errorWorkflow: avvisi.id, elenco };
+  const chiedi = elenco.find((w) => w.name === NOME_CHIEDI)?.id;
+  return { telegram, chatId: chat ? String(chat) : undefined, errorWorkflow: avvisi.id, chiedi, elenco };
 }
 
 /** La riga di comando comune: costruisce, controlla, e con --manda carica su n8n SPENTO. */
-export async function principaleComune(argv, { nome, costruisci, controlla, conMarketplace = false }) {
+export async function principaleComune(argv, { nome, costruisci, controlla, conMarketplace = false, famiglia }) {
   const valore = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined; };
   const manda = argv.includes('--manda');
   let pezzi = {};
@@ -110,12 +126,13 @@ export async function principaleComune(argv, { nome, costruisci, controlla, conM
   }
   const w = costruisci({ ...pezzi, vero: argv.includes('--vero') });
   if (valore('--scrivi')) (await import('node:fs')).writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
-  const problemi = controlla(w).filter((p) => manda || !/credenziale|chat Telegram|99 · Avvisi errori/.test(p));
+  const problemi = controlla(w).filter((p) => manda || !/credenziale|chat Telegram|99 · Avvisi errori|quale flusso chiamare/.test(p));
   if (problemi.length) { console.error(`${nome} non va bene:\n- ` + problemi.join('\n- ')); process.exit(1); }
   console.log(`${nome} costruito: ${w.nodes.length} nodi, controlli a posto.`);
   if (api) {
     const esito = await api.creaOAggiorna(w);
     console.log(`${esito.creato ? 'Creato' : 'Aggiornato'} su n8n: id ${esito.id}, ${esito.attivo ? 'ACCESO' : 'spento'}.`);
+    if (famiglia) console.log(`Etichetta «${famiglia}»: ${(await api.etichetta(esito.id, [famiglia])) ? 'messa' : 'non trovata su n8n'}.`);
   }
   return w;
 }

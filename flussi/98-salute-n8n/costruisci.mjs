@@ -70,6 +70,6 @@ export function costruisci({ errorWorkflow, credenzialeN8n } = {}) {
 export const controlla = (w) => controllaBase(w);
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  principaleComune(process.argv.slice(2), { nome: '98', costruisci, controlla })
+  principaleComune(process.argv.slice(2), { nome: '98', costruisci, controlla, famiglia: '9x sistema' })
     .catch((e) => { console.error(e.message); process.exit(1); });
 }

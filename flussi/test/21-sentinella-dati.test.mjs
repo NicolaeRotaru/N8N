@@ -167,3 +167,21 @@ test('il controllo ferma un flusso che scrive sul marketplace', () => {
   w.nodes.find((n) => n.name === 'Leggi i carrelli').parameters.method = 'PATCH';
   assert.ok(controlla(w).some((p) => /marketplace per scrivere/.test(p)));
 });
+
+test('collaudo 25/11: una sentinella con la tabella cieca non è «rientrata» e non torna «nuova»', async () => {
+  const statico = {};
+  const pagato = risposta([{ seller_id: 's', created_at: fa(30), payment_status: 'PAID', payment_method: 'card', delivery_status: 'DELIVERED', delivered_at: fa(29) }]);
+  await esegui(base({ 'Leggi gli ordini': pagato }), statico);
+  const cieco = await esegui(base({ 'Leggi gli ordini': [{ json: { statusCode: 503, body: '' } }] }), statico);
+  assert.deepEqual(cieco.rientrate, []);
+  const torna = await esegui(base({ 'Leggi gli ordini': pagato }), statico);
+  assert.deepEqual(torna.nuove, []);
+});
+
+test('collaudo 25/11: «Dopodomani» e la fascia che finisce a mezzanotte', async () => {
+  const r = await esegui(base({ 'Leggi gli ordini': risposta([
+    { seller_id: 's', created_at: fa(40), delivery_slot: 'Dopodomani · 21:00–23:00', delivery_status: 'NEW', payment_status: 'PENDING' },
+    { seller_id: 's', created_at: fa(0.2), delivery_slot: 'Stasera · 22:00–00:00', delivery_status: 'NEW', payment_status: 'PENDING' },
+  ]) }));
+  assert.equal(r.numeri.ordini_in_ritardo, 0);
+});

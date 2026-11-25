@@ -67,6 +67,6 @@ export function costruisci({ telegram, chatId, errorWorkflow, vero = false } = {
 export const controlla = (w) => controllaBase(w);
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  principaleComune(process.argv.slice(2), { nome: '22', costruisci, controlla })
+  principaleComune(process.argv.slice(2), { nome: '22', costruisci, controlla, famiglia: '2x marketplace' })
     .catch((e) => { console.error(e.message); process.exit(1); });
 }

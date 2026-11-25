@@ -96,13 +96,24 @@ function scadenzaSlot(slot, creato) {
   const orari = [...testo.matchAll(/(\d{1,2})[:.](\d{2})/g)];
   if (!orari.length) return NaN;
   const fine = orari[orari.length - 1];
-  const piu = /domani/.test(testo) ? 1 : (/oggi|stasera/.test(testo) ? 0 : NaN);
+  // «dopodomani» contiene «domani»: va guardato prima (difetto trovato dal collaudo del 25/11).
+  const piu = /dopodomani/.test(testo) ? 2 : /domani/.test(testo) ? 1 : (/oggi|stasera/.test(testo) ? 0 : NaN);
   if (!Number.isFinite(piu)) return NaN;
   // Il giorno dell'ordine a Piacenza, poi (se «Domani») il giorno dopo sul calendario, non +24 ore:
   // la notte del cambio d'ora dura 23 o 25 ore.
   const [a, m, g] = giornoRoma(t).split('-').map(Number);
   const giorno = new Date(Date.UTC(a, m - 1, g + piu)).toISOString().slice(0, 10);
-  return istanteRoma(giorno, Number(fine[1]), Number(fine[2]));
+  const fineMs = istanteRoma(giorno, Number(fine[1]), Number(fine[2]));
+  // Una fascia che finisce a mezzanotte («22:00–00:00») finisce il giorno dopo: se la fine viene prima
+  // dell'inizio, si aggiunge un giorno di calendario.
+  if (orari.length >= 2) {
+    const inizio = orari[orari.length - 2];
+    if (Number(fine[1]) * 60 + Number(fine[2]) <= Number(inizio[1]) * 60 + Number(inizio[2])) {
+      const [a2, m2, g2] = giorno.split('-').map(Number);
+      return istanteRoma(new Date(Date.UTC(a2, m2 - 1, g2 + 1)).toISOString().slice(0, 10), Number(fine[1]), Number(fine[2]));
+    }
+  }
+  return fineMs;
 }
 
 // ---- i numeri -----------------------------------------------------------------------------------
@@ -172,7 +183,13 @@ const primaVolta = memoria.ultima_firma === undefined;
 const modalitaCambiata = memoria.modalita !== undefined && memoria.modalita !== (VERO ? 'vero' : 'prova');
 const cambiato = primaVolta || modalitaCambiata || memoria.ultima_firma !== firma;
 const primaAccese = new Set((memoria.ultime_accese || []));
-const rientrate = [...primaAccese].filter((id) => !accese.some((s) => s.id === id));
+// Una sentinella accesa prima, la cui tabella adesso non si legge, NON è rientrata: non è misurata.
+// Resta accesa in memoria e non si annuncia (difetto trovato dal collaudo del 25/11).
+const FONTI = { 'payout-fermo': ['ordini'], 'consegne-in-ritardo': ['ordini'], 'ordini-fermi': ['ordini'], 'calo-ordini': ['ordini'],
+  'marketplace-fermo': ['ordini'], carrelli: ['carrelli'], 'recensione-bassa': ['recensioni', 'recensioni_negozi'], 'negozio-fermo': ['negozi', 'ordini'] };
+const nonMisurata = (id) => (FONTI[id] || Object.keys(L)).some((k) => !L[k].ok);
+const sospese = [...primaAccese].filter((id) => !accese.some((s) => s.id === id) && nonMisurata(id));
+const rientrate = [...primaAccese].filter((id) => !accese.some((s) => s.id === id) && !nonMisurata(id));
 const nuove = accese.filter((s) => !primaAccese.has(s.id)).map((s) => s.id);
 
 // ---- il messaggio --------------------------------------------------------------------------------
@@ -189,7 +206,7 @@ if (gap.length && !cieco) righe.push('', '<i>Non misurato:</i>', ...gap.map((g) 
 // Un giro cieco non cancella le sentinelle che erano accese: il confronto resta onesto.
 memoria.ultima_firma = firma;
 memoria.modalita = VERO ? 'vero' : 'prova';
-if (!cieco) memoria.ultime_accese = accese.map((s) => s.id);
+if (!cieco) memoria.ultime_accese = [...accese.map((s) => s.id), ...sospese];
 const ultimaBassa = basse.map((r) => r.created_at).sort().pop();
 if (recOk) memoria.ultima_recensione_bassa_vista = ultimaBassa && (!vista || quando(ultimaBassa) > quando(vista)) ? ultimaBassa : (vista || new Date(ADESSO).toISOString());
 memoria.ultimo_giro = new Date(ADESSO).toISOString();
