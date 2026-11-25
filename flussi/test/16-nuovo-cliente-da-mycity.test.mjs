@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
 import {
-  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, CODICE_PREPARA_BUSINESS, CODICE_UNISCI_BUSINESS, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
+  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, CODICE_PREPARA_BUSINESS, CODICE_UNISCI_BUSINESS, CODICE_CANALI_SITO, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
 } from '../16-nuovo-cliente-da-mycity/genera.mjs';
 
 const richiesta = (attivita = {}, extra = {}) => [{ json: { headers: {}, body: {
@@ -452,7 +452,7 @@ test("con «Chiedi all'AD» il 16 chiede l'analisi del business fra la ricerca e
   assert.equal(w.nodes.filter((n) => /business/.test(n.name)).some((n) => JSON.stringify(n.parameters).includes('api.anthropic.com')), false);
   assert.equal(w.nodes.find((n) => n.name === "Chiedi all'AD: analisi del business").parameters.workflowId.value, 'id-chiedi');
   assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
-  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito']);
+  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito', "Prepara l'analisi dei social per il sito"]);
   assert.deepEqual(controlla(w), []);
   // Senza «Chiedi all'AD» il 16 resta com'era: dalla ricerca alle bozze.
   const senza = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
@@ -466,7 +466,7 @@ test("la domanda all'AD tiene i dati fra i tag e chiede una fonte per ogni frase
   assert.equal(json.id, 'x');
   assert.match(json.richiesta.system, /Ogni frase ha la sua fonte/);
   assert.match(json.richiesta.system, /non il marketplace/);
-  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse']);
+  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social']);
   assert.equal(json.richiesta.messages[0].content.includes('<istruzione>'), false);
 });
 
@@ -535,4 +535,164 @@ test("dal secondo collaudo: l'AD può cercare sul web, i voti non sono prezzi, c
   assert.equal(s.mandare, true);
   assert.deepEqual(s.corpo.campi, {});
   assert.equal(s.corpo.analisi.business.clienti.length, 1);
+});
+
+// --- 25/11/2026 sera: il giudizio sul sito di oggi e sui social, per offrire sito e social solo dove valgono di più -------
+// Nicola: «offrire una bozza del sito nell'abbonamento solo dove possiamo offrire valore più grande di quello che offre il
+// sito dell'azienda adesso» e «bisogna inserire anche l'analisi dei social dell'azienda come quella del sito web».
+
+const ID = 'c0b240c0-2a86-4218-9d0f-5154f08ff929';
+const RISPOSTA_COMPLETA = {
+  situazione: [{ testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it/chi-siamo' }],
+  mercato: [], clienti: [], opportunita: [], rischi: [], prime_mosse: [],
+  giudizio_sito: { esiste: 'si', livello: 'pregio', aspetto: 'curato', pagine: 'molte', funzioni: ['prenotazioni', 'piu_lingue', 'teletrasporto', 'prenotazioni'],
+    migliorie: 'Prenotazione dal telefono in due tocchi e il menu del giorno aggiornato da WhatsApp.', nota: 'Foto grandi e professionali, testi in tre lingue.',
+    fonte: 'https://barroma.it', non_trovato: ['quando è stato aggiornato'] },
+  social: {
+    instagram: { stato: 'fatta', fonte: 'https://www.instagram.com/barroma', livello: 'semplice', follower: 1200, post_al_mese: 2, ultimo_post_il: '2026-11-02',
+      video: 'mai', cura: 'fai-da-te', risposte_recensioni: null, osservazioni: ['Foto scattate col telefono, senza testo.', 'Il caffè costa 1,20 euro.'],
+      migliorie: 'Un post a settimana con la colazione del giorno e un breve video.', non_trovato: ['risposte ai commenti'] },
+    facebook: { stato: 'fatta', fonte: 'barroma-facebook', livello: 'medio', follower: 900, osservazioni: ['Pagina ferma.'] },
+    tiktok: { stato: 'non_trovato', fonte: null },
+    google: { stato: 'fatta', fonte: 'https://maps.google.com/?cid=1', livello: 'medio', valutazione: 4.6, recensioni: 210, risposte_recensioni: 'mai',
+      osservazioni: ['Media 4,6 su 5, nessuna risposta del titolare.'], migliorie: 'Rispondere a ogni recensione entro due giorni.' },
+    myspace: { stato: 'fatta', fonte: 'https://myspace.com/x' },
+  },
+};
+const PRIMA_DI_UNIRE = { id: ID, nome: 'Bar Roma', scheda: { analisi: { tipo_di_locale: 'bar' }, sito_ufficiale: 'https://barroma.it' }, richiesta: { model: 'm' } };
+const unisci = async (risposta, prima = PRIMA_DI_UNIRE) => (await eseguiCodice(CODICE_UNISCI_BUSINESS, {
+  input: [{ json: { content: [{ text: JSON.stringify(risposta) }] } }], nodi: { "Prepara l'analisi del business": [{ json: prima }] } }))[0].json;
+
+// Il formato che il sito accetta su POST /api/agenzia/analisi-canali (mycity/lib/agenzia/analisi.ts, AnalisiCanaliInArrivo),
+// scritto qui a mano: canali solo quei quattro, numeri solo quelle cinque voci, fonti https, frasi al massimo 240 caratteri.
+function problemiCanali(corpo) {
+  const p = [];
+  if (corpo.tipo !== 'analisi-canali') p.push('tipo');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(corpo.id_attivita)) p.push('id_attivita');
+  if (Number.isNaN(Date.parse(corpo.fatta_il)) || !/Z$|[+-]\d\d:\d\d$/.test(corpo.fatta_il)) p.push('fatta_il');
+  const nomi = Object.keys(corpo.canali || {});
+  if (!nomi.length) p.push('nessun canale');
+  for (const nome of nomi) {
+    if (!['instagram', 'facebook', 'tiktok', 'google'].includes(nome)) { p.push(`canale ${nome}`); continue; }
+    const c = corpo.canali[nome];
+    if (!['fatta', 'non_trovato', 'privato', 'non_disponibile', 'errore'].includes(c.stato)) p.push(`${nome}.stato`);
+    if (c.fonte != null && !/^https:\/\//.test(c.fonte)) p.push(`${nome}.fonte`);
+    for (const k of Object.keys(c.numeri || {})) if (!['follower', 'post_ultimi_30_giorni', 'ultimo_post_il', 'valutazione', 'recensioni'].includes(k)) p.push(`${nome}.numeri.${k}`);
+    for (const k of ['osservazioni', 'consigli']) if (c[k] && (c[k].length > 6 || c[k].some((v) => typeof v !== 'string' || v.length > 240))) p.push(`${nome}.${k}`);
+  }
+  return p;
+}
+
+test("la domanda all'AD chiede anche il giudizio sul sito di oggi e sui social, con le fonti e senza inventare", async () => {
+  const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  const schema = json.richiesta.output_config.format.schema;
+  assert.ok(schema.required.includes('giudizio_sito'));
+  assert.ok(schema.required.includes('social'));
+  const gs = schema.properties.giudizio_sito.properties;
+  for (const k of ['livello', 'aspetto', 'pagine', 'funzioni', 'migliorie', 'fonte']) assert.ok(gs[k], `giudizio_sito.${k}`);
+  assert.deepEqual(gs.livello.enum.filter(Boolean), ['semplice', 'medio', 'pregio']);
+  const so = schema.properties.social.properties;
+  assert.deepEqual(Object.keys(so).sort(), ['facebook', 'google', 'instagram', 'tiktok']);
+  for (const k of ['stato', 'fonte', 'livello', 'post_al_mese', 'video', 'cura', 'risposte_recensioni', 'migliorie']) assert.ok(so.instagram.properties[k], `social.instagram.${k}`);
+  assert.match(json.richiesta.system, /non si trova/i);
+  assert.match(json.richiesta.system, /Premium/);
+});
+
+test("il giudizio sul sito va nella scheda (analisi.giudizio_sito), ripulito: fuori elenco = non detto, senza fonte = niente", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  assert.deepEqual(u.scheda.analisi.giudizio_sito, { esiste: 'si', livello: 'pregio', aspetto: 'curato', pagine: 'molte', funzioni: ['prenotazioni', 'piu_lingue'],
+    migliorie: 'Prenotazione dal telefono in due tocchi e il menu del giorno aggiornato da WhatsApp.', nota: 'Foto grandi e professionali, testi in tre lingue.',
+    fonte: 'https://barroma.it', non_trovato: ['quando è stato aggiornato'] });
+  assert.equal(u.scheda.analisi.tipo_di_locale, 'bar', 'il resto della scheda resta');
+  // Senza una fonte https il giudizio non si tiene: il sito lo tratterà come «non guardato» (vale medio).
+  const senzaFonte = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { ...RISPOSTA_COMPLETA.giudizio_sito, fonte: 'barroma.it' } });
+  assert.equal(senzaFonte.scheda.analisi.giudizio_sito, undefined);
+  // Valori fuori elenco diventano null, una miglioria con un prezzo si toglie.
+  const strano = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { ...RISPOSTA_COMPLETA.giudizio_sito, livello: 'stellare', aspetto: 'bello', migliorie: 'Rifarlo a 990 euro.' } });
+  assert.equal(strano.scheda.analisi.giudizio_sito.livello, null);
+  assert.equal(strano.scheda.analisi.giudizio_sito.aspetto, null);
+  assert.equal(strano.scheda.analisi.giudizio_sito.migliorie, null);
+  // Nessun sito: si dice, senza fonte (non c'è una pagina da citare). Ma se il locale un sito l'ha dichiarato, l'AD si è sbagliato.
+  const nessuno = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { esiste: 'no' } }, { ...PRIMA_DI_UNIRE, scheda: { analisi: {} } });
+  assert.equal(nessuno.scheda.analisi.giudizio_sito.esiste, 'no');
+  assert.equal(nessuno.scheda.analisi.giudizio_sito.livello, null);
+  const contraddice = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { esiste: 'no' } });
+  assert.equal(contraddice.scheda.analisi.giudizio_sito, undefined);
+});
+
+test("il giudizio sui social esce nel formato che il sito accetta: un canale senza fonte non si tiene, niente prezzi", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  const corpo = { tipo: 'analisi-canali', id_attivita: ID, fatta_il: '2026-11-25T20:00:00.000Z', canali: u.analisi_canali };
+  assert.deepEqual(problemiCanali(corpo), []);
+  const { instagram, facebook, tiktok, google } = u.analisi_canali;
+  assert.equal('myspace' in u.analisi_canali, false);
+  assert.equal(instagram.stato, 'fatta');
+  assert.equal(instagram.fonte, 'https://www.instagram.com/barroma');
+  assert.deepEqual(instagram.numeri, { follower: 1200, post_ultimi_30_giorni: 2, ultimo_post_il: '2026-11-02' });
+  assert.deepEqual(instagram.osservazioni, ['Foto scattate col telefono, senza testo.'], 'la frase col prezzo si toglie');
+  assert.deepEqual(instagram.consigli, ['Un post a settimana con la colazione del giorno e un breve video.']);
+  assert.deepEqual(instagram.giudizio, { livello: 'semplice', post_al_mese: 2, video: 'mai', cura: 'fai-da-te', risposte_recensioni: null,
+    migliorie: 'Un post a settimana con la colazione del giorno e un breve video.', non_trovato: ['risposte ai commenti'] });
+  assert.equal(facebook.stato, 'non_disponibile', 'letto senza una fonte https: non si tiene');
+  assert.equal(facebook.numeri, undefined);
+  assert.deepEqual(tiktok, { stato: 'non_trovato', fonte: null });
+  assert.deepEqual(google.numeri, { valutazione: 4.6, recensioni: 210 });
+  assert.equal(google.giudizio.risposte_recensioni, 'mai');
+  assert.deepEqual(google.osservazioni, ['Media 4,6 su 5, nessuna risposta del titolare.'], 'un voto non è un prezzo');
+  // Se l'AD non ha risposto sui social, non si manda niente (non sappiamo, non diciamo «non trovato»).
+  const senza = await unisci({ ...RISPOSTA_COMPLETA, social: undefined });
+  assert.equal(senza.analisi_canali, null);
+});
+
+test("la scheda al sito porta il giudizio sul sito, anche quando la ricerca si è fermata", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero') });
+  assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio');
+  const [{ json: fermata }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', { ok: false }) });
+  assert.equal(fermata.mandare, true);
+  assert.equal(fermata.corpo.analisi.giudizio_sito.livello, 'pregio');
+  const [{ json: senza }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA('vero') });
+  assert.equal(senza.corpo.analisi.giudizio_sito, undefined);
+});
+
+test("i social vanno al sito con la porta analisi-canali: mai in prova, solo con un id valido e un'analisi vera", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  const [{ json }] = await eseguiCodice(CODICE_CANALI_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero') });
+  assert.equal(json.mandare, true);
+  assert.deepEqual(problemiCanali(json.corpo), []);
+  assert.equal(json.corpo.id_attivita, ID);
+  assert.equal(json.corpo.origine, 'n8n-16');
+  assert.equal(json.corpo.canali.instagram.letto_il, json.corpo.fatta_il);
+  for (const [modalita, entrata, nodi, motivo] of [
+    ['prova', u, {}, /prova/],
+    ['vero', { ...u, analisi_canali: null }, {}, /social/],
+    ['vero', u, { 'Modulo nuovo cliente': [{ json: { id_mycity: 'attivita-1', nome_locale: 'X' } }] }, /id/],
+  ]) {
+    const [{ json: j }] = await eseguiCodice(CODICE_CANALI_SITO, { input: [{ json: entrata }], nodi: { ...NODI_SCHEDA(modalita), ...nodi } });
+    assert.equal(j.mandare, false);
+    assert.match(j.motivo, motivo);
+  }
+});
+
+test("con --sito e «Chiedi all'AD» il 16 manda i social alla porta analisi-canali, accanto alla scheda; se il sito non li prende avvisa", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi', sito: 'https://mycity.example', credenzialeSito: { id: 'cs', name: 'MyCity - Segreto scheda cliente' }, modalita: 'vero' });
+  assert.deepEqual(controlla(w), []);
+  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node),
+    ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito', "Prepara l'analisi dei social per il sito"]);
+  const manda = w.nodes.find((n) => n.name === 'Manda i social al sito');
+  assert.equal(manda.parameters.method, 'POST');
+  assert.match(manda.parameters.url, /MYCITY_SITO \}\}\/api\/agenzia\/analisi-canali$/);
+  assert.equal(manda.credentials.httpHeaderAuth.id, 'cs');
+  assert.equal(manda.onError, 'continueRegularOutput');
+  assert.deepEqual(w.connections['Il sito ha preso i social?'].main[1].map((v) => v.node), ['Avvisa: social non arrivati al sito']);
+  const avviso = w.nodes.find((n) => n.name === 'Avvisa: social non arrivati al sito').parameters.text.match(/^=\{\{ ([\s\S]*) \}\}$/)[1];
+  const testo = new Function('$', '$json', `return (${avviso});`)(() => ({ first: () => ({ json: { nome_locale: 'Bar <X>' } }) }), { statusCode: 400 });
+  assert.match(testo, /Bar &lt;X&gt;/);
+  // Senza «Chiedi all'AD» non c'è giudizio sui social: niente nodi.
+  assert.equal(conSito().nodes.some((n) => /social/.test(n.name)), false);
+  // Il controllo vede la credenziale mancante.
+  const rotto = structuredClone(w);
+  rotto.nodes.find((n) => n.name === 'Manda i social al sito').credentials.httpHeaderAuth.id = 'DA_IMPOSTARE';
+  assert.match(controlla(rotto).join('\n'), /social al sito non ha la credenziale/);
 });
