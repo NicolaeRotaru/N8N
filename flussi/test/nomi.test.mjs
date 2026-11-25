@@ -37,3 +37,8 @@ test('ogni nome nuovo ha un numero diverso, e nessun nome vecchio è il nome nuo
   for (const vecchi of Object.values(NOMI_VECCHI)) for (const v of vecchi) assert.ok(!nuovi.has(v), v);
   assert.deepEqual(nomiDi(NOMI.avvisiErrori), ['99 · Avvisi errori']);
 });
+
+test('il Montatore si trova anche col nome vecchio, senza confondersi col 26', () => {
+  const elenco = [{ id: 'm', name: '16 · Montatore' }, { id: 'n', name: '26 · Nuovo cliente da MyCity' }];
+  assert.equal(trovaFlusso(elenco, NOMI.montatore)?.id, 'm');
+});

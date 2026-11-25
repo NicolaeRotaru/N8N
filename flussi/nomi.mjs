@@ -17,6 +17,7 @@ export const NOMI = {
   analisiMarketplace: '27 · Analisi del marketplace',
   analisiAttivita: "28 · Analisi di un'attività",
   consegnaScheda: "29 · Consegna la scheda scritta dall'AD",
+  montatore: '31 · Montatore',
   chiediAllAd: "90 · Chiedi all'AD",
   avvisiErrori: '99 · Avvisi errori',
 };
@@ -29,6 +30,7 @@ export const NOMI_VECCHI = {
   [NOMI.analisiMarketplace]: ['17 · Analisi del marketplace'],
   [NOMI.analisiAttivita]: ["18 · Analisi di un'attività"],
   [NOMI.consegnaScheda]: ["19 · Consegna la scheda scritta dall'AD"],
+  [NOMI.montatore]: ['16 · Montatore'],
   [NOMI.chiediAllAd]: ["Chiedi all'AD"],
 };
 
