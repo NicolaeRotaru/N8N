@@ -60,7 +60,7 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
 Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.4.0", ffmpeg:true, whisper:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], ritardo_voce:…}, coda:0, memoria_mb:…}`.
 
 **`filtri`** è la prova che l'officina fa da sola all'avvio, in meno di un secondo, con l'FFmpeg di quel server:
-- controlla che ci siano **tutti** i filtri che usa (l'elenco è in `src/autoprova.js`, e una prova lo confronta con le chiamate vere a FFmpeg durante i montaggi delle prove: se il codice ne usa uno nuovo, la prova diventa rossa finché non lo si aggiunge);
+- controlla che ci siano **tutti** i filtri che usa (l'elenco è in `src/autoprova.js`; due prove lo confrontano con i filtri scritti nel codice e con le chiamate vere a FFmpeg durante i montaggi delle prove: se il codice ne usa uno nuovo, diventano rosse finché non lo si aggiunge);
 - fa girare su un secondo sintetico, **con le stesse funzioni del montaggio**, i pezzi che cambiano più facilmente fra una versione e l'altra di FFmpeg: verticale nel 16:9 con lo sfondo sfocato, LUT, colore dello stile, zoom delle foto, riempimento, voce da studio con la sua compensazione, musica sotto la voce, cambi d'inquadratura, neri e immagini ferme.
 
 Sottotitoli (ass), volume finale (loudnorm) e conversione HDR li controlla solo per nome. Se `filtri.ok` è `false`, `errore` dice cosa non va **prima** di montare un video vero. È il primo controllo da fare dopo ogni pubblicazione; la prova completa resta il primo montaggio vero.

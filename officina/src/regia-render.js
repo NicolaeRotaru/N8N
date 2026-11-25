@@ -137,7 +137,11 @@ export async function filtroVoce(stile, cfg) {
   if (stile?.voce !== 'studio') return '';
   ritardoVoce ??= misuraRitardoVoce(cfg);
   const d = await ritardoVoce;
-  if (d === null) return `${VOCE_STUDIO_SENZA_RITARDO},`;
+  if (d === null) {
+    // una misura fallita (FFmpeg occupato, un intoppo) non resta per sempre: il prossimo montaggio riprova
+    ritardoVoce = null;
+    return `${VOCE_STUDIO_SENZA_RITARDO},`;
+  }
   return d > 0 ? `${VOCE_STUDIO},atrim=start_sample=${d},asetpts=PTS-STARTPTS,apad=pad_len=${d},` : `${VOCE_STUDIO},`;
 }
 

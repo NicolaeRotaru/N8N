@@ -107,7 +107,10 @@ test('Coda: un lavoro interno prende il posto pesante, non occupa posti, non cam
   await t1;
   assert.equal(c.durataMediaMs, media, 'la stima dei tempi non cambia');
   // dietro a un lavoro vero aspetta il suo turno; un errore libera il posto e arriva a chi chiama
-  const dietro = c.interno(async () => { throw new Error('rotto'); });
+  let partito = false;
+  const dietro = c.interno(async () => { partito = true; throw new Error('rotto'); });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(partito, false, 'dietro a un lavoro vero aspetta il suo turno');
   b1.libera();
   await assert.rejects(dietro, /rotto/);
   const t2 = await Promise.race([b2.turno().then(() => 'turno'), new Promise((r) => setTimeout(() => r('fermo'), 500))]);

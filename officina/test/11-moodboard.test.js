@@ -14,6 +14,8 @@ import { controllaPiano } from '../src/piano.js';
 import { STILI, stileDa, filtroVoce, misuraRitardoVoce, VOCE_STUDIO, VOCE_STUDIO_SENZA_RITARDO, grafoInquadratura, modoInquadratura, FORMATI } from '../src/regia-render.js';
 import { leggiConfig } from '../src/config.js';
 import { provaFiltri, FILTRI_RICHIESTI } from '../src/autoprova.js';
+import { filtroZoomFoto, filtroRiempi, filtroColore, catenaAudio, FILTRO_DIFETTI } from '../src/regia-render.js';
+import { filtroScene } from '../src/analisi.js';
 
 const H = { 'x-officina-chiave': CHIAVE, 'content-type': 'application/json' };
 const R = regoleDelloStile(STILI.sdg);
@@ -246,6 +248,19 @@ test('prova dei filtri: girano con le stesse funzioni del montaggio; se ne manca
     fs.writeFileSync(f, `#!/bin/sh\n${corpo}\n`, { mode: 0o755 });
     return f;
   };
+  // il grafo della prova è fatto con le stesse funzioni del montaggio: contiene le loro stringhe esatte
+  const grafoLog = path.join(dati, 'grafo.log');
+  const spia = finto('spia', `dopo=0\nfor a in "$@"; do\n  if [ "$dopo" = 1 ]; then printf '%s' "$a" > '${grafoLog}'; fi\n  if [ "$a" = "-filter_complex" ]; then dopo=1; else dopo=0; fi\ndone\nexec "${FF}" "$@"`);
+  assert.equal((await provaFiltri({ ffmpeg: spia, datiDir: dati })).ok, true);
+  const grafo = fs.readFileSync(grafoLog, 'utf8');
+  const voceMontaggi = await filtroVoce(STILI.sdg, { ffmpeg: FF });
+  const cubo = path.join(dati, 'autoprova', 'identita.cube');
+  const attesi = {
+    verticale: grafoInquadratura({ larghezza: 180, altezza: 320, trasferimento: '' }, { w: 320, h: 180 }, { modo: 'intera', fps: 25, lut: cubo }).replace('[v]', '[g]'),
+    colore: filtroColore(STILI.sdg), riempi: filtroRiempi(25, 25), zoom: filtroZoomFoto(STILI.sdg, { w: 320, h: 180 }, 25),
+    scene: filtroScene(), difetti: FILTRO_DIFETTI, audio: catenaAudio(2, 3, 1, 0.3, voceMontaggi),
+  };
+  for (const [nome, pezzo] of Object.entries(attesi)) assert.ok(grafo.includes(pezzo), `nel grafo della prova manca la stringa del montaggio «${nome}»: ${pezzo}`);
   // un filtro che manca nell'elenco di FFmpeg
   const senzaDeesser = finto('senza-deesser', `if [ "$2" = "-filters" ]; then "${FF}" "$@" | grep -v ' deesser '; exit 0; fi\nexec "${FF}" "$@"`);
   const manca = await provaFiltri({ ffmpeg: senzaDeesser, datiDir: dati });
@@ -269,20 +284,33 @@ test('prova dei filtri: girano con le stesse funzioni del montaggio; se ne manca
   const conChiave = await (await fetch(`${s.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json();
   assert.equal(conChiave.filtri.ok, true, JSON.stringify(conChiave.filtri));
   assert.deepEqual(await (await fetch(`${s.base}/salute`)).json(), { ok: true });
-  // un server con un FFmpeg che rifiuta la voce da studio (misura fallita) e lento sul grafo: /salute senza chiave
-  // non aspetta la prova; con la chiave dice cosa non va
-  const lento = finto('lento-e-senza-voce', `for a in "$@"; do\n  case "$a" in s16le) exit 1;; -filter_complex) sleep 2;; esac\ndone\nexec "${FF}" "$@"`);
+  // un FFmpeg solo lento sul grafo: /salute senza chiave non aspetta la prova, con la chiave sì
+  const lento = finto('lento', `for a in "$@"; do\n  if [ "$a" = "-filter_complex" ]; then sleep 2; fi\ndone\nexec "${FF}" "$@"`);
   const srv = await avviaServer({ FFMPEG_BIN: lento });
   try {
     const t0 = Date.now();
     assert.deepEqual(await (await fetch(`${srv.base}/salute`)).json(), { ok: true });
     assert.ok(Date.now() - t0 < 1500, `senza chiave /salute ha aspettato ${Date.now() - t0} ms`);
     const f = (await (await fetch(`${srv.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json()).filtri;
-    assert.equal(f.ok, false);
-    assert.match(f.errore, /voce da studio non si misura/);
+    assert.ok(Date.now() - t0 >= 1500, 'il finto FFmpeg lento non ha rallentato la prova: il controllo qui sopra non proverebbe niente');
+    assert.equal(f.ok, true, JSON.stringify(f));
   } finally {
     await srv.ferma();
   }
+  // la voce da studio che non si misura non nasconde un filtro rotto: l'errore li dice tutti e due
+  const dueGuasti = finto('voce-e-zoom', `dopo=0\nfor a in "$@"; do\n  if [ "$a" = "s16le" ]; then exit 1; fi\n  if [ "$dopo" = 1 ]; then case "$a" in *zoompan=*) echo "No such filter: 'zoompan'" >&2; exit 1;; esac; fi\n  if [ "$a" = "-filter_complex" ]; then dopo=1; else dopo=0; fi\ndone\nexec "${FF}" "$@"`);
+  const srv2 = await avviaServer({ FFMPEG_BIN: dueGuasti });
+  try {
+    const f = (await (await fetch(`${srv2.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json()).filtri;
+    assert.equal(f.ok, false);
+    assert.match(f.errore, /voce da studio non si misura.*non girano: .*zoompan/);
+  } finally {
+    await srv2.ferma();
+  }
+  // una misura della voce fallita una volta non resta per sempre: il montaggio dopo riprova (processo nuovo, cache vuota)
+  const muto = finto('muto', `for a in "$@"; do\n  if [ "$a" = "s16le" ]; then exit 1; fi\ndone\nexec "${FF}" "$@"`);
+  const dopo = execFileSync(process.execPath, ['--input-type=module', '-e', `import { filtroVoce, STILI } from ${JSON.stringify(path.resolve('src/regia-render.js'))}; const a = await filtroVoce(STILI.sdg, { ffmpeg: ${JSON.stringify(muto)} }); const b = await filtroVoce(STILI.sdg, { ffmpeg: 'ffmpeg' }); console.log(JSON.stringify([a.includes('afftdn'), b.includes('afftdn') && b.includes('start_sample=')]));`]).toString().trim();
+  assert.equal(dopo, '[false,true]', 'dopo un intoppo la voce torna da studio');
   const senzaFfmpeg = await avviaServer({ FFMPEG_BIN: path.join(dati, 'non-esiste') });
   try {
     const f = (await (await fetch(`${senzaFfmpeg.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json()).filtri;
@@ -290,6 +318,18 @@ test('prova dei filtri: girano con le stesse funzioni del montaggio; se ne manca
   } finally {
     await senzaFfmpeg.ferma();
   }
+  fs.rmSync(dati, { recursive: true, force: true });
+});
+
+test('l\'elenco dei filtri della prova contiene ogni filtro scritto nel codice (anche sulle strade che le prove non percorrono)', () => {
+  const tutti = String(execFileSync('ffmpeg', ['-hide_banner', '-filters'])).split('\n').map((r) => r.trim().split(/\s+/)[1]).filter((n) => /^[a-z][a-z0-9_]*$/.test(n || ''));
+  const dir = path.resolve('src');
+  const codice = fs.readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+  // un filtro in un grafo: dopo un apice, una virgola, un punto e virgola o un'etichetta, e prima di «=», «,», «;», «[» o della fine
+  const scritti = tutti.filter((n) => new RegExp(`[\`'",;\\]]${n}(?=[=,;\\[\`])`).test(codice) || new RegExp(`[,;\\]]${n}(?![a-z0-9_])`).test(codice));
+  assert.ok(scritti.length > 35, `la ricerca ne trova troppo pochi: ${scritti.length}`);
+  for (const n of ['scdet', 'zscale', 'tonemap', 'fade', 'pad', 'silencedetect', 'noise', 'ass', 'loudnorm']) assert.ok(scritti.includes(n), `la ricerca non vede ${n}`);
+  assert.deepEqual(scritti.filter((n) => !FILTRI_RICHIESTI.includes(n)), [], 'filtri scritti nel codice ma non nell\'elenco della prova: aggiungili a FILTRI_RICHIESTI in src/autoprova.js');
 });
 
 test('rallenty vero: una clip a 50 fotogrammi senza voce entra rallentata (doppia durata, 25 fotogrammi); con «rallenta: no» resta com\'è', async () => {
@@ -480,14 +520,15 @@ test('l\'elenco dei filtri della prova contiene ogni filtro che il server ha chi
   const leggiGrafo = (g) => {
     const pulito = g.replace(/\\,/g, ' ').replace(/'[^']*'/g, "''");
     for (const pezzo of pulito.split(/[;,]/)) {
-      const nome = pezzo.trim().replace(/^(\[[^\]]*\])+/, '').split('=')[0].replace(/(\[[^\]]*\])+$/, '').trim();
+      const nome = pezzo.trim().replace(/^(\[[^\]]*\])+/, '').split('=')[0].replace(/(\[[^\]]*\])+$/, '').replace(/@.*$/, '').trim();
       if (/^[a-z][a-z0-9_]*$/.test(nome)) nomi.add(nome);
     }
   };
   for (const a of chiamate) {
     a.forEach((x, i) => {
-      if (['-filter_complex', '-vf', '-af', '-lavfi'].includes(x)) leggiGrafo(a[i + 1] || '');
-      if (x === '-i' && a[i - 2] === '-f' && a[i - 1] === 'lavfi') leggiGrafo(a[i + 1] || '');
+      if (['-filter_complex', '-vf', '-af', '-lavfi', '-filter:v', '-filter:a'].includes(x)) leggiGrafo(a[i + 1] || '');
+      // una sorgente sintetica: «-f lavfi» poco prima di «-i» (anche con «-t 3» in mezzo)
+      if (x === '-i' && a.slice(Math.max(0, i - 6), i).join('\x00').includes('-f\x00lavfi')) leggiGrafo(a[i + 1] || '');
     });
   }
   assert.ok(chiamate.length > 50 && nomi.size > 25, `il registro è troppo povero: ${chiamate.length} chiamate, ${nomi.size} filtri`);

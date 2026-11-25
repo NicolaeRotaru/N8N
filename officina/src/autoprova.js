@@ -60,11 +60,9 @@ export async function provaFiltri(cfg) {
   // la voce da studio è quella dei montaggi (stessa misura del ritardo, una volta per processo)
   const s = STILI.sdg;
   const voce = await filtroVoce(s, cfg);
-  if (voce === `${VOCE_STUDIO_SENZA_RITARDO},`) {
-    esito.errore = 'la voce da studio non si misura: i montaggi la puliscono senza il filtro del soffio';
-    return esito;
-  }
-  esito.ritardo_voce = Number((/start_sample=(\d+)/.exec(voce) || [0, 0])[1]);
+  const senzaVoce = voce === `${VOCE_STUDIO_SENZA_RITARDO},`;
+  const erroreVoce = 'la voce da studio non si misura: i montaggi la puliscono senza il filtro del soffio';
+  if (!senzaVoce) esito.ritardo_voce = Number((/start_sample=(\d+)/.exec(voce) || [0, 0])[1]);
   const fmt = { w: 320, h: 180 };
   const verticale = grafoInquadratura({ larghezza: 180, altezza: 320, trasferimento: '' }, fmt, { modo: 'intera', fps: s.fps, lut: cubo }).replace('[v]', '[g]');
   const grafo = [
@@ -82,7 +80,11 @@ export async function provaFiltri(cfg) {
       '-f', 'lavfi', '-i', 'anoisesrc=d=1:a=0.1:r=48000',
       '-filter_complex', grafo, '-map', '[v]', '-map', '[mix]', '-f', 'null', '-'], { timeoutMs: 60_000 });
   } catch (e) {
-    esito.errore = `i filtri del montaggio non girano: ${ultimeRighe(e)}`;
+    esito.errore = (senzaVoce ? `${erroreVoce}; e ` : '') + `i filtri del montaggio non girano: ${ultimeRighe(e)}`;
+    return esito;
+  }
+  if (senzaVoce) {
+    esito.errore = erroreVoce;
     return esito;
   }
   esito.ok = true;
