@@ -98,14 +98,47 @@ export const STILI = {
 const f3 = (n) => Number(n).toFixed(3);
 const RE_HEX = /^#[0-9a-fA-F]{6}$/;
 
-// Catena della voce «studio» (registrazioni da telefono e da camera): taglio ripido sotto 80 Hz, 24 dB per ottava (rimbombo, vento, colpi sul
-// microfono), riduzione del rumore che segue il fondo, compressione dolce (le frasi sussurrate e quelle forti si
-// avvicinano), de-esser. Il volume finale lo decide dopo il loudnorm a -14 LUFS.
-// La riduzione del rumore ritarda il suono di 1200 campioni (25 ms a 48 kHz, misurati): senza compenso la voce arriverebbe
-// dopo le labbra. Si tolgono all'inizio e si rimettono in fondo, così la durata resta la stessa.
-export const VOCE_STUDIO = 'highpass=f=80,highpass=f=80,afftdn=nr=12:nf=-42:tn=1,acompressor=threshold=0.1:ratio=2.5:attack=8:release=150:makeup=1.5,deesser=i=0.3,atrim=start_sample=1200,asetpts=PTS-STARTPTS,apad=pad_len=1200';
-export function filtroVoce(stile) {
-  return stile?.voce === 'studio' ? `${VOCE_STUDIO},` : '';
+// Catena della voce «studio» (registrazioni da telefono e da camera): taglio ripido sotto 80 Hz, 24 dB per ottava
+// (rimbombo, vento, colpi sul microfono), riduzione del rumore che segue il fondo, compressione dolce (le frasi sussurrate
+// e quelle forti si avvicinano), de-esser. Il volume finale lo decide dopo il loudnorm a -14 LUFS.
+export const VOCE_STUDIO = 'highpass=f=80,highpass=f=80,afftdn=nr=12:nf=-42:tn=1,acompressor=threshold=0.1:ratio=2.5:attack=8:release=150:makeup=1.5,deesser=i=0.3';
+// La stessa senza la riduzione del rumore (che è l'unico filtro che ritarda il suono): si usa se la misura non riesce.
+export const VOCE_STUDIO_SENZA_RITARDO = 'highpass=f=80,highpass=f=80,acompressor=threshold=0.1:ratio=2.5:attack=8:release=150:makeup=1.5,deesser=i=0.3';
+const COLPO = "aevalsrc='if(between(t\\,1\\,1.002)\\,0.9\\,0)+0.3*sin(2*PI*1000*t)*between(t\\,0.5\\,3)':s=48000:d=4";
+
+// Di quanti campioni (a 48 kHz) la catena ritarda la voce, misurato con l'FFmpeg di questo server: un colpo secco
+// passa con e senza la catena, e si guarda dove cade il picco. Con FFmpeg 6.1 sono 1200 (25 ms), ma il valore dipende
+// dalla versione: per questo si misura invece di scriverlo. null se la misura non riesce.
+export async function misuraRitardoVoce(cfg, catena = VOCE_STUDIO) {
+  const campioni = async (filtro) => {
+    const { stdout } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-v', 'error', '-f', 'lavfi', '-i', COLPO, '-af', `${filtro}aformat=sample_fmts=s16:channel_layouts=mono`, '-f', 's16le', '-'], { timeoutMs: 60_000 });
+    return new Int16Array(stdout.buffer, stdout.byteOffset, Math.floor(stdout.length / 2));
+  };
+  const picco = (x) => {
+    let m = 46000;
+    for (let i = 46000; i < Math.min(x.length, 62000); i++) if (Math.abs(x[i]) > Math.abs(x[m])) m = i;
+    return m;
+  };
+  try {
+    const prima = await campioni('');
+    const dopo = await campioni(`${catena},`);
+    if (prima.length < 60000 || dopo.length !== prima.length) return null;
+    const d = picco(dopo) - picco(prima);
+    return d >= -48 && d <= 9600 ? Math.max(0, d) : null;
+  } catch {
+    return null;
+  }
+}
+
+let ritardoVoce = null;
+// Il filtro della voce dello stile, con il ritardo compensato (togliendo all'inizio quello che la catena ritarda e
+// rimettendolo in fondo: la voce resta sulle labbra e la durata non cambia). La misura si fa una volta per processo.
+export async function filtroVoce(stile, cfg) {
+  if (stile?.voce !== 'studio') return '';
+  ritardoVoce ??= misuraRitardoVoce(cfg);
+  const d = await ritardoVoce;
+  if (d === null) return `${VOCE_STUDIO_SENZA_RITARDO},`;
+  return d > 0 ? `${VOCE_STUDIO},atrim=start_sample=${d},asetpts=PTS-STARTPTS,apad=pad_len=${d},` : `${VOCE_STUDIO},`;
 }
 
 // Luminanza relativa (0 nero, 1 bianco) di un colore #RRGGBB.
@@ -505,9 +538,10 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   }
   grafoV += `;[${ultimo}]format=yuv420p[v]`;
   const ingressiMisura = ['-i', 'voce.wav', ...(iMusica !== null ? ['-stream_loop', '-1', '-i', musica] : [])];
-  const misura = await misuraVolume(ingressiMisura, catenaAudio(0, iMusica !== null ? 1 : null, tl.durata, tl.musica?.volume ?? 0.3, filtroVoce(stile)), cfg, segnale, dirTmp);
+  const voce = await filtroVoce(stile, cfg);
+  const misura = await misuraVolume(ingressiMisura, catenaAudio(0, iMusica !== null ? 1 : null, tl.durata, tl.musica?.volume ?? 0.3, voce), cfg, segnale, dirTmp);
   if (!misura) avvisi.push(AVVISO_MUTO);
-  const grafoA = `${catenaAudio(1, iMusica, tl.durata, tl.musica?.volume ?? 0.3, filtroVoce(stile))};[mix]${filtroLoudnorm(misura)}[a]`;
+  const grafoA = `${catenaAudio(1, iMusica, tl.durata, tl.musica?.volume ?? 0.3, voce)};[mix]${filtroLoudnorm(misura)}[a]`;
   const finale = path.join(dirOut, 'video.mp4');
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, ...ingressi, '-filter_threads', t, '-filter_complex_threads', t,
     '-filter_complex', `${grafoV};${grafoA}`, '-map', '[v]', '-map', '[a]', ...CODIFICA_FINALE(t, FPS), '-t', f3(tl.durata), finale], { segnale, timeoutMs: cfg.timeoutProcessoMs, cwd: dirTmp });

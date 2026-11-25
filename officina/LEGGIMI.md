@@ -415,7 +415,8 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 - `afftdn`: riduce il rumore di fondo, seguendolo nel tempo;
 - `acompressor` dolce: le frasi sussurrate e quelle forti si avvicinano;
 - `deesser`: le «s» meno taglienti.
-- La riduzione del rumore ritarda il suono di 1200 campioni (25 ms a 48 kHz, misurati): si compensano togliendoli all'inizio e rimettendoli in fondo, così la voce resta sulle labbra e la durata non cambia.
+- La riduzione del rumore ritarda il suono: con FFmpeg 6.1 sono 1200 campioni, cioè 25 ms a 48 kHz, ma il valore cambia con la versione. Per questo l'officina lo **misura da sola** al primo montaggio (`misuraRitardoVoce`: un colpo secco passa con e senza la catena) e lo compensa. Toglie quei campioni all'inizio e li rimette in fondo: la voce resta sulle labbra e la durata non cambia.
+  - Se la misura non riesce, usa la catena senza la riduzione del rumore (`VOCE_STUDIO_SENZA_RITARDO`), che non ritarda.
 
 **Rallenty** (`src/rallenty.js`). Una clip a 47 fotogrammi o più si «conforma» quando entra nel progetto. Ogni fotogramma girato diventa un fotogramma a 25: una clip a 50 dura il doppio. Il limite è 4 volte, quindi una clip a 240 si rallenta 4 volte.
 - Il file conformato prende il posto dell'originale (`V03-rallenty.mp4`, senza audio, lato lungo al massimo 1920). Scene e durata si allungano dello stesso fattore. Arriva l'avviso `rallenty`.

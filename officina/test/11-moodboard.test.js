@@ -11,7 +11,7 @@ import { decidiRallenty, scalaMateriale, fpsDa, modoRallenty } from '../src/rall
 import { controllaCube, nomeLut, filtroLut } from '../src/lut.js';
 import { controllaRegia, regoleDelloStile } from '../src/regia.js';
 import { controllaPiano } from '../src/piano.js';
-import { STILI, stileDa, filtroVoce, VOCE_STUDIO, grafoInquadratura, modoInquadratura, FORMATI } from '../src/regia-render.js';
+import { STILI, stileDa, filtroVoce, misuraRitardoVoce, VOCE_STUDIO, VOCE_STUDIO_SENZA_RITARDO, grafoInquadratura, modoInquadratura, FORMATI } from '../src/regia-render.js';
 import { leggiConfig } from '../src/config.js';
 
 const H = { 'x-officina-chiave': CHIAVE, 'content-type': 'application/json' };
@@ -127,7 +127,7 @@ test('piano del mese con la regia: il reel si controlla con la regia, le ripetiz
   assert.ok(r3.problemi.some((p) => p.codice === 'regia_non_valida'), JSON.stringify(r3.problemi));
 });
 
-test('identità dal Config, voce da studio, volto verticale nel formato orizzontale', () => {
+test('identità dal Config, voce da studio, volto verticale nel formato orizzontale', async () => {
   const id = stileDa('sdg', null, { fondo: '#1E1C1A', testo: '#FAF7F2', accento: '#C9A227', font_titoli: 'Playfair Display', font_testo: 'rotto<script>' });
   assert.deepEqual(id.colori, { fondo: '#1E1C1A', testo: '#FAF7F2', accento: '#C9A227' });
   assert.deepEqual([id.font_titoli, id.font_testo], ['Playfair Display', 'Poppins'], 'un nome di font non valido si ignora');
@@ -135,8 +135,11 @@ test('identità dal Config, voce da studio, volto verticale nel formato orizzont
   assert.equal(stileDa('sdg', null, { fondo: 'nero' }).colori.fondo, '#2C2A27');
   assert.equal(stileDa('virale', null, { accento: '#C9A227', font_titoli: 'Playfair Display' }).colori.accento, '#D2FF3A', 'l\'identità di Scatti di G non tocca lo stile virale');
   assert.equal(stileDa('pulito', null, { fondo: '#1E1C1A' }).colori.fondo, '#111111');
-  assert.equal(filtroVoce(stileDa('sdg')), `${VOCE_STUDIO},`);
-  assert.equal(filtroVoce(stileDa('virale')), '');
+  assert.match(await filtroVoce(stileDa('sdg'), { ffmpeg: 'ffmpeg' }), new RegExp(`^${VOCE_STUDIO.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')},atrim=start_sample=\\d+,asetpts=PTS-STARTPTS,apad=pad_len=\\d+,$`));
+  assert.equal(await filtroVoce(stileDa('virale'), { ffmpeg: 'ffmpeg' }), '');
+  // se la misura del ritardo non riesce (FFmpeg diverso, filtro che manca) la catena resta, senza il filtro che ritarda
+  assert.equal(await misuraRitardoVoce({ ffmpeg: '/non/esiste/ffmpeg' }), null);
+  assert.doesNotMatch(VOCE_STUDIO_SENZA_RITARDO, /afftdn/);
   const vert = { larghezza: 1080, altezza: 1920, trasferimento: '' };
   const oriz = { larghezza: 1920, altezza: 1080, trasferimento: '' };
   const sdg = stileDa('sdg');
@@ -149,7 +152,9 @@ test('identità dal Config, voce da studio, volto verticale nel formato orizzont
   assert.match(grafoInquadratura(oriz, FORMATI.verticale, { modo: 'riempi' }), /\(ih-oh\)\/2/);
 });
 
-test('voce da studio: toglie il ronzio sotto 80 Hz, non ritarda la voce, non cambia la durata', () => {
+test('voce da studio: toglie il ronzio sotto 80 Hz, non ritarda la voce, non cambia la durata', async () => {
+  // il filtro vero che usa il montaggio, con il ritardo misurato sull'FFmpeg di questa macchina
+  const voce = await filtroVoce(stileDa('sdg'), { ffmpeg: 'ffmpeg' });
   const dir = path.join(TMP, 'voce-studio');
   fs.mkdirSync(dir, { recursive: true });
   const ingresso = path.join(dir, 'ingresso.wav');
@@ -163,12 +168,12 @@ test('voce da studio: toglie il ronzio sotto 80 Hz, non ritarda la voce, non cam
     return new Int16Array(b.buffer, b.byteOffset, b.length / 2);
   };
   const prima = campioni('');
-  const dopo = campioni(`${VOCE_STUDIO},`);
+  const dopo = campioni(voce);
   assert.equal(dopo.length, prima.length, 'stessa durata');
   const picco = (x) => { let m = 47000; for (let i = 47000; i < 50000; i++) if (Math.abs(x[i]) > Math.abs(x[m])) m = i; return m; };
   assert.ok(Math.abs(picco(dopo) - picco(prima)) <= 48, `la voce si sposta di ${(picco(dopo) - picco(prima)) / 48} ms (massimo 1)`);
   const ronzioPrima = Number(/mean_volume: (-?[\d.]+) dB/.exec(execFileSync('sh', ['-c', `ffmpeg -hide_banner -nostats -i "${ingresso}" -af "bandpass=f=40:width_type=h:w=12,volumedetect" -f null - 2>&1`]).toString())[1]);
-  const ronzioDopo = Number(/mean_volume: (-?[\d.]+) dB/.exec(execFileSync('sh', ['-c', `ffmpeg -hide_banner -nostats -i "${ingresso}" -af "aformat=sample_rates=48000,${VOCE_STUDIO},bandpass=f=40:width_type=h:w=12,volumedetect" -f null - 2>&1`]).toString())[1]);
+  const ronzioDopo = Number(/mean_volume: (-?[\d.]+) dB/.exec(execFileSync('sh', ['-c', `ffmpeg -hide_banner -nostats -i "${ingresso}" -af "aformat=sample_rates=48000,${voce}bandpass=f=40:width_type=h:w=12,volumedetect" -f null - 2>&1`]).toString())[1]);
   assert.ok(ronzioPrima - ronzioDopo >= 12, `il ronzio a 40 Hz scende solo di ${(ronzioPrima - ronzioDopo).toFixed(1)} dB`);
 });
 
