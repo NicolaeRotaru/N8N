@@ -6,7 +6,7 @@ const x = $input.first().json || {};
 const c = (L.monta || {}).contenuto || {};
 const nome = h((G.cliente || {}).nome_locale) + ' · ' + h(c.titolo);
 const v = (Number(J.versione) || 1) + 1;
-if (x.error || !x.ok) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco non montato</b> · ' + nome + '\n' + h(accorcia(testo(x.motivo || (x.error && (x.error.message || x.error))) || 'errore sconosciuto', 400)) + '\nLa versione di prima resta su Drive.' } }];
+if (x.error || !x.ok) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco non montato</b> · ' + nome + '\n' + h(accorcia(testo(x.motivo || (x.error && (x.error.message || x.error))) || 'errore sconosciuto', 400)) + '\nLa scheda della versione di prima torna qui sotto.' } }];
 return [{ json: {
   ok: true,
   messaggio: '✏️ <b>Rimontato</b> · ' + nome + ' · versione ' + v + '\n' + h(L.cosa || 'Ho applicato la correzione.') + (L.non_posso ? '\n⚠️ ' + h(L.non_posso) : '') + '\nLa scheda nuova arriva qui sotto.',

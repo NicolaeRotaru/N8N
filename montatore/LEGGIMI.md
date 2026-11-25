@@ -55,7 +55,7 @@ Ogni volta che c'è un servizio nuovo:
 1. Su Drive, dentro la cartella del cliente, crea la cartella del servizio con tre sottocartelle: **video verticali**, **video orizzontali**, **foto**. Vanno bene anche nomi simili («Video Verticali», «foto»), e anche file sciolti.
    - Facoltativo: un file **musica.mp3** con licenza, per i reel dove nessuno parla.
    - Le foto HEIC (il formato di serie dell'iPhone) vanno esportate in JPEG.
-2. Apri il modulo e scrivi il cliente e la cartella. Facoltativo: il mese, quanti reel, post e storie, e le note del mese (eventi, promozioni decise dal cliente).
+2. **Con il guardiano acceso (di serie) non serve altro**: dopo 30 minuti senza file nuovi parte da solo. Il modulo serve per scegliere il mese, le quantità o le note del mese (eventi, promozioni decise dal cliente): in quel caso apritelo **prima** che passino i 30 minuti, oppure scrivete «rifai» nelle note. Il segno che un servizio è già partito è la cartella «Pronti (montatore)» dentro il servizio.
 3. Aspetta i messaggi su Telegram e guarda la cartella «Pronti (montatore)».
 
 ## Cosa non ho verificato
@@ -70,7 +70,7 @@ Ogni volta che c'è un servizio nuovo:
 - **Memoria di n8n con file grandi.** I file passano da n8n uno alla volta. Il limite è `MAX_MB_FILE` = 500 MB.
   - Se n8n tiene i file in memoria, un file da 500 MB pesa 500 MB sul server da 4 GB.
   - Se servono file più grandi, prima conviene `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` su n8n.
-- **Spazio sul volume `/dati` dell'officina.** Un servizio intero resta lì fino a 72 ore (o finché il giro non lo chiude). Non so quanto è grande il volume su Sliplane.
+- **Spazio sul volume `/dati` dell'officina.** Un servizio intero resta lì fino a 14 giorni, per i ritocchi dalle schede (con `REVISIONE` = no, finché il giro non lo chiude). Non so quanto è grande il volume su Sliplane.
 - **Un solo livello di sottocartelle.** I file dentro una cartella nella cartella «foto» (per esempio «foto › selezione») non si leggono. Su Drive va bene al massimo una pagina da 1000 file per servizio; oltre arriva l'avviso.
 - **Foto PNG con lo sfondo trasparente:** nel post lo sfondo esce nero. È il comportamento di sempre dell'officina, non l'ho cambiato.
 - **Tempo.** La stima nel modulo è grossolana. La trascrizione di un'ora di girato con whisper sul server da 2 processori può durare 40-50 minuti.
@@ -97,7 +97,7 @@ GIRO
  ├─ per ogni contenuto un'esecuzione «monta»: logo + musica → officina POST /progetto/<id>/monta
  │     → (video) Claude controlla i 6 fotogrammi → file su Drive
  ├─ attivo: righe nel Calendario · sempre: riepilogo su Telegram
- └─ tutto riuscito: officina POST /progetto/<id>/chiudi (altrimenti il progetto scade da solo dopo 72 ore)
+ └─ tutto riuscito: officina POST /progetto/<id>/chiudi (con le schede su Telegram il progetto resta aperto e scade da solo dopo 14 giorni)
 ```
 Un'esecuzione per file e una per contenuto: n8n tiene in memoria un file alla volta e libera la memoria alla fine di ognuna.
 

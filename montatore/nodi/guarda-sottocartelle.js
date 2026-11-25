@@ -6,6 +6,13 @@ $input.all().forEach((x, i) => {
   const s = servizi[i];
   if (!s || !x.json || x.json.error) return;
   const voci = x.json.files || [];
+  // c'è già la cartella «Pronti»: il servizio è già partito (dal modulo o da un giro di prima). Non si riparte.
+  if (voci.some((f) => eCartella(f) && /^pronti/i.test(testo(f.name)))) {
+    const S = $getWorkflowStaticData('global');
+    S.servizi = S.servizi || {};
+    S.servizi[s.servizio_id] = { ...(S.servizi[s.servizio_id] || {}), avviato: new Date().toISOString(), da: 'pronti' };
+    return;
+  }
   const cartelle = voci.filter((f) => eCartella(f) && ruoloCartella(f.name) && !/pronti/i.test(testo(f.name)));
   const diretti = voci.filter((f) => !eCartella(f)).map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, createdTime: f.createdTime }));
   // un servizio è una cartella con le sottocartelle del servizio (video verticali, video orizzontali, foto…): una cartella

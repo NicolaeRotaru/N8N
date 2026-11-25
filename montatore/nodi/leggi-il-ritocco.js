@@ -5,9 +5,9 @@ const G = J.giro || {};
 const c = E.contenuto || {};
 const R = leggiClaude($input.first().json);
 const nome = h((G.cliente || {}).nome_locale) + ' · ' + h(c.titolo);
-if (!R.ok || R.troncata) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco non riuscito</b> · ' + nome + '\nClaude: ' + h(R.ok ? 'risposta troncata' : R.motivo) + '. Il contenuto di prima resta su Drive; potete riprovare dal modulo o sistemarlo a mano.' } }];
+if (!R.ok || R.troncata) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco non riuscito</b> · ' + nome + '\nClaude: ' + h(R.ok ? 'risposta troncata' : R.motivo) + '. La scheda di prima torna qui sotto: approvate quella o scrivete un\'altra correzione.' } }];
 const d = R.dati;
-if (!d.regia || !Array.isArray(d.regia.battute) || !d.regia.battute.length) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco vuoto</b> · ' + nome + '\n' + h(testo(d.non_posso) || 'Claude non ha scritto battute.') } }];
+if (!d.regia || !Array.isArray(d.regia.battute) || !d.regia.battute.length) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco vuoto</b> · ' + nome + '\n' + h(testo(d.non_posso) || 'Claude non ha scritto battute.') + '\nLa scheda di prima torna qui sotto.' } }];
 const nuovo = { ...c, regia: d.regia };
 // giorno e ora nuovi solo se validi e non già passati
 const oggi = partiRoma();

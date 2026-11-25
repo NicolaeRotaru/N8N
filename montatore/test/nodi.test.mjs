@@ -120,22 +120,23 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.match(r.messaggio, /Modalità PROVA/);
   const vuoto = esegui('prepara-il-lavoro.js', { nodi: { Config: CFG_MODULO, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC }, input: [{ files: [] }] })[0].json;
   assert.equal(vuoto.ok, false);
-  // lo stesso servizio non parte due volte: il modulo segna la cartella, il secondo modulo si ferma, «rifai» lo forza;
-  // il guardiano vede la cartella segnata dal modulo e non la rilancia
-  const S = {};
-  const nodiP = (cfg) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC });
-  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiP({}), input: [files], statico: S })[0].json.ok, true);
-  const id = SERVIZIO.servizio.id;
-  assert.equal(S.servizi[id].da, 'modulo');
-  const doppio = esegui('prepara-il-lavoro.js', { nodi: nodiP({}), input: [files], statico: S })[0].json;
+  // lo stesso servizio non parte due volte: il segno è la cartella «Pronti (montatore)» dentro il servizio (su Drive,
+  // uguale per tutte le esecuzioni e senza scadenza). Il modulo la fa creare subito; se c'è già si ferma; «rifai» riparte.
+  const nodiP = (cfg, figli) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC, 'Elenca il servizio': { files: figli } });
+  const senzaPronti = FIGLI.files.filter((f) => !/pronti/i.test(f.name));
+  const nuovo = esegui('prepara-il-lavoro.js', { nodi: nodiP({}, senzaPronti), input: [files] })[0].json;
+  assert.deepEqual(nuovo.pronti, { nome: 'Pronti (montatore) - prova', dentro: SERVIZIO.servizio.id, crea: true });
+  const conPronti = [...senzaPronti, { id: 'idPr', name: 'Pronti (montatore)', mimeType: 'application/vnd.google-apps.folder' }];
+  const doppio = esegui('prepara-il-lavoro.js', { nodi: nodiP({}, conPronti), input: [files] })[0].json;
   assert.equal(doppio.ok, false);
-  assert.match(doppio.messaggio, /è già partito .* dal modulo.*«rifai»/);
-  const rifai = esegui('prepara-il-lavoro.js', { nodi: nodiP({ note: 'rifai, venerdì serata salsa' }), input: [files], statico: S })[0].json;
+  assert.match(doppio.messaggio, /c'è già la cartella «Pronti \(montatore\)»: questo servizio è già partito.*«rifai»/);
+  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiP({ origine: 'cartella' }, conPronti), input: [files] })[0].json.ok, false, 'anche dal guardiano');
+  const rifai = esegui('prepara-il-lavoro.js', { nodi: nodiP({ note: 'rifai, venerdì serata salsa' }, conPronti), input: [files] })[0].json;
   assert.equal(rifai.ok, true);
   assert.equal(rifai.lavoro.note, ', venerdì serata salsa');
-  const servizi = esegui('guarda-servizi.js', { nodi: { 'Guarda: cartelle dei clienti': [{ cliente: 'el-tropico', nome_locale: 'El Tropico Latino', cartella_cliente: 'x', dopo: '' }] }, input: [{ files: [{ id, name: 'Servizio novembre', createdTime: '2026-11-24T10:00:00Z' }] }], statico: S });
-  assert.deepEqual(servizi, [], 'il guardiano non rilancia una cartella partita dal modulo');
-  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiP({ origine: 'cartella' }), input: [files], statico: S })[0].json.ok, true, 'il guardiano passa (si è già controllato da solo)');
+  assert.equal(rifai.pronti.crea, true, 'in prova la cartella «… - prova» non c\'è ancora: si crea');
+  // il nodo che crea subito la cartella è collegato prima della partenza del giro
+  assert.deepEqual(workflow.connections['Prepara la partenza'].main[0].map((x) => x.node), ['Serve la cartella Pronti?', 'Avvia il montaggio']);
 });
 
 test('Domande sul materiale: provini a gruppi, righe del catalogo giuste, prompt e schema', () => {
@@ -274,6 +275,20 @@ test('File da caricare ed Esito del contenuto: nomi leggibili, link Drive, uploa
   assert.deepEqual(vid, ['2026-12-04 1830 · reel · Mojito.mp4', '2026-12-04 1830 · reel · Mojito (copertina).jpg']);
 });
 
+test('Leggi il controllo: un punto segnato da solo non boccia; voto 1-2 sì, e il motivo dice cosa non va', () => {
+  const risp = (d) => ({ content: [{ type: 'text', text: JSON.stringify(d) }], stop_reason: 'end_turn' });
+  const punti = [{ punto: 'immagini', ok: true, nota: 'bella apertura' }, { punto: 'luce', ok: false, nota: 'a 0:12 un po\' scuro' }];
+  const ok = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 4, esito: 'ok', motivo: 'Il punto più forte: le mani nell\'impasto' })] })[0].json;
+  assert.deepEqual([ok.esito, ok.voto], ['ok', 4]);
+  const basso = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 2, esito: 'ok', motivo: 'Il punto più forte: le mani' })] })[0].json;
+  assert.equal(basso.esito, 'da_rivedere');
+  assert.match(basso.motivo, /luce: a 0:12 un po' scuro/);
+  assert.doesNotMatch(basso.motivo, /punto più forte/);
+  const no = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 3, esito: 'da_rivedere', motivo: 'al secondo 0:08 la scritta copre il viso' })] })[0].json;
+  assert.match(no.motivo, /^al secondo 0:08 la scritta copre il viso · luce:/);
+  assert.equal(esegui('leggi-il-controllo.js', { input: [{ error: { message: 'x' } }] })[0].json.esito, 'non_controllato');
+});
+
 test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi una volta sola; parte dopo la quiete', () => {
   const S = {};
   const cfg = { ...CONFIG };
@@ -290,8 +305,13 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
   const sv = esegui('guarda-servizi.js', { nodi: { 'Guarda: cartelle dei clienti': cl }, input: cartelle, statico: S }).map((x) => x.json);
   assert.deepEqual(sv.map((x) => [x.cliente, x.servizio_nome]), [['el-tropico', 'Servizio dicembre'], ['bar-luna', 'Shooting']]);
   // dentro: il primo servizio ha le sottocartelle, il secondo solo file sciolti
+  // un servizio con la cartella «Pronti» dentro è già partito (dal modulo): il guardiano non lo riparte
+  const giaPartito = esegui('guarda-sottocartelle.js', { nodi: { 'Guarda: servizi nuovi': sv.slice(0, 1) }, input: [{ files: [{ id: 'sub1', name: 'video verticali', mimeType: 'application/vnd.google-apps.folder' }, { id: 'pr', name: 'Pronti (montatore) - prova', mimeType: 'application/vnd.google-apps.folder' }] }], statico: S });
+  assert.deepEqual(giaPartito, []);
+  assert.equal(S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.da, 'pronti');
+  delete S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.avviato;
   const dentro = [
-    { files: [{ id: 'sub1', name: 'video verticali', mimeType: 'application/vnd.google-apps.folder' }, { id: 'sub2', name: 'foto', mimeType: 'application/vnd.google-apps.folder' }, { id: 'pr', name: 'Pronti (montatore)', mimeType: 'application/vnd.google-apps.folder' }, { id: 'x1', name: 'musica.mp3', mimeType: 'audio/mpeg', createdTime: '2026-11-24T10:01:00Z' }] },
+    { files: [{ id: 'sub1', name: 'video verticali', mimeType: 'application/vnd.google-apps.folder' }, { id: 'sub2', name: 'foto', mimeType: 'application/vnd.google-apps.folder' }, { id: 'x1', name: 'musica.mp3', mimeType: 'audio/mpeg', createdTime: '2026-11-24T10:01:00Z' }] },
     { files: [{ id: 'y1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: new Date(Date.now() - 5 * 60000).toISOString() }] },
   ];
   const sub = esegui('guarda-sottocartelle.js', { nodi: { 'Guarda: servizi nuovi': sv }, input: dentro }).map((x) => x.json);

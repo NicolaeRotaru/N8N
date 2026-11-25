@@ -360,6 +360,24 @@ collega('Cartella leggibile?', 'Dal modulo?', 1);
 catena('Elenca i file', 'Prepara il lavoro', "C'è materiale?");
 collega("C'è materiale?", 'Prepara la partenza', 0);
 collega("C'è materiale?", 'Dal modulo?', 1);
+// il segno «già partito» si mette subito: la cartella «Pronti (montatore)» nel servizio (il giro poi la usa per i file)
+se('Serve la cartella Pronti?', "!!($('Prepara il lavoro').first().json.pronti && $('Prepara il lavoro').first().json.pronti.crea)", [COL(16), RIGA.modulo - 250]);
+nodo('Crea subito la cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'POST',
+  url: 'https://www.googleapis.com/drive/v3/files',
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id,name' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro] }) }}",
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(17), RIGA.modulo - 350], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+collega('Prepara la partenza', 'Serve la cartella Pronti?');
+collega('Serve la cartella Pronti?', 'Crea subito la cartella Pronti', 0);
 catena('Prepara la partenza', 'Avvia il montaggio', 'Dal modulo (partito)?');
 collega('Dal modulo (partito)?', 'Fine: partito', 0);
 
@@ -662,6 +680,10 @@ se('Scheda nuova?', '$json.ok', [COL(20), V + 50]);
 nodo('Scheda nuova', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// La versione rimontata torna in revisione con una scheda sua.\nreturn [{ json: $('Esito del ritocco').first().json.scheda }];" }, [COL(21), V + 50]);
 seStesso('Manda la scheda nuova', [COL(22), V + 50], false, true);
 telegram('Telegram: niente ritocco', [COL(14), V + 200]);
+telegram('Telegram: ritocco non riuscito', [COL(17), V + 200]);
+// un ritocco che non riesce (Claude o l'officina) non chiude la revisione: torna la scheda della versione di prima
+nodo('Scheda di prima', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// La stessa scheda, di nuovo: si può approvare la versione di prima o scrivere un'altra correzione.\nconst J = $('Config').first().json;\nreturn [{ json: { lavoro: 'rivedi', progetto: J.progetto, versione: J.versione, esito: J.esito, giro: J.giro, ritardo_s: 0 } }];" }, [COL(18), V + 200]);
+seStesso('Rimanda la scheda di prima', [COL(19), V + 200], false, true);
 // Nessuna risposta
 nodo('Nessuna risposta', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// Niente risposta entro il tempo (o Telegram non ha preso la scheda): il contenuto resta su Drive, fuori dal Calendario.\nconst J = $('Config').first().json;\nconst c = (J.esito || {}).contenuto || {};\nconst d = $input.first().json || {};\nconst giorni = Number(J.ATTESA_REVISIONE_GIORNI) || 7;\nconst nome = String(((J.giro || {}).cliente || {}).nome_locale || '') + ' · ' + String(c.titolo || '');\nconst esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nreturn [{ json: { messaggio: d.esito === 'errore' ? '⚠️ <b>Scheda non partita</b> · ' + esc(nome) + '\\nTelegram non l\\'ha accettata (' + esc(String(d.errore || '').slice(0, 200)) + '). Il contenuto è su Drive, non nel Calendario.' : '⏳ <b>Nessuna risposta in ' + giorni + ' giorni</b> · ' + esc(nome) + '\\nIl contenuto resta su Drive, non è nel Calendario.' } }];" }, [COL(11), V + 300]);
 telegram('Telegram: nessuna risposta', [COL(12), V + 300]);
@@ -688,11 +710,13 @@ collega('Ritocco possibile?', 'Claude: ritocca la regia', 0);
 collega('Ritocco possibile?', 'Telegram: niente ritocco', 1);
 catena('Claude: ritocca la regia', 'Leggi il ritocco', 'Ritocco pronto?');
 collega('Ritocco pronto?', 'Da rimontare', 0);
-collega('Ritocco pronto?', 'Telegram: niente ritocco', 1);
+collega('Ritocco pronto?', 'Telegram: ritocco non riuscito', 1);
+catena('Telegram: ritocco non riuscito', 'Scheda di prima', 'Rimanda la scheda di prima');
 catena('Da rimontare', 'Rimonta il contenuto', 'Esito del ritocco');
 collega('Esito del ritocco', 'Telegram: ritocco');
 collega('Esito del ritocco', 'Scheda nuova?');
 collega('Scheda nuova?', 'Scheda nuova', 0);
+collega('Scheda nuova?', 'Scheda di prima', 1);
 catena('Scheda nuova', 'Manda la scheda nuova');
 catena('Nessuna risposta', 'Telegram: nessuna risposta');
 
