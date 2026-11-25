@@ -31,7 +31,9 @@ if (prep.azione === 'memoria') {
 } else {
   const arrivato = $input.first().json || {};
   const corpo = arrivato.body;
-  const daAD = corpo && typeof corpo === 'object' && !Array.isArray(corpo) && typeof corpo.ok === 'boolean';
+  // La risposta dell'AD arriva dal webhook dell'attesa, che non ha statusCode. Se l'attesa scade passa invece l'esito
+  // della partenza (con statusCode): anche se il suo corpo avesse un «ok», non è la risposta dell'AD.
+  const daAD = arrivato.statusCode === undefined && corpo && typeof corpo === 'object' && !Array.isArray(corpo) && typeof corpo.ok === 'boolean';
   if (daAD) {
     risposta = corpo;
   } else if (prep.azione === 'prova') {

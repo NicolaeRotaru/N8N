@@ -122,6 +122,10 @@ test('gli errori: routine non partita, AD che non risponde, AD che dice no', asy
   const partita = { statusCode: 200, body: { type: 'routine_fire', claude_code_session_id: 's' } };
   const [scaduta] = await eseguiCodice(COMPONI, { input: [{ json: partita }], nodi: { 'Prepara il lavoro': [prep], [PARTI]: [{ json: partita }], [ASPETTA]: [{ json: partita }] } });
   assert.match(scaduta.json.errore, /non ha risposto in tempo/);
+  // anche se il corpo della partenza avesse un «ok», dopo un'attesa scaduta non è la risposta dell'AD
+  const conOk = { statusCode: 200, body: { ok: true, risultato: null } };
+  const [finta] = await eseguiCodice(COMPONI, { input: [{ json: conOk }], nodi: { 'Prepara il lavoro': [prep], [PARTI]: [{ json: conOk }], [ASPETTA]: [{ json: conOk }] } });
+  assert.deepEqual([finta.json.ok, /non ha risposto in tempo/.test(finta.json.errore)], [false, true]);
   const [no] = await eseguiCodice(COMPONI, { input: [{ json: { body: { ok: false, flusso: 'x', errore: 'dati mancanti' } } }], nodi: { 'Prepara il lavoro': [prep], [ASPETTA]: [{ json: {} }] } });
   assert.equal(no.json.errore, 'dati mancanti');
 });

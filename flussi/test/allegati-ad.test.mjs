@@ -299,6 +299,8 @@ test('consegna: testo, immagine dal base64, file dell\'officina; scaduto, sconos
   assert.deepEqual((await cosa({ impronta: 'b'.repeat(64), scade: viva, tipo: 'testo', contenuto: 'di un altro' })).json, { azione: '404' }, 'la riga di un altro gettone non esce mai');
   assert.deepEqual((await cosa({ impronta: IMP, scade: viva, tipo: 'testo', contenuto: 'x' }, '')).json, { azione: '404' }, 'impronta cercata vuota');
   assert.deepEqual((await cosa({ impronta: IMP, scade: viva, tipo: 'immagine', mime: 'text/html', contenuto: PNG })).json, { azione: '404' }, 'niente html servito come file');
+  const maiuscolo = await cosa({ impronta: IMP, scade: viva, tipo: 'immagine', mime: 'IMAGE/PNG', contenuto: PNG });
+  assert.deepEqual([maiuscolo.json.azione, maiuscolo.binary.file.mimeType], ['file', 'image/png'], 'il tipo in maiuscolo si legge');
   assert.deepEqual((await cosa({ impronta: IMP, scade: viva, tipo: 'officina', contenuto: '/file/ab/video.mp4' })).json, { azione: '404' }, 'dall\'officina solo immagini');
   assert.deepEqual((await cosa({})).json, { azione: '404' }, 'nessuna riga');
   assert.deepEqual((await cosa({ impronta: IMP, scade: Date.now() - 1, tipo: 'testo', contenuto: 'x' })).json, { azione: '404' }, 'scaduta');
@@ -396,7 +398,10 @@ test('il flusso «Allegati per l\'AD»: solo GET sul percorso fisso, gettone da 
   const conPubblica = structuredClone(w);
   conPubblica.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments[0].value = 'https://officina.example.com';
   assert.ok(controllaAllegati(conPubblica).some((p) => /OFFICINA_URL/.test(p)), 'la chiave non va mai verso un indirizzo pubblico');
-  assert.match(nodo('Il file è arrivato?').parameters.conditions.conditions[0].leftValue, /image\/jpeg.*image\/png.*image\/webp/);
+  const arrivato = nodo('Il file è arrivato?').parameters.conditions.conditions[0].leftValue;
+  const conFile = ($binary, $json = {}) => new Function('$json', '$binary', `return (${arrivato.replace(/^=\{\{\s*/, '').replace(/\s*\}\}$/, '')});`)($json, $binary);
+  assert.deepEqual([conFile({ file: { mimeType: 'image/jpeg' } }), conFile({ file: { mimeType: 'IMAGE/JPEG; charset=binary' } }), conFile({ file: { mimeType: 'text/html' } }), conFile({}), conFile({ file: { mimeType: 'image/png' } }, { error: 'x' })],
+    [true, true, false, false, false]);
   assert.equal(nodo("Cerca l'allegato").alwaysOutputData, true, 'nessuna riga = un elemento vuoto = 404');
   assert.deepEqual([dopo('Ogni ora'), nodo('Cancella gli scaduti').parameters.filters.conditions[0].condition], [['Cancella gli scaduti'], 'lt']);
   assert.deepEqual(nodo('Ogni ora').parameters.rule.interval, [{ field: 'hours', hoursInterval: 1 }]);
