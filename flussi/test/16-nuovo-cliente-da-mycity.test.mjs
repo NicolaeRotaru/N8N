@@ -466,7 +466,8 @@ test("la domanda all'AD tiene i dati fra i tag e chiede una fonte per ogni frase
   assert.equal(json.id, 'x');
   assert.match(json.richiesta.system, /Ogni frase ha la sua fonte/);
   assert.match(json.richiesta.system, /non il marketplace/);
-  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse']);
+  // 25/11/2026 — Anche il giudizio del sito (Nicola, «ok sito»): flussi/test/16-giudizio-sito-e-proposte.test.mjs.
+  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito']);
   assert.equal(json.richiesta.messages[0].content.includes('<istruzione>'), false);
 });
 

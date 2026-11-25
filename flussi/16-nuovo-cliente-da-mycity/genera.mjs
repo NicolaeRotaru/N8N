@@ -202,15 +202,36 @@ const VOCE = { type: 'object', additionalProperties: false, required: ['testo', 
   properties: { testo: { type: 'string', description: 'Una frase, al massimo 30 parole.' },
     fonte: { type: 'string', description: "L'indirizzo https della pagina pubblica da cui viene la frase." } } };
 const lista = (cosa) => ({ type: 'array', maxItems: 3, description: cosa, items: VOCE });
+// 25/11/2026 — Nicola, «ok sito»: le opportunità e le prime mosse si legano a un nostro servizio, con cosa facciamo
+// noi in una frase (il sito ne fa una proposta del preventivo: mycity, lib/agenzia/analisi.ts).
+const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
+const MOSSA = { type: 'object', additionalProperties: false, required: ['testo', 'fonte', 'servizio', 'proposta'],
+  properties: { ...VOCE.properties,
+    servizio: { type: ['string', 'null'], enum: [...SERVIZI, null], description: 'Il nostro servizio che la copre, o null se nessuno.' },
+    proposta: { type: ['string', 'null'], description: 'Cosa facciamo NOI, in una frase da dire al titolare (al massimo 25 parole, senza prezzi), o null.' } } };
+const listaMosse = (cosa) => ({ type: 'array', maxItems: 3, description: cosa, items: MOSSA });
+// Il giudizio del sito che ha già (contratto: mycity, lib/agenzia/offerta-su-misura.ts, leggiGiudizioSito).
+const FUNZIONI = ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti'];
+const nullo = (tipo, enumerato, descrizione) => ({ type: [tipo, 'null'], ...(enumerato ? { enum: [...enumerato, null] } : {}), description: descrizione });
+const GIUDIZIO = { type: 'object', additionalProperties: false, required: ['livello', 'funzioni', 'migliorie', 'aspetto', 'pagine', 'nota'],
+  properties: {
+    livello: nullo('string', ['semplice', 'medio', 'pregio'], 'Il sito di oggi: semplice, medio o pregio. null se non ha un sito o non l’hai aperto.'),
+    funzioni: { type: 'array', items: { type: 'string', enum: FUNZIONI }, description: 'Quello che il sito sa fare già.' },
+    migliorie: nullo('string', null, 'Solo per il pregio: cosa miglioriamo rifacendolo, in una frase senza prezzi. Altrimenti null.'),
+    aspetto: nullo('string', ['curato', 'datato', 'fai-da-te'], 'Com’è a vederlo.'),
+    pagine: nullo('string', ['una', 'poche', 'molte'], 'Quante pagine ha.'),
+    nota: nullo('string', null, 'Una nota breve sul sito, senza prezzi, o null.'),
+  } };
 const SCHEMA = { type: 'object', additionalProperties: false,
-  required: ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'],
+  required: ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito'],
   properties: {
     situazione: lista("Com'è messa oggi l'attività: cosa fa, da quanto, dove, come si presenta in rete."),
     mercato: lista('Il mercato e i concorrenti vicini: chi fa la stessa cosa nella zona, cosa li distingue.'),
     clienti: lista('I clienti e la reputazione: chi sono, cosa dicono le recensioni pubbliche.'),
-    opportunita: lista('Le opportunità che si vedono dalle fonti.'),
+    opportunita: listaMosse('Le opportunità che si vedono dalle fonti.'),
     rischi: lista('I rischi che si vedono dalle fonti.'),
-    prime_mosse: lista('Le prime mosse concrete per far crescere gli incassi, come le diresti a voce, ognuna legata a una fonte.'),
+    prime_mosse: listaMosse('Le prime mosse concrete per far crescere gli incassi, come le diresti a voce, ognuna legata a una fonte.'),
+    giudizio_sito: GIUDIZIO,
   } };
 const SISTEMA = [
   "Sei l'AD digitale di MyCity, il marketplace dei negozi di Piacenza. Analizzi le aziende come analizzi MyCity stessa nel tuo giro: com'è messa, il mercato e i concorrenti vicini, i clienti e la reputazione, le opportunità, i rischi e le prime mosse.",
@@ -223,9 +244,18 @@ const SISTEMA = [
   "- La lettura del web qui sotto è un indizio da controllare, non una verità.",
   "- I paletti di MyCity, che nessuna mossa può rompere: il negozio non paga una percentuale su quello che già vendeva; i suoi clienti restano suoi; nessuna app nuova da imparare; il primo risultato si vede in 2-4 settimane.",
   '- Italiano semplice, frasi corte (al massimo 30 parole), niente sigle. Al massimo 3 frasi per sezione.',
+  '',
+  'OPPORTUNITÀ E PRIME MOSSE',
+  '- Se una la copre un nostro servizio (foto_video: foto e video; sito_web: il sito; social: post sui social e scheda Google Maps; analisi: analisi ogni mese), scrivi il servizio e in «proposta» cosa facciamo NOI, in una frase da dire al titolare. Se nessun servizio la copre, servizio e proposta sono null.',
+  '',
+  'IL SITO CHE HA GIÀ (giudizio_sito)',
+  '- Se l’attività ha un sito, aprilo e giudicalo. livello: «semplice» (una o due pagine, fatto in casa o datato), «medio» (più pagine, curato, senza funzioni particolari), «pregio» (tante pagine o funzioni come prenotazioni, negozio online, più lingue, fatto da professionisti).',
+  '- funzioni: solo quelle dell’elenco che il sito ha davvero.',
+  '- migliorie: solo per il pregio, cosa miglioreremmo davvero rifacendolo. Se non c’è niente da migliorare, null: un sito di pregio non si rifà per niente.',
+  '- Se non ha un sito o non riesci ad aprirlo, tutti i campi null e funzioni vuoto.',
 ].join('\n');
 const dati = {
-  attivita: { nome: testo(f.nome_locale), citta: testo(f.citta) || 'Piacenza', appunti: testo(f.appunti).slice(0, 1200) },
+  attivita: { nome: testo(f.nome_locale), citta: testo(f.citta) || 'Piacenza', sito: /^https:\/\//i.test(testo(f.sito)) ? testo(f.sito).slice(0, 300) : null, appunti: testo(f.appunti).slice(0, 1200) },
   lettura_del_web: prima.scheda || null,
 };
 const richiesta = {
@@ -246,6 +276,9 @@ const prima = $("Prepara l'analisi del business").first().json;
 const r = $input.first().json || {};
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
 const SEZIONI = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
+const MOSSE = ['opportunita', 'prime_mosse'];
+const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
+const FUNZIONI = ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti'];
 const VIETATO = /€|\b(eur|euro)\b|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
 // Un voto («4,6 su 5», «4.5 stelle») non è un prezzo: si toglie prima del controllo.
 const VOTO = /\d[.,]\d\s*(su\s*5|\/\s*5|stell[ae])/gi;
@@ -260,15 +293,41 @@ if (letta && typeof letta === 'object') {
   let quante = 0;
   for (const s of SEZIONI) {
     const voci = Array.isArray(letta[s]) ? letta[s] : [];
-    business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte) }))
+    business[s] = voci.map((v) => {
+      const frase = { testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte) };
+      // 25/11/2026 — Servizio e proposta solo nelle opportunità e nelle prime mosse, e solo puliti («ok sito»).
+      const proposta = testo(v && v.proposta);
+      if (MOSSE.includes(s) && SERVIZI.includes(v && v.servizio) && proposta.length >= 10 && proposta.length <= 160 && !VIETATO.test(proposta)) {
+        frase.servizio = v.servizio;
+        frase.proposta = proposta;
+      }
+      return frase;
+    })
       .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !VIETATO.test(v.testo.replace(VOTO, 'voto')))
       .slice(0, 3);
     quante += business[s].length;
   }
   if (!quante) business = null;
 }
+// Il giudizio del sito: solo i valori degli elenchi; senza niente di valido non si manda.
+let giudizio = null;
+const gl = letta && typeof letta === 'object' ? letta.giudizio_sito : null;
+if (gl && typeof gl === 'object') {
+  const dentro = (v, elenco) => (elenco.includes(v) ? v : null);
+  const frase = (v, max) => { const t = testo(v); return t.length >= 3 && t.length <= max && !VIETATO.test(t) ? t : null; };
+  const g = {
+    livello: dentro(gl.livello, ['semplice', 'medio', 'pregio']),
+    funzioni: Array.isArray(gl.funzioni) ? [...new Set(gl.funzioni.filter((x) => FUNZIONI.includes(x)))] : [],
+    migliorie: frase(gl.migliorie, 240),
+    aspetto: dentro(gl.aspetto, ['curato', 'datato', 'fai-da-te']),
+    pagine: dentro(gl.pagine, ['una', 'poche', 'molte']),
+    nota: frase(gl.nota, 200),
+  };
+  if (g.livello || g.funzioni.length || g.migliorie || g.aspetto || g.pagine || g.nota) giudizio = g;
+}
 const { richiesta, ...resto } = prima;
-const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...(business ? { business } : {}) } } : (business ? { analisi: { business } } : null);
+const dellAd = { ...(business ? { business } : {}), ...(giudizio ? { giudizio_sito: giudizio } : {}) };
+const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...dellAd } } : (business || giudizio ? { analisi: dellAd } : null);
 return [{ json: { ...resto, scheda, analisi_business: business ? 'fatta' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
 
 /** Dopo la scheda: la stessa scheda va al sito, che la conserva e la mostra al venditore da confermare. */
@@ -285,11 +344,13 @@ if (prova) return [{ json: { mandare: false, motivo: 'modalità prova' } }];
 // L'analisi del business arriva dal passo prima («Unisci l'analisi del business»), se il 16 la fa.
 const dalPasso = $input.first().json || {};
 const business = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.business ? dalPasso.scheda.analisi.business : null;
+// 25/11/2026 — Il giudizio dell'AD sul sito (già ripulito in «Unisci l'analisi del business»).
+const giudizio = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.giudizio_sito ? dalPasso.scheda.analisi.giudizio_sito : null;
 if (!p || !p.ok) {
   // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business, quella va al sito.
   if (!business) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
   return [{ json: { mandare: true, corpo: { tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(),
-    id_attivita: f.id_mycity, campi: {}, analisi: { business }, da_confermare: [] } } }];
+    id_attivita: f.id_mycity, campi: {}, analisi: { business, ...(giudizio ? { giudizio_sito: giudizio } : {}) }, da_confermare: [] } } }];
 }
 const STATI = { confermato: 'confermato', da_confermare: 'da_confermare', foto: 'foto', frammento: 'frammento', proposta: 'proposta',
   nessuna: 'nessuna', non_trovata: 'da_confermare', bloccata: 'nessuna' };
@@ -319,7 +380,7 @@ return [{ json: { mandare: true, corpo: {
     punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6),
     dubbi: lista(a.dubbi, 6),
     // 25/11/2026 — L'analisi del business dell'AD, se c'è (già ripulita in «Unisci l'analisi del business»).
-    ...(business ? { business } : {}) },
+    ...(business ? { business } : {}), ...(giudizio ? { giudizio_sito: giudizio } : {}) },
   da_confermare: lista(p.da_confermare, 20).map((v) => v.slice(0, 40)),
 } } }];`;
 
