@@ -1,0 +1,8 @@
+## 16 · Montatore — LEGGIMI
+Due modi di partire: il **guardiano** vede da solo una cartella nuova nella cartella Drive di un cliente (dopo 30 minuti senza file nuovi), oppure apri il **modulo** (indirizzo `/form/montatore`) e scrivi il **cliente** e la **cartella del servizio**: la cartella dentro quella Drive del cliente che contiene «video verticali», «video orizzontali» e «foto» (vanno bene anche file sciolti). Facoltativo: un file **musica.mp3** con licenza.
+
+Il montatore: carica tutto nell'**officina** (1.4.0 o successiva), che divide i video in momenti e misura nitidezza, luce, movimento e parlato → Claude **guarda i provini** e descrive ogni momento → Claude scrive il **piano del mese** con quel materiale → l'officina **controlla** il piano (codici veri, tempi dentro le clip, durate) → l'officina **monta** reel e storie con la **regia di Scatti di G** (moodboard: ritmo lento, nero morbido, testi sobri) e post e caroselli → Claude **controlla** i video finiti → tutto va in «**Pronti (montatore)**» nella cartella del servizio → per ogni contenuto una **scheda su Telegram**: ✅ Approva o ✏️ Correggi (rimonta con la vostra nota).
+
+**MODALITA = prova** (di serie): solo Drive e schede, nel Calendario non scrive niente. **attivo**: ✅ Approva scrive la riga nel Calendario (storie «approvato», reel e post «da_scrivere» per la didascalia del 04). Con `REVISIONE` = no torna il comportamento di prima (righe scritte dal giro). **Niente viene pubblicato da qui.** Mai immagini inventate: solo tagli veri, ritagli, logo, scritte e sottotitoli.
+
+Guida completa: `montatore/LEGGIMI.md` nel repository N8N.

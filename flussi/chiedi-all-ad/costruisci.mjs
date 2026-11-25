@@ -36,10 +36,16 @@ export const NOME_CHIAVE = "Chiedi all'AD - chiave della routine";
 export const URL_ROUTINE = 'https://api.anthropic.com/v1/claude_code/routines/';
 export const PARTI = 'Fai partire la routine';
 export const ASPETTA = 'Aspetta la risposta';
+export const TABELLA_ALLEGATI = "Allegati per l'AD";
+export const URL_ALLEGATI = 'https://n8n-shdy.sliplane.app/webhook/allegati-ad';
+/** Le colonne della tabella degli allegati che «Chiedi all'AD» scrive. */
+const COLONNE = [['impronta', 'string'], ['corsa', 'string'], ['scade', 'number'], ['nome', 'string'], ['tipo', 'string'], ['mime', 'string'], ['contenuto', 'string']];
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
 
-export function costruisci({ routine, chiave, vero = false, webhookId, errori } = {}) {
+export function costruisci({ routine, chiave, vero = false, webhookId, errori, tabellaId } = {}) {
+  // La tabella degli allegati per id quando lo si conosce (con --manda), altrimenti per nome (vedi allegati.mjs).
+  const tabella = () => (tabellaId ? { __rl: true, mode: 'id', value: tabellaId, cachedResultName: TABELLA_ALLEGATI } : { __rl: true, mode: 'name', value: TABELLA_ALLEGATI });
   const pos = (i, riga = 0) => [i * 240, riga * 200];
   const nodi = [];
   const collega = {};
@@ -60,13 +66,51 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
         ['TETTO_ORA', 25],
         ['ATTESA_MINUTI', 15],
         ['PROVA_ATTESA_MINUTI', 2],
+        // Dove l'AD scarica gli allegati (flusso «Allegati per l'AD»): il gettone va dopo «?g=».
+        ['ALLEGATI_URL', URL_ALLEGATI],
+        // Oltre questi MB di allegati vivi il lavoro non parte (il tetto di n8n è comune a tutte le tabelle).
+        ['ALLEGATI_SOGLIA_MB', 40],
       ].map(([name, value]) => ({ id: randomUUID(), name, value, type: typeof value === 'number' ? 'number' : 'string' })) } } },
+    // Gli allegati: controllati, un gettone casuale da 256 bit per ognuno, e la sua impronta SHA-256.
+    { id: randomUUID(), name: 'Allegati del lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2, 1),
+      parameters: { jsCode: codice('allegati-lavoro.js') } },
+    { id: randomUUID(), name: 'Gettoni', type: 'n8n-nodes-base.crypto', typeVersion: 1, position: pos(3, 1),
+      parameters: { action: 'generate', encodingType: 'hex', stringLength: 64, dataPropertyName: 'gettone' } },
+    { id: randomUUID(), name: 'Impronte', type: 'n8n-nodes-base.crypto', typeVersion: 1, position: pos(4, 1),
+      parameters: { action: 'hash', type: 'SHA256', value: '={{ $json.gettone }}', dataPropertyName: 'impronta', encoding: 'hex' } },
     { id: randomUUID(), name: 'Prepara il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2),
       parameters: { jsCode: codice('prepara-lavoro.js') } },
+    // Prima di far partire la routine gli allegati sono nella tabella; dopo la risposta (o se non parte) si cancellano.
+    { id: randomUUID(), name: 'Salva gli allegati?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(3, -1),
+      parameters: se('={{ Array.isArray($json.righe) && $json.righe.length > 0 }}') },
+    { id: randomUUID(), name: 'Righe degli allegati', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(3, -3),
+      parameters: { jsCode: "// Una riga della tabella per allegato.\nreturn ($('Prepara il lavoro').first().json.righe || []).map((r) => ({ json: r }));" } },
+    // Se la tabella non accetta le righe (manca, è piena) la routine non parte: «Allegati non salvati» restituisce il
+    // posto contato da «Prepara il lavoro» e la corsa finisce con l'errore, dopo aver cancellato le righe già scritte.
+    { id: randomUUID(), name: 'Salva gli allegati', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4, -3), onError: 'continueErrorOutput',
+      parameters: { resource: 'row', operation: 'insert', dataTableId: tabella(),
+        columns: { mappingMode: 'defineBelow', value: Object.fromEntries(COLONNE.map(([c]) => [c, `={{ $json.${c} }}`])),
+          schema: COLONNE.map(([c, tipo]) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: tipo, canBeUsedToMatch: true })) },
+        options: {} } },
+    { id: randomUUID(), name: 'Allegati non salvati', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, -4),
+      parameters: { jsCode: codice('allegati-non-salvati.js') } },
+    { id: randomUUID(), name: 'Rimetti il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, -3),
+      parameters: { jsCode: codice('rimetti-lavoro.js') } },
+    { id: randomUUID(), name: 'Salvate tutte?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(6, -3),
+      parameters: se('={{ $json.salvate_tutte === true }}') },
+    { id: randomUUID(), name: 'Cancella gli allegati?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(7, 1),
+      parameters: se("={{ Array.isArray($('Prepara il lavoro').first().json.righe) && $('Prepara il lavoro').first().json.righe.length > 0 }}") },
+    { id: randomUUID(), name: 'Cancella gli allegati', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(7, 3),
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
+      parameters: { resource: 'row', operation: 'deleteRows', dataTableId: tabella(), matchType: 'allConditions',
+        filters: { conditions: [{ keyName: 'corsa', condition: 'eq', keyValue: '={{ String($execution.id) }}' }] }, options: {} } },
+    { id: randomUUID(), name: 'Rimetti la risposta', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(8, 3),
+      parameters: { jsCode: `// Dopo la cancellazione si riprende quello che era arrivato: la risposta dell'AD, l'esito della partenza,\n// oppure l'errore del salvataggio.\nif ($('${ASPETTA}').isExecuted) return $('${ASPETTA}').all();\nif ($('${PARTI}').isExecuted) return $('${PARTI}').all();\nreturn $('Allegati non salvati').all();` } },
     { id: randomUUID(), name: 'Deve aspettare?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(3),
       parameters: se("={{ ['parti', 'prova'].includes($json.azione) }}") },
     { id: randomUUID(), name: 'Parte davvero?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(4, -1),
-      parameters: se("={{ $json.azione === 'parti' }}") },
+      // Con allegati, parte solo un lavoro passato da «Salvate tutte?»: righe nella tabella prima della routine.
+      parameters: se("={{ $json.azione === 'parti' && (!(Array.isArray($json.righe) && $json.righe.length) || $json.salvate_tutte === true) }}") },
     { id: randomUUID(), name: PARTI, type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: pos(5, -2),
       onError: 'continueRegularOutput',
       parameters: { method: 'POST', url: `=${URL_ROUTINE}{{ $('Config').first().json.ROUTINE_ID }}/fire`,
@@ -88,14 +132,26 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
       parameters: { jsCode: codice('componi-risposta.js') } },
   );
   vai('Da un altro flusso', 'Config');
-  // Config gira una volta; «Prepara il lavoro» legge tutti i lavori dal trigger, non da Config.
-  vai('Config', 'Prepara il lavoro');
-  vai('Deve aspettare?', 'Parte davvero?', 'Componi la risposta');
+  // Config gira una volta; gli allegati e «Prepara il lavoro» leggono tutti i lavori dal trigger, non da Config.
+  vai('Config', 'Allegati del lavoro');
+  vai('Allegati del lavoro', 'Gettoni');
+  vai('Gettoni', 'Impronte');
+  vai('Impronte', 'Prepara il lavoro');
+  vai('Deve aspettare?', 'Salva gli allegati?', 'Componi la risposta');
+  vai('Salva gli allegati?', 'Righe degli allegati', 'Parte davvero?');
+  vai('Righe degli allegati', 'Salva gli allegati');
+  vai('Salva gli allegati', 'Rimetti il lavoro', 'Allegati non salvati');
+  vai('Allegati non salvati', 'Cancella gli allegati');
+  vai('Rimetti il lavoro', 'Salvate tutte?');
+  vai('Salvate tutte?', 'Parte davvero?', 'Allegati non salvati');
   vai('Prepara il lavoro', 'Deve aspettare?');
   vai('Parte davvero?', PARTI, ASPETTA);
   vai(PARTI, 'Partita?');
-  vai('Partita?', ASPETTA, 'Componi la risposta');
-  vai(ASPETTA, 'Componi la risposta');
+  vai('Partita?', ASPETTA, 'Cancella gli allegati?');
+  vai(ASPETTA, 'Cancella gli allegati?');
+  vai('Cancella gli allegati?', 'Cancella gli allegati', 'Componi la risposta');
+  vai('Cancella gli allegati', 'Rimetti la risposta');
+  vai('Rimetti la risposta', 'Componi la risposta');
 
   nodi.push({ id: randomUUID(), name: 'Nota · Leggimi', type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: [0, -760],
     parameters: { width: 820, height: 460, content: [
@@ -116,8 +172,11 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
 
   return {
     name: NOME_CHIEDI, nodes: nodi, connections: collega,
-    settings: { executionOrder: 'v1', timezone: 'Europe/Rome', saveManualExecutions: true, saveDataErrorExecution: 'all',
-      saveDataSuccessExecution: 'all', callerPolicy: 'workflowsFromSameOwner', ...(errori ? { errorWorkflow: errori } : {}) },
+    // Le corse non si salvano, né riuscite (regia, 25/11) né fallite (collaudo degli allegati, 25/11): nei dati del
+    // trigger arrivano cataloghi e foto dei clienti, che resterebbero nello storico di n8n per 14 giorni. Quando una
+    // corsa si rompe, l'avviso parte lo stesso dal «99 · Avvisi errori» (senza i dati).
+    settings: { executionOrder: 'v1', timezone: 'Europe/Rome', saveManualExecutions: true, saveDataErrorExecution: 'none',
+      saveDataSuccessExecution: 'none', callerPolicy: 'workflowsFromSameOwner', ...(errori ? { errorWorkflow: errori } : {}) },
   };
 }
 
@@ -147,6 +206,14 @@ export function controlla(w) {
   const aspetta = w.nodes.find((n) => n.name === ASPETTA);
   if (!aspetta || aspetta.parameters.resume !== 'webhook' || aspetta.parameters.limitWaitTime !== true) problemi.push("l'attesa deve avere un tempo massimo");
   if (w.connections[PARTI]?.main?.[0]?.[0]?.node !== 'Partita?') problemi.push('dopo la partenza manca il controllo «Partita?»');
+  // Gli allegati: salvati prima della partenza, cancellati dopo la risposta o se la routine non parte.
+  const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
+  if (!dopo('Salva gli allegati?').includes('Righe degli allegati') || !dopo('Rimetti il lavoro').includes('Salvate tutte?') || !dopo('Salvate tutte?').includes('Parte davvero?') || !dopo('Salvate tutte?', 1).includes('Allegati non salvati')) problemi.push('gli allegati non si salvano prima della partenza');
+  if (!dopo(ASPETTA).includes('Cancella gli allegati?') || !dopo('Partita?', 1).includes('Cancella gli allegati?')) problemi.push('gli allegati non si cancellano dopo la risposta');
+  if (!dopo('Salva gli allegati', 1).includes('Allegati non salvati') || !dopo('Allegati non salvati').includes('Cancella gli allegati')) problemi.push('se il salvataggio fallisce, il posto non torna e le righe restano');
+  if (w.settings?.saveDataSuccessExecution !== 'none') problemi.push('le corse riuscite non devono salvarsi: con gli allegati terrebbero le foto dei clienti');
+  if (w.settings?.saveDataErrorExecution !== 'none') problemi.push('le corse fallite non devono salvarsi: con gli allegati terrebbero le foto dei clienti');
+  if (!/^https:\/\/[^/?#]+\/webhook\/[a-z0-9-]+$/.test(String(cfg.ALLEGATI_URL))) problemi.push('ALLEGATI_URL deve essere l\'indirizzo fisso del webhook degli allegati');
   return problemi;
 }
 
@@ -174,7 +241,9 @@ async function principale(argv) {
     pezzi = { ...pezzi, vero: scelta ?? vecchiaModalita === 'vero', chiave, routine: pezzi.routine || (vecchiaRoutine !== 'DA_IMPOSTARE' ? vecchiaRoutine : undefined),
       webhookId: nodo(ASPETTA)?.webhookId,
       // Se il sotto-flusso si guasta, l'avviso parte dal 99 come per gli altri flussi.
-      errori: trovaFlusso(tutti, NOMI.avvisiErrori)?.id };
+      errori: trovaFlusso(tutti, NOMI.avvisiErrori)?.id,
+      // La tabella degli allegati per id (nome esatto): senza, i nodi la cercano per nome.
+      tabellaId: (await api.elencoTabelle()).find((t) => t.name === TABELLA_ALLEGATI)?.id };
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));

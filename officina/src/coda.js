@@ -48,6 +48,17 @@ export class Coda {
     });
   }
 
+  // Un lavoro interno dell'officina (la prova dei filtri all'avvio): prende il posto pesante come gli altri, ma non
+  // occupa un posto della coda (chi chiede non riceve 429 per colpa sua) e non cambia la stima dei tempi di attesa.
+  async interno(fn) {
+    await this._prendi(null);
+    try {
+      return await fn();
+    } finally {
+      this._rilascia();
+    }
+  }
+
   _rilascia(durataMs) {
     if (durataMs) this.durataMediaMs = Math.round(this.durataMediaMs * 0.7 + durataMs * 0.3);
     const prossimo = this.attesa.shift();

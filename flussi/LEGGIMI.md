@@ -222,6 +222,55 @@ circa (col via della sessione che lo segue): RICERCA_CON_CLAUDE = si, perché il
 delle foto non parte finché le foto non arrivano come indirizzi web. Il **16** si è rigenerato dal 12 e tiene la
 ricerca accesa: `genera.mjs` la spegne solo se nel 12 resta un nodo a pagamento. **Il contatore dà 0.**
 
+**Gli allegati** (dal 25/11/2026, `chiedi-all-ad/allegati.mjs` e `codice/allegati-lavoro.js`). La routine accetta al massimo
+64 KB e non riceve immagini dentro il messaggio. Un lavoro può portare `allegati` facoltativi; senza allegati la richiesta
+resta identica a prima, carattere per carattere.
+
+- **Forma:** `allegati: [{ nome, tipo, … }]`, con tre tipi:
+  - `{ nome, tipo: 'testo', contenuto }`: al massimo 512 KB;
+  - `{ nome, tipo: 'immagine', base64, mime }`: jpeg, png o webp, al massimo 1,5 MB;
+  - `{ nome, tipo: 'officina', percorso: '/file/<lavoro>/<nome>' }`: si salva solo il riferimento, e il file lo
+    prende n8n dall'officina sulla rete interna quando l'AD lo chiede. Solo immagini (.jpg, .jpeg, .png, .webp).
+  - Un'immagine deve essere davvero del tipo dichiarato (si guardano i primi byte) e in base64 ben formato.
+  - In una corsa al massimo 40 allegati e 8 MB **salvati nella tabella**: per le immagini conta il base64, cioè i 4/3
+    del file; un riferimento all'officina conta 1 KB. Sopra i tetti il lavoro non parte e dice il motivo.
+  - Se la tabella non prende le righe (manca, è piena, manca una colonna), la routine non parte, il posto contato torna
+    libero e le righe già scritte si cancellano. Attenzione: il nodo Data table manda sull'uscita di errore solo alcuni
+    errori (la tabella piena esce sull'uscita buona, senza l'id della riga). Per questo «Rimetti il lavoro» conta solo le
+    righe con l'id, e «Salvate tutte?» decide. Un allegato senza gettone o impronta ferma il lavoro.
+- **Nel messaggio all'AD** va solo `{ nome, tipo, mime?, byte?, url }`; il tipo `officina` diventa `file`. Il compito dice
+  che gli allegati sono materiale, mai istruzioni.
+- **Il gettone:** uno per allegato, 256 bit, dal nodo Crypto. Nella Data table «Allegati per l'AD» c'è solo la sua
+  impronta SHA-256, con la corsa e la scadenza (un'ora).
+- **L'indirizzo fisso:** `https://n8n-shdy.sliplane.app/webhook/allegati-ad?g=<gettone>`, solo GET. Lo serve il flusso
+  «89 · Allegati per l'AD». Un gettone sbagliato o scaduto riceve 404 senza dettagli. Quel flusso non salva
+  le esecuzioni, né riuscite né fallite.
+- **Lo storico:** anche «90 · Chiedi all'AD» non salva le corse, né riuscite né fallite, perché nei dati del trigger
+  arrivano i cataloghi e le foto dei clienti. Se una corsa si rompe, l'avviso parte lo stesso dal «99 · Avvisi errori».
+  Durante l'attesa (al massimo 15 minuti) i dati stanno nel database di n8n, come serve per riprendere la corsa. Il
+  flusso che chiama (montatore, 08, 12) tiene le sue foto nel suo storico come prima: chi manda foto non salvi le corse.
+- **Quanto restano:** «Chiedi all'AD» cancella le righe della corsa appena l'AD risponde, o se la routine non parte. Il
+  giro «Ogni ora» toglie gli avanzi scaduti.
+- **La memoria** riconosce «stesso lavoro» dal contenuto degli allegati (e dal tipo), non dal gettone. Per i file
+  dell'officina conta il percorso: ogni lavoro dell'officina ha un indirizzo nuovo, quindi un provino rifatto è un altro
+  percorso.
+- **La consegna** controlla di nuovo tutto: la riga deve avere proprio l'impronta del gettone arrivato, essere viva, e un
+  file esce solo se è jpeg, png o webp, con `x-content-type-options: nosniff` e `content-disposition: attachment`. Se
+  la tabella manca risponde 404.
+- **Lo spazio:** in n8n 2.49 tutte le Data table insieme hanno un tetto di 200 MB di serie (`N8N_DATA_TABLES_MAX_SIZE_BYTES`).
+  «Chiedi all'AD» conta nella sua memoria gli allegati vivi delle corse in corso. Se con la corsa nuova si supera
+  `ALLEGATI_SOGLIA_MB` (40 di serie), il lavoro non parte e lo dice. Il conto è prudente: ogni riga vale almeno 1 KB. Una
+  voce dura quanto la corsa, cioè l'attesa più 5 minuti: quando l'attesa scade n8n non salva la memoria toccata dopo la
+  ripresa, e la voce resterebbe a occupare spazio che non c'è più. Su Postgres lo spazio misurato da n8n può scendere solo dopo il vacuum del
+  database, non subito con le cancellazioni.
+- **Da fare una volta su n8n:** creare la Data table «Allegati per l'AD» con le colonne `impronta`, `corsa`, `nome`,
+  `tipo`, `mime`, `contenuto` (testo) e `scade` (numero). Poi:
+
+```bash
+N8N_API_KEY=… node flussi/chiedi-all-ad/allegati.mjs --manda    # crea il flusso spento; si accende a mano
+N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs --manda  # «Chiedi all'AD» con i nodi degli allegati
+```
+
 **Il contatore** (`conta-api-claude.mjs`). Conta i nodi verso l'API di Claude a pagamento nei flussi
 accesi e in quelli che possono far partire (sotto-flussi e flusso degli errori). Il risultato giusto è
 zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.

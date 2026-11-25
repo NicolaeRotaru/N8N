@@ -19,6 +19,9 @@ export const NOMI = {
   consegnaScheda: "29 · Consegna la scheda scritta dall'AD",
   montatore: '31 · Montatore',
   chiediAllAd: "90 · Chiedi all'AD",
+  // Consegna all'AD gli allegati di «Chiedi all'AD» (25/11/2026). Numero 89 dato dalla regia: i 90 sono pieni,
+  // e l'89 sta subito prima del 90 con cui lavora.
+  allegatiAd: "89 · Allegati per l'AD",
   argomentoAttivita: "97 · Scrivi nell'argomento dell'attività",
   avvisiErrori: '99 · Avvisi errori',
 };

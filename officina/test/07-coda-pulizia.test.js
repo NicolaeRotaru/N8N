@@ -87,6 +87,38 @@ test('Coda: un solo lavoro pesante alla volta, in ordine di arrivo, massimo 5 in
   assert.ok(coda.prenota());
 });
 
+test('Coda: un lavoro interno prende il posto pesante, non occupa posti, non cambia la stima e lo libera sempre', async () => {
+  const c = new Coda(1);
+  const media = c.durataMediaMs;
+  let fine;
+  const interno = c.interno(() => new Promise((r) => { fine = r; }));
+  await new Promise((r) => setImmediate(r));
+  assert.equal(c.lunghezza, 0, 'non conta come lavoro in coda');
+  const b1 = c.prenota();
+  const b2 = c.prenota();
+  assert.ok(b1 && b2, 'i posti della coda restano tutti per chi chiede');
+  let turno1 = false;
+  const t1 = b1.turno().then(() => { turno1 = true; });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(turno1, false, 'il lavoro vero aspetta che la prova finisca');
+  await new Promise((r) => setTimeout(r, 20));
+  fine('fatto');
+  assert.equal(await interno, 'fatto');
+  await t1;
+  assert.equal(c.durataMediaMs, media, 'la stima dei tempi non cambia');
+  // dietro a un lavoro vero aspetta il suo turno; un errore libera il posto e arriva a chi chiama
+  let partito = false;
+  const dietro = c.interno(async () => { partito = true; throw new Error('rotto'); });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(partito, false, 'dietro a un lavoro vero aspetta il suo turno');
+  b1.libera();
+  await assert.rejects(dietro, /rotto/);
+  const t2 = await Promise.race([b2.turno().then(() => 'turno'), new Promise((r) => setTimeout(() => r('fermo'), 500))]);
+  assert.equal(t2, 'turno', 'dopo l\'errore il posto è libero');
+  b2.libera();
+  assert.equal(c.lunghezza, 0);
+});
+
 test('due video chiesti insieme: mai due processi pesanti (ffmpeg/whisper) contemporanei', async () => {
   const s = await avviaServer();
   daFermare.push(s);

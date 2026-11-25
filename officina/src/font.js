@@ -9,6 +9,10 @@ const INCLUSI = {
   'playfair display': { famiglia: 'Playfair Display', file: { 400: 'PlayfairDisplay-400.ttf', 700: 'PlayfairDisplay-700.ttf' } },
   'roboto slab': { famiglia: 'Roboto Slab', file: { 400: 'RobotoSlab-400.ttf', 700: 'RobotoSlab-700.ttf', 800: 'RobotoSlab-800.ttf' } },
   archivo: { famiglia: 'Archivo', file: { 400: 'Archivo-400.ttf', 700: 'Archivo-700.ttf' } },
+  // Scatti di G (SDG): il font dei titoli del marchio dell'agenzia, per lo stile «sdg» della regia.
+  'bricolage grotesque': { famiglia: 'Bricolage Grotesque', file: { 400: 'BricolageGrotesque-400.ttf', 700: 'BricolageGrotesque-700.ttf', 800: 'BricolageGrotesque-800.ttf' } },
+  // Scatti di G (SDG), moodboard del 24/11/2026: Poppins per tutti i testi dei video (sobrio, leggibile sul telefono).
+  poppins: { famiglia: 'Poppins', file: { 300: 'Poppins-300.ttf', 400: 'Poppins-400.ttf', 500: 'Poppins-500.ttf', 600: 'Poppins-600.ttf', 700: 'Poppins-700.ttf' } },
 };
 const RISERVA = { sans: 'inter', serif: 'playfair display' };
 
@@ -31,7 +35,8 @@ function eFontValido(buf) {
 }
 
 // Legge il nome di famiglia dalla tabella 'name' del TTF (serve a libass per i sottotitoli).
-export function nomeFamigliaTtf(buf) {
+// preferiti = gli id della tabella da provare in ordine: di serie 16 (famiglia tipografica) poi 1.
+export function nomeFamigliaTtf(buf, preferiti = [16, 1]) {
   try {
     const numTabelle = buf.readUInt16BE(4);
     let offName = -1;
@@ -49,7 +54,7 @@ export function nomeFamigliaTtf(buf) {
       const idNome = buf.readUInt16BE(r + 6);
       const lunghezza = buf.readUInt16BE(r + 8);
       const off = offStringhe + buf.readUInt16BE(r + 10);
-      if (idNome !== 1 && idNome !== 16) continue;
+      if (!preferiti.includes(idNome)) continue;
       let testo;
       if (piattaforma === 3 || piattaforma === 0) {
         const b = Buffer.from(buf.subarray(off, off + lunghezza));
@@ -60,7 +65,8 @@ export function nomeFamigliaTtf(buf) {
       }
       if (testo && !trovati[idNome]) trovati[idNome] = testo;
     }
-    return trovati[16] || trovati[1] || null;
+    for (const id of preferiti) if (trovati[id]) return trovati[id];
+    return null;
   } catch {
     return null;
   }
@@ -262,6 +268,12 @@ export async function caricaFont(nomeRichiesto, cfg, pesoExtra = null) {
     return { ...font, avviso: { codice: 'font_non_disponibile', messaggio: `Il font «${nome}» non si è potuto scaricare: ho usato ${font.famiglia}.` } };
   }
   return font;
+}
+
+// Il nome con cui libass trova un font caricato da fontsdir: la famiglia «legacy» (id 1, poi il nome completo id 4).
+// Per un peso fuori da regolare/grassetto (es. ExtraBold 800) è «Bricolage Grotesque ExtraBold», non «Bricolage Grotesque».
+export function nomeFamigliaLibass(buf) {
+  return nomeFamigliaTtf(buf, [1, 4]);
 }
 
 // Pesi ammessi per i titoli: 100-900 a passi di 100. Un valore sbagliato non ferma la grafica: si usa 700.

@@ -11,6 +11,8 @@ const prep = $('Prepara il lavoro').first().json;
 const n = Math.max(1, Number(prep.n_lavori) || 1);
 const flusso = prep.flusso;
 const memoria = $getWorkflowStaticData('global');
+// Gli allegati di questa corsa sono stati cancellati (o non sono mai stati salvati): escono dal conto dello spazio.
+if (Array.isArray(memoria.allegati) && prep.corsa) memoria.allegati = memoria.allegati.filter((x) => x && x.corsa !== prep.corsa && x.scade > Date.now());
 // Tutto quello che arriva dall'AD si trasforma in testo senza fidarsi della sua forma.
 const comeTesto = (x) => { if (typeof x === 'string') return x; try { return JSON.stringify(x) ?? ''; } catch (e) { return ''; } };
 
@@ -18,6 +20,8 @@ const uguale = (r) => Array.from({ length: n }, () => ({ json: r }));
 const errore = (motivo, extra = {}) => uguale({ ok: false, flusso, risultato: null, avvisi: [], errore: motivo, dalla_memoria: false, prova: false, ...extra });
 
 if (prep.azione === 'errore') return errore(prep.errore);
+// La tabella degli allegati non ha preso le righe: la routine non è partita e il posto è già stato restituito.
+if ($('Allegati non salvati').isExecuted) return errore(String($('Allegati non salvati').first().json.errore || 'allegati non salvati'));
 
 let risposta = null; // { ok, risultato, avvisi, errore } dell'AD
 let dallaMemoria = false;
@@ -27,7 +31,9 @@ if (prep.azione === 'memoria') {
 } else {
   const arrivato = $input.first().json || {};
   const corpo = arrivato.body;
-  const daAD = corpo && typeof corpo === 'object' && !Array.isArray(corpo) && typeof corpo.ok === 'boolean';
+  // La risposta dell'AD arriva dal webhook dell'attesa, che non ha statusCode. Se l'attesa scade passa invece l'esito
+  // della partenza (con statusCode): anche se il suo corpo avesse un «ok», non è la risposta dell'AD.
+  const daAD = arrivato.statusCode === undefined && corpo && typeof corpo === 'object' && !Array.isArray(corpo) && typeof corpo.ok === 'boolean';
   if (daAD) {
     risposta = corpo;
   } else if (prep.azione === 'prova') {

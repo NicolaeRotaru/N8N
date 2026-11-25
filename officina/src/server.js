@@ -15,6 +15,30 @@ import { creaProvino, preparaFoto, creaConfronto } from './immagini.js';
 import { creaGrafica } from './grafiche.js';
 import { creaReel, creaStoriaVideo } from './video.js';
 import { trascrivi, whisperDisponibile, presetDtw } from './trascrizione.js';
+import path from 'node:path';
+import fsp from 'node:fs/promises';
+import { errore, nonValido } from './errori.js';
+import { creaProgetto, apriProgetto, chiudiProgetto, salvaProgetto, prossimoCodice, byteProgetto, scadenza, pulisciProgetti, Registro } from './progetti.js';
+import { analizzaVideo, analizzaFoto, analizzaAudio, tipoDelFile } from './analisi.js';
+import { materialiPubblici, testoCatalogo, celleProvini, disegnaProvini } from './catalogo.js';
+import { controllaPiano } from './piano.js';
+import { montaContenuto } from './montaggio.js';
+import { leggiSceneggiatura } from './sceneggiatura.js';
+import { controllaRegia, regoleDelloStile } from './regia.js';
+import { montaRegia, stileDa, FORMATI } from './regia-render.js';
+import { provaFiltri } from './autoprova.js';
+import { forseRallenta, modoRallenty } from './rallenty.js';
+import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
+
+// Spazio libero sul volume dei dati (byte). null se il sistema non lo dice.
+async function discoLibero(dir) {
+  try {
+    const s = await fsp.statfs(dir);
+    return Number(s.bavail) * Number(s.bsize);
+  } catch {
+    return null;
+  }
+}
 import { apriArgomento } from './telegram.js';
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
@@ -33,6 +57,7 @@ export async function creaServer(cfg = leggiConfig()) {
   fs.mkdirSync(cfg.datiDir, { recursive: true });
   const coda = new Coda(cfg.maxAttesa);
   const lavoriAttivi = new Set();
+  const progettiAttivi = new Registro();
   let ffmpegOk = false;
   try {
     await esegui(cfg.ffmpeg, ['-version'], { timeoutMs: 15_000 });
@@ -40,6 +65,11 @@ export async function creaServer(cfg = leggiConfig()) {
   } catch {
     ffmpegOk = false;
   }
+  // I filtri del montaggio provati sull'FFmpeg di questo server (meno di un secondo, in sottofondo): lo dice /salute.
+  // Prende il posto pesante della coda come ogni lavoro (mai due FFmpeg insieme).
+  const autoprova = ffmpegOk
+    ? coda.interno(() => provaFiltri(cfg)).catch((e) => ({ ok: false, ffmpeg: null, mancanti: [], ritardo_voce: null, errore: `la prova dei filtri si è fermata: ${e?.message || e}` }))
+    : Promise.resolve({ ok: false, ffmpeg: null, mancanti: [], ritardo_voce: null, errore: 'FFmpeg non risponde' });
 
   const app = Fastify({
     logger: { level: cfg.livelloLog },
@@ -82,6 +112,7 @@ export async function creaServer(cfg = leggiConfig()) {
       versione: VERSIONE,
       ffmpeg: ffmpegOk,
       whisper: whisperDisponibile(cfg),
+      filtri: await autoprova,
       telegram: Boolean(cfg.telegramToken),
       coda: coda.lunghezza,
       memoria_mb: Math.round(process.memoryUsage().rss / 1048576),
@@ -112,7 +143,7 @@ export async function creaServer(cfg = leggiConfig()) {
     req.biglietto = b;
   }
 
-  function rotta(url, spec, lavora) {
+  function rotta(url, spec, lavora, opz = {}) {
     app.post(url, {
       onRequest: prenota,
       onResponse: async (req) => {
@@ -124,16 +155,18 @@ export async function creaServer(cfg = leggiConfig()) {
       reply.raw.on('close', () => {
         if (!reply.raw.writableFinished) controllo.abort();
       });
+      if (opz.prima) await opz.prima(req);
       const lavoro = await creaLavoro(cfg.datiDir);
       lavoriAttivi.add(lavoro.id);
+      if (req.params?.pid) progettiAttivi.entra(req.params.pid);
       const base = cfg.urlBase || `${req.protocol}://${req.headers.host}`;
       const indirizzo = (nome) => `${base}/file/${lavoro.id}/${nome}`;
       req.lavoroInCorso = true;
       try {
-        const { dati, file } = await riceviUpload(req, lavoro.dirIn, spec, cfg);
+        const { dati, file } = await riceviUpload(req, lavoro.dirIn, spec, opz.cfgUpload || cfg);
         await biglietto.turno(controllo.signal);
         const inizio = Date.now();
-        const risultato = await lavora({ dati, file, lavoro, url: indirizzo, segnale: controllo.signal });
+        const risultato = await lavora({ dati, file, lavoro, url: indirizzo, segnale: controllo.signal, params: req.params || {} });
         await chiudiLavoro(lavoro);
         req.log.info({ lavoro: lavoro.id, ms: Date.now() - inizio, url }, 'lavoro finito');
         return { id: lavoro.id, ...risultato };
@@ -142,6 +175,7 @@ export async function creaServer(cfg = leggiConfig()) {
         throw e;
       } finally {
         lavoriAttivi.delete(lavoro.id);
+        if (req.params?.pid) progettiAttivi.esce(req.params.pid);
         req.lavoroInCorso = false;
         biglietto.libera();
       }
@@ -165,12 +199,219 @@ export async function creaServer(cfg = leggiConfig()) {
     return { file: [{ url: url(r.nome) }] };
   });
 
+  // ------------------------------------------------------------ MONTATORE (progetti)
+  // Un progetto = il materiale di un servizio, caricato una volta sola (un file per richiesta) e usato per il mese.
+  // Rotte leggere (niente coda): crea, stato, controllo del piano, chiudi. Rotte pesanti (in coda): materiale,
+  // catalogo, monta. Le rotte leggere accettano JSON oppure multipart con il campo «dati».
+  async function datiLeggeri(req) {
+    if (req.isMultipart && req.isMultipart()) {
+      const dir = await fsp.mkdtemp(path.join(cfg.datiDir, 'tmp-'));
+      try {
+        return (await riceviUpload(req, dir, {}, cfg)).dati;
+      } finally {
+        await fsp.rm(dir, { recursive: true, force: true });
+      }
+    }
+    const b = req.body;
+    if (b === undefined || b === null || b === '') return {};
+    if (typeof b !== 'object' || Array.isArray(b)) throw nonValido('dati_non_validi', 'Il corpo della richiesta deve essere un oggetto JSON.');
+    return b.dati && typeof b.dati === 'object' && !Array.isArray(b.dati) ? b.dati : b;
+  }
+
+  function statoProgetto(progetto) {
+    const conta = (t) => progetto.materiali.filter((m) => m.tipo === t).length;
+    return {
+      progetto: progetto.id,
+      nome: progetto.nome,
+      video: conta('video'),
+      foto: conta('foto'),
+      audio: conta('audio'),
+      scene: progetto.materiali.filter((m) => m.tipo === 'video').reduce((s, m) => s + m.scene.length, 0),
+      durata_video: Math.round(progetto.materiali.filter((m) => m.tipo === 'video').reduce((s, m) => s + m.durata, 0) * 10) / 10,
+      byte: byteProgetto(progetto),
+      scade_alle: scadenza(cfg.progettoDurataMs),
+    };
+  }
+
+  app.post('/progetto', async (req) => {
+    const dati = await datiLeggeri(req);
+    const { progetto } = await creaProgetto(cfg.datiDir, { nome: dati.nome });
+    return statoProgetto(progetto);
+  });
+
+  app.get('/progetto/:pid', async (req) => {
+    const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    return { ...statoProgetto(progetto), materiali: materialiPubblici(progetto) };
+  });
+
+  app.post('/progetto/:pid/chiudi', async (req) => {
+    if (progettiAttivi.has(req.params.pid)) throw errore(409, 'progetto_in_uso', 'Il progetto sta lavorando adesso: chiudilo quando il lavoro è finito.');
+    await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    await chiudiProgetto(cfg.datiDir, req.params.pid);
+    return { ok: true, progetto: req.params.pid };
+  });
+
+  app.post('/progetto/:pid/piano', { bodyLimit: 4 * 1024 * 1024 }, async (req) => {
+    const dati = await datiLeggeri(req);
+    const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    if (!dati.piano) throw nonValido('dati_non_validi', 'Manca «piano»: serve {piano:{contenuti:[…]}, mese:"AAAA-MM"}.');
+    // i reel con la regia si controllano con il ritmo dello stile che userà il montaggio (di serie Scatti di G)
+    const R = regoleDelloStile(stileDa(dati.stile, dati.marchio_valido === false ? null : dati.marchio));
+    return { progetto: progetto.id, ...controllaPiano(dati.piano, progetto, { mese: dati.mese ?? null, richiesta: dati.richiesta ?? null, oggi: dati.oggi ?? null, R }) };
+  });
+
+  const controllaEsiste = async (req) => {
+    await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+  };
+  const cfgMateriale = { ...cfg, maxFileByte: cfg.maxMaterialeByte, maxTotaleByte: cfg.maxMaterialeByte };
+
+  rotta('/progetto/:pid/materiale', { file: { min: 1, max: 1 } }, async ({ dati, file, lavoro, segnale, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    const f = file.file[0];
+    const nomeOriginale = String(dati.nome || f.nome).slice(0, 200);
+    const driveId = dati.drive_id ? String(dati.drive_id).slice(0, 200) : null;
+    // Lo stesso file mandato due volte (es. «Retry on Fail» di n8n): si restituisce quello già caricato.
+    // Una clip ricaricata per cambiare il rallenty entra di nuovo: rallentata e ricaricata con «rallenta: no», oppure
+    // veloce non rallentata (avviso «rallenty_incerto») e ricaricata con «rallenta: si». I byte sono quelli dell'originale.
+    const cambiaRallenty = (m) => (m.rallenty && modoRallenty(dati.rallenta) === 'no') || (!m.rallenty && m.fps >= 47 && modoRallenty(dati.rallenta) === 'si');
+    const gia = progetto.materiali.find((m) => ((driveId && m.drive_id === driveId) || (!driveId && !m.drive_id && m.nome_originale === nomeOriginale && (m.byte_originale ?? m.byte) === f.byte))
+      && !cambiaRallenty(m));
+    if (gia) {
+      const pub = materialiPubblici(progetto).find((m) => m.codice === gia.codice);
+      return { progetto: progetto.id, materiale: pub, gia_caricato: true, avvisi: [{ codice: 'gia_caricato', messaggio: `«${nomeOriginale}» era già nel progetto come ${gia.codice}: non l'ho caricato due volte.` }] };
+    }
+    const libero = await discoLibero(cfg.datiDir);
+    if (libero !== null && libero - f.byte < cfg.minDiscoLiberoByte) {
+      throw errore(507, 'disco_pieno', `Sul server dell'officina restano ${Math.round(libero / 1048576)} MB liberi: chiudi i progetti finiti (POST /progetto/<id>/chiudi) o aspetta che scadano, poi ricarica.`);
+    }
+    if (byteProgetto(progetto) + f.byte > cfg.maxProgettoByte) {
+      throw errore(413, 'progetto_troppo_grande', `Il materiale di questo progetto supera ${Math.round(cfg.maxProgettoByte / 1048576)} MB: esporta i video in 1080p oppure dividi il servizio in due progetti.`);
+    }
+    const tipo = await tipoDelFile(f, cfg, segnale);
+    const codice = prossimoCodice(progetto, tipo);
+    const est = path.extname(f.percorso).toLowerCase() || (tipo === 'video' ? '.mp4' : tipo === 'audio' ? '.wav' : '.jpg');
+    const rel = `materiale/${codice}${est}`;
+    const assoluto = path.join(dir, rel);
+    await fsp.rename(f.percorso, assoluto);
+    const fileMat = { percorso: assoluto, nome: nomeOriginale };
+    let r;
+    let relFinale = rel;
+    try {
+      if (tipo === 'video') {
+        r = await analizzaVideo({ file: fileMat, codice, dirProgetto: dir, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
+        // girato a 50-120 fotogrammi e nessuno parla: la clip si rallenta qui, una volta sola (vedi rallenty.js)
+        const rl = await forseRallenta({ materiale: r.materiale, fps: r.materiale.fps, assoluto, rel, dati, cfg, segnale });
+        r = { ...r, materiale: rl.materiale, avvisi: [...r.avvisi, ...rl.avvisi] };
+        relFinale = rl.rel;
+      }
+      else if (tipo === 'audio') r = await analizzaAudio({ file: fileMat, codice, dirTmp: lavoro.dirTmp, dati, cfg, segnale });
+      else r = await analizzaFoto({ file: fileMat, codice, dirProgetto: dir, progetto, dati });
+    } catch (e) {
+      await fsp.rm(assoluto, { force: true });
+      await fsp.rm(path.join(dir, rel.replace(/\.[^./]+$/, '') + '-rallenty.mp4'), { force: true });
+      for (const n of await fsp.readdir(path.join(dir, 'miniature')).catch(() => [])) {
+        if (n === `${codice}.jpg` || n.startsWith(`${codice}-`)) await fsp.rm(path.join(dir, 'miniature', n), { force: true });
+      }
+      throw e;
+    }
+    // rileggo il progetto subito prima di scrivere (l'analisi può durare minuti)
+    const { progetto: fresco } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    // la LUT della camera, se il materiale è girato in log (facoltativa: si può dare anche al montaggio)
+    const lut = tipo === 'video' && dati.lut ? nomeLut(dati.lut) : null;
+    const byte = relFinale === rel ? f.byte : (await fsp.stat(path.join(dir, relFinale))).size;
+    fresco.materiali.push({ ...r.materiale, ...(lut ? { lut } : {}), nome_originale: nomeOriginale, cartella: String(dati.cartella || '').slice(0, 100), drive_id: driveId, file: relFinale, byte, byte_originale: f.byte, caricato: new Date().toISOString() });
+    await salvaProgetto(dir, fresco);
+    const pub = materialiPubblici(fresco).find((m) => m.codice === codice);
+    return { progetto: fresco.id, materiale: pub, avvisi: r.avvisi };
+  }, { prima: controllaEsiste, cfgUpload: cfgMateriale });
+
+  rotta('/progetto/:pid/catalogo', {}, async ({ lavoro, url, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    if (!progetto.materiali.length) throw errore(422, 'progetto_vuoto', 'Nel progetto non c\'è ancora materiale: carica prima video e foto.');
+    const { celle, esclusi } = celleProvini(progetto);
+    const provini = await disegnaProvini(celle, dir, lavoro.dirOut, cfg);
+    const avvisi = esclusi ? [{ codice: 'provini_ridotti', messaggio: `Il materiale è tanto: ${esclusi} scene o foto (le peggiori) non sono nei provini, ma restano nel testo del catalogo.` }] : [];
+    return {
+      ...statoProgetto(progetto),
+      provini: provini.map((p) => ({ url: url(p.nome), codici: p.codici, larghezza: p.larghezza, altezza: p.altezza })),
+      testo: testoCatalogo(progetto),
+      materiali: materialiPubblici(progetto),
+      avvisi,
+    };
+  }, { prima: controllaEsiste });
+
+  rotta('/progetto/:pid/monta', { logo: { min: 0, max: 1 }, musica: { min: 0, max: 1 } }, async ({ dati, file, lavoro, url, segnale, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    if (!dati.contenuto || typeof dati.contenuto !== 'object') throw nonValido('dati_non_validi', 'Manca «contenuto»: uno dei contenuti del piano controllato.');
+    return montaContenuto({ progetto, dirProgetto: dir, dati, file, lavoro, url, cfg, segnale });
+  }, { prima: controllaEsiste });
+
+  // ------------------------------------------------------------ REGIA (montaggio da sceneggiatura)
+  app.post('/sceneggiatura/leggi', { bodyLimit: 1024 * 1024 }, async (req) => {
+    const dati = await datiLeggeri(req);
+    if (typeof dati.testo !== 'string') throw nonValido('dati_non_validi', 'Manca «testo»: il testo della sceneggiatura.');
+    return leggiSceneggiatura(dati.testo);
+  });
+
+  app.post('/progetto/:pid/regia/controlla', { bodyLimit: 4 * 1024 * 1024 }, async (req) => {
+    const dati = await datiLeggeri(req);
+    const { progetto } = await apriProgetto(cfg.datiDir, req.params.pid, cfg.progettoDurataMs);
+    if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
+    // il ritmo dipende dallo stile: la timeline controllata qui è la stessa che /regia/monta monterà con quello stile
+    const R = regoleDelloStile(stileDa(dati.stile, dati.marchio, dati.identita));
+    return { progetto: progetto.id, ...controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: dati.formato ?? null, R }) };
+  });
+
+  rotta('/progetto/:pid/regia/monta', { logo: { min: 0, max: 1 }, musica: { min: 0, max: 1 } }, async ({ dati, file, lavoro, url, segnale, params }) => {
+    const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
+    if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
+    // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
+    const stile = stileDa(dati.stile, dati.marchio, dati.identita);
+    const R = regoleDelloStile(stile);
+    const lut = await lutPerMateriali(cfg, progetto.materiali, { lut: dati.lut ?? null, lut_materiali: dati.lut_materiali ?? null });
+    // più formati dalla stessa regia (es. ["verticale","orizzontale"]): stessi tagli, inquadrature ritagliate per ognuno
+    const formati = Array.isArray(dati.formati) && dati.formati.length ? [...new Set(dati.formati.map((x) => String(x).toLowerCase()))] : null;
+    if (formati && (formati.length > 3 || formati.some((x) => !FORMATI[x]))) throw nonValido('dati_non_validi', `«formati» accetta al massimo tre fra ${Object.keys(FORMATI).join(', ')}.`);
+    const tl = controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato: formati ? formati[0] : dati.formato ?? null, R });
+    if (!tl.video.length) throw errore(422, 'regia_non_valida', `Non posso montare: ${tl.problemi.filter((p) => p.gravita === 'blocca').map((p) => p.messaggio).join(' ') || 'la timeline è vuota.'}`);
+    const comuni = { progetto, dirProgetto: dir, stile, lut, logo: file.logo?.[0], musicaFile: file.musica?.[0]?.percorso, url, cfg, segnale };
+    if (!formati) {
+      const r = await montaRegia({ ...comuni, tl, lavoro });
+      return { ...r, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
+    }
+    const uscite = [];
+    const avvisi = [];
+    for (const formato of formati) {
+      const tlF = formato === tl.formato ? tl : controllaRegia(dati.piano, progetto, { sceneggiatura: dati.sceneggiatura ?? null, formato, R });
+      const sub = { dirTmp: path.join(lavoro.dirTmp, formato), dirOut: path.join(lavoro.dirTmp, `uscita-${formato}`) };
+      await fsp.mkdir(sub.dirTmp, { recursive: true });
+      await fsp.mkdir(sub.dirOut, { recursive: true });
+      const nomi = new Map();
+      const r = await montaRegia({ ...comuni, tl: tlF, lavoro: sub, url: (n) => { nomi.set(n, `${formato}-${n}`); return url(`${formato}-${n}`); } });
+      for (const [n, nuovo] of nomi) await fsp.rename(path.join(sub.dirOut, n), path.join(lavoro.dirOut, nuovo));
+      uscite.push({ formato, file: r.file, controllo: r.controllo });
+      for (const a of r.avvisi) avvisi.push({ ...a, messaggio: `${formato}: ${a.messaggio}` });
+    }
+    return { formati: uscite, file: uscite[0].file, controllo: uscite[0].controllo, avvisi, timeline: { durata: tl.durata, formato: tl.formato, conti: tl.conti }, problemi: tl.problemi };
+  }, { prima: controllaEsiste });
+
+  // ------------------------------------------------------------ LUT (girato in log)
+  rotta('/lut', { file: { min: 1, max: 1 } }, async ({ dati, file }) => {
+    const f = file.file[0];
+    const r = await salvaLut(cfg, dati.nome || f.nome, f);
+    return { lut: r.nome, punti: r.punti, elenco: await elencoLut(cfg) };
+  });
+  app.get('/lut', async () => ({ elenco: await elencoLut(cfg) }));
+
   // Telegram: apre l'argomento di un gruppo (un'attività = un argomento). Lavoro leggero: niente coda.
   app.post('/telegram/argomento', async (req) => apriArgomento(req.body, cfg));
 
   // Pulizia: all'avvio e poi a intervalli regolari.
-  const fai = () => pulisci(cfg.datiDir, cfg.durataFileMs, lavoriAttivi)
-    .then((n) => { if (n) app.log.info({ cancellati: n }, 'pulizia dei file scaduti'); })
+  const fai = () => Promise.all([
+    pulisci(cfg.datiDir, cfg.durataFileMs, lavoriAttivi),
+    pulisciProgetti(cfg.datiDir, cfg.progettoDurataMs, progettiAttivi),
+  ])
+    .then(([n, p]) => { if (n || p) app.log.info({ cancellati: n, progetti_cancellati: p }, 'pulizia dei file scaduti'); })
     .catch((e) => app.log.warn({ err: e }, 'pulizia fallita'));
   await fai();
   const timer = setInterval(fai, cfg.puliziaOgniMs);

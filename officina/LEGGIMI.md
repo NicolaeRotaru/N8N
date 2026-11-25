@@ -19,6 +19,24 @@ Non inventa niente. Ritaglia, corregge luce e colore su tutta la foto, mette scr
 Non allarga mai una foto e non crea sfondi finti. Le scritte sono solo quelle che le passa n8n.
 
 ## Cosa cambia per te
+**Versione 1.5.0 (25/11/2026): la 1.4.0 qui sotto, più la porta Telegram della 1.2.0 (le due strade unite) e la prova dei filtri all'avvio (`filtri` in `/salute`).**
+
+**Versione 1.4.0 (24/11/2026, notte): la moodboard di Scatti di G.** Lo stile `sdg` adesso segue la moodboard. Il video è calmo: inquadrature da 2,5 a 6 secondi, mai sotto 1. Il nero è morbido, senza grana. I testi sono in Poppins avorio, con un filo d'oro sul cartello del nome. Esce a 25 fotogrammi al secondo.
+- Esempio: un reel da 20 secondi con 6 clip lunghe aveva 8-10 tagli nello stile veloce; adesso ne ha 4-6. Il sottotitolo è la frase intera in minuscolo, non la parola che salta.
+- Lo stile veloce di prima c'è ancora, si chiama `virale`.
+- Quattro cose nuove: le clip girate a 50-120 fotogrammi senza voce si rallentano da sole; il girato in log si corregge con la LUT della camera (caricata una volta); dalla stessa regia escono più formati (9:16 e 16:9); i progetti restano 14 giorni, per le correzioni.
+- Il piano del mese del montatore ora monta reel e storie video con la regia.
+
+**Versione 1.3.0 (24/11/2026): la regia di Scatti di G.** L'officina monta un video seguendo una sceneggiatura.
+La voce fuori campo o l'intervista stanno sotto, e sopra ci sono le coperture scelte da Claude. Il risultato è un MP4 finito nello stile SDG.
+I salti si coprono da soli, i tagli cadono tra le parole, e i sottotitoli escono parola per parola.
+La voce fuori campo entra come materiale audio (A01…). Il font Bricolage Grotesque è incluso. Guida: `../montatore/REGIA-SDG.md`.
+
+**Versione 1.2.0 (24/11/2026): il montatore.** L'officina sa tenere tutto il materiale di un servizio in un «progetto» per 72 ore.
+Lo guarda una volta sola: divide ogni video in momenti, misura nitidezza, luce e movimento, e trascrive il parlato.
+Poi controlla il piano del mese scritto da Claude e monta ogni contenuto senza ricaricare niente.
+La usa il workflow 16 · Montatore (guida: `../montatore/LEGGIMI.md`). Le rotte di prima non cambiano.
+
 Le correzioni del 15/11/2026 cambiano sei cose:
 - **I sottotitoli finiscono quando finisce il parlato.** Prima una frase detta a 3 s e ripetuta a 25 s diventava un sottotitolo solo, acceso da 3 a 30 s. La ripetizione spariva. Adesso escono due sottotitoli: da 2,9 a 8,1 s e da 24,9 a 30,0 s.
 - **Anche una pausa di 4-5 secondi spegne il sottotitolo** (ricontrollo, versione 1.1.1). Il programma di trascrizione a volte mette due frasi in un pezzo solo. Prima quel sottotitolo restava acceso nel silenzio e mostrava la frase dopo secondi prima che venisse detta.
@@ -41,9 +59,19 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.2.0", ffmpeg:true, whisper:true, telegram:true, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.5.0", ffmpeg:true, whisper:true, telegram:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], ritardo_voce:…}, coda:0, memoria_mb:…}`.
+
+**`filtri`** è la prova che l'officina fa da sola all'avvio, in meno di un secondo, con l'FFmpeg di quel server:
+- controlla che ci siano **tutti** i filtri che usa (l'elenco è in `src/autoprova.js`; due prove lo confrontano con i filtri scritti nel codice e con le chiamate vere a FFmpeg durante i montaggi delle prove: se il codice ne usa uno nuovo, diventano rosse finché non lo si aggiunge);
+- fa girare su un secondo sintetico, **con le stesse funzioni del montaggio**, i pezzi che cambiano più facilmente fra una versione e l'altra di FFmpeg: verticale nel 16:9 con lo sfondo sfocato, LUT, colore dello stile, zoom delle foto, riempimento, voce da studio con la sua compensazione, musica sotto la voce, cambi d'inquadratura, neri e immagini ferme.
+
+Sottotitoli (ass), volume finale (loudnorm) e conversione HDR li controlla solo per nome. Se `filtri.ok` è `false`, `errore` dice cosa non va **prima** di montare un video vero. È il primo controllo da fare dopo ogni pubblicazione; la prova completa resta il primo montaggio vero.
 
 ## Cosa non ho verificato
+- **1.4.0 con materiale vero.** Rallenty, LUT e doppio formato li ho provati con clip sintetiche: una clip a 50 fotogrammi, una LUT che inverte i colori, una clip orizzontale. Con una LUT vera di una camera (S-Log3, V-Log…) non li ho visti.
+  - Il rallenty esce a 8 bit: con un girato log a 10 bit rallentato e poi corretto con la LUT può comparire qualche sfumatura a scalini nel cielo. Va guardato sul primo servizio vero.
+- **I colori della triade** (fumo `#2C2A27`, avorio `#F4F1EC`, oro `#E0A95C`) sono segnaposti: la moodboard dice i nomi, non i codici esatti.
+- **Spazio su disco con 14 giorni.** Un servizio intero resta sul volume `/dati` fino a 14 giorni. Sotto 3 GB liberi l'officina rifiuta il materiale nuovo con un messaggio chiaro (`MIN_DISCO_LIBERO_MB`). Non so quanto è grande il volume su Sliplane.
 - **L'immagine Docker non l'ho costruita.** Qui il programma Docker c'è, ma il suo servizio non gira, e Docker Hub non è tra le fonti che potevo usare.
   - Ho però provato da qui il pezzo più fragile della build, con gli stessi argomenti del Dockerfile: lo scaricamento di whisper.cpp v1.9.1 da GitHub e la compilazione dei due programmi. Ci ha messo 55 secondi su 4 processori.
 - **FFmpeg**: le prove girano con la versione 6.1, l'immagine usa quella di Debian 12, cioè la 5.1. I filtri usati esistono anche nella 5.1, ma lì non li ho visti girare.
@@ -150,7 +178,7 @@ Le richieste di lavoro sono `multipart/form-data` con il campo `dati` (JSON) pi�
 
 | Indirizzo | File | Cosa restituisce |
 |---|---|---|
-| `GET /salute` | — | `{ok, versione, ffmpeg, whisper, coda, memoria_mb}`; `coda` = lavori in corso + in attesa |
+| `GET /salute` | — | `{ok, versione, ffmpeg, whisper, filtri, coda, memoria_mb}`; `filtri` = la prova dei filtri sull'FFmpeg del server (`ok`, `ffmpeg`, `mancanti`, `ritardo_voce`, `errore`); `coda` = lavori in corso + in attesa |
 | `POST /foto/provino` | `foto` × 2-12 | `{id, provino:{url,larghezza,altezza}, foto:[{numero, nome_file, larghezza, altezza, nitidezza, luminosita, doppione_di, orientamento}]}` |
 | `POST /foto/prepara` | `foto`, `logo`? | `{id, file:[{formato,url,larghezza,altezza,byte}], miniatura:{url}, avvisi}` |
 | `POST /grafica/storia` | `foto`, `logo`? | `{id, file:[{url}], confronto:{url}, avvisi}` — 1080×1920 |
@@ -265,6 +293,168 @@ Prove reali fatte qui, con whisper.cpp 1.9.1, il modello `small` e una voce sint
 | 500 | `errore_interno`, `trascrizione_fallita`, `jpeg_troppo_grande` |
 | 503 | `trascrizione_non_disponibile` |
 
+### Il montatore: progetti (1.2.0)
+Un **progetto** è il materiale di un servizio, caricato una volta sola e usato per tutto il mese.
+Vive in `/dati/progetti/<id>/` e scade `PROGETTO_DURATA_ORE` (di serie 336, cioè 14 giorni, dalla 1.4.0) dopo l'ultimo uso.
+Le rotte leggere accettano JSON (oppure multipart con il campo `dati`) e non passano dalla coda. Quelle pesanti vogliono multipart e passano dalla coda come le altre.
+
+| Indirizzo | Coda | Corpo | Cosa fa |
+|---|---|---|---|
+| `POST /progetto` | no | `{nome?}` | crea il progetto → `{progetto, nome, video, foto, scene, durata_video, byte, scade_alle}` |
+| `GET /progetto/:pid` | no | — | stato + `materiali` (senza dati interni) |
+| `POST /progetto/:pid/materiale` | sì | multipart: `file` (uno) + `dati {cartella?, nome?, drive_id?, trascrivi?, lingua?}` | riconosce foto o video dal contenuto (non dalla cartella), dà il codice (V01…, F01…), analizza → `{progetto, materiale, avvisi}`. Lo stesso `drive_id` due volte → `gia_caricato: true`, niente doppioni |
+| `POST /progetto/:pid/catalogo` | sì | multipart: `dati {}` | provini 5×4 con i codici scritti sopra (≤ 1568 px, ≤ 3,5 MB) → `{provini:[{url, codici}], testo, materiali, avvisi}` |
+| `POST /progetto/:pid/piano` | no | `{piano:{contenuti:[…]}, mese:"AAAA-MM", richiesta?:{reel,post,storie}, oggi?}` | controlla il piano → `{contenuti, problemi:[{n, gravita:"blocca"\|"avviso", codice, messaggio}], bloccante, conti}` |
+| `POST /progetto/:pid/monta` | sì | multipart: `dati {contenuto, marchio?, sottotitoli?}` + `logo?` + `musica?` | monta un contenuto del piano → `{tipo, contenuto, file:[…], avvisi}` |
+| `POST /progetto/:pid/chiudi` | no | — | cancella il progetto (409 `progetto_in_uso` finché una richiesta ci lavora o aspetta in coda) |
+
+**Analisi di un video.** Una sola lettura con FFmpeg: 4 fotogrammi al secondo piccoli e in grigio (luce, movimento, cambi di inquadratura con `scdet`) e 1 miniatura al secondo da 480 px. Le scene:
+- i tagli trovati da `scdet` (soglia 12), ignorati se a meno di 1 s dall'inizio, dalla fine o dal taglio prima;
+- una scena oltre i 6 s si divide in pezzi uguali di circa 4,5 s;
+- al massimo 40 scene per video (i pezzi si allungano).
+Per ogni scena: `nitidezza` (mediana della varianza del Laplaciano sulle miniature), `luminosita` (0-255), `movimento` (differenza media fra fotogrammi, 0-255), la miniatura più nitida, e le frasi dette (whisper, solo se c'è audio udibile e `trascrivi` non è `false`/`"no"`).
+Se whisper si pianta o va oltre il tempo, la clip entra lo stesso, senza parlato, con l'avviso `trascrizione_fallita`.
+Anche con tanti tagli (un'inquadratura ogni 2 s) le scene restano al massimo 40: si uniscono le due vicine più corte.
+Nel testo del catalogo ogni frase detta ha i suoi tempi («Benvenuti da noi.» 0,5–2,0 s): servono a Claude per non tagliare una frase a metà.
+Le etichette del catalogo sono relative al servizio: «sfocata» = sotto il 30% della nitidezza mediana delle altre scene; «buia» sotto 40; «bruciata» sopra 220; «mossa» con movimento sopra 30.
+
+**Analisi di una foto.** Le misure di `/foto/provino` (nitidezza, luce, orientamento) e il doppione rispetto alle foto già nel progetto (hash percettivo, distanza ≤ 10). HEIC → 415 con la spiegazione.
+
+**Il piano** (lo scrive Claude, lo controlla l'officina). Ogni contenuto: `tipo` (`reel` | `storia_video` | `post` | `carosello` | `storia_foto`), `data` `AAAA-MM-GG`, `ora` `HH:MM`, `titolo`, `idea`, `perche`, `didascalia`, e poi:
+- video: `pezzi:[{scena:"V03.2", inizio?, fine?}]` con i secondi DENTRO il video (senza tempi = tutta la scena), `intro`, `outro`, `musica`, `sottotitoli`;
+- foto: `foto:["F07"…]` (post e storia_foto 1, carosello 2-10), `righe:[{testo, ruolo}]`.
+Cosa si corregge da solo (avviso): ora non valida → 18:30; pezzo oltre la fine della clip → fermato; pezzo sotto 0,8 s → allungato; pezzo sopra 30 s → accorciato; montaggio troppo lungo → si accorcia la coda (reel 90 s con il cartello, storia 59,9 s); codici e foto inesistenti → tolti.
+Cosa toglie il contenuto (blocca): tipo sconosciuto, data non valida o fuori dal mese, data già passata rispetto a `oggi` (se arriva), nessun pezzo o foto valida, reel sotto i 5 s.
+Avvisi senza correzione: lo stesso momento o la stessa foto in due contenuti, due contenuti nello stesso orario, numeri diversi dalla richiesta, scene o foto con difetti.
+
+**Il montaggio** usa gli stessi motori di `/video/reel` (anche per le storie video, con durata massima 59,9 s), `/grafica/post`, `/grafica/storia` e `/foto/prepara`. I sottotitoli vengono dal parlato salvato nel progetto. Nel carosello la prima foto ha titolo e logo, le altre sono ritagliate in 4:5 con lo stile del marchio. Gli avvisi parlano dei codici del materiale («Il video V02 non è verticale»), non della «clip 1».
+
+**Variabili nuove** (i valori di serie vanno bene):
+
+| Variabile | Di serie | A cosa serve |
+|---|---|---|
+| `MAX_MATERIALE_MB` | `2048` | grandezza massima di un file del materiale (i lavori normali restano a `MAX_FILE_MB`) |
+| `MAX_PROGETTO_MB` | `40000` | materiale massimo di un progetto (413 `progetto_troppo_grande`) |
+| `PROGETTO_DURATA_ORE` | `336` | dopo quante ore senza uso un progetto si cancella (14 giorni) |
+| `MIN_DISCO_LIBERO_MB` | `3000` | sotto questo spazio libero sul volume il materiale nuovo si rifiuta (507 `disco_pieno`) |
+| `RALLENTY` | `auto` | clip a 50-120 fotogrammi: `auto` le rallenta se nessuno parla, `si` sempre, `no` mai |
+| `RALLENTY_FPS` | `25` | i fotogrammi al secondo del rallenty (quelli del video finale) |
+
+**Errori nuovi:** 404 `progetto_non_trovato`, 409 `progetto_in_uso`, 413 `progetto_troppo_grande`, 422 `progetto_vuoto`, 422 `contenuto_non_valido`, 422 `video_troppo_corto` (materiale sotto 1 s).
+
+### La regia (1.3.0)
+Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse rotte `/progetto` e `/materiale`; un file audio diventa `A01`, `A02`…).
+
+| Indirizzo | Coda | Corpo | Cosa fa |
+|---|---|---|---|
+| `POST /sceneggiatura/leggi` | no | `{testo}` | legge la sceneggiatura → `{titolo, formato, durata_max, musica, stile, chiusura, note, blocchi:[{n, tipo, testo, file?, chi?, ruolo?, tempi?, coperture, durata?}], avvisi}` |
+| `POST /progetto/:pid/regia/controlla` | no | `{piano, sceneggiatura?, formato?}` | dal piano di regia alla timeline piatta → `{durata, formato, audio, video, parole, cartelli, scritte, musica, problemi, bloccante, conti}` |
+| `POST /progetto/:pid/regia/monta` | sì | multipart: `dati {piano, sceneggiatura?, formato?, stile?, marchio?}` + `logo?` + `musica?` | ricalcola la timeline dal piano (non si fida di una timeline arrivata da fuori) e monta → `{file:[video, copertina, fotogrammi], controllo:{neri, fermi}, timeline, problemi, avvisi}` |
+
+**Il piano di regia** (lo scrive Claude con `montatore/prompt/regia.md`): `battute` in ordine.
+- Una battuta parlata: `{fonte:"A01"|"V03", inizio, fine}`. Facoltativi: `volto` (di serie vero per i video), `posizione_volto` (`sinistra`/`centro`/`destra`/`intera`), `nome`, `ruolo`, `scritta`, `coperture:[{scena|foto, inizio?, fine?, posizione?}]`.
+- Una battuta di sole immagini: `{immagini: secondi, coperture}`.
+- Poi: `coperture_riserva`, `scritte:[{testo, battuta, durata?}]`, `titolo`, `chiusura`, `musica`, `volume_musica`, `musica_fonte` (un audio del progetto), `durata_max`.
+
+**Le regole contro i «bolli»** (in `src/regia.js`, valgono per ogni video):
+1. Ogni battuta si aggancia alle parole: prende le parole intere toccate, con 0,08 s prima e 0,15 s dopo, senza entrare nella parola vicina. Due battute dello stesso file attaccate (a meno di 5 centesimi) diventano esattamente attaccate.
+2. La voce fuori campo, l'audio senza video e le parti `immagini` sono sempre coperti.
+   - Se le coperture non bastano si allungano dentro la loro clip, poi si usa la riserva, poi si ripetono (avviso `coperture_corte`).
+   - Un pezzo non va mai oltre la fine della sua clip.
+   - Una voce senza volto e senza nessuna copertura (né di riserva) si toglie: errore `voce_scoperta`, che blocca.
+3. Un salto nell'intervista (stessa fonte, due pezzi non di seguito, volto prima e dopo) si copre con una copertura da 0,6 s prima a 0,6 s dopo il taglio. Senza coperture disponibili arriva l'avviso `taglio_scoperto`.
+4. Nessuna inquadratura sotto 0,6 s quando il materiale lo permette. Quando non lo permette (clip più corte di 1,2 s ripetute, salti coperti con clip corte, battute spezzate a metà parola) l'inquadratura resta, con l'avviso `inquadratura_corta`. Un pezzo che arrotondato vale 0 fotogrammi il render lo salta, e i fotogrammi si contano in fila: il totale è sempre durata × 30.
+   - Un avanzo corto non diventa mai un pezzo nuovo: va al vicino che ha ancora materiale nella sua clip.
+   - Se nessun vicino ha materiale, il pezzo corto cresce fino a 0,6 s togliendo tempo al vicino (`senzaPezziCorti`).
+   - Un volto stretto fra due coperture deve durare almeno 1 s: se il resto è più corto, l'ultima copertura arriva in fondo, oppure si accorcia o si toglie.
+   - La stessa scena (o la stessa foto) non ricomincia subito dopo sé stessa. Si cambia ordine; se non si può, si continua la clip da dove era arrivata; se la clip è finita, si usa un'altra copertura della battuta o della riserva (`evitaStessaDiFila`). Con materiale troppo corto la ripetizione è obbligata, e arriva l'avviso `coperture_corte`.
+5. Un volto si vede solo in sincrono con la sua voce. Il controllo guarda ogni pezzo di voce sotto il volto, quindi due battute attaccate dello stesso file sotto un volto solo sono giuste.
+6. La prima volta che parla una persona ci sono almeno 2 s di volto, col cartello del nome; le volte dopo 1,2 s.
+7. Lo stesso momento usato due volte e le coperture con difetti si segnalano.
+8. `durata_max` toglie le ultime battute intere, mai a metà. Se la prima battuta da sola è più lunga arriva l'avviso.
+9. Due battute che usano lo stesso pezzo di un file si segnalano (`parole_ripetute`): quelle parole si sentirebbero due volte.
+10. Le scritte non si sovrappongono mai nel tempo e vanno a capo da sole. Hanno tre altezze diverse: titolo al 30% dell'altezza, scritte al 44%, chiusura al 60%. Il titolo e la chiusura si accorciano a 40 caratteri, le scritte a 48.
+11. Controllo finale: nessun buco, nessun pezzo fuori dalla clip, ogni pezzo lungo quanto il suo posto, volti in sincrono. Se qualcosa non torna esce l'errore `timeline_incoerente` e la timeline resta vuota: non si monta.
+
+**Il render** (`src/regia-render.js`):
+- ogni inquadratura diventa un pezzo tagliato al fotogramma sulla timeline assoluta (niente deriva);
+- se una clip finisce prima del previsto, l'ultimo fotogramma resta fino a riempire il pezzo;
+- dopo il montaggio si contano i fotogrammi: se non sono esattamente durata × 30, errore 500 `timeline_desincronizzata` e nessun video consegnato;
+- il volto si ritaglia nella posizione detta; una copertura orizzontale in verticale esce intera, con lo sfondo sfocato, se il ritaglio terrebbe meno dell'80%;
+- le foto si girano secondo l'EXIF e hanno uno zoom lento del 12%;
+- la voce è fatta dai pezzi audio in fila, campione per campione, con dissolvenze di 15/25 ms;
+- l'ultimo passaggio fa colore e grana dello stile, i testi ASS e il logo; la musica passa in sidechain (si abbassa sotto le voci) e il volume va a -14 LUFS in due passate;
+- alla fine ci sono copertina e provino dei fotogrammi;
+- il controllo `blackdetect` + `freezedetect` gira sulle immagini montate prima della grana e dei testi, perché la grana nasconderebbe le immagini ferme;
+- il cartello col nome sta in alto a sinistra in ogni formato, i sottotitoli in basso.
+
+**Stile `sdg`:** Bricolage Grotesque ExtraBold (incluso, licenza OFL) per sottotitoli, cartello e scritte; Inter per il ruolo. Avorio `#F3F0EA`, inchiostro `#0B0B0D`, lime `#D2FF3A` (sostituibile con `marchio.colori.accento`). Sottotitoli in maiuscolo, al massimo 3 parole o 18 lettere per volta, sopra i 340 px in basso. Contrasto e saturazione 1,06, grana 7. Lo stile `pulito` usa Inter, niente grana, 5 parole per volta.
+
+**Trascrizione.** `/video/trascrivi` con `dati.parole: true` (e il materiale dei progetti) restituisce anche `parole:[{testo, inizio, fine}]` per ogni segmento, quando whisper dà i tempi per parola (`-dtw`). Senza `parole: true` la risposta è quella di prima.
+
+**Sceneggiatura.** Parole comuni nel testo normale («Parla del…:», «Montaggio:», «Finale:») non aprono blocchi. Le parole chiave si riconoscono anche scritte in altri modi: «VOCE FUORI CAMPO:», «V.O.:», «SPEAKERAGGIO:», «Intervista (Mario Rossi):», «INTERVISTA Mario Rossi (fornaio): file.mov». Una parola in maiuscolo con «:» che non è una parola chiave dà un avviso, invece di finire in silenzio nel blocco prima.
+
+**Errori nuovi:** 415 `audio_non_leggibile`, 422 `audio_troppo_corto`, 422 `regia_non_valida`, 422 `timeline_non_valida`, 500 `timeline_desincronizzata`.
+
+**Problemi della regia** (in `problemi`, con `gravita`):
+- **blocca** (la battuta si toglie): `fonte_inesistente`, `fonte_senza_audio`, `battuta_troppo_corta`, `immagini_senza_coperture`, `voce_scoperta`, `coperture_insufficienti`, `timeline_incoerente` (la timeline resta vuota);
+- **avviso**: `copertura_inesistente`, `coperture_dalla_riserva`, `coperture_corte`, `taglio_scoperto`, `senza_parole`, `tempi_stimati`, `parole_ripetute`, `ripetizione` (uno solo per piano), `difetto`, `inquadratura_corta`, `oltre_durata`, `testo_lungo`, `scritta_senza_battuta`, `scritta_senza_spazio`.
+
+### La moodboard, il rallenty, la LUT, i formati (1.4.0)
+**Stile `sdg` (moodboard di Scatti di G, pagine 01-03).**
+- Font: Poppins SemiBold per titoli e nome, Poppins Medium per sottotitoli e ruolo. È incluso, con licenza OFL.
+- Colori: fumo `#2C2A27`, avorio `#F4F1EC`, oro `#E0A95C`. Sono segnaposti in attesa dei codici esatti.
+- **Sottotitoli** in modo `frase`: la frase intera, in minuscolo, avorio con un alone morbido. Entrano e escono piano solo dove c'è una pausa.
+- **Cartello** in modo `linea`: nome e ruolo in avorio, con un filo d'oro di 5 px a sinistra.
+- **Scritte** in modo `ombra`: niente riquadro. La chiusura ha un filo d'oro corto sotto.
+- **Colore**: la curva `0/0.045 0.10/0.115 0.50/0.50 0.90/0.885 1/0.95` (nero morbido, alte luci che non bruciano), saturazione 0,96, niente grana. Va applicata prima dei testi, che restano dei loro colori esatti.
+- **25 fotogrammi al secondo.** Le foto hanno uno zoom del 6%.
+- **Ritmo** (`ritmo`, letto da `regoleDelloStile`): minima 1 s, coperture da 2,5 a 6 s, un volto fra due coperture almeno 1,5 s, prima apparizione di una persona 3 s, salto coperto ±1 s.
+- La rotta `/regia/controlla` deve ricevere lo stesso `stile` di `/regia/monta`: il ritmo cambia la timeline.
+- Dal **marchio** arrivano solo l'accento (`colori.accento`, o `colori.primario`) e il font dei titoli (`font`, `peso_titolo`).
+  - L'accento si usa solo se si vede sul fondo scuro (luminanza almeno 0,12): un rosso scuro lascia l'oro.
+  - Con `marchio_valido: false` il marchio non tocca lo stile.
+- `virale` è lo stile 1.3.0: Bricolage, lime, parola evidenziata, grana, 30 fotogrammi. `pulito` è neutro, a 30.
+
+**Identità dal Config.** `stileDa(nome, marchio, identita)`: `identita = {fondo, testo, accento, font_titoli, font_testo}` arriva dal workflow (Config `SDG_…`) in `/regia/monta`, `/regia/controlla` e `/progetto/:pid/monta`. Prende solo colori `#RRGGBB` e nomi di font validi, e vale solo per lo stile `sdg` (`virale` e `pulito` restano come sono). Poi l'accento del cliente, se si vede sul fondo scuro. Così i colori nuovi di Scatti di G non richiedono di ripubblicare l'officina.
+
+**Voce da studio** (`voce: 'studio'` nello stile `sdg`, `VOCE_STUDIO` in `src/regia-render.js`). Sulla voce, prima della musica e del loudnorm, passano quattro filtri:
+- `highpass` 80 Hz due volte (24 dB per ottava: un ronzio a 40 Hz scende di oltre 12 dB): toglie il rimbombo, il vento e i colpi sul microfono;
+- `afftdn`: riduce il rumore di fondo, seguendolo nel tempo;
+- `acompressor` dolce: le frasi sussurrate e quelle forti si avvicinano;
+- `deesser`: le «s» meno taglienti.
+- La riduzione del rumore ritarda il suono: con FFmpeg 6.1 sono 1200 campioni, cioè 25 ms a 48 kHz, ma il valore cambia con la versione. Per questo l'officina lo **misura da sola** al primo montaggio (`misuraRitardoVoce`: un colpo secco passa con e senza la catena) e lo compensa. Toglie quei campioni all'inizio e li rimette in fondo: la voce resta sulle labbra e la durata non cambia.
+  - Se la misura non riesce, usa la catena senza la riduzione del rumore (`VOCE_STUDIO_SENZA_RITARDO`), che non ritarda.
+
+**Rallenty** (`src/rallenty.js`). Una clip a 47 fotogrammi o più si «conforma» quando entra nel progetto. Ogni fotogramma girato diventa un fotogramma a 25: una clip a 50 dura il doppio. Il limite è 4 volte, quindi una clip a 240 si rallenta 4 volte.
+- Il file conformato prende il posto dell'originale (`V03-rallenty.mp4`, senza audio, lato lungo al massimo 1920). Scene e durata si allungano dello stesso fattore. Arriva l'avviso `rallenty`.
+- In `auto` si rallenta solo quando si **sa** che nessuno parla: audio assente o quasi muto, oppure trascrizione fatta con meno di 3 parole.
+  - Con un audio che si sente e nessuna trascrizione (whisper assente, piantato, o `trascrivi: no`) la clip resta com'è, con l'avviso `rallenty_incerto`: potrebbe essere un'intervista girata a 50.
+  - Una clip rallentata per sbaglio si ricarica con `rallenta: no`: entra di nuovo, a velocità normale.
+- Il rallenty esce a `RALLENTY_FPS` (25): negli stili a 30 fotogrammi (`virale`, `pulito`) un fotogramma ogni sei si ripete.
+- Campo `rallenta` del materiale: `auto` (di serie), `si`, `no` (anche `true`/`false`, `on`/`off`). Una clip ricaricata per cambiare il rallenty entra di nuovo anche con lo stesso id di Drive: rallentata e poi `no`, oppure non rallentata (avviso `rallenty_incerto`) e poi `si`. Variabili: `RALLENTY` (auto/si/no) e `RALLENTY_FPS` (25).
+
+**LUT** (`src/lut.js`).
+- `POST /lut` (multipart: `file` .cube + `dati {nome}`) salva `/dati/lut/<nome>.cube`. Va bene solo una LUT 3D, `LUT_3D_SIZE` da 2 a 129, con tutti i punti; altrimenti risponde 415 `lut_non_valida`.
+- `GET /lut` dà l'elenco.
+- La regia la applica per clip, prima del ritaglio. La scelta segue quest'ordine: `lut_materiali[codice]` (anche `"no"`), poi il campo `lut` dato al caricamento del materiale, poi `lut` del montaggio.
+- Una LUT che non c'è dà 422 `lut_mancante`, con l'elenco di quelle che ci sono. Vale sia per `/regia/monta` sia per `/progetto/:pid/monta`.
+
+**Più formati.** `/regia/monta` con `dati.formati: ["verticale","orizzontale"]` (al massimo 3) monta la stessa regia in ogni formato.
+- Una clip girata in verticale (volto o copertura), nel formato orizzontale, esce intera, con lo sfondo sfocato della stessa clip: ritagliata terrebbe un terzo dell'altezza e perderebbe la testa o il soggetto al centro.
+- I file si chiamano `verticale-video.mp4`, `orizzontale-copertina.jpg` e così via.
+- La risposta ha `formati:[{formato, file, controllo}]`. `file` e `controllo` restano quelli del primo formato.
+
+**Il piano del mese con la regia.** In `/progetto/:pid/piano` un reel o una storia video con `regia.battute` non vuote si controlla con `controllaRegia`, con il ritmo dello stile (`stile`, `marchio`, `marchio_valido` nel corpo).
+- Il contenuto esce con `motore: "regia"`, `durata`, `pezzi_usati` e `foto_usate`, che servono al controllo delle ripetizioni fra contenuti.
+- Una regia non montabile dà `regia_non_valida`; una troppo lunga `troppo_lungo`.
+- `/progetto/:pid/monta` monta questi contenuti con la regia: stesso stile, LUT, logo e musica. Gli altri tipi restano come prima.
+- Le coperture si possono scrivere come codici con la posizione («V07.2 sinistra»). I campi vuoti dello schema di Claude («», 0) valgono come assenti.
+
+**Conservazione e spazio.** `PROGETTO_DURATA_ORE` di serie 336 (14 giorni). Sotto `MIN_DISCO_LIBERO_MB` (3000) liberi sul volume il materiale nuovo riceve 507 `disco_pieno`.
+
+**Errori nuovi:** 415 `lut_non_valida`, 422 `lut_mancante`, 507 `disco_pieno`, 400 `dati_non_validi` per i formati sbagliati.
+
 ### Telegram: aprire l'argomento di un negozio (dalla 1.2.0)
 
 Nicola, 25/11/2026: ogni negozio ha il suo argomento nel gruppo Telegram «Attività». Per aprirne uno serve la
@@ -303,7 +493,7 @@ credenziale del bot (provato: Telegram risponde «Not Found»). Per questo lo fa
 ```
 cd officina
 npm ci
-npm test                      # 67 prove, circa 5 minuti e mezzo, senza Docker (usa /usr/bin/ffmpeg)
+npm test                      # 97 prove (12 del montatore, 18 della regia), circa 8 minuti, senza Docker (usa /usr/bin/ffmpeg)
 npm run prepara-whisper       # facoltativo: compila whisper-cli e whisper-vad-speech-segments, scarica "small" e la voce italiana in .locale/
 npm run mutazioni             # rompe il codice di proposito in 39 punti e controlla che le prove se ne accorgano
 node test/mutazioni.mjs --controllo   # le stesse prove sulla copia intatta: devono essere tutte verdi
@@ -323,6 +513,7 @@ L'esito dell'ultimo giro è scritto in `../CHANGELOG-officina.md`.
 officina/
   Dockerfile, avvio.sh, .dockerignore, .gitignore, package.json, package-lock.json
   src/server.js       rotte, chiave, coda, pulizia, GET / e /salute
+  src/autoprova.js    prova dei filtri sull'FFmpeg del server, all'avvio (per /salute)
   src/coda.js         un lavoro pesante alla volta, max 5 in attesa
   src/upload.js       multipart su disco con i limiti (40 file, 40 campi di testo)
   src/lavori.js       cartelle su /dati, scadenza 24 h
@@ -331,8 +522,16 @@ officina/
   src/font.js         font inclusi + Google Font al primo uso + cache; font_testo e peso_titolo
   src/video.js        reel e storie (FFmpeg)
   src/srt.js          SRT, spostamento sui tagli, ASS per libass
+  src/progetti.js     montatore: progetti su /dati/progetti, scadenza 72 h
+  src/analisi.js      montatore: scene, nitidezza, luce, movimento, miniature, parlato; misure delle foto
+  src/catalogo.js     montatore: etichette di qualità, provini con i codici, catalogo in testo
+  src/piano.js        montatore: controllo del piano di Claude contro il materiale vero
+  src/montaggio.js    montatore: monta un contenuto dal materiale del progetto
+  src/sceneggiatura.js regia: lettore della sceneggiatura in testo semplice
+  src/regia.js        regia: dal piano di Claude alla timeline piatta, con le regole contro i «bolli»
+  src/regia-render.js regia: render della timeline (stile SDG), controllo neri e immagini ferme
   src/trascrizione.js whisper.cpp senza --vad, con i tempi per parola (-dtw) + zone di parlato (silero o silenzi di FFmpeg); segmenti divisi sui silenzi
-  font/               Inter, Playfair Display, Archivo (licenza OFL) e Roboto Slab (licenza Apache 2.0)
+  font/               Inter, Playfair Display, Archivo, Bricolage Grotesque (licenza OFL) e Roboto Slab (licenza Apache 2.0)
   strumenti/          prepara-whisper-locale.sh, voce_it.py (voce italiana per le prove)
   test/               prove (npm test), finti whisper e VAD, mutazioni
 ```
