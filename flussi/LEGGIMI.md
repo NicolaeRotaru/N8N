@@ -32,11 +32,19 @@ copia dove:
 Tutto il resto è il codice del 12, copiato com'è. **Quando cambi il modulo 12, rilancia il generatore.**
 Se nel 12 manca la voce `RICERCA_CON_CLAUDE`, il generatore si ferma invece di produrre un 16 che paga Claude.
 
-**Ultimo passo: l'analisi dell'attività.** Comunque sia andata la scheda Clienti (scritta, doppione,
-ricerca fermata, prova), il 16 chiama il flusso **18 · Analisi di un'attività** e gli passa la lettura
-del web che il 12 ha appena fatto. Non lo aspetta: se l'analisi si guasta, la scheda resta com'è. Il
-generatore trova il 18 per nome su n8n (o con `--analisi <id>`). n8n vuole il 18 acceso prima di
-accettare il 16 che lo chiama.
+**Ultimo passo: le bozze dei 3 abbonamenti.** Comunque sia andata la scheda Clienti (scritta, doppione,
+ricerca fermata, prova), il 16 chiama il flusso **19 · Bozze dei 3 abbonamenti** e gli passa la lettura
+del web che il 12 ha appena fatto: è la parte su misura delle proposte. Non lo aspetta: se le bozze si
+guastano, la scheda resta com'è. Il generatore trova il 19 per nome su n8n (o con `--bozze <id>`). n8n
+vuole il 19 acceso prima di accettare il 16 che lo chiama. Con `--sito`, dallo stesso passo la scheda va
+anche al sito.
+
+**L'analisi subito, la scheda e la pagella dopo l'abbonamento** (Nicola, 25/11/2026). Il 16 **non chiama
+più il 18**: la pagella parte dal sito al primo abbonamento pagato. La scheda che il 16 manda al sito resta
+lì chiusa: finché l'attività non paga, il sito ne usa solo l'analisi (per il preventivo su misura e la
+pagina «Analisi del business»). Le attività create dal modulo 12 (flusso 20) arrivano al 16 dal sito
+stesso, come quelle che si iscrivono da sole: la ricerca si rifà una volta (col piano Max), e il 16 trova
+il doppione nel foglio Clienti e non riscrive la riga.
 
 ```bash
 N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id credenziale del segreto> --vero --manda
@@ -60,8 +68,10 @@ dell'avvio (da approvare, nessun prodotto, vetrina incompleta, niente carta). Cl
 adesso, le prossime mosse e le domande per il titolare, dentro i paletti di MyCity. Tutto va a Nicola
 su Telegram.
 
-**Chi lo fa partire.** Il 16, alla fine di ogni iscrizione. Oppure a mano, col webhook protetto dallo
-stesso segreto del 16:
+**Chi lo fa partire.** Dal 25/11/2026 il **sito**, al primo abbonamento pagato (Nicola: la pagella arriva
+solo dopo l'abbonamento). Sul sito servono la variabile `N8N_PAGELLA_WEBHOOK_URL` =
+`https://n8n-shdy.sliplane.app/webhook/mycity-analisi-attivita` e `N8N_NUOVO_CLIENTE_SEGRETO` (c'è già).
+Non più il 16, e il 18 non chiama più il 19. Oppure a mano, col webhook protetto dallo stesso segreto del 16:
 
 ```bash
 curl -X POST https://n8n-shdy.sliplane.app/webhook/mycity-analisi-attivita -H "x-mycity-segreto: <segreto>" -H "content-type: application/json" -d '{"id":"<id MyCity dell attività>"}'
@@ -86,8 +96,9 @@ Business; altrimenti Base). I canoni li legge da `site_settings.agenzia.abboname
 titolare, cosa controllare prima di mandare) e una bozza per abbonamento. **Al titolare non parte niente**:
 il programma `controlla()` ferma ogni nodo che scriva a qualcuno che non sia la chat di Nicola nel Config.
 
-**Chi lo fa partire.** Il 18, come ultimo passo, senza aspettarlo. Quindi la catena è: iscrizione su MyCity
-→ 16 (scheda Clienti) → 18 (analisi) → 19 (bozze). Oppure a mano, col webhook protetto dallo stesso segreto del 16:
+**Chi lo fa partire.** Il 16, come ultimo passo, senza aspettarlo. Quindi la catena è: iscrizione su MyCity
+→ 16 (scheda Clienti e ricerca) → 19 (bozze). Il 18 (pagella) parte a parte, dal sito, al primo abbonamento
+pagato (25/11/2026). Oppure a mano, col webhook protetto dallo stesso segreto del 16:
 
 ```bash
 curl -X POST https://n8n-shdy.sliplane.app/webhook/mycity-bozze-abbonamenti -H "x-mycity-segreto: <segreto>" -H "content-type: application/json" -d '{"id":"<id MyCity dell attività>"}'
@@ -101,7 +112,8 @@ canone di listino o uno scontrino di partenza. Senza il sito accanto la prova si
 N8N_API_KEY=… node flussi/19-bozze-abbonamenti/costruisci.mjs --manda --marketplace <id credenziale Supabase> --segreto <id credenziale del segreto>
 ```
 
-Dopo il 19, il 18 si ricostruisce con `--manda` (trova il 19 per nome) o con `--bozze <id del 19>`.
+Dopo il 19, il 16 si rigenera con `--manda` (trova il 19 per nome) o con `--bozze <id del 19>`. Il 18 non
+chiama più il 19: il suo controllo si ferma se qualcuno ci rimette la chiamata.
 
 **Senza la chiave dell'API, col collegamento MCP a n8n.** `--sdk <file>` scrive lo stesso flusso in codice
 SDK (`flussi/in-sdk.mjs`), che gli strumenti `validate_workflow` e `create_workflow_from_code` accettano;
@@ -117,8 +129,9 @@ I gruppi sono tre, con dentro solo Nicola e il bot: **Attività** (con gli argom
 **Come funziona.** Chi ha messaggi su un negozio chiama il 97 con una voce per messaggio `{ id, nome, messaggio }`.
 Il 97 cerca l'argomento nella tabella dati «Argomenti delle attività» (id MyCity + gruppo); se non c'è lo fa aprire
 all'officina (`POST /telegram/argomento`, la chiave del bot sta lì) e lo segna; poi manda i messaggi
-nell'argomento. Lo chiamano l'analisi di un'attività (che lo aspetta, così l'argomento si apre una volta sola) e
-le bozze dei 3 abbonamenti.
+nell'argomento. Lo chiamano le bozze dei 3 abbonamenti (all'iscrizione, dal 16) e l'analisi di un'attività (dopo
+il primo abbonamento pagato, dal sito; lo aspetta). Dal 25/11/2026 i due non partono più insieme: l'argomento di
+un negozio nuovo lo apre il primo che scrive, una volta sola.
 
 **Finché un gruppo non c'è non cambia niente.** Nei Config: `CHAT_ATTIVITA` (97), `CHAT_MARKETPLACE` (analisi
 del marketplace), `CHAT_TECNICA` (analisi e bozze, per gli scarti). Vuoti = chat privata, come prima. Se l'officina
