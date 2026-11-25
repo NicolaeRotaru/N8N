@@ -5,10 +5,11 @@
 // Niente URL né require: il codice gira nel nodo Code di n8n, si legge tutto con le espressioni regolari.
 const LI = (() => {
   const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();
-  const taglia = (v, n) => { const c = Array.from(testo(v)); return c.length > n ? c.slice(0, n - 1).join('') + '…' : c.join(''); };
+  const taglia = (v, n) => { if (!(n > 0)) return ''; const c = Array.from(testo(v)); return c.length > n ? c.slice(0, n - 1).join('') + '…' : c.join(''); };
   /** Chiave per i doppioni: senza schema, www, frammento e barra finale. */
   const chiave = (u) => testo(u).toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').replace(/#.*$/, '').replace(/\/+$/, '');
-  const hostDi = (u) => { const m = testo(u).toLowerCase().match(/^[a-z]+:\/\/([^/?#:]+)/); return m ? m[1].replace(/^www\./, '') : ''; };
+  // L'host vero: dopo un eventuale «utente:password@», come lo legge il nodo HTTP (bar.it:@officina.internal → officina.internal).
+  const hostDi = (u) => { const m = testo(u).toLowerCase().match(/^[a-z]+:\/\/(?:[^/?#@]*@)?([^/?#:]+)/); return m ? m[1].replace(/^www\./, '') : ''; };
   // Meta: mai letti (Termini di Meta). Mappe e portali: mai letti in automatico. Le stesse regole del 12.
   const META = /(^|\.)(facebook\.com|facebook\.net|fb\.com|fb\.me|fb\.watch|instagram\.com|instagr\.am|cdninstagram\.com|fbcdn\.net|ig\.me|threads\.com|threads\.net|messenger\.com|whatsapp\.com|wa\.me)$/;
   const ePortale = (h, p) => /(^|\.)(tripadvisor|thefork|lafourchette|glovoapp|glovo)\.[a-z.]{2,}$/.test(h)
@@ -16,8 +17,9 @@ const LI = (() => {
     || (/(^|\.)google\.[a-z.]{2,}$/.test(h) && /^\/maps(\/|$)/.test(p));
   // Indirizzi interni: n8n sta su una rete con servizi suoi (l'officina, n8n stesso). Una pagina scritta apposta
   // potrebbe far scrivere all'AD «leggi http://officina.internal:8080/…»: quegli indirizzi non si aprono mai.
-  const SUFFISSI_INTERNI = /\.(local|localhost|internal|intranet|lan|home|corp|test|invalid|example|arpa|onion)$/;
-  const DOMINI_VIETATI = /(^|\.)(sliplane\.app|sliplane\.io|anthropic\.com|claude\.ai)$/;
+  const SUFFISSI_INTERNI = /\.(local|localdomain|localhost|internal|intranet|lan|home|corp|svc|test|invalid|example|arpa|onion)$/;
+  // Anche i servizi DNS «jolly», che fanno puntare un nome pubblico a qualunque indirizzo (127.0.0.1.nip.io → 127.0.0.1).
+  const DOMINI_VIETATI = /(^|\.)(sliplane\.app|sliplane\.io|anthropic\.com|claude\.ai|nip\.io|sslip\.io|xip\.io|traefik\.me|localtest\.me|lvh\.me|vcap\.me|lacolhost\.com|readme\.localtest\.me)$/;
   const TLD_NUDI = 'it|com|net|org|eu|info|biz|me|io|app|site|online|shop|store|wine|bar|pizza|restaurant|menu|co|uk|de|fr|ch|es|at|nl|be|sm|cafe|club|live|page|xyz|wiki|news';
   const RE_INDIRIZZI = new RegExp(`(https?:\\/\\/[^\\s<>"'«»()\\[\\]{}|\\\\^\`]+)|((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:${TLD_NUDI})(?:\\/[^\\s<>"'«»()\\[\\]{}|\\\\^\`]*)?)(?![a-z0-9-])`, 'gi');
 
@@ -25,6 +27,7 @@ const LI = (() => {
   function indirizzoSicuro(grezzo) {
     let t = testo(grezzo).replace(/[)\].,;:!?»"'›>]+$/, '');
     if (!t) return { ok: false, url: '', motivo: 'vuoto' };
+    if (t.length > 400) return { ok: false, url: t.slice(0, 200), motivo: 'indirizzo troppo lungo' };
     if (!/^[a-z][a-z0-9+.-]*:/i.test(t) && /^[a-z0-9.-]+\.[a-z]{2,}([/?#]|$)/i.test(t)) t = 'https://' + t;
     const m = t.match(/^(https?):\/\/([^/?#\s]+)([^\s#]*)/i);
     if (!m) return { ok: false, url: t, motivo: 'non è un indirizzo web' };

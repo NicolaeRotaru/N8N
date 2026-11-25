@@ -79,6 +79,61 @@ test('collegamenti relativi e sottopagine dello stesso sito', () => {
   assert.deepEqual(LP.sottopagine(HOME, EATBU), [`${EATBU}menu`, `${EATBU}contatti.html`]);
 });
 
+// ── dal primo collaudo (lente A, 25/11): ognuna ricrea un difetto trovato ─────────────────────────────
+test('collaudo: un collegamento «stesso-sito:@officina.internal» non diventa una sottopagina, e ogni barriera lo vede da sola', async () => {
+  const trappola = 'https://oradelgustovialesantambrogiopiacenzapcitalia.eatbu.com:@officina.internal:8080/menu';
+  assert.equal(LP.hostDi(trappola), 'officina.internal', "l'host vero è quello dopo la @");
+  assert.equal(LP.indirizzoSicuro(trappola).ok, false);
+  assert.deepEqual(LP.sottopagine(`<a href="${trappola}">Menu</a>`, EATBU), [], 'la pagina non la propone come stesso sito');
+  const fuori = await eseguiCodice(codiceNodo('sottopagine-da-leggere.js'), { input: [html(`<p>Benvenuti al bar Ora del Gusto di Piacenza</p><a href="${trappola}">Menu</a><a href="/menu.jpg">Menu</a><a href="/menu">Menu</a>`)],
+    nodi: { Config: [CONFIG], 'Pagine da leggere': voci([EATBU]) } });
+  assert.deepEqual(fuori.map((x) => x.json.url), [`${EATBU}menu`]);
+});
+
+test("collaudo: un rinvio con una tabulazione prima della @ porta all'host scritto prima, mai a quello dopo", async () => {
+  const fuori = await eseguiCodice(codiceNodo('sottopagine-da-leggere.js'), {
+    input: [{ json: { statusCode: 302, headers: { location: 'https://evil.com\t@officina.internal/' }, data: '' } }],
+    nodi: { Config: [CONFIG], 'Pagine da leggere': voci(['https://bar-esempio.it/']) } });
+  assert.deepEqual(fuori.map((x) => x.json.url), ['https://evil.com/']);
+});
+
+test('collaudo: i nomi «jolly» che puntano a indirizzi interni non si aprono, e nemmeno gli indirizzi lunghissimi', () => {
+  for (const u of ['http://127.0.0.1.nip.io/', 'http://169.254.169.254.nip.io/hetzner/v1/userdata', 'http://10-0-0-1.sslip.io/', 'http://localtest.me/',
+    'http://lvh.me/', 'http://localhost.localdomain/', 'http://kubernetes.default.svc/']) assert.equal(LP.indirizzoSicuro(u).ok, false, u);
+  assert.equal(LP.indirizzoSicuro(`https://bar.it/${'a'.repeat(450)}`).motivo, 'indirizzo troppo lungo');
+  assert.equal(LP.taglia('abcdef', 0), '');
+  assert.equal(LP.taglia('abcdef', 3), 'ab…');
+});
+
+test('collaudo: le pagine scritte apposta per rallentare si leggono in un tempo che cresce come la pagina', () => {
+  const casi = { commenti: '<!--'.repeat(80000), script: '<script>'.repeat(50000), minori: '<'.repeat(300000), titoli: '<title>'.repeat(50000),
+    dati: '<script type="application/ld+json">'.repeat(30000), enorme: `<p>${'x'.repeat(3000000)}</p>` };
+  for (const [nome, h] of Object.entries(casi)) {
+    const t0 = Date.now(); LP.htmlInTesto(h); const ms = Date.now() - t0;
+    assert.ok(ms < 1500, `${nome}: ${ms} ms`);
+  }
+  const t0 = Date.now();
+  const sotto = LP.sottopagine('<a href="/menu-x">menu</a>'.repeat(60000) + '<a href="/m">'.repeat(60000), EATBU);
+  assert.ok(Date.now() - t0 < 1500, `collegamenti: ${Date.now() - t0} ms`);
+  assert.ok(sotto.length <= 2000);
+  assert.match(LP.htmlInTesto('<p>prima</p><script>var x = 1;'), /prima/, 'uno script senza chiusura toglie solo quello che segue');
+  assert.doesNotMatch(LP.htmlInTesto('<p>prima</p><script>var x = 1;'), /var x/);
+  assert.match(LP.htmlInTesto('<head><title>T</title><p>senza chiusura della testa'), /senza chiusura della testa/, 'una <head> non chiusa non cancella la pagina');
+});
+
+test('collaudo: il tetto dei 30.000 caratteri regge anche con appunti lunghi e indirizzi lunghi', async () => {
+  for (const [lungAppunti, lungIndirizzo] of [[29000, 30], [25000, 300], [2000, 380], [29900, 40]]) {
+    const risposta = { ...RISPOSTA_AD, risultato: 'x'.repeat(lungAppunti) };
+    const dall = await dallAD(risposta);
+    const urls = Array.from({ length: 10 }, (_, i) => `https://bar-esempio.it/${String(i).padEnd(lungIndirizzo - 24, 'p')}`);
+    const nodi = { "Dall'AD: la ricerca": [dall], 'Pagine da leggere': voci(urls), 'Scarica le pagine': urls.map(() => html(`<p>${'Lorem ipsum dolor sit amet. '.repeat(4000)}</p>`)) };
+    const [m] = await eseguiCodice(codiceNodo('metti-le-pagine.js'), { nodi });
+    const testi = m.json.body.content.filter((x) => x.type === 'text').map((x) => x.text).join('');
+    assert.ok(Array.from(testi).length <= 30000, `appunti ${lungAppunti}, indirizzi ${lungIndirizzo}: ${Array.from(testi).length} caratteri`);
+    assert.equal(m.json.body.content.filter((x) => x.type === 'web_fetch_tool_result').length, 10, 'i blocchi del controllo ci sono tutti');
+  }
+});
+
 // ── i nodi, uno per uno ───────────────────────────────────────────────────────────────────────────
 test('Pagine da leggere: dalla risposta vera di Ora del Gusto escono i due siti del locale', async () => {
   const fuori = await eseguiCodice(codiceNodo('pagine-da-leggere.js'), { input: [await dallAD()], nodi: { Config: [CONFIG], 'Prepara la ricerca': [PREPARA()] } });
