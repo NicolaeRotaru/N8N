@@ -803,14 +803,15 @@ test('contratto: servizio e proposta su opportunità e prime mosse (10-160 carat
   assert.equal(u.scheda.analisi.giudizio_sito.migliorie, null, 'meno di 10 caratteri');
 });
 
-test('contratto: il giudizio sui social va anche nella scheda (analisi.giudizio_social), con la ricerca arrivata in fondo o no', async () => {
+test("contratto (AD, fonte unica): il giudizio sui social sta solo in analisi-canali, mai nella scheda; il giudizio sul sito arriva con la ricerca in fondo o no", async () => {
   const u = await unisci(RISPOSTA_COMPLETA);
-  assert.deepEqual(u.scheda.analisi.giudizio_social, {
-    instagram: { livello: 'debole', post_al_mese: 2, video: false, cura: 'amatoriale', risponde_recensioni: null, migliorie: 'Un post a settimana con la colazione del giorno e un breve video.' } });
+  assert.equal(u.scheda.analisi.giudizio_social, undefined);
+  assert.equal(u.analisi_canali.instagram.giudizio.livello, 'semplice');
   for (const proposta of [PROPOSTA, { ok: false }]) {
     const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', proposta) });
     assert.equal(json.mandare, true);
-    assert.deepEqual(json.corpo.analisi.giudizio_social, u.scheda.analisi.giudizio_social);
-    assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio', 'il giudizio sul sito arriva anche con la ricerca in fondo');
+    assert.equal(JSON.stringify(json.corpo).includes('giudizio_social'), false);
+    assert.equal(JSON.stringify(json.corpo).includes('"giudizio":'), false, 'nessuna copia del giudizio sui social nella scheda');
+    assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio');
   }
 });

@@ -401,23 +401,8 @@ if (so) {
 const fatta = letta && typeof letta === 'object' && !Array.isArray(letta);
 const avvisi = fatta ? [...new Set((Array.isArray(r.avvisi) ? r.avvisi : []).map((v) => frase(v, 240)).filter(Boolean))].slice(0, 6) : [];
 const segno = fatta ? { business_fatta_il: new Date().toISOString(), business_avvisi: avvisi } : {};
-// Il giudizio sui social anche nella scheda, nella forma proposta dalla sessione del preventivo (analisi.giudizio_social, solo
-// Instagram, Facebook e TikTok): livello debole/attivo/forte, video e risposte sì/no, cura curata/amatoriale.
-let giudizioSocial = null;
-if (canali) {
-  const LIV = { semplice: 'debole', medio: 'attivo', pregio: 'forte' };
-  const sino = (v, si, no) => (si.includes(v) ? true : no.includes(v) ? false : null);
-  for (const nome of ['instagram', 'facebook', 'tiktok']) {
-    const g = canali[nome] && canali[nome].giudizio;
-    if (!g) continue;
-    giudizioSocial = giudizioSocial || {};
-    giudizioSocial[nome] = { livello: LIV[g.livello] || null, post_al_mese: g.post_al_mese, video: sino(g.video, ['spesso', 'a_volte'], ['mai']),
-      cura: g.cura === 'curato' ? 'curata' : g.cura ? 'amatoriale' : null, risponde_recensioni: sino(g.risposte_recensioni, ['sempre', 'a_volte'], ['mai']),
-      migliorie: g.migliorie };
-  }
-}
 const { richiesta, ...resto } = prima;
-const aggiunte = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}), ...(giudizioSocial ? { giudizio_social: giudizioSocial } : {}) };
+const aggiunte = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
 const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...aggiunte } } : (Object.keys(aggiunte).length ? { analisi: aggiunte } : null);
 return [{ json: { ...resto, scheda, analisi_canali: canali, analisi_business: business ? 'fatta' : fatta ? 'fatta, senza fonti' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
 
@@ -440,7 +425,7 @@ const giudizioSito = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.sche
 const an = (dalPasso.scheda && dalPasso.scheda.analisi) || {};
 // Il segno «analisi fatta» (anche vuota) e i suoi avvisi: il sito smette di dire «la stiamo preparando».
 const segno = an.business_fatta_il ? { business_fatta_il: an.business_fatta_il, business_avvisi: Array.isArray(an.business_avvisi) ? an.business_avvisi : [] } : {};
-const dellAd = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}), ...(an.giudizio_social ? { giudizio_social: an.giudizio_social } : {}) };
+const dellAd = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
 if (!p || !p.ok) {
   // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business o guardato il sito, quella va al sito.
   if (!Object.keys(dellAd).length) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
