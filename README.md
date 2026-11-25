@@ -3,7 +3,8 @@
 ## flussi/
 I flussi n8n costruiti da programma: **16 · Nuovo cliente da MyCity** (un'attività che si iscrive su
 MyCity entra nella scheda Clienti col lavoro del modulo 12, e parte l'analisi della sua attività),
-**18 · Analisi di un'attività** (la stessa analisi del giro su una sola attività) e **17 · Analisi del marketplace** (il giro
+**18 · Analisi di un'attività** (la stessa analisi del giro su una sola attività), **19 · Bozze dei 3 abbonamenti** (le
+proposte Base, Business e Premium per l'attività nuova, pronte da mandare dopo averle lette) e **17 · Analisi del marketplace** (il giro
 dell'AD sui numeri di MyCity, ogni mattina su Telegram). Come si rigenerano e si provano: `flussi/LEGGIMI.md`.
 
 ## officina/

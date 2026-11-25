@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { eseguiCodice } from './esegui-codice.mjs';
-import { costruisci, controlla } from '../18-analisi-attivita/costruisci.mjs';
+import { costruisci, controlla, BOZZE, PASSA_ALLE_BOZZE } from '../18-analisi-attivita/costruisci.mjs';
 
 const leggi = (nome) => readFileSync(new URL(`../18-analisi-attivita/codice/${nome}`, import.meta.url), 'utf8');
 const RICHIESTA = leggi('leggi-richiesta.js');
@@ -281,4 +281,27 @@ test('nel confronto con gli altri negozi i venditori di sistema non contano', as
   const a = await calcola(d);
   assert.equal(a.numeri.media_prodotti_negozi_che_vendono, 2);
   assert.equal(a.numeri.negozi_approvati, 3);
+});
+
+// --- L'ultimo passo: le bozze dei 3 abbonamenti (flusso 19) ---------------------------------------
+
+test("alla fine il 18 passa la stessa richiesta al 19, senza aspettarlo; senza il 19 non c'è il passo", async () => {
+  const pezzi = { telegram: { id: 'tg', name: 'Telegram - Bot agenzia' }, anthropic: { id: 'an', name: 'Anthropic API' }, chatId: '1', marketplace: 'sb', segreto: 'hd' };
+  const senza = costruisci(pezzi);
+  assert.equal(senza.nodes.find((n) => n.name === BOZZE), undefined);
+  assert.deepEqual(controlla(senza), []);
+  const con = costruisci({ ...pezzi, bozze: 'id19' });
+  assert.deepEqual(controlla(con), []);
+  assert.equal(con.connections['Manda a Nicola'].main[0][0].node, PASSA_ALLE_BOZZE);
+  assert.equal(con.connections[PASSA_ALLE_BOZZE].main[0][0].node, BOZZE);
+  const chiama = con.nodes.find((n) => n.name === BOZZE);
+  assert.equal(chiama.parameters.workflowId.value, 'id19');
+  assert.equal(chiama.parameters.options.waitForSubWorkflow, false);
+  const passa = con.nodes.find((n) => n.name === PASSA_ALLE_BOZZE);
+  const richiesta = { valida: true, id: ID, nome: 'Bar Roma', scheda: SCHEDA };
+  const out = await eseguiCodice(passa.parameters.jsCode, { nodi: { 'Leggi la richiesta': [{ json: richiesta }] } });
+  assert.deepEqual(out[0].json, richiesta, "il 19 riceve l'attività e la scheda");
+  // Se la chiamata facesse aspettare il 18, il controllo lo ferma.
+  chiama.parameters.options.waitForSubWorkflow = true;
+  assert.ok(controlla(con).some((p) => /senza far aspettare/.test(p)));
 });
