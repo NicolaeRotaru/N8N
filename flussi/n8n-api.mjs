@@ -67,3 +67,11 @@ export async function creaOAggiorna(flusso) {
 export const accendi = (id) => chiama('POST', `/workflows/${encodeURIComponent(id)}/activate`);
 export const spegni = (id) => chiama('POST', `/workflows/${encodeURIComponent(id)}/deactivate`);
 export const creaCredenziale = (nome, tipo, dati) => chiama('POST', '/credentials', { name: nome, type: tipo, data: dati });
+
+/** Le etichette di famiglia («2x marketplace», «9x sistema»…), per nome. Quelle che non ci sono si saltano. */
+export async function etichetta(id, nomi) {
+  const tutte = (await chiama('GET', '/tags?limit=250')).data || [];
+  const scelte = tutte.filter((t) => nomi.includes(t.name)).map((t) => ({ id: t.id }));
+  if (scelte.length) await chiama('PUT', `/workflows/${encodeURIComponent(id)}/tags`, scelte);
+  return scelte.length;
+}

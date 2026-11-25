@@ -189,6 +189,48 @@ zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.
 
 ```bash
 N8N_API_KEY=… node flussi/conta-api-claude.mjs
+
+## Il lavoro meccanico del server dell'AD (21-25, 98)
+
+Dal 25/11/2026. Il server dell'AD è spento per sempre (Nicola, 24/11): i lavori a orario che un
+programma fa sempre uguale girano qui, **senza IA e senza token**. Tutti nascono **spenti** e in
+**MODALITA prova** (calcolano e ricordano, non mandano niente): si passa a «vero» nel Config o
+ricostruendo con `--vero`. Ogni errore va al «99 · Avvisi errori». I pezzi comuni stanno in `comune.mjs`.
+
+- **21 · Sentinella dei dati** — ogni 15 minuti, sola lettura sul database di MyCity: payout fermi,
+  ordini oltre lo slot promesso, carrelli da recuperare, recensioni basse nuove, negozi fermi, calo
+  ordini, marketplace fermo. Le soglie sono quelle di `ad-mycity/cervello/sentinella-dati.mjs`.
+  Avvisa solo quando qualcosa cambia. Ripara due controlli che nel cervello non vedevano niente: i
+  carrelli (chiedeva la colonna `id`, che `abandoned_carts` non ha: risposta 400) e gli ordini in
+  ritardo (cercava `expected_delivery`, che non esiste: lo slot è un testo, «Oggi · 11:00–13:00»).
+  Il 25/11 i due numeri veri erano 4 e 4.
+- **22 · Sito che risponde** — ogni 5 minuti, la pagina iniziale e `/api/health/ready`. Stati: su ·
+  degradato (lavori automatici del sito fermi) · giù (due controlli falliti di fila). Avvisa al cambio.
+- **98 · Salute di n8n** — chiamato dal 17 alle 8:10: flussi accesi, ultimo giro buono, falliti in
+  24 ore; il testo finisce in fondo al messaggio del 17. Vuole la credenziale «n8n - API (lettura)»
+  (Header Auth `X-N8N-API-KEY`, chiave da Settings → n8n API).
+- **23 · Mani del Pannello** — webhook `mycity-mani`: le azioni approvate nel Pannello dell'AD
+  (`pannello/src/lib/mani-n8n.ts`) arrivano qui. **Un'azione 🔴 parte solo se firmata da Nicola**,
+  controllato nel Pannello e di nuovo qui; la stessa azione una volta sola; oggi l'unico canale
+  collegato è `telegram`, gli altri tornano «in coda» col motivo. Vuole la credenziale «MyCity -
+  Segreto mani del Pannello» (Header Auth `x-mycity-segreto`), con lo stesso valore di
+  `N8N_WEBHOOK_SEGRETO` nel Pannello, e `N8N_WEBHOOK_URL` = l'indirizzo di produzione del webhook.
+- **24 · Radar del web** — alle 6:30 scarica le fonti del radar dell'AD (`24-radar-web/codice/fonti.json`,
+  copia di `ad-mycity/cervello/radar-fonti.json` senza la ricerca Google; le settimanali il lunedì),
+  tiene solo i titoli nuovi e chiede all'AD, tramite «Chiedi all'AD», quali contano per MyCity. Se l'AD
+  non risponde arrivano i titoli per fonte; senza novità nessun messaggio.
+- **25 · Numeri del mattino e della sera** — alle 6 il piano del mattino, alle 18 il report della sera.
+  I numeri li calcola lo stesso codice del 17 (`17-analisi-marketplace/codice/calcola-numeri.js`), il
+  testo lo scrive l'AD tramite «Chiedi all'AD». Se l'AD non risponde arrivano i soli numeri, detto.
+  In prova i lavori partono con `non_mandare`: la routine dell'AD non si accende e non si conta.
+
+```bash
+N8N_API_KEY=… node flussi/21-sentinella-dati/costruisci.mjs --manda   # la chiave del database la prende dal 17
+N8N_API_KEY=… node flussi/22-sito-risponde/costruisci.mjs --manda
+N8N_API_KEY=… node flussi/24-radar-web/costruisci.mjs --manda               # trova «Chiedi all'AD» per nome
+N8N_API_KEY=… node flussi/25-numeri-mattino-sera/costruisci.mjs --manda
+N8N_API_KEY=… node flussi/98-salute-n8n/costruisci.mjs --manda        # poi rilancia il 17: trova il 98 per nome
+N8N_API_KEY=… node flussi/23-mani-pannello/costruisci.mjs --manda --segreto <id credenziale>
 ```
 
 ## Le prove

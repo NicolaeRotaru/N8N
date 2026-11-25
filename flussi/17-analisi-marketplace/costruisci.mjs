@@ -17,7 +17,7 @@
 // Il codice dei nodi sta in codice/*.js (si prova con node --test flussi/test/). Questo programma
 // mette insieme il flusso e lo carica su n8n, SPENTO.
 //
-// Uso: N8N_API_KEY=… node flussi/17-analisi-marketplace/costruisci.mjs [--manda] [--marketplace <id credenziale>] [--scrivi <path>]
+// Uso: N8N_API_KEY=… node flussi/17-analisi-marketplace/costruisci.mjs [--manda] [--marketplace <id credenziale>] [--salute <id del 98>] [--scrivi <path>]
 // Con --manda prende da n8n (dal modulo 12) la chat Telegram e le credenziali di Telegram e Claude,
 // che nel repository non stanno: il repository è pubblico.
 
@@ -44,7 +44,9 @@ export const LETTURE = [
   ['Leggi le recensioni dei negozi', 'store_reviews?select=rating,created_at&limit=10000'],
 ];
 
-export function costruisci({ telegram, anthropic, chatId, marketplace } = {}) {
+export const SALUTE_N8N = 'Chiedi la salute di n8n';
+
+export function costruisci({ telegram, anthropic, chatId, marketplace, salute } = {}) {
   const credMarketplace = marketplace ? { id: marketplace, name: CREDENZIALE_MARKETPLACE.name } : CREDENZIALE_MARKETPLACE;
   const pos = (i, riga = 0) => [i * 220, riga * 200];
   const nodi = [];
@@ -105,7 +107,19 @@ export function costruisci({ telegram, anthropic, chatId, marketplace } = {}) {
 
   nodi.push({ id: randomUUID(), name: 'Calcola i numeri', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
     parameters: { jsCode: codice('calcola-numeri.js') } });
-  vai(prima, 'Calcola i numeri');
+  // 25/11/2026: la salute di n8n (flusso 98) va in fondo al messaggio delle 8:10. Il 17 la aspetta,
+  // ma se si guasta il briefing parte lo stesso, senza quella parte.
+  if (salute) {
+    nodi.push({ id: randomUUID(), name: SALUTE_N8N, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: pos(i++),
+      onError: 'continueRegularOutput',
+      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: salute },
+        workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+        mode: 'once', options: { waitForSubWorkflow: true } } });
+    vai(prima, SALUTE_N8N);
+    vai(SALUTE_N8N, 'Calcola i numeri');
+  } else {
+    vai(prima, 'Calcola i numeri');
+  }
   const si = (expr) => ({ conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 3 },
     conditions: [{ id: randomUUID(), leftValue: expr, rightValue: '', operator: { type: 'boolean', operation: 'true', singleValue: true } }],
     combinator: 'and' }, looseTypeValidation: true, options: {} });
@@ -176,7 +190,8 @@ export function controlla(w) {
     const s = JSON.stringify(n.parameters || {});
     for (const m of s.matchAll(/\$\(\\"(.+?)\\"\)|\$\('([^']+)'\)/g)) {
       const citato = m[1] ?? m[2];
-      if (!nomi.has(citato)) problemi.push(`«${n.name}» cita «${citato}», che non esiste`);
+      // La salute di n8n è facoltativa: il codice la cerca dentro un try.
+      if (!nomi.has(citato) && citato !== SALUTE_N8N) problemi.push(`«${n.name}» cita «${citato}», che non esiste`);
     }
     if (n.type === 'n8n-nodes-base.httpRequest' && n.parameters.method !== 'GET' && n.parameters.method !== 'HEAD' && n.name !== 'Chiedi il commento a Claude' && n.name !== 'Salva nel Pannello') {
       problemi.push(`«${n.name}» scrive (${n.parameters.method}): il database di MyCity si legge e basta`);
@@ -204,12 +219,18 @@ async function principale(argv) {
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
-    const m12 = trovaFlusso(await api.elencoFlussi(), NOMI.nuovoCliente);
+    const elenco = await api.elencoFlussi();
+    const m12 = trovaFlusso(elenco, NOMI.nuovoCliente);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
     const tg = m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi;
     const an = m12.nodes.find((n) => n.name === 'Cerca il locale con Claude')?.credentials?.httpHeaderAuth;
     const chat = m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value;
-    pezzi = { telegram: tg, anthropic: an, chatId: chat ? String(chat) : undefined, marketplace: valore('--marketplace') };
+    const f98 = elenco.find((w) => w.name === '98 · Salute di n8n');
+    pezzi = { telegram: tg, anthropic: an, chatId: chat ? String(chat) : undefined, // Senza --marketplace si tiene la credenziale che il 17 ha già su n8n: aggiornarlo senza
+      // staccava la chiave del database (successo il 25/11, rimediato subito).
+      marketplace: valore('--marketplace') || elenco.find((w) => w.name === NOME_17)?.nodes?.find((n) => n.credentials?.supabaseApi?.name === CREDENZIALE_MARKETPLACE.name)?.credentials?.supabaseApi?.id,
+      salute: valore('--salute') || f98?.id };
+    if (!pezzi.salute) console.warn('Il 98 · Salute di n8n non è su n8n: il 17 parte senza la salute di n8n.');
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
