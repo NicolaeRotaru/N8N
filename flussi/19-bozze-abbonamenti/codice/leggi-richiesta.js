@@ -1,5 +1,5 @@
 // 19 · Leggi la richiesta — per quale attività preparare le bozze dei tre abbonamenti.
-// Arriva in due modi: dal flusso 18 (l'analisi di un'attività appena iscritta, con la scheda del modulo 12
+// Arriva in due modi: dal flusso 16 (un'attività appena iscritta, con la scheda del modulo 12; fino al 25/11/2026 dal 18,
 // già accorciata) o dal webhook «Su richiesta» (protetto dal segreto), per rifare le bozze quando serve.
 // La scheda può arrivare piatta (dal 18) o con i campi dentro «analisi» (com'è nel 16): si leggono tutte e due.
 // L'identificativo finisce dentro un indirizzo del database: si accetta solo un UUID, niente altro.

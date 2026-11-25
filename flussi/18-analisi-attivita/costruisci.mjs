@@ -21,7 +21,9 @@
 // Uso: N8N_API_KEY=… node flussi/18-analisi-attivita/costruisci.mjs --manda --marketplace <id> --segreto <id>
 //   --marketplace  la credenziale Supabase in sola lettura (la stessa del 17)
 //   --segreto      la credenziale Header Auth del webhook (la stessa del 16)
-//   --bozze        il flusso 19 da chiamare alla fine (con --manda lo cerca per nome su n8n)
+//
+// Chi lo fa partire (25/11/2026): il sito al primo abbonamento pagato, sul webhook «Su richiesta». Non più il
+// 16 all'iscrizione, e il 18 non chiama più il 19: le bozze partono dal 16 (Nicola: la pagella dopo l'abbonamento).
 
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -49,6 +51,7 @@ export const LETTURE_18 = [
   ['Leggi i negozi approvati', 'profiles?role=eq.seller&approval_status=eq.approved&select=id&limit=1000'],
 ];
 
+// I nomi dei due nodi con cui il 18 chiamava il 19 fino al 25/11/2026: il controllo li vieta.
 export const PASSA_ALLE_BOZZE = 'Passa alle bozze';
 export const BOZZE = 'Bozze dei 3 abbonamenti (flusso 19)';
 // Il commento lo scrive l'AD col piano Max (sotto-flusso «Chiedi all'AD»), mai l'API di Claude a pagamento:
@@ -62,7 +65,7 @@ const CHAT = "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}";
 // Gli scarti (richiesta senza un'attività vera) vanno nel gruppo «Tecnica»; senza gruppo, nella chat privata.
 const CHAT_TECNICA = "={{ $('Config').first().json.CHAT_TECNICA || $('Config').first().json.TELEGRAM_CHAT_ID }}";
 
-export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, bozze, chiedi, argomento, chatTecnica } = {}) {
+export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, chiedi, argomento, chatTecnica } = {}) {
   const pos = (i, riga = 0) => [i * 220, riga * 200];
   const nodi = [];
   const collega_ = {};
@@ -140,8 +143,7 @@ export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, 
   nodi.push({ id: randomUUID(), name: 'Componi il messaggio', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
     parameters: { jsCode: codice('componi-messaggio.js') } });
   // Dal 25/11/2026 l'analisi va nell'argomento del negozio, nel gruppo «Attività»: la scrive il 97. Il 18 lo
-  // aspetta, così l'argomento di un negozio nuovo lo apre una volta sola, prima che partano le bozze (19).
-  let ultimo;
+  // aspetta, così l'argomento di un negozio nuovo lo apre una volta sola.
   if (argomento) {
     nodi.push({ id: randomUUID(), name: PER_L_ARGOMENTO, type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
       parameters: { jsCode: [
@@ -157,7 +159,6 @@ export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, 
         mode: 'once', options: { waitForSubWorkflow: true } } });
     vai('Componi il messaggio', PER_L_ARGOMENTO);
     vai(PER_L_ARGOMENTO, SCRIVI);
-    ultimo = SCRIVI;
   } else {
     nodi.push({ id: randomUUID(), name: 'Manda a Nicola', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: pos(i++),
       onError: 'continueRegularOutput',
@@ -166,21 +167,10 @@ export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, 
         additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
       credentials: { telegramApi: credTelegram } });
     vai('Componi il messaggio', 'Manda a Nicola');
-    ultimo = 'Manda a Nicola';
   }
-  // Ultimo passo (25/11/2026): le bozze dei tre abbonamenti per la stessa attività, nel flusso 19. Partono
-  // dopo l'analisi, senza farla aspettare: se le bozze si guastano, l'analisi è già arrivata a Nicola.
-  if (bozze) {
-    nodi.push({ id: randomUUID(), name: PASSA_ALLE_BOZZE, type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
-      parameters: { jsCode: "// 18 · Al flusso 19 passa la stessa richiesta: l'attività e la scheda della ricerca sul web.\nreturn [{ json: $('Leggi la richiesta').first().json }];" } });
-    nodi.push({ id: randomUUID(), name: BOZZE, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: pos(i++),
-      onError: 'continueRegularOutput',
-      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: bozze },
-        workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
-        mode: 'once', options: { waitForSubWorkflow: false } } });
-    vai(ultimo, PASSA_ALLE_BOZZE);
-    vai(PASSA_ALLE_BOZZE, BOZZE);
-  }
+  // 25/11/2026 — Il 18 non chiama più il 19: le bozze dei tre abbonamenti partono dal 16, all'iscrizione,
+  // con l'analisi (Nicola: l'analisi subito, la pagella dopo l'abbonamento). Il 18 parte dal sito al primo
+  // abbonamento pagato (mycity, lib/agenzia/abbonamento-attivo-n8n.ts), sul webhook «Su richiesta».
   nodi.push({ id: randomUUID(), name: 'Nota · Leggimi', type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: [0, -660],
     parameters: { width: 760, height: 400, content: [
       "## 18 · Analisi di un'attività",
@@ -189,9 +179,9 @@ export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, 
       '',
       "**Il commento** (COMMENTO_CLAUDE nel Config) è spento di serie. Con «si» lo scrive l'AD col piano Max attraverso il sotto-flusso «Chiedi all'AD», mai l'API di Claude a pagamento (Nicola, 24/11/2026).",
       '',
-      "**Chi la fa partire.** Il 16 (nuovo cliente da MyCity), come ultimo passo di ogni iscrizione, con la scheda del modulo 12. Oppure il webhook «Su richiesta» (stesso segreto del 16) con `{ \"id\": \"<id MyCity>\" }`.",
+      "**Chi la fa partire.** Il sito MyCity al primo abbonamento pagato (Nicola, 25/11/2026: la pagella arriva solo dopo l'abbonamento), sul webhook «Su richiesta» (stesso segreto del 16) con `{ \"id\": \"<id MyCity>\" }`. Lo stesso webhook serve per rifarla a mano.",
       '',
-      "**Dopo.** Alla fine chiama il 19 (bozze dei 3 abbonamenti) senza aspettarlo, con la stessa richiesta.",
+      "**Dopo.** Niente: le bozze dei 3 abbonamenti (19) partono dal 16, all'iscrizione.",
       '',
       '**Regole.** Solo lettura, niente dati personali del titolare. I numeri li fa il codice, mai Claude; «non misurato» non è zero.',
       '',
@@ -228,13 +218,8 @@ export function controlla(w) {
   if (!chiedi) problemi.push("il commento non passa da «Chiedi all'AD»");
   else if (chiedi.parameters.workflowId.value === 'DA_IMPOSTARE') problemi.push("manca l'id del flusso «Chiedi all'AD»");
   if (w.nodes.some((n) => JSON.stringify(n.parameters || {}).includes('api.anthropic.com'))) problemi.push("il 18 chiama l'API di Claude a pagamento");
-  const bozze = w.nodes.find((n) => n.name === BOZZE);
-  if (bozze) {
-    if (bozze.parameters?.options?.waitForSubWorkflow !== false) problemi.push('le bozze devono partire senza far aspettare il 18');
-    if (!bozze.parameters?.workflowId?.value) problemi.push('la chiamata delle bozze non dice quale flusso');
-    const dopo = w.nodes.some((n) => n.name === SCRIVI) ? SCRIVI : 'Manda a Nicola';
-    if (w.connections[dopo]?.main?.[0]?.[0]?.node !== PASSA_ALLE_BOZZE) problemi.push("le bozze non partono dopo l'analisi");
-  }
+  // 25/11/2026 — Le bozze partono dal 16 all'iscrizione: se il 18 chiamasse il 19, arriverebbero due volte.
+  if (w.nodes.some((n) => n.name === BOZZE || n.name === PASSA_ALLE_BOZZE)) problemi.push('il 18 non deve chiamare il 19: le bozze partono dal 16');
   const scrivi = w.nodes.find((n) => n.name === SCRIVI);
   if (scrivi && scrivi.parameters?.options?.waitForSubWorkflow !== true) problemi.push("il 18 deve aspettare il 97, se no l'argomento di un negozio nuovo si apre due volte");
   for (const n of w.nodes) if (n.type === 'n8n-nodes-base.telegram' && ![CHAT, CHAT_TECNICA].includes(n.parameters.chatId)) problemi.push(`«${n.name}» scrive a una chat che non è nel Config`);
@@ -248,7 +233,7 @@ export function controlla(w) {
 
 async function principale(argv) {
   const valore = (nome) => { const i = argv.indexOf(nome); return i >= 0 ? argv[i + 1] : undefined; };
-  let pezzi = { marketplace: valore('--marketplace'), segreto: valore('--segreto'), bozze: valore('--bozze'), argomento: valore('--argomento'), chatTecnica: valore('--tecnica') };
+  let pezzi = { marketplace: valore('--marketplace'), segreto: valore('--segreto'), argomento: valore('--argomento'), chatTecnica: valore('--tecnica') };
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
@@ -261,8 +246,6 @@ async function principale(argv) {
       chiedi: trovaFlusso(tutti, NOME_CHIEDI)?.id,
       chatId: String(m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value || ''),
       webhookId: gia?.nodes?.find((n) => n.name === 'Su richiesta')?.webhookId,
-      // Il 19 si trova per nome; n8n lo vuole acceso prima di accettare il 18 che lo chiama.
-      bozze: pezzi.bozze || trovaFlusso(tutti, NOMI.bozzeAbbonamenti)?.id,
       argomento: pezzi.argomento || trovaFlusso(tutti, NOMI.argomentoAttivita)?.id,
       chatTecnica: pezzi.chatTecnica ?? gia?.nodes?.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'CHAT_TECNICA')?.value };
   }

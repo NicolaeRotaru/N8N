@@ -25,6 +25,7 @@ const scheda = s ? {
 } : null;
 return [{ json: {
   valida: true, id, nome, scheda,
-  origine: daWebhook ? 'su richiesta' : taglia(entrata.origine || 'da un altro flusso', 80),
+  // 25/11/2026 — Dal sito arriva «primo abbonamento pagato»: si tiene, così Nicola lo distingue da un rifacimento a mano.
+  origine: daWebhook ? (taglia(entrata.origine, 80) || 'su richiesta') : taglia(entrata.origine || 'da un altro flusso', 80),
   esito_scheda: taglia(entrata.esito_scheda, 120),
 } }];
