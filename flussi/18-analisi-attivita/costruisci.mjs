@@ -27,8 +27,11 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
+import { collega } from '../chiedi-all-ad/collega.mjs';
+import { NOME_CHIEDI } from '../chiedi-all-ad/costruisci.mjs';
 
-export const NOME_18 = "18 · Analisi di un'attività";
+export const NOME_18 = NOMI.analisiAttivita;
 export const PERCORSO_WEBHOOK_18 = 'mycity-analisi-attivita';
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
@@ -48,12 +51,16 @@ export const LETTURE_18 = [
 
 export const PASSA_ALLE_BOZZE = 'Passa alle bozze';
 export const BOZZE = 'Bozze dei 3 abbonamenti (flusso 19)';
+// Il commento lo scrive l'AD col piano Max (sotto-flusso «Chiedi all'AD»), mai l'API di Claude a pagamento:
+// il nodo HTTP si costruisce e poi collega() lo sostituisce coi tre nodi verso «Chiedi all'AD».
+export const COMMENTO = "Dall'AD: commento";
+const CHIEDI_COMMENTO = { nodo: 'Chiedi il commento a Claude', cosa: 'commento', forma: 'corpo' };
 
-export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, webhookId, bozze } = {}) {
+export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, bozze, chiedi } = {}) {
   const pos = (i, riga = 0) => [i * 220, riga * 200];
   const nodi = [];
-  const collega = {};
-  const vai = (da, ...verso) => { collega[da] = { main: verso.map((v) => (v ? [{ node: v, type: 'main', index: 0 }] : [])) }; };
+  const collega_ = {};
+  const vai = (da, ...verso) => { collega_[da] = { main: verso.map((v) => (v ? [{ node: v, type: 'main', index: 0 }] : [])) }; };
   const credTelegram = telegram || { id: 'DA_IMPOSTARE', name: 'Telegram - Bot agenzia' };
 
   nodi.push(
@@ -117,8 +124,7 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
     onError: 'continueRegularOutput', retryOnFail: true, maxTries: 2, waitBetweenTries: 5000,
     parameters: { method: 'POST', url: 'https://api.anthropic.com/v1/messages', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
       sendHeaders: true, headerParameters: { parameters: [{ name: 'anthropic-version', value: '2026-10-21' }, { name: 'anthropic-beta', value: 'server-side-fallback-2026-07-01' }] },
-      sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.richiesta) }}', options: { timeout: 90000 } },
-    credentials: { httpHeaderAuth: anthropic || { id: 'DA_IMPOSTARE', name: 'Anthropic API' } } });
+      sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.richiesta) }}', options: { timeout: 90000 } } });
   vai('Commento di Claude?', 'Prepara la domanda a Claude', 'Componi il messaggio');
   vai('Prepara la domanda a Claude', 'Chiedi il commento a Claude');
   vai('Chiedi il commento a Claude', 'Componi il messaggio');
@@ -151,7 +157,7 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
       '',
       "**Cosa fa.** La stessa analisi del giro (17) su una sola attività di MyCity: a che punto è per arrivare al primo incasso (approvazione, pagamenti con carta, vetrina, prodotti, ordini, incassi, recensioni, confronto con gli altri negozi), coi segnali del giro. Il messaggio va a Nicola su Telegram.",
       '',
-      "**Il commento di Claude** (COMMENTO_CLAUDE nel Config) è spento di serie: «non si paga MAI un'API di IA» (registro dei fatti, ad.uso-e-crediti). Si accende con «si» solo se Nicola lo decide.",
+      "**Il commento** (COMMENTO_CLAUDE nel Config) è spento di serie. Con «si» lo scrive l'AD col piano Max attraverso il sotto-flusso «Chiedi all'AD», mai l'API di Claude a pagamento (Nicola, 24/11/2026).",
       '',
       "**Chi la fa partire.** Il 16 (nuovo cliente da MyCity), come ultimo passo di ogni iscrizione, con la scheda del modulo 12. Oppure il webhook «Su richiesta» (stesso segreto del 16) con `{ \"id\": \"<id MyCity>\" }`.",
       '',
@@ -162,11 +168,12 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
       '**Generato** da `N8N/flussi/18-analisi-attivita/costruisci.mjs`: le modifiche vanno fatte lì.',
     ].join('\n') } });
 
-  return {
-    name: NOME_18, nodes: nodi, connections: collega,
+  const w = {
+    name: NOME_18, nodes: nodi, connections: collega_,
     settings: { executionOrder: 'v1', timezone: 'Europe/Rome', saveManualExecutions: false, saveDataErrorExecution: 'none',
       saveDataSuccessExecution: 'none', callerPolicy: 'workflowsFromSameOwner' },
   };
+  return collega(w, { nodi: [CHIEDI_COMMENTO], chiediId: chiedi || 'DA_IMPOSTARE' }).flusso;
 }
 
 /** I problemi del flusso costruito (vuoto = a posto). */
@@ -187,6 +194,10 @@ export function controlla(w) {
     if (!nomi.has(da)) problemi.push(`collegamento da un nodo che non esiste: «${da}»`);
     for (const ramo of uscite.main || []) for (const v of ramo || []) if (!nomi.has(v.node)) problemi.push(`collegamento verso «${v.node}», che non esiste`);
   }
+  const chiedi = w.nodes.find((n) => n.type === 'n8n-nodes-base.executeWorkflow' && n.name.startsWith("Chiedi all'AD"));
+  if (!chiedi) problemi.push("il commento non passa da «Chiedi all'AD»");
+  else if (chiedi.parameters.workflowId.value === 'DA_IMPOSTARE') problemi.push("manca l'id del flusso «Chiedi all'AD»");
+  if (w.nodes.some((n) => JSON.stringify(n.parameters || {}).includes('api.anthropic.com'))) problemi.push("il 18 chiama l'API di Claude a pagamento");
   const bozze = w.nodes.find((n) => n.name === BOZZE);
   if (bozze) {
     if (bozze.parameters?.options?.waitForSubWorkflow !== false) problemi.push('le bozze devono partire senza far aspettare il 18');
@@ -208,20 +219,20 @@ async function principale(argv) {
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
     const tutti = await api.elencoFlussi();
-    const m12 = tutti.find((w) => w.name === '12 · Nuovo cliente (automatico)');
+    const m12 = trovaFlusso(tutti, NOMI.nuovoCliente);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
     const gia = tutti.find((w) => w.name === NOME_18);
     pezzi = { ...pezzi,
       telegram: m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi,
-      anthropic: m12.nodes.find((n) => n.name === 'Cerca il locale con Claude')?.credentials?.httpHeaderAuth,
+      chiedi: tutti.find((w) => w.name === NOME_CHIEDI)?.id,
       chatId: String(m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value || ''),
       webhookId: gia?.nodes?.find((n) => n.name === 'Su richiesta')?.webhookId,
       // Il 19 si trova per nome; n8n lo vuole acceso prima di accettare il 18 che lo chiama.
-      bozze: pezzi.bozze || tutti.find((w) => w.name === '19 · Bozze dei 3 abbonamenti')?.id };
+      bozze: pezzi.bozze || trovaFlusso(tutti, NOMI.bozzeAbbonamenti)?.id };
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
-  const problemi = controlla(w).filter((p) => argv.includes('--manda') || !/credenziale|chat Telegram/.test(p));
+  const problemi = controlla(w).filter((p) => argv.includes('--manda') || !/credenziale|chat Telegram|Chiedi all'AD»$/.test(p));
   if (problemi.length) { console.error('Il 18 non va bene:\n- ' + problemi.join('\n- ')); process.exit(1); }
   console.log(`18 costruito: ${w.nodes.length} nodi, controlli a posto.`);
   if (api) {

@@ -4,6 +4,8 @@
 // La chiave: N8N_API_KEY. Si crea in n8n → Settings → n8n API. Non va mai scritta in un file
 // del repository: questo repository è pubblico.
 
+import { trovaFlusso } from './nomi.mjs';
+
 export const N8N_URL = (process.env.N8N_URL || 'https://n8n-shdy.sliplane.app').replace(/\/+$/, '');
 
 // Le sole impostazioni che l'API pubblica accetta quando si crea o si aggiorna un flusso.
@@ -48,9 +50,12 @@ export function corpoPerApi(flusso) {
   return { name: flusso.name, nodes: flusso.nodes, connections: flusso.connections, settings: impostazioni };
 }
 
-/** Crea il flusso se non c'è uno con lo stesso nome, altrimenti lo aggiorna. Non lo accende mai. */
+/**
+ * Crea il flusso se non c'è uno con lo stesso nome, altrimenti lo aggiorna. Non lo accende mai.
+ * Trova anche il flusso col nome vecchio (nomi.mjs): aggiornandolo, gli dà il nome nuovo.
+ */
 export async function creaOAggiorna(flusso) {
-  const esistente = (await elencoFlussi()).find((w) => w.name === flusso.name);
+  const esistente = trovaFlusso(await elencoFlussi(), flusso.name);
   if (esistente) {
     const aggiornato = await chiama('PUT', `/workflows/${esistente.id}`, corpoPerApi(flusso));
     return { id: aggiornato.id, creato: false, attivo: aggiornato.active };
@@ -62,3 +67,11 @@ export async function creaOAggiorna(flusso) {
 export const accendi = (id) => chiama('POST', `/workflows/${encodeURIComponent(id)}/activate`);
 export const spegni = (id) => chiama('POST', `/workflows/${encodeURIComponent(id)}/deactivate`);
 export const creaCredenziale = (nome, tipo, dati) => chiama('POST', '/credentials', { name: nome, type: tipo, data: dati });
+
+/** Le etichette di famiglia («2x marketplace», «9x sistema»…), per nome. Quelle che non ci sono si saltano. */
+export async function etichetta(id, nomi) {
+  const tutte = (await chiama('GET', '/tags?limit=250')).data || [];
+  const scelte = tutte.filter((t) => nomi.includes(t.name)).map((t) => ({ id: t.id }));
+  if (scelte.length) await chiama('PUT', `/workflows/${encodeURIComponent(id)}/tags`, scelte);
+  return scelte.length;
+}
