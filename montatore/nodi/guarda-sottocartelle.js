@@ -7,7 +7,8 @@ $input.all().forEach((x, i) => {
   if (!s || !x.json || x.json.error) return;
   const voci = x.json.files || [];
   // c'è già la cartella «Pronti»: il servizio è già partito (dal modulo o da un giro di prima). Non si riparte.
-  if (voci.some((f) => eCartella(f) && /^pronti/i.test(testo(f.name)))) {
+  const radicePronti = chiaveNome(testo($('Config').first().json.NOME_CARTELLA_PRONTI || 'Pronti (montatore)'));
+  if (voci.some((f) => eCartella(f) && chiaveNome(f.name).startsWith(radicePronti))) {
     const S = $getWorkflowStaticData('global');
     S.servizi = S.servizi || {};
     S.servizi[s.servizio_id] = { ...(S.servizi[s.servizio_id] || {}), avviato: new Date().toISOString(), da: 'pronti' };

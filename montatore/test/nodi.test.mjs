@@ -133,7 +133,7 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiP({ origine: 'cartella' }, conPronti), input: [files] })[0].json.ok, false, 'anche dal guardiano');
   const rifai = esegui('prepara-il-lavoro.js', { nodi: nodiP({ note: 'rifai, venerdì serata salsa' }, conPronti), input: [files] })[0].json;
   assert.equal(rifai.ok, true);
-  assert.equal(rifai.lavoro.note, ', venerdì serata salsa');
+  assert.equal(rifai.lavoro.note, 'venerdì serata salsa');
   assert.equal(rifai.pronti.crea, true, 'in prova la cartella «… - prova» non c\'è ancora: si crea');
   // il nodo che crea subito la cartella è collegato prima della partenza del giro
   assert.deepEqual(workflow.connections['Prepara la partenza'].main[0].map((x) => x.node), ['Serve la cartella Pronti?', 'Avvia il montaggio']);
@@ -286,6 +286,7 @@ test('Leggi il controllo: un punto segnato da solo non boccia; voto 1-2 sì, e i
   assert.doesNotMatch(basso.motivo, /punto più forte/);
   const no = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 3, esito: 'da_rivedere', motivo: 'al secondo 0:08 la scritta copre il viso' })] })[0].json;
   assert.match(no.motivo, /^al secondo 0:08 la scritta copre il viso · luce:/);
+  assert.equal(esegui('leggi-il-controllo.js', { input: [risp({ punti: [], voto: 2, esito: 'ok', motivo: 'Il punto più forte: le mani' })] })[0].json.motivo, 'voto basso (2/5)');
   assert.equal(esegui('leggi-il-controllo.js', { input: [{ error: { message: 'x' } }] })[0].json.esito, 'non_controllato');
 });
 
@@ -306,7 +307,7 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
   assert.deepEqual(sv.map((x) => [x.cliente, x.servizio_nome]), [['el-tropico', 'Servizio dicembre'], ['bar-luna', 'Shooting']]);
   // dentro: il primo servizio ha le sottocartelle, il secondo solo file sciolti
   // un servizio con la cartella «Pronti» dentro è già partito (dal modulo): il guardiano non lo riparte
-  const giaPartito = esegui('guarda-sottocartelle.js', { nodi: { 'Guarda: servizi nuovi': sv.slice(0, 1) }, input: [{ files: [{ id: 'sub1', name: 'video verticali', mimeType: 'application/vnd.google-apps.folder' }, { id: 'pr', name: 'Pronti (montatore) - prova', mimeType: 'application/vnd.google-apps.folder' }] }], statico: S });
+  const giaPartito = esegui('guarda-sottocartelle.js', { nodi: { Config: CONFIG, 'Guarda: servizi nuovi': sv.slice(0, 1) }, input: [{ files: [{ id: 'sub1', name: 'video verticali', mimeType: 'application/vnd.google-apps.folder' }, { id: 'pr', name: 'Pronti (montatore) - prova', mimeType: 'application/vnd.google-apps.folder' }] }], statico: S });
   assert.deepEqual(giaPartito, []);
   assert.equal(S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.da, 'pronti');
   delete S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.avviato;
@@ -314,7 +315,7 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
     { files: [{ id: 'sub1', name: 'video verticali', mimeType: 'application/vnd.google-apps.folder' }, { id: 'sub2', name: 'foto', mimeType: 'application/vnd.google-apps.folder' }, { id: 'x1', name: 'musica.mp3', mimeType: 'audio/mpeg', createdTime: '2026-11-24T10:01:00Z' }] },
     { files: [{ id: 'y1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: new Date(Date.now() - 5 * 60000).toISOString() }] },
   ];
-  const sub = esegui('guarda-sottocartelle.js', { nodi: { 'Guarda: servizi nuovi': sv }, input: dentro }).map((x) => x.json);
+  const sub = esegui('guarda-sottocartelle.js', { nodi: { Config: CONFIG, 'Guarda: servizi nuovi': sv }, input: dentro }).map((x) => x.json);
   assert.deepEqual(sub.map((x) => x.cartella), ['sub1', 'sub2'], 'una cartella senza le sottocartelle del servizio non parte da sola');
   assert.equal(sub[0].diretti.length, 1, 'i file sciolti del servizio contano una volta');
   const vecchio = new Date(Date.now() - 45 * 60000).toISOString();
@@ -552,6 +553,7 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
     assert.equal(esegui('domanda-di-ritocco.js', { nodi: { Config: R }, input: [{}] })[0].json.ok, false, 'nessuna nota scritta');
     assert.match(esegui('domanda-di-ritocco.js', { nodi: { Config: { ...CONFIG, ...schede[1] } }, input: [{ data: { text: 'altra foto' } }] })[0].json.messaggio, /Le foto non si rimontano/);
     assert.match(esegui('domanda-di-ritocco.js', { nodi: { Config: { ...R, versione: 4 } }, input: [{ data: { text: 'ancora' } }] })[0].json.messaggio, /Già ritoccato 3 volte/);
+    assert.match(esegui('domanda-di-ritocco.js', { nodi: { Config: { ...R, versione: 2, ritocchi_falliti: 2 } }, input: [{ data: { text: 'ancora' } }] })[0].json.messaggio, /Già ritoccato 3 volte/, 'anche i ritocchi non riusciti contano');
     const ritocco = { regia: { battute: [{ fonte: '', inizio: 0, fine: 0, immagini: 6, nome: '', ruolo: '', posizione_volto: '', coperture: ['V01.1', 'V02.2 sinistra'] }], coperture_riserva: ['V02.1'], titolo: 'Venerdì', scritte: [], chiusura: 'Prenota', musica: false }, data: '2026-12-04', ora: '19:00', cosa_ho_cambiato: 'Più corto: 6 secondi, senza la scena V01.3.', non_posso: '' };
     const lr = esegui('leggi-il-ritocco.js', { nodi: { Config: R }, input: [risposta(ritocco)] })[0].json;
     assert.equal(lr.ok, true);

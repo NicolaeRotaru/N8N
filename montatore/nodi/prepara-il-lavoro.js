@@ -53,7 +53,7 @@ const lavoro = {
   servizio: S,
   mese,
   richiesta,
-  note: accorcia(testo(CFG.note).replace(/\brifai\b/gi, '').trim(), 2000),
+  note: accorcia(testo(CFG.note).replace(/\brifai\b/gi, '').replace(/^[\s,;:.\-]+/, '').trim(), 2000),
   file,
   musica,
   scartati,

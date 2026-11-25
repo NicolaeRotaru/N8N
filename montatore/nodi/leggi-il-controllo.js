@@ -8,5 +8,6 @@ const punti = (Array.isArray(d.punti) ? d.punti : []).map((p) => ({ punto: testo
 // un po' scura non è motivo per bocciare). Quando è da rivedere il motivo dice cosa non va, con le note dei punti.
 const rivedere = d.esito === 'da_rivedere' || voto <= 2;
 const noteKo = punti.filter((p) => !p.ok && p.nota).map((p) => p.punto + ': ' + p.nota);
-const motivo = rivedere ? [d.esito === 'da_rivedere' ? testo(d.motivo) : '', ...noteKo].filter(Boolean).join(' · ') || testo(d.motivo) : testo(d.motivo);
+const base = d.esito === 'da_rivedere' ? testo(d.motivo) : '';
+const motivo = rivedere ? [base, ...noteKo.filter((n) => !base.includes(n.replace(/^[a-z]+: /, '')))].filter(Boolean).join(' · ') || 'voto basso (' + voto + '/5)' : testo(d.motivo);
 return [{ json: { esito: rivedere ? 'da_rivedere' : 'ok', voto, punti, motivo: accorcia(motivo, 400) } }];

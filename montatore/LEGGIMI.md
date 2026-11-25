@@ -8,13 +8,13 @@
   - Quando compare una cartella nuova con del materiale, e da 30 minuti non arrivano file nuovi (la copia dalla scheda è finita), il montaggio parte.
   - Esempio: alle 15:10 finite di copiare «Servizio dicembre» nella cartella del Tropico. Fra le 15:40 e le 15:55 arriva su Telegram «👀 Servizio nuovo… parto da solo», poi i messaggi di sempre.
   - Le cartelle che c'erano già prima di accendere il workflow non partono mai da sole. Parte solo una cartella con le sottocartelle del servizio («video verticali», «video orizzontali», «foto»): una cartella «Grafiche» o «Menu» no.
-  - Il modulo funziona come prima. Lo stesso servizio però non parte due volte: se il guardiano o il modulo l'hanno già avviato nelle ultime 12 ore, il modulo si ferma e lo dice. Per rifarlo davvero si scrive «rifai» nelle note.
+  - Il modulo funziona come prima. Lo stesso servizio però non parte due volte: se nel servizio c'è già la cartella «Pronti (montatore)», il modulo si ferma e lo dice. Per rifarlo davvero si scrive «rifai» nelle note.
 - **Reel e storie video con la regia di Scatti di G.** Claude scrive per ogni video le battute (chi parla, quali frasi) e le coperture scelte per significato. L'officina lo monta con la moodboard: ritmo lento, nero morbido, testi sobri, 25 fotogrammi.
 - **Una scheda su Telegram per ogni contenuto.** Dentro ci sono titolo, giorno e ora, link a Drive. L'anteprima arriva solo se il cliente ha il consenso per le persone (colonna `anteprime_con_persone`).
   - ✅ **Approva**: in modalità attivo scrive la riga nel Calendario. Una storia esce «approvato» e la pubblica il 01. Un reel o un post esce «da scrivere»: il 04 fa la didascalia e te la chiede a parte.
   - ✏️ **Correggi**: ti chiede «cosa cambio?», tu scrivi come lo diresti a voce («più corto», «togli la scena del bancone»). Claude riscrive la regia, l'officina rimonta, su Drive arriva il file «· v2» e una scheda nuova. Al massimo 3 ritocchi.
   - Il cliente non approva niente: decide Scatti di G.
-- **Il controllo finale di Claude giudica sulla moodboard**: immagini, luce, testi, racconto e decoro, con un voto da 1 a 5 che compare sulla scheda. Sotto 3, o con un punto bocciato, il video arriva come «da rivedere».
+- **Il controllo finale di Claude giudica sulla moodboard**: immagini, luce, testi, racconto e decoro, con un voto da 1 a 5 che compare sulla scheda. Con un voto da 1 a 2, o quando Claude scrive «da rivedere», il video arriva così, con il motivo; un punto segnato da solo, come un'immagine un po' scura, non basta.
 - **Claude riconosce le inquadrature** (largo, medio, dettaglio, volto) quando guarda il materiale: il piano va da largo a stretto, mai tre dettagli di fila.
 - **La voce si pulisce come in studio**: tolto il rimbombo e il soffio di fondo, frasi a volume uniforme.
 - **L'identità di Scatti di G sta nel Config** (`SDG_COLORE_FONDO`, `SDG_COLORE_TESTO`, `SDG_COLORE_ACCENTO`, `SDG_FONT_TITOLI`, `SDG_FONT_TESTO`): quando arrivano i colori nuovi si cambiano lì, senza toccare l'officina. Il logo nei video è quello del cliente, preso dal foglio Clienti a ogni giro: se cambia il file, cambia anche nei video.
