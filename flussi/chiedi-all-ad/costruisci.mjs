@@ -36,6 +36,10 @@ export const NOME_CHIAVE = "Chiedi all'AD - chiave della routine";
 export const URL_ROUTINE = 'https://api.anthropic.com/v1/claude_code/routines/';
 export const PARTI = 'Fai partire la routine';
 export const ASPETTA = 'Aspetta la risposta';
+export const TABELLA_ALLEGATI = "Allegati per l'AD";
+export const URL_ALLEGATI = 'https://n8n-shdy.sliplane.app/webhook/allegati-ad';
+/** Le colonne della tabella degli allegati che «Chiedi all'AD» scrive. */
+const COLONNE = [['impronta', 'string'], ['corsa', 'string'], ['scade', 'number'], ['nome', 'string'], ['tipo', 'string'], ['mime', 'string'], ['contenuto', 'string']];
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
 
@@ -60,9 +64,38 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
         ['TETTO_ORA', 25],
         ['ATTESA_MINUTI', 15],
         ['PROVA_ATTESA_MINUTI', 2],
+        // Dove l'AD scarica gli allegati (flusso «Allegati per l'AD»): il gettone va dopo «?g=».
+        ['ALLEGATI_URL', URL_ALLEGATI],
       ].map(([name, value]) => ({ id: randomUUID(), name, value, type: typeof value === 'number' ? 'number' : 'string' })) } } },
+    // Gli allegati: controllati, un gettone casuale da 256 bit per ognuno, e la sua impronta SHA-256.
+    { id: randomUUID(), name: 'Allegati del lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2, 1),
+      parameters: { jsCode: codice('allegati-lavoro.js') } },
+    { id: randomUUID(), name: 'Gettoni', type: 'n8n-nodes-base.crypto', typeVersion: 1, position: pos(3, 1),
+      parameters: { action: 'generate', encodingType: 'hex', stringLength: 64, dataPropertyName: 'gettone' } },
+    { id: randomUUID(), name: 'Impronte', type: 'n8n-nodes-base.crypto', typeVersion: 1, position: pos(4, 1),
+      parameters: { action: 'hash', type: 'SHA256', value: '={{ $json.gettone }}', dataPropertyName: 'impronta', encoding: 'hex' } },
     { id: randomUUID(), name: 'Prepara il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2),
       parameters: { jsCode: codice('prepara-lavoro.js') } },
+    // Prima di far partire la routine gli allegati sono nella tabella; dopo la risposta (o se non parte) si cancellano.
+    { id: randomUUID(), name: 'Salva gli allegati?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(3, -1),
+      parameters: se('={{ Array.isArray($json.righe) && $json.righe.length > 0 }}') },
+    { id: randomUUID(), name: 'Righe degli allegati', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(3, -3),
+      parameters: { jsCode: "// Una riga della tabella per allegato.\nreturn ($('Prepara il lavoro').first().json.righe || []).map((r) => ({ json: r }));" } },
+    { id: randomUUID(), name: 'Salva gli allegati', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4, -3),
+      parameters: { resource: 'row', operation: 'insert', dataTableId: { __rl: true, mode: 'name', value: TABELLA_ALLEGATI },
+        columns: { mappingMode: 'defineBelow', value: Object.fromEntries(COLONNE.map(([c]) => [c, `={{ $json.${c} }}`])),
+          schema: COLONNE.map(([c, tipo]) => ({ id: c, displayName: c, required: false, defaultMatch: false, display: true, type: tipo, canBeUsedToMatch: true })) },
+        options: {} } },
+    { id: randomUUID(), name: 'Rimetti il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, -3),
+      parameters: { jsCode: "// Dopo il salvataggio si riprende il lavoro preparato.\nreturn $('Prepara il lavoro').all();" } },
+    { id: randomUUID(), name: 'Cancella gli allegati?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(7, 1),
+      parameters: se("={{ Array.isArray($('Prepara il lavoro').first().json.righe) && $('Prepara il lavoro').first().json.righe.length > 0 }}") },
+    { id: randomUUID(), name: 'Cancella gli allegati', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(7, 3),
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
+      parameters: { resource: 'row', operation: 'deleteRows', dataTableId: { __rl: true, mode: 'name', value: TABELLA_ALLEGATI }, matchType: 'allConditions',
+        filters: { conditions: [{ keyName: 'corsa', condition: 'eq', keyValue: '={{ String($execution.id) }}' }] }, options: {} } },
+    { id: randomUUID(), name: 'Rimetti la risposta', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(8, 3),
+      parameters: { jsCode: `// Dopo la cancellazione si riprende quello che era arrivato: la risposta dell'AD, o l'esito della partenza.\nreturn ($('${ASPETTA}').isExecuted ? $('${ASPETTA}') : $('${PARTI}')).all();` } },
     { id: randomUUID(), name: 'Deve aspettare?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(3),
       parameters: se("={{ ['parti', 'prova'].includes($json.azione) }}") },
     { id: randomUUID(), name: 'Parte davvero?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(4, -1),
@@ -88,14 +121,24 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
       parameters: { jsCode: codice('componi-risposta.js') } },
   );
   vai('Da un altro flusso', 'Config');
-  // Config gira una volta; «Prepara il lavoro» legge tutti i lavori dal trigger, non da Config.
-  vai('Config', 'Prepara il lavoro');
-  vai('Deve aspettare?', 'Parte davvero?', 'Componi la risposta');
+  // Config gira una volta; gli allegati e «Prepara il lavoro» leggono tutti i lavori dal trigger, non da Config.
+  vai('Config', 'Allegati del lavoro');
+  vai('Allegati del lavoro', 'Gettoni');
+  vai('Gettoni', 'Impronte');
+  vai('Impronte', 'Prepara il lavoro');
+  vai('Deve aspettare?', 'Salva gli allegati?', 'Componi la risposta');
+  vai('Salva gli allegati?', 'Righe degli allegati', 'Parte davvero?');
+  vai('Righe degli allegati', 'Salva gli allegati');
+  vai('Salva gli allegati', 'Rimetti il lavoro');
+  vai('Rimetti il lavoro', 'Parte davvero?');
   vai('Prepara il lavoro', 'Deve aspettare?');
   vai('Parte davvero?', PARTI, ASPETTA);
   vai(PARTI, 'Partita?');
-  vai('Partita?', ASPETTA, 'Componi la risposta');
-  vai(ASPETTA, 'Componi la risposta');
+  vai('Partita?', ASPETTA, 'Cancella gli allegati?');
+  vai(ASPETTA, 'Cancella gli allegati?');
+  vai('Cancella gli allegati?', 'Cancella gli allegati', 'Componi la risposta');
+  vai('Cancella gli allegati', 'Rimetti la risposta');
+  vai('Rimetti la risposta', 'Componi la risposta');
 
   nodi.push({ id: randomUUID(), name: 'Nota · Leggimi', type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: [0, -760],
     parameters: { width: 820, height: 460, content: [
@@ -147,6 +190,11 @@ export function controlla(w) {
   const aspetta = w.nodes.find((n) => n.name === ASPETTA);
   if (!aspetta || aspetta.parameters.resume !== 'webhook' || aspetta.parameters.limitWaitTime !== true) problemi.push("l'attesa deve avere un tempo massimo");
   if (w.connections[PARTI]?.main?.[0]?.[0]?.node !== 'Partita?') problemi.push('dopo la partenza manca il controllo «Partita?»');
+  // Gli allegati: salvati prima della partenza, cancellati dopo la risposta o se la routine non parte.
+  const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
+  if (!dopo('Salva gli allegati?').includes('Righe degli allegati') || !dopo('Rimetti il lavoro').includes('Parte davvero?')) problemi.push('gli allegati non si salvano prima della partenza');
+  if (!dopo(ASPETTA).includes('Cancella gli allegati?') || !dopo('Partita?', 1).includes('Cancella gli allegati?')) problemi.push('gli allegati non si cancellano dopo la risposta');
+  if (!/^https:\/\/[^/?#]+\/webhook\/[a-z0-9-]+$/.test(String(cfg.ALLEGATI_URL))) problemi.push('ALLEGATI_URL deve essere l\'indirizzo fisso del webhook degli allegati');
   return problemi;
 }
 
