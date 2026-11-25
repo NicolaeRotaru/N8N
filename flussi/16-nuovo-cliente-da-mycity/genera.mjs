@@ -25,7 +25,8 @@
 // Uso:
 //   N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id> [--vero] [--manda]
 //     --credenziale  l'id della credenziale «Header Auth» col segreto (nome x-mycity-segreto)
-//     --analisi <id> il flusso 18 da chiamare alla fine (di serie lo cerca per nome su n8n)
+//     --bozze <id>   il flusso 19 da chiamare alla fine (di serie lo cerca per nome su n8n). Dal 25/11/2026
+//                    il 16 non chiama più il 18: la pagella parte dal sito al primo abbonamento pagato
 //     --sito <https://…> e --credenziale-sito <id>: manda la scheda anche al sito (/api/agenzia/scheda-cliente)
 //     --vero         il 16 scrive davvero nel foglio Clienti (di serie «prova»: cerca ma non scrive)
 //     --manda        crea o aggiorna il flusso su n8n (resta come è: acceso o spento)
@@ -51,7 +52,7 @@ const DOPO_LO_STOP = 'Nuovo cliente? (dopo lo stop)';
 const PAGINE = { 'Pagina 1 · Chi è': 'pagina1', 'Pagina 2 · Come parliamo': 'pagina2', 'Pagina 3 · Menu e fatti': 'pagina3' };
 const PAGINA_4 = 'Pagina 4 · Conferma o annulla';
 const PREPARA_ANALISI = "Prepara l'analisi dell'attività";
-const ANALIZZA = "Analizza l'attività (flusso 18)";
+const BOZZE_19 = 'Bozze dei 3 abbonamenti (flusso 19)';
 const SCHEDA_SITO = 'Prepara la scheda per il sito';
 const MANDA_SITO = 'Manda la scheda al sito';
 export const PERCORSO_SCHEDA_SITO = '/api/agenzia/scheda-cliente';
@@ -152,9 +153,11 @@ if (doppioni.length) {
 return [{ json: { pagina: 'decisione', decisione: 'Conferma e salva', motivo_auto: '', formMode: 'mycity' } }];`;
 
 /** Ultimo passo del 16: prepara quello che serve al flusso 18 per analizzare l'attività. */
-export const CODICE_PREPARA_ANALISI = String.raw`// 16 · Ultimo passo, comunque sia andata la scheda Clienti: si passa l'attività al flusso 18
-// («Analisi di un'attività»), con la lettura del web che il 12 ha appena fatto. Il 18 lavora per conto
-// suo: se si guasta, la scheda Clienti resta com'è.
+export const CODICE_PREPARA_ANALISI = String.raw`// 16 · Ultimo passo, comunque sia andata la scheda Clienti: si passa l'attività al flusso 19
+// («Bozze dei 3 abbonamenti»), con la lettura del web che il 12 ha appena fatto: la parte su misura delle
+// proposte. Il 19 lavora per conto suo: se si guasta, la scheda Clienti resta com'è.
+// Dal 25/11/2026 (Nicola) il 18 e la sua pagella non partono più da qui: partono dal sito al primo
+// abbonamento pagato.
 const f = $('Modulo nuovo cliente').first().json;
 const fatto = (nome) => $(nome).isExecuted;
 let esito = 'non scritta';
@@ -338,7 +341,7 @@ export function trasforma(modulo12, opzioni = {}) {
       '',
       `**MODALITA** nel Config: «${modalita}» al momento della generazione.`,
       '',
-      `**${RICERCA_CON_CLAUDE} = ${ricerca.value}**: ${w.nodes.some((n) => aPagamento(n)) ? "spenta perché il 12 chiama ancora l'API di Claude a pagamento" : "la ricerca la fa l'AD col piano Max («Chiedi all'AD»), come nel 12"}. Senza ricerca la riga non si scrive (avviso su Telegram), l'analisi del 18 e la scheda al sito partono lo stesso.`,
+      `**${RICERCA_CON_CLAUDE} = ${ricerca.value}**: ${w.nodes.some((n) => aPagamento(n)) ? "spenta perché il 12 chiama ancora l'API di Claude a pagamento" : "la ricerca la fa l'AD col piano Max («Chiedi all'AD»), come nel 12"}. Senza ricerca la riga non si scrive (avviso su Telegram), le bozze del 19 e la scheda al sito partono lo stesso.`,
     ].join('\n') },
   };
   w.nodes.push(webhook, valida, daAvvisare, scartata, nota);
@@ -353,9 +356,9 @@ export function trasforma(modulo12, opzioni = {}) {
   // Dopo lo stop della ricerca il 12 apre la parte 1 vuota da compilare a mano: qui ci si ferma.
   delete c[DOPO_LO_STOP];
 
-  // Ultimo passo: l'analisi dell'attività (flusso 18). Si collega a ogni punto d'arrivo del 16
+  // Ultimo passo: le bozze dei 3 abbonamenti (flusso 19), con la lettura del web del 12. Si collega a ogni punto d'arrivo del 16
   // (un nodo raggiungibile dal Config che non porta da nessuna parte): una corsa ne tocca uno solo.
-  if (opzioni.analisi) {
+  if (opzioni.bozze) {
     const raggiunti = new Set();
     const coda = ['Config'];
     while (coda.length) {
@@ -372,19 +375,20 @@ export function trasforma(modulo12, opzioni = {}) {
     const maxX = Math.max(...w.nodes.map((n) => n.position[0]));
     prepara.position = [maxX + 300, y];
     const chiama = {
-      id: randomUUID(), name: ANALIZZA, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [maxX + 520, y],
+      id: randomUUID(), name: BOZZE_19, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [maxX + 520, y],
       onError: 'continueRegularOutput',
-      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: opzioni.analisi },
+      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: opzioni.bozze },
         workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
         mode: 'once', options: { waitForSubWorkflow: false } },
     };
     w.nodes.push(prepara, chiama);
     for (const nome of arrivi) c[nome] = { main: [[{ node: PREPARA_ANALISI, type: 'main', index: 0 }]] };
-    c[PREPARA_ANALISI] = { main: [[{ node: ANALIZZA, type: 'main', index: 0 }]] };
+    c[PREPARA_ANALISI] = { main: [[{ node: BOZZE_19, type: 'main', index: 0 }]] };
   }
 
-  // La scheda al sito (solo con --sito e --credenziale-sito): accanto all'analisi, dallo stesso ultimo passo.
-  if (opzioni.analisi && opzioni.sito) {
+  // La scheda al sito (solo con --sito e --credenziale-sito): accanto alle bozze, dallo stesso ultimo passo.
+  // Il sito la tiene chiusa (ne legge solo l'analisi) finché il negozio non paga l'abbonamento (25/11/2026).
+  if (opzioni.bozze && opzioni.sito) {
     const base = String(opzioni.sito).replace(/\/+$/, '');
     if (!/^https:\/\//i.test(base)) throw new Error("L'indirizzo del sito deve cominciare con https://");
     assegnazioni.push({ id: randomUUID(), name: 'MYCITY_SITO', value: base, type: 'string' });
@@ -417,7 +421,7 @@ export function trasforma(modulo12, opzioni = {}) {
       `'${DA_MYCITY}⚠️ <b>La scheda non è arrivata al sito</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nRisposta: ' + ${escExpr("$json.statusCode || ($json.error && $json.error.message) || 'nessuna'")} + '\\nLa riga nella scheda Clienti c\\'è; il venditore non la vede ancora nella sua dashboard.'`, chatId);
     avvisa.position = [px + 1100, py + 320];
     w.nodes.push(schedaCodice, siManda, manda, arrivata, avvisa);
-    c[PREPARA_ANALISI] = { main: [[{ node: ANALIZZA, type: 'main', index: 0 }, { node: SCHEDA_SITO, type: 'main', index: 0 }]] };
+    c[PREPARA_ANALISI] = { main: [[{ node: BOZZE_19, type: 'main', index: 0 }, { node: SCHEDA_SITO, type: 'main', index: 0 }]] };
     c[SCHEDA_SITO] = { main: [[{ node: siManda.name, type: 'main', index: 0 }]] };
     c[siManda.name] = { main: [[{ node: MANDA_SITO, type: 'main', index: 0 }], []] };
     c[MANDA_SITO] = { main: [[{ node: arrivata.name, type: 'main', index: 0 }]] };
@@ -473,19 +477,21 @@ export function controlla(w) {
   for (const tappa of ['Config', 'Cerca il locale con Claude', 'Controlla il cliente', 'Ancora libera?', 'Scrivi il cliente', 'Avvisa: cliente creato']) {
     if (nomi.has(tappa) && !raggiunti.has(tappa)) problemi.push(`dal webhook non si arriva a «${tappa}»`);
   }
-  // Dopo lo stop della ricerca si può andare solo all'analisi dell'attività, mai verso le pagine.
+  // Dopo lo stop della ricerca si può andare solo alle bozze del 19, mai verso le pagine.
   const dopoLoStop = (w.connections[DOPO_LO_STOP]?.main || []).flat().filter(Boolean).map((v) => v.node);
   if (dopoLoStop.some((nome) => nome !== PREPARA_ANALISI)) problemi.push('dopo lo stop della ricerca il 16 andrebbe avanti a scrivere una scheda vuota');
-  const analisi = w.nodes.find((n) => n.name === ANALIZZA);
-  if (analisi) {
-    if (analisi.parameters?.options?.waitForSubWorkflow !== false) problemi.push("l'analisi deve partire senza far aspettare il 16");
-    if (!analisi.parameters?.workflowId?.value) problemi.push("la chiamata dell'analisi non dice quale flusso");
+  // 25/11/2026 — Nicola: la pagella (flusso 18) parte solo dopo l'abbonamento, dal sito. Il 16 non la chiama mai.
+  if (w.nodes.some((n) => /flusso 18/i.test(n.name) && n.type === 'n8n-nodes-base.executeWorkflow')) problemi.push('il 16 non deve chiamare il 18: la pagella parte dal sito al primo abbonamento pagato');
+  const bozze = w.nodes.find((n) => n.name === BOZZE_19);
+  if (bozze) {
+    if (bozze.parameters?.options?.waitForSubWorkflow !== false) problemi.push('le bozze devono partire senza far aspettare il 16');
+    if (!bozze.parameters?.workflowId?.value) problemi.push('la chiamata delle bozze non dice quale flusso');
     for (const arrivo of ['Avvisa: cliente creato', 'Fine: annullato', 'Fine: da correggere', 'Avvisa: non scritto', 'Avvisa: ricerca fermata']) {
       if (!nomi.has(arrivo)) continue;
       const giu = new Set();
       const coda = [arrivo];
       while (coda.length) { const x = coda.shift(); if (giu.has(x)) continue; giu.add(x); for (const ramo of w.connections[x]?.main || []) for (const v of ramo || []) coda.push(v.node); }
-      if (!giu.has(ANALIZZA)) problemi.push(`dopo «${arrivo}» l'analisi dell'attività non parte`);
+      if (!giu.has(BOZZE_19)) problemi.push(`dopo «${arrivo}» le bozze dei 3 abbonamenti non partono`);
     }
   }
   const manda = w.nodes.find((n) => n.name === MANDA_SITO);
@@ -526,15 +532,16 @@ async function principale(argv) {
     const gia = trovaFlusso(await api.elencoFlussi(), NOME_16);
     webhookId = gia?.nodes?.find((n) => n.name === WEBHOOK)?.webhookId;
   } catch { /* senza API: un id nuovo */ }
-  let idAnalisi = valore('--analisi');
-  if (!idAnalisi && !valore('--file')) {
-    idAnalisi = trovaFlusso(await api.elencoFlussi(), NOMI.analisiAttivita)?.id;
+  // Il 19 si trova per nome; n8n lo vuole acceso prima di accettare il 16 che lo chiama.
+  let idBozze = valore('--bozze');
+  if (!idBozze && !valore('--file')) {
+    idBozze = trovaFlusso(await api.elencoFlussi(), NOMI.bozzeAbbonamenti)?.id;
   }
   const w = trasforma(modulo12, {
     modalita: argv.includes('--vero') ? 'vero' : 'prova',
     credenziale: idCredenziale ? { id: idCredenziale, name: NOME_CREDENZIALE } : undefined,
     webhookId,
-    analisi: idAnalisi,
+    bozze: idBozze,
     sito: valore('--sito'),
     credenzialeSito: valore('--credenziale-sito') ? { id: valore('--credenziale-sito'), name: 'MyCity - Segreto scheda cliente' } : undefined,
   });

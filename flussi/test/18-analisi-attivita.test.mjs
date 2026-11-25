@@ -287,39 +287,29 @@ test('nel confronto con gli altri negozi i venditori di sistema non contano', as
   assert.equal(a.numeri.negozi_approvati, 3);
 });
 
-// --- L'ultimo passo: le bozze dei 3 abbonamenti (flusso 19) ---------------------------------------
+// --- 25/11/2026: il 18 non chiama più il 19 (le bozze partono dal 16, la pagella dal sito) ---------
 
-test("alla fine il 18 passa la stessa richiesta al 19, senza aspettarlo; senza il 19 non c'è il passo", async () => {
+test('il 18 non chiama il 19; se qualcuno rimette la chiamata, il controllo lo dice', () => {
   const pezzi = { telegram: { id: 'tg', name: 'Telegram - Bot agenzia' }, chiedi: 'id-chiedi', chatId: '1', marketplace: 'sb', segreto: 'hd' };
-  const senza = costruisci(pezzi);
-  assert.equal(senza.nodes.find((n) => n.name === BOZZE), undefined);
-  assert.deepEqual(controlla(senza), []);
-  const con = costruisci({ ...pezzi, bozze: 'id19' });
-  assert.deepEqual(controlla(con), []);
-  assert.equal(con.connections['Manda a Nicola'].main[0][0].node, PASSA_ALLE_BOZZE);
-  assert.equal(con.connections[PASSA_ALLE_BOZZE].main[0][0].node, BOZZE);
-  const chiama = con.nodes.find((n) => n.name === BOZZE);
-  assert.equal(chiama.parameters.workflowId.value, 'id19');
-  assert.equal(chiama.parameters.options.waitForSubWorkflow, false);
-  const passa = con.nodes.find((n) => n.name === PASSA_ALLE_BOZZE);
-  const richiesta = { valida: true, id: ID, nome: 'Bar Roma', scheda: SCHEDA };
-  const out = await eseguiCodice(passa.parameters.jsCode, { nodi: { 'Leggi la richiesta': [{ json: richiesta }] } });
-  assert.deepEqual(out[0].json, richiesta, "il 19 riceve l'attività e la scheda");
-  // Se la chiamata facesse aspettare il 18, il controllo lo ferma.
-  chiama.parameters.options.waitForSubWorkflow = true;
-  assert.ok(controlla(con).some((p) => /senza far aspettare/.test(p)));
+  for (const w of [costruisci({ ...pezzi, bozze: 'id19' }), costruisci({ ...pezzi, bozze: 'id19', argomento: 'id97' })]) {
+    assert.equal(w.nodes.find((n) => n.name === BOZZE || n.name === PASSA_ALLE_BOZZE), undefined);
+    assert.deepEqual(controlla(w), []);
+    w.nodes.push({ id: 'x', name: BOZZE, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [0, 0], parameters: {} });
+    assert.ok(controlla(w).some((p) => /non deve chiamare il 19/.test(p)));
+  }
 });
 
 // --- L'analisi nell'argomento del negozio (flusso 97) ---------------------------------------------
 
-test("col 97 l'analisi va nell'argomento del negozio, il 18 lo aspetta e poi passano le bozze", async () => {
+test("col 97 l'analisi va nell'argomento del negozio e il 18 lo aspetta", async () => {
   const pezzi = { telegram: { id: 'tg', name: 'Telegram - Bot agenzia' }, chatId: '1', marketplace: 'sb', segreto: 'hd', chiedi: 'id90' };
   const w = costruisci({ ...pezzi, bozze: 'id19', argomento: 'id20' });
   assert.deepEqual(controlla(w), []);
   assert.equal(w.nodes.find((n) => n.name === 'Manda a Nicola'), undefined);
   assert.equal(w.connections['Componi il messaggio'].main[0][0].node, PER_L_ARGOMENTO_18);
   assert.equal(w.connections[PER_L_ARGOMENTO_18].main[0][0].node, SCRIVI_18);
-  assert.equal(w.connections[SCRIVI_18].main[0][0].node, PASSA_ALLE_BOZZE);
+  // Dopo il 97 non parte niente: le bozze partono dal 16 (25/11/2026).
+  assert.equal(w.connections[SCRIVI_18], undefined);
   const scrivi = w.nodes.find((n) => n.name === SCRIVI_18);
   assert.equal(scrivi.parameters.options.waitForSubWorkflow, true);
   const out = await eseguiCodice(w.nodes.find((n) => n.name === PER_L_ARGOMENTO_18).parameters.jsCode, { nodi: {

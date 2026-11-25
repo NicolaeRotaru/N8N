@@ -211,7 +211,7 @@ test('dopo lo stop della ricerca il 16 si ferma: niente scheda vuota', () => {
   const w = trasforma(modulo12Mini(), { credenziale });
   assert.equal(w.connections['Nuovo cliente? (dopo lo stop)'], undefined);
   // Con l'analisi agganciata, dopo lo stop si va solo all'analisi.
-  const conAnalisi = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  const conAnalisi = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
   assert.deepEqual(conAnalisi.connections['Nuovo cliente? (dopo lo stop)'].main.flat().map((v) => v.node), ["Prepara l'analisi dell'attività"]);
   assert.deepEqual(controlla(conAnalisi), []);
   assert.match(w.nodes.find((n) => n.name === 'Avvisa: ricerca fermata').parameters.text, /Non ho scritto niente/);
@@ -269,28 +269,28 @@ test('se il modulo 12 cambia nome a un nodo che serve, il generatore si ferma in
 
 // --- L'analisi dell'attività, ultimo passo del 16 -------------------------------------------------
 
-test("ogni punto d'arrivo del 16 fa partire l'analisi dell'attività, senza far aspettare", () => {
-  const w = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+test("ogni punto d'arrivo del 16 fa partire le bozze dei 3 abbonamenti (flusso 19), senza far aspettare", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
   assert.deepEqual(controlla(w), []);
-  const chiama = w.nodes.find((n) => n.name === "Analizza l'attività (flusso 18)");
+  const chiama = w.nodes.find((n) => n.name === 'Bozze dei 3 abbonamenti (flusso 19)');
   assert.equal(chiama.type, 'n8n-nodes-base.executeWorkflow');
-  assert.equal(chiama.parameters.workflowId.value, 'id-18');
+  assert.equal(chiama.parameters.workflowId.value, 'id-19');
   assert.equal(chiama.parameters.options.waitForSubWorkflow, false);
   for (const arrivo of ['Fine: cliente creato', 'Fine: annullato', 'Fine: da correggere', 'Nuovo cliente? (dopo lo stop)']) {
     assert.deepEqual(w.connections[arrivo].main.flat().map((v) => v.node), ["Prepara l'analisi dell'attività"], arrivo);
   }
   // Il ramo della richiesta scartata non arriva all'analisi: non c'è un'attività valida da guardare.
   assert.equal(w.connections['Avvisa: richiesta scartata'], undefined);
-  // Senza --analisi il 16 resta come prima.
-  assert.equal(trasforma(modulo12Mini(), { credenziale }).nodes.some((n) => n.name === "Analizza l'attività (flusso 18)"), false);
+  // Senza --bozze il 16 resta come prima.
+  assert.equal(trasforma(modulo12Mini(), { credenziale }).nodes.some((n) => n.name === 'Bozze dei 3 abbonamenti (flusso 19)'), false);
 });
 
-test("se un punto d'arrivo non porta all'analisi, il controllo lo dice", () => {
-  const w = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+test("se un punto d'arrivo non porta alle bozze, il controllo lo dice", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
   delete w.connections['Fine: annullato'];
-  assert.match(controlla(w).join('\n'), /dopo «Fine: annullato» l'analisi dell'attività non parte/);
-  const w2 = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
-  w2.nodes.find((n) => n.name === "Analizza l'attività (flusso 18)").parameters.options.waitForSubWorkflow = true;
+  assert.match(controlla(w).join('\n'), /dopo «Fine: annullato» le bozze dei 3 abbonamenti non partono/);
+  const w2 = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
+  w2.nodes.find((n) => n.name === 'Bozze dei 3 abbonamenti (flusso 19)').parameters.options.waitForSubWorkflow = true;
   assert.match(controlla(w2).join('\n'), /senza far aspettare/);
 });
 
@@ -315,12 +315,12 @@ test("l'analisi riceve l'attività, com'è andata la scheda Clienti e la lettura
 
 // --- La scheda al sito (formato concordato con la sessione «Servizi SDG») ------------------------
 
-const conSito = (extra = {}) => trasforma(modulo12Mini(), { credenziale, analisi: 'id-18', sito: 'https://mycity.example', credenzialeSito: { id: 'cs', name: 'MyCity - Segreto scheda cliente' }, ...extra });
+const conSito = (extra = {}) => trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', sito: 'https://mycity.example', credenzialeSito: { id: 'cs', name: 'MyCity - Segreto scheda cliente' }, ...extra });
 
 test("con --sito la scheda va al sito dallo stesso ultimo passo dell'analisi, e se il sito non la prende avvisa", () => {
   const w = conSito({ modalita: 'vero' });
   assert.deepEqual(controlla(w), []);
-  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Analizza l'attività (flusso 18)", 'Prepara la scheda per il sito']);
+  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito']);
   const manda = w.nodes.find((n) => n.name === 'Manda la scheda al sito');
   assert.equal(manda.parameters.method, 'POST');
   assert.match(manda.parameters.url, /MYCITY_SITO \}\}\/api\/agenzia\/scheda-cliente$/);
@@ -334,7 +334,7 @@ test("con --sito la scheda va al sito dallo stesso ultimo passo dell'analisi, e 
   assert.match(testo, /La scheda non è arrivata al sito/);
   assert.match(testo, /Bar &lt;X&gt;/);
   // senza --sito il 16 resta com'era
-  assert.equal(trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' }).nodes.some((n) => n.name === 'Manda la scheda al sito'), false);
+  assert.equal(trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' }).nodes.some((n) => n.name === 'Manda la scheda al sito'), false);
 });
 
 test('la scheda al sito vuole https e la sua credenziale', () => {
@@ -389,7 +389,7 @@ test('la scheda per il sito: il formato concordato, senza prezzi, mai in prova',
 });
 
 test("il 16 non iscrive in MyCity: i nodi dell'iscrizione del 12 restano fuori, coi loro collegamenti", () => {
-  const w = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
   assert.deepEqual(controlla(w), []);
   for (const nome of SOLO_NEL_12) {
     assert.equal(w.nodes.some((n) => n.name === nome), false, `«${nome}» non deve esserci`);
@@ -431,4 +431,13 @@ test("controlla() vede un nodo dell'iscrizione rimasto nel 16", () => {
   const w = trasforma(modulo12Mini(), { credenziale });
   w.nodes.push({ id: 'x', name: 'Iscrivi in MyCity', type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [0, 0], parameters: {} });
   assert.match(controlla(w).join('\n'), /iscriverebbe di nuovo in MyCity/);
+});
+
+// 25/11/2026 — Nicola: l'analisi subito, la pagella (flusso 18) solo dopo l'abbonamento, e parte dal sito.
+test('il 16 non chiama mai il 18; se qualcuno ce lo rimette, il controllo lo dice', () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
+  assert.equal(w.nodes.some((n) => /flusso 18/.test(n.name)), false);
+  assert.deepEqual(controlla(w), []);
+  w.nodes.push({ id: 'x', name: "Analizza l'attività (flusso 18)", type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [0, 0], parameters: {} });
+  assert.match(controlla(w).join('\n'), /non deve chiamare il 18/);
 });

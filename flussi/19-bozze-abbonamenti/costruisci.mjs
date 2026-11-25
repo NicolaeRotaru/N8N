@@ -5,9 +5,11 @@
 // 25/11/2026 — Nicola: «crea un flusso con n8n che analizza la nuova azienda e prepara bozze dei 3
 // abbonamenti del sito».
 //
-// Come è montato: iscrizione su MyCity → 16 (la scheda Clienti col modulo 12) → 18 (l'analisi
-// dell'attività) → 19 (le bozze). Il 18, come ultimo passo, chiama questo flusso senza aspettarlo e gli
-// passa l'attività con la scheda della ricerca sul web. Le bozze stanno in un flusso a parte perché:
+// Come è montato (dal 25/11/2026, Nicola: l'analisi subito, la pagella dopo l'abbonamento): iscrizione su
+// MyCity → 16 (la scheda Clienti col modulo 12, la ricerca sul web) → 19 (le bozze, con la parte su misura
+// dalla ricerca). Il 16, come ultimo passo, chiama questo flusso senza aspettarlo. Il 18 (la pagella) non
+// c'entra più: parte dal sito al primo abbonamento pagato.
+// Le bozze stanno in un flusso a parte perché:
 //   · si rifanno da sole quando servono (webhook «Su richiesta»), senza rifare analisi e ricerca;
 //   · se si guastano, la scheda e l'analisi sono già arrivate.
 //
@@ -136,7 +138,7 @@ export function costruisci({ telegram, chatId, marketplace, segreto, webhookId, 
       '',
       "**Dove vanno.** A Nicola su Telegram: un riepilogo e una bozza per abbonamento, da copiare su WhatsApp dopo averla letta. **Al titolare non parte niente.** Niente IA a pagamento: le scrive il codice.",
       '',
-      "**Chi lo fa partire.** Il 18 (analisi di un'attività), come ultimo passo. Oppure il webhook «Su richiesta» (stesso segreto del 16) con `{ \"id\": \"<id MyCity>\" }`.",
+      "**Chi lo fa partire.** Il 16 (nuovo cliente da MyCity), come ultimo passo dell'iscrizione, con la ricerca sul web (dal 25/11/2026; prima era il 18). Oppure il webhook «Su richiesta» (stesso segreto del 16) con `{ \"id\": \"<id MyCity>\" }`.",
       '',
       '**Generato** da `N8N/flussi/19-bozze-abbonamenti/costruisci.mjs`: le modifiche vanno fatte lì. Il listino nel codice è copiato dal sito: una prova lo confronta.',
     ].join('\n') } });
