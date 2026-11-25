@@ -278,6 +278,36 @@ zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.
 ```bash
 N8N_API_KEY=… node flussi/conta-api-claude.mjs
 
+## Le pagine le legge n8n (12 e 26) · `chiedi-all-ad/leggi-pagine.mjs`
+
+**Perché** (25/11/2026, sulla card di Ora del Gusto tutta «non trovato»; Nicola: «Ripara»). Da quando la ricerca
+del 12 la fa l'AD, si erano rotte due cose. La routine dell'AD cerca sul web ma non apre le pagine dei locali: la sua
+rete è chiusa. E anche con le pagine aperte, «Controlla la proposta» confronta ogni citazione col testo delle pagine
+lette, che arrivava solo nella risposta dell'API a pagamento (blocchi `web_fetch_tool_result`). L'AD manda solo il suo
+testo: il confronto non trovava niente e ogni dato del web diventava «non trovato». La riga «Ricerche web: 0 · costo
+0,00 $» leggeva i conti dell'API di prima e segnava sempre zero.
+
+**Cosa fa.** Aggiunge al flusso nodi nuovi e piccoli; quelli grandi del 12 non li tocca.
+- «Chiedi gli indirizzi delle pagine»: nel compito della ricerca, l'AD scrive una riga «PAGINE DA LEGGERE:».
+- Fra «Dall'AD: la ricerca» e «Leggi la ricerca», n8n sceglie le pagine e le scarica. Prima il sito dichiarato, poi la
+  riga dell'AD, i campi «URL:» e gli altri indirizzi, al massimo `MAX_LETTURE`. Mai Meta, mappe, portali o indirizzi
+  interni (nomi senza dominio, IP, porte non standard, `.internal`, sliplane). Poi prende menu, contatti e orari dello
+  stesso sito, e segue i rinvii passando dallo stesso controllo: il nodo HTTP non segue i rinvii da solo. Infine
+  rimette le pagine nella risposta come pagine lette. «Leggi la ricerca» e «Controlla la proposta» lavorano com'erano:
+  le citazioni si confrontano col testo scaricato da n8n.
+- «Ritocca l'anteprima»: la riga dice «Ricerca sul web: fatta dall'AD · pagine lette da n8n: N» e porta gli avvisi
+  dell'AD e di n8n.
+
+**Comandi.** Senza chiave n8n: `node flussi/chiedi-all-ad/leggi-pagine.mjs --file 12.json --operazioni ops.json`
+scrive le operazioni per l'aggiornamento a pezzi (strumento n8n `update_workflow`). Con la chiave:
+`N8N_API_KEY=… node flussi/chiedi-all-ad/leggi-pagine.mjs 12 --manda`. Rilanciato su un flusso che li ha già, aggiorna solo
+il codice; n8n riordina le chiavi e riscrive gli spazi speciali, e il confronto lo sa. Il **26** li ricopia dal 12 col suo
+generatore (`16-nuovo-cliente-da-mycity/genera.mjs`): nessuna modifica lì.
+
+**Montato il 25/11/2026 alle 22:07-22:15** sul 12 («11 · Nuovo cliente») e sul 26, e messo in uso. Prova sul codice vero:
+`FLUSSO_12=<flusso esportato> node --test flussi/test/leggi-pagine.test.mjs`. Con la stessa risposta dell'AD, la catena
+vecchia dà telefono e indirizzo «non trovato», quella nuova «confermato».
+
 ## Il lavoro meccanico del server dell'AD (21-25, 98)
 
 Dal 25/11/2026. Il server dell'AD è spento per sempre (Nicola, 24/11): i lavori a orario che un

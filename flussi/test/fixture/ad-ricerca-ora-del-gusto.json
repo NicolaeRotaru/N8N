@@ -1,0 +1,14 @@
+{
+  "_nota": "Risposta vera di «Chiedi all'AD» alla ricerca del 12 per Ora del Gusto, 25/11/2026 20:30 (esecuzione 2476, nodo «Componi la risposta»). La routine non poteva aprire le pagine. Serve alle prove della lettura delle pagine da n8n.",
+  "ok": true,
+  "flusso": "12 · Nuovo cliente (automatico)",
+  "risultato": "APPUNTI — Ora del Gusto, Piacenza\n\nNon sono riuscito a leggere nessuna pagina del locale. I due siti trovati non si aprono da questa sessione: oradelgustovialesantambrogiopiacenzapcitalia.eatbu.com e oradelgusto.weebly.com. Vanno aggiunti ai domini permessi nelle impostazioni di rete della sessione. Non ho citazioni lette di persona, quindi non riporto valori come verificati. Sotto ci sono solo frammenti dei risultati di ricerca.\n\nCAMPO: sito_ufficiale | VALORE: da confermare, probabile https://oradelgusto.weebly.com/ oppure la pagina eatbu indicata sopra | URL: https://oradelgusto.weebly.com/ | CITAZIONE: \"BAR ORA DEL GUSTO - Bar Ora del Gusto Piacenza\" (titolo del risultato di ricerca) | TIPO: FRAMMENTO\nCAMPO: telefono | VALORE: 0523 337635 | URL: https://oradelgustovialesantambrogiopiacenzapcitalia.eatbu.com/ | CITAZIONE: \"Telefono: 0523 337635\" (riportata dal riassunto della ricerca, non copiata dalla pagina) | TIPO: FRAMMENTO\nCAMPO: indirizzo | VALORE: Viale Sant'Ambrogio 6, Piacenza (da confermare) | URL: https://oradelgustovialesantambrogiopiacenzapcitalia.eatbu.com/ | CITAZIONE: nessuna citazione esatta disponibile | TIPO: FRAMMENTO\n\nOMONIMI E DUBBI: c'è anche una scheda su Yelp per «L'Ora del Gusto», gelateria in Strada Bobbiese 52 a Piacenza, e una scheda che la dà come chiusa per sempre. Non so se sia lo stesso locale. Altre pagine con lo stesso nome sono in altre città (Luserna, Marina di Pulsano) e vanno ignorate.\n\nCampi non trovati: nome_locale confermato, orari, link_prenotazione, link_menu.\n\nMENU: non letto.\nFRASI DA VERIFICARE: nessuna.\n\nANALISI: sembra un bar-caffè in centro a Piacenza, ma non l'ho potuto confermare. Servono i siti del locale per dire altro su pubblico e tono. Va chiesto a Nicola se l'indirizzo è Viale Sant'Ambrogio 6 o Strada Bobbiese 52.",
+  "avvisi": [
+    "Due siti del locale non si aprono dalla sessione: vanno permessi nella rete.",
+    "Due indirizzi diversi per lo stesso nome: da chiedere al titolare.",
+    "Nessuna citazione letta di persona: solo frammenti di ricerca."
+  ],
+  "errore": "",
+  "dalla_memoria": false,
+  "prova": false
+}
