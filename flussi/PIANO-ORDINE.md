@@ -85,6 +85,9 @@ differenze fra copie (oggi il logo si scarica in quattro modi diversi).
 4. Snellire 06, 07 e 16 · Montatore. 06 e 07 caricati spenti il 25/11; prima di riaccenderli un giro vero guardato.
    Il 16 · Montatore aspetta: il 25/11 qualcuno ci stava lavorando.
 5. I pezzi 91-95, uno per volta: prima il pezzo spento con le sue prove, poi un flusso che lo usa in prova,
+   **Fatti il 25/11, spenti:** 92 · Logo del cliente e 94 · Foto sulla tela (`pezzi/costruisci.mjs`). Il 92 è provato su
+   n8n coi download simulati (ramo «nessun logo» e ramo Drive con errore); il download vero e il 94 non ancora.
+   Il 93 (controllo del provino) aspetta la sessione B: il controllo passa da «Chiedi all'AD». Il 91 aspetta lo stesso.
    poi vero.
 6. La numerazione nuova, flusso per flusso, insieme ai generatori. **Fatti il 25/11** i nove che nessun programma
    cerca per nome: 00, 03, 04, 05, 06, 07, 08, 10, 30. I nomi cercati dai programmi stanno in `nomi.mjs`, che trova
