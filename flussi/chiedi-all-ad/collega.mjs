@@ -31,7 +31,9 @@ export const FLUSSI = {
   ] },
   // Il 12 è della sessione «Ora del Gusto 2.0»: si collega solo col suo via, poi si rigenera il 16 (che lo copia).
   // Le foto del 12 viaggiano in base64: la lettura delle foto non parte finché non arrivano come indirizzi web.
-  '12': { nome: '12 · Nuovo cliente (automatico)', nodi: [
+  // Nel 12 tre bivi aprono il ramo verso l'IA solo con RICERCA_CON_CLAUDE = si. Tolti i nodi a pagamento,
+  // la voce si accende: ora il ramo porta all'AD (piano Max), non all'API di Claude.
+  '12': { nome: '12 · Nuovo cliente (automatico)', accendi: 'RICERCA_CON_CLAUDE', nodi: [
     { nodo: 'Leggi le foto con Claude', cosa: 'le foto', forma: 'completa', fotoNecessarie: true },
     { nodo: 'Cerca il locale con Claude', cosa: 'la ricerca', forma: 'completa' },
     { nodo: 'Scrivi la scheda con Claude', cosa: 'la scheda', forma: 'completa' },
@@ -119,6 +121,16 @@ export function collega(originale, { nodi, chiediId }) {
   return { flusso: w, modifiche };
 }
 
+/** Accende una voce «si/no» del Config, ma solo se nel flusso non resta nessun nodo a pagamento. */
+export function accendiVoce(w, voce) {
+  if (w.nodes.some((n) => aPagamento(n))) throw new Error(`nel flusso restano nodi verso l'API di Claude: ${voce} resta spenta.`);
+  const a = w.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((x) => x.name === voce);
+  if (!a) throw new Error(`nel Config non trovo ${voce}.`);
+  if (a.value === 'si') return null;
+  a.value = 'si';
+  return `${voce} = si (il ramo ora va all'AD)`;
+}
+
 async function principale(argv) {
   const quale = FLUSSI[argv[0]];
   if (!quale) throw new Error(`Quale flusso? Uno di: ${Object.keys(FLUSSI).join(', ')}`);
@@ -132,6 +144,7 @@ async function principale(argv) {
   const i = argv.indexOf('--salva');
   if (i >= 0) writeFileSync(argv[i + 1], JSON.stringify(originale, null, 2));
   const { flusso, modifiche } = collega(originale, { nodi: quale.nodi, chiediId: chiedi.id });
+  if (quale.accendi) { const m = accendiVoce(flusso, quale.accendi); if (m) modifiche.push(m); }
   const restano = flusso.nodes.filter((n) => aPagamento(n)).map((n) => n.name);
   if (!modifiche.length) { console.log(`«${quale.nome}» è già collegato a «${NOME_CHIEDI}».`); }
   else console.log(`«${quale.nome}» (${trovato.id}, ${trovato.active ? 'acceso' : 'spento'}) cambia così:\n- ${modifiche.join('\n- ')}`);

@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collega, espressione, FLUSSI } from '../chiedi-all-ad/collega.mjs';
+import { collega, espressione, FLUSSI, accendiVoce } from '../chiedi-all-ad/collega.mjs';
 import { conta } from '../conta-api-claude.mjs';
 import { eseguiCodice } from './esegui-codice.mjs';
 
@@ -88,4 +88,15 @@ test('la risposta dell\'AD torna nella forma che il nodo dopo leggeva da Claude'
 test('i flussi da collegare sono quelli accesi con Claude; il 16 si rigenera dal 12', () => {
   assert.deepEqual(Object.keys(FLUSSI).sort(), ['01', '04', '08', '12']);
   assert.ok(FLUSSI['08'].nodi.every((n) => n.fotoNecessarie), 'il 08 senza foto non manda niente');
+});
+
+test('la voce del Config si accende solo quando non resta nessun nodo a pagamento', () => {
+  const cfg = { name: 'Config', type: 'n8n-nodes-base.set', parameters: { assignments: { assignments: [{ name: 'RICERCA_CON_CLAUDE', value: 'no' }] } } };
+  const prima = finto('={{ JSON.stringify($json.r) }}');
+  prima.nodes.push(structuredClone(cfg));
+  assert.throws(() => accendiVoce(structuredClone(prima), 'RICERCA_CON_CLAUDE'), /restano nodi/);
+  const { flusso } = collega(prima, { nodi: nodi(), chiediId: 'x' });
+  assert.match(accendiVoce(flusso, 'RICERCA_CON_CLAUDE'), /= si/);
+  assert.equal(flusso.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments[0].value, 'si');
+  assert.equal(FLUSSI['12'].accendi, 'RICERCA_CON_CLAUDE');
 });

@@ -23,10 +23,9 @@ copia dove:
 - la pagina 4 conferma da sola, **tranne** sul possibile doppione: lì non scrive e avvisa;
 - se la ricerca di Claude si ferma, non scrive una scheda vuota: avvisa;
 - la stessa attività una volta sola in 7 giorni, al massimo 10 attività al giorno (il credito di Claude);
-- **la ricerca con Claude è sempre spenta** (`RICERCA_CON_CLAUDE = no` nel Config, imposto dal
-  generatore): nessuna API di IA a pagamento, decisione di Nicola del 24/11. Senza ricerca la riga non
-  si scrive e arriva l'avviso su Telegram; l'analisi del 18 e la scheda al sito partono lo stesso. La
-  ricerca tornerà quando la fa l'AD col piano Max («Chiedi all'AD»);
+- **la ricerca la fa l'AD col piano Max** («Chiedi all'AD»), come nel 12: nessuna API di IA a pagamento
+  (Nicola, 24/11). Se nel 12 tornasse un nodo verso l'API di Claude, il generatore spegne la ricerca
+  (`RICERCA_CON_CLAUDE = no`): senza ricerca la riga non si scrive e arriva l'avviso su Telegram;
 - i due nodi con cui il 12 iscrive un cliente nuovo in MyCity («Prepara l'iscrizione in MyCity» e
   «Iscrivi in MyCity», che chiamano il flusso 20) restano fuori: chi arriva al 16 su MyCity c'è già.
 
@@ -179,8 +178,10 @@ Collegati il 25/11/2026: **01** (controllo finale: se non riesce, pubblica lo st
 (i testi, senza la foto), **08** (le foto non possono arrivare: il lavoro non parte e il 08 va avanti senza
 IA, finché Nicola non apre gli indirizzi delle foto nella rete della routine), **18** (dal suo
 `costruisci.mjs`; il commento resta spento). Il **99** non chiede più spiegazioni:
-`99-avvisi-errori/togli-spiegazione-ai.mjs --manda`, l'avviso parte uguale. Il **12** si collega solo col
-via della sessione che lo segue; poi si rigenera il 16, che lo copia.
+`99-avvisi-errori/togli-spiegazione-ai.mjs --manda`, l'avviso parte uguale. Il **12** è collegato dalle 14:05
+circa (col via della sessione che lo segue): RICERCA_CON_CLAUDE = si, perché il ramo ora va all'AD; la lettura
+delle foto non parte finché le foto non arrivano come indirizzi web. Il **16** si è rigenerato dal 12 e tiene la
+ricerca accesa: `genera.mjs` la spegne solo se nel 12 resta un nodo a pagamento. **Il contatore dà 0.**
 
 **Il contatore** (`conta-api-claude.mjs`). Conta i nodi verso l'API di Claude a pagamento nei flussi
 accesi e in quelli che possono far partire (sotto-flussi e flusso degli errori). Il risultato giusto è
