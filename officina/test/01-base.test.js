@@ -36,9 +36,10 @@ test('GET / (controllo di salute della piattaforma) risponde {ok:true} senza chi
 test('/salute con chiave risponde con tutti i campi del contratto', async () => {
   const r = await fetch(`${s.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } });
   const j = await r.json();
-  assert.deepEqual(Object.keys(j).sort(), ['coda', 'ffmpeg', 'memoria_mb', 'ok', 'versione', 'whisper']);
+  assert.deepEqual(Object.keys(j).sort(), ['coda', 'ffmpeg', 'filtri', 'memoria_mb', 'ok', 'versione', 'whisper']);
   assert.equal(j.ok, true);
   assert.equal(j.ffmpeg, true);
+  assert.equal(j.filtri.ok, true, JSON.stringify(j.filtri));
   assert.equal(j.whisper, false); // nelle prove di base whisper punta a un file che non esiste
   assert.equal(j.coda, 0);
   assert.ok(j.memoria_mb > 10 && j.memoria_mb < 1536);

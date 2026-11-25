@@ -64,8 +64,11 @@ export async function creaServer(cfg = leggiConfig()) {
   } catch {
     ffmpegOk = false;
   }
-  // I filtri del montaggio provati sull'FFmpeg di questo server (qualche secondo, in sottofondo): lo dice /salute.
-  const autoprova = ffmpegOk ? provaFiltri(cfg) : Promise.resolve({ ok: false, errore: 'FFmpeg non risponde' });
+  // I filtri del montaggio provati sull'FFmpeg di questo server (meno di un secondo, in sottofondo): lo dice /salute.
+  // Prende il posto pesante della coda come ogni lavoro (mai due FFmpeg insieme).
+  const autoprova = ffmpegOk
+    ? coda.interno(() => provaFiltri(cfg))
+    : Promise.resolve({ ok: false, ffmpeg: null, mancanti: [], ritardo_voce: null, errore: 'FFmpeg non risponde' });
 
   const app = Fastify({
     logger: { level: cfg.livelloLog },
