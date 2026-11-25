@@ -11,12 +11,13 @@
 const cfg = $('Config').first().json;
 // I lavori si leggono dal trigger: Config gira una volta sola e passa un elemento solo.
 const voci = $('Da un altro flusso').all().map((i) => (i && i.json) || {});
-const testo = (v) => (v == null ? '' : String(v)).trim();
+const testo = (v) => { if (v == null) return ''; if (typeof v === 'string') return v.trim(); try { return JSON.stringify(v).trim(); } catch (e) { return ''; } };
+const numero = (v, base) => (v === '' || v == null || !Number.isFinite(Number(v)) ? base : Number(v));
 const ora = Date.now();
 const giorno = new Date(ora).toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' });
 const MAX_TESTO = 65536 - 512; // il limite della routine, con un margine
-const tettoGiorno = Math.max(0, Number(cfg.TETTO_GIORNO) || 40);
-const tettoOra = Math.max(0, Math.min(29, Number(cfg.TETTO_ORA) || 25));
+const tettoGiorno = Math.max(0, numero(cfg.TETTO_GIORNO, 40));
+const tettoOra = Math.max(0, Math.min(29, numero(cfg.TETTO_ORA, 25)));
 const vero = testo(cfg.MODALITA).toLowerCase() === 'vero';
 
 // Un'impronta corta e stabile della richiesta (FNV-1a a 53 bit): serve solo a riconoscere «uguale a prima».
@@ -35,6 +36,7 @@ const esci = (extra) => [{ json: { n_lavori: voci.length, ...extra } }];
 const flusso = testo(voci[0] && voci[0].flusso) || 'flusso senza nome';
 const lavori = voci.map((v, indice) => ({ indice, compito: testo(v.compito), dati: v.dati ?? null, schema: v.schema ?? null }));
 if (!voci.length) return esci({ azione: 'errore', flusso, errore: 'nessun lavoro ricevuto' });
+if (new Set(voci.map((v) => testo(v.flusso) || 'flusso senza nome')).size > 1) return esci({ azione: 'errore', flusso, errore: 'lavori di flussi diversi nella stessa corsa' });
 // Il flusso che chiama può dire che un lavoro non va mandato (per esempio: servono foto che non possono
 // arrivare all'AD). Allora non parte niente e non si conta niente.
 const fermo = voci.find((v) => testo(v.non_mandare));
@@ -60,7 +62,8 @@ if (lavori.length === 1) {
     },
   };
 }
-const chiave = impronta(JSON.stringify(richiesta));
+let chiave;
+try { chiave = impronta(JSON.stringify(richiesta)); } catch (e) { return esci({ azione: 'errore', flusso, errore: `dati non trasformabili in testo: ${String(e.message).slice(0, 100)}` }); }
 
 const memoria = $getWorkflowStaticData('global');
 if (memoria.giorno !== giorno) { memoria.giorno = giorno; memoria.corse_oggi = 0; }
@@ -73,8 +76,10 @@ if (precedente && precedente.chiave === chiave) {
 }
 
 const daMandare = JSON.stringify({ ...richiesta, rispondi_a: $execution.resumeUrl });
-if (daMandare.length > MAX_TESTO) {
-  return esci({ azione: 'errore', flusso, chiave, errore: `richiesta troppo grande per la routine (${daMandare.length} caratteri, il massimo è ${MAX_TESTO})` });
+// Si misura in caratteri e in byte: non sappiamo come conta la routine, si tiene il più severo.
+const byte = typeof Buffer !== 'undefined' ? Buffer.byteLength(daMandare, 'utf8') : unescape(encodeURIComponent(daMandare)).length;
+if (Math.max(daMandare.length, byte) > MAX_TESTO) {
+  return esci({ azione: 'errore', flusso, chiave, errore: `richiesta troppo grande per la routine (${byte} byte, il massimo è ${MAX_TESTO})` });
 }
 
 // In prova l'indirizzo di ritorno si mostra: chi prova può rispondere a mano al posto dell'AD.

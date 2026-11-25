@@ -52,6 +52,13 @@ export function espressione(jsonBody) {
   s = s.slice(1).trim();
   const tutto = s.match(/^\{\{\s*JSON\.stringify\(([\s\S]*)\)\s*\}\}$/);
   if (tutto && !tutto[1].includes('{{')) return `(${tutto[1]})`;
+  // Un'espressione dentro una stringa JSON ("Analizza: {{ … }}") non si sa trasformare: meglio fermarsi.
+  for (let i = 0, dentro = false; i < s.length; i++) {
+    if (!dentro && s.startsWith('{{', i)) { const fine = s.indexOf('}}', i); i = fine < 0 ? s.length : fine + 1; continue; }
+    if (dentro && s.startsWith('{{', i)) throw new Error('corpo della richiesta non riconosciuto (espressione dentro una stringa)');
+    if (s[i] === '\\' && dentro) { i++; continue; }
+    if (s[i] === '"') dentro = !dentro;
+  }
   const sostituito = s.replace(/\{\{\s*JSON\.stringify\(([\s\S]*?)\)\s*\}\}/g, '($1)');
   if (sostituito.includes('{{')) throw new Error('corpo della richiesta non riconosciuto');
   return `(${sostituito})`;
@@ -70,18 +77,23 @@ export function collega(originale, { nodi, chiediId }) {
       throw new Error(`Nel flusso «${w.name}» non trovo il nodo «${nodo}»: è cambiato, non tocco niente.`);
     }
     if (!aPagamento(vecchio)) throw new Error(`«${nodo}» non chiama l'API di Claude: non lo tocco.`);
+    if (vecchio.disabled) throw new Error(`«${nodo}» è disattivato: collegarlo lo accenderebbe, non lo tocco.`);
+    if ((w.connections[nodo]?.main || []).filter((r) => (r || []).length).length > 1 || vecchio.onError === 'continueErrorOutput') {
+      throw new Error(`«${nodo}» ha più di un'uscita: va collegato a mano.`);
+    }
+    if (w.nodes.some((n) => [nomi.per, nomi.chiedi, nomi.dall].includes(n.name))) throw new Error(`nel flusso c'è già un nodo «${nomi.chiedi}»: due nodi con lo stesso «cosa»?`);
     const [x, y] = vecchio.position || [0, 0];
     const richiesta = espressione(vecchio.parameters.jsonBody);
     const per = { id: randomUUID(), name: nomi.per, type: 'n8n-nodes-base.code', typeVersion: 2, position: [x - 120, y + 160],
-      parameters: { jsCode: codice('adatta-richiesta.js').replace('__FLUSSO__', JSON.stringify(w.name))
-        .replace('__FOTO_NECESSARIE__', String(!!fotoNecessarie)).replace('__RICHIESTA__', richiesta) } };
+      parameters: { jsCode: codice('adatta-richiesta.js').replace('__FLUSSO__', () => JSON.stringify(w.name))
+        .replace('__FOTO_NECESSARIE__', () => String(!!fotoNecessarie)).replace('__RICHIESTA__', () => richiesta) } };
     const chiedi = { id: randomUUID(), name: nomi.chiedi, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [x, y],
-      onError: 'continueRegularOutput',
+      onError: 'continueRegularOutput', ...(vecchio.executeOnce ? { executeOnce: true } : {}),
       parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: chiediId, cachedResultName: NOME_CHIEDI },
         workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
         mode: 'once', options: { waitForSubWorkflow: true } } };
     const dall = { id: randomUUID(), name: nomi.dall, type: 'n8n-nodes-base.code', typeVersion: 2, position: [x + 120, y + 160],
-      parameters: { jsCode: codice('adatta-risposta.js').replace('__FORMA__', JSON.stringify(forma)) } };
+      parameters: { jsCode: codice('adatta-risposta.js').replace('__FORMA__', () => JSON.stringify(forma)) } };
     w.nodes = w.nodes.filter((n) => n.name !== nodo).concat([per, chiedi, dall]);
     // Chi andava al nodo vecchio va a «Per l'AD»; dove andava il nodo vecchio va «Dall'AD».
     for (const uscite of Object.values(w.connections)) {
@@ -91,6 +103,17 @@ export function collega(originale, { nodi, chiediId }) {
     delete w.connections[nodo];
     w.connections[nomi.per] = { main: [[{ node: nomi.chiedi, type: 'main', index: 0 }]] };
     w.connections[nomi.chiedi] = { main: [[{ node: nomi.dall, type: 'main', index: 0 }]] };
+    // Chi citava il nodo vecchio per nome ($('…')) ora cita «Dall'AD», che ha la stessa forma di risposta.
+    const esc = nodo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cita = () => new RegExp(`\\$\\(\\s*(['"\`])${esc}\\1\\s*\\)`, 'g');
+    const riscrivi = (v) => (typeof v === 'string' ? v.replace(cita(), () => `$(${JSON.stringify(nomi.dall)})`)
+      : Array.isArray(v) ? v.map(riscrivi) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, riscrivi(x)])) : v);
+    for (const n of w.nodes) {
+      if (n === per || n === dall) continue;
+      const prima = JSON.stringify(n.parameters || {});
+      n.parameters = riscrivi(n.parameters || {});
+      if (JSON.stringify(n.parameters) !== prima) modifiche.push(`«${n.name}» ora cita «${nomi.dall}»`);
+    }
     modifiche.push(`«${nodo}» → «${nomi.chiedi}»`);
   }
   return { flusso: w, modifiche };

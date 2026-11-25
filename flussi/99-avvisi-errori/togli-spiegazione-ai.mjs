@@ -39,8 +39,15 @@ export function togli(originale) {
   }
   const dopo = w.connections['Leggi errore']?.main?.[0] || [];
   if (!dopo.some((c) => c.node === 'Leggi spiegazione AI')) {
-    w.connections['Leggi errore'] = { main: [[{ node: 'Leggi spiegazione AI', type: 'main', index: 0 }]] };
+    // Si aggiunge, non si sostituisce: le altre uscite di «Leggi errore» restano.
+    w.connections['Leggi errore'] = w.connections['Leggi errore'] || { main: [[]] };
+    w.connections['Leggi errore'].main[0] = [...(w.connections['Leggi errore'].main[0] || []), { node: 'Leggi spiegazione AI', type: 'main', index: 0 }];
     modifiche.push('«Leggi errore» va dritto a «Leggi spiegazione AI»');
+  }
+  for (const n of w.nodes) {
+    const t = JSON.stringify(n.parameters || {});
+    const citato = DA_TOGLIERE.find((d) => t.includes(`$('${d.replace(/'/g, "\\\\'")}')`) || t.includes(`$(\\"${d}\\")`));
+    if (citato && !/^Nota/.test(n.name)) throw new Error(`«${n.name}» cita «${citato}», che si toglie: non tocco niente.`);
   }
   const cfg = w.nodes.find((n) => n.name === 'Config');
   const voce = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'SPIEGA_ERRORI_AI');

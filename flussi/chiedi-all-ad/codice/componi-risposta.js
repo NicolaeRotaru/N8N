@@ -11,6 +11,8 @@ const prep = $('Prepara il lavoro').first().json;
 const n = Math.max(1, Number(prep.n_lavori) || 1);
 const flusso = prep.flusso;
 const memoria = $getWorkflowStaticData('global');
+// Tutto quello che arriva dall'AD si trasforma in testo senza fidarsi della sua forma.
+const comeTesto = (x) => { if (typeof x === 'string') return x; try { return JSON.stringify(x) ?? ''; } catch (e) { return ''; } };
 
 const uguale = (r) => Array.from({ length: n }, () => ({ json: r }));
 const errore = (motivo, extra = {}) => uguale({ ok: false, flusso, risultato: null, avvisi: [], errore: motivo, dalla_memoria: false, prova: false, ...extra });
@@ -32,7 +34,7 @@ if (prep.azione === 'memoria') {
     return errore('modalità prova: la routine non è partita', { prova: true });
   } else if (!$('Aspetta la risposta').isExecuted) {
     const codice = arrivato.statusCode;
-    const motivo = (corpo && corpo.error && (corpo.error.message || corpo.error.type)) || arrivato.error?.message || arrivato.error || '';
+    const motivo = comeTesto((corpo && corpo.error && (corpo.error.message || corpo.error.type)) || (arrivato.error && arrivato.error.message) || arrivato.error || '');
     // La corsa non è partita: non si conta.
     memoria.corse_oggi = Math.max(0, (Number(memoria.corse_oggi) || 0) - 1);
     if (Array.isArray(memoria.partenze)) memoria.partenze.pop();
@@ -42,8 +44,8 @@ if (prep.azione === 'memoria') {
   }
 }
 
-const avvisi = Array.isArray(risposta.avvisi) ? risposta.avvisi.map(String).slice(0, 20) : [];
-if (risposta.ok !== true) return errore(String(risposta.errore || "l'AD non ha potuto fare il lavoro").slice(0, 500), { avvisi, dalla_memoria: dallaMemoria });
+const avvisi = Array.isArray(risposta.avvisi) ? risposta.avvisi.map(comeTesto).filter(Boolean).slice(0, 20) : [];
+if (risposta.ok !== true) return errore((comeTesto(risposta.errore) || "l'AD non ha potuto fare il lavoro").slice(0, 500), { avvisi, dalla_memoria: dallaMemoria });
 
 let risultati;
 if (n === 1) {
@@ -58,7 +60,9 @@ if (n === 1) {
 }
 
 // L'ultima risposta buona si tiene: se lo stesso flusso chiede di nuovo la stessa cosa, non si rifà.
-if (!dallaMemoria && prep.chiave) {
+// Solo se è completa (un risultato per ogni lavoro, nessuno vuoto) e non viene da una prova.
+const completa = risultati.every((r) => r !== undefined && r !== null);
+if (!dallaMemoria && prep.chiave && prep.azione === 'parti' && completa) {
   memoria.ultimo = memoria.ultimo && typeof memoria.ultimo === 'object' ? memoria.ultimo : {};
   memoria.ultimo[flusso] = { chiave: prep.chiave, risposta: { ok: true, risultato: risposta.risultato ?? null, avvisi }, quando: new Date().toISOString() };
 }

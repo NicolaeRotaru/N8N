@@ -17,9 +17,10 @@
 // torna con ok = false, prova = true. Chi vuole provare il giro completo manda a mano un corpo
 // { "ok": true, "risultato": … } all'indirizzo di ritorno mentre aspetta.
 //
-// Uso: N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs [--vero] [--manda] [--routine trig_…] [--chiave <id credenziale>]
+// Uso: N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs [--vero|--prova] [--manda] [--routine trig_…] [--chiave <id credenziale>]
 //   --manda    crea o aggiorna il flusso su n8n (non lo accende); senza, controlla soltanto
-//   --vero     MODALITA = vero (la routine parte davvero); senza, resta in prova
+//   --vero     MODALITA = vero (la routine parte davvero); --prova la rimette in prova; senza nessuno dei
+//              due si tiene la modalità del flusso già su n8n (di serie prova)
 //   --routine  l'id della routine; con --manda, se manca, si tiene quello del flusso già su n8n
 //   --chiave   l'id della credenziale con la chiave; con --manda, se manca, si tiene quella del flusso su
 //              n8n, oppure si crea la credenziale vuota da riempire (senza la chiave vera)
@@ -150,7 +151,9 @@ export function controlla(w) {
 
 async function principale(argv) {
   const valore = (nome) => { const i = argv.indexOf(nome); return i >= 0 ? argv[i + 1] : undefined; };
-  let pezzi = { routine: valore('--routine'), chiave: valore('--chiave'), vero: argv.includes('--vero') };
+  // MODALITA: --vero o --prova la cambiano; senza, si tiene quella del flusso già su n8n (di serie prova).
+  const scelta = argv.includes('--vero') ? true : argv.includes('--prova') ? false : undefined;
+  let pezzi = { routine: valore('--routine'), chiave: valore('--chiave'), vero: scelta ?? false };
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
@@ -166,7 +169,8 @@ async function principale(argv) {
       chiave = creata.id;
       console.log(`Creata la credenziale «${NOME_CHIAVE}» (id ${chiave}): ci va incollata la chiave della routine.`);
     }
-    pezzi = { ...pezzi, chiave, routine: pezzi.routine || (vecchiaRoutine !== 'DA_IMPOSTARE' ? vecchiaRoutine : undefined),
+    const vecchiaModalita = nodo('Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
+    pezzi = { ...pezzi, vero: scelta ?? vecchiaModalita === 'vero', chiave, routine: pezzi.routine || (vecchiaRoutine !== 'DA_IMPOSTARE' ? vecchiaRoutine : undefined),
       webhookId: nodo(ASPETTA)?.webhookId,
       // Se il sotto-flusso si guasta, l'avviso parte dal 99 come per gli altri flussi.
       errori: tutti.find((w) => w.name === '99 · Avvisi errori')?.id };
