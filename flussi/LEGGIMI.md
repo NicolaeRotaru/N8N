@@ -1,6 +1,6 @@
 # flussi/ — i flussi n8n che si costruiscono da programma
 
-Due flussi n8n nati il 24/11/2026 su richiesta di Nicola. Non si correggono a mano nell'editor di n8n:
+I flussi n8n nati dal 24/11/2026 su richiesta di Nicola. Non si correggono a mano nell'editor di n8n:
 si cambia il programma qui e lo si rilancia, così quello che gira su n8n e quello che sta nel
 repository restano uguali.
 
@@ -64,6 +64,43 @@ curl -X POST https://n8n-shdy.sliplane.app/webhook/mycity-analisi-attivita -H "x
 ```bash
 N8N_API_KEY=… node flussi/18-analisi-attivita/costruisci.mjs --manda --marketplace <id credenziale Supabase> --segreto <id credenziale del segreto>
 ```
+
+## 19 · Bozze dei 3 abbonamenti
+
+**A cosa serve.** Per un'attività nuova di MyCity prepara le tre proposte di abbonamento — Base, Business
+e Premium — pronte da copiare su WhatsApp. Le scrive il codice, non un'IA: i testi di ogni fascia sono
+quelli del listino del sito (`mycity/lib/agenzia/preventivo.ts`, `FASCE`), e dentro ci mette i dati veri
+della vetrina: quanti prodotti sono senza foto, quante foto del locale ha la copertina, se c'è un video,
+se ha un sito, quali social e se la scheda Google li ha indicati. Se arriva la ricerca sul web del modulo
+12, aggiunge un punto di forza in apertura e due idee per i post, e lo dice nei controlli. Segna la fascia
+consigliata con la stessa regola del sito (150 prodotti o più → Premium; foto, video o sito da fare →
+Business; altrimenti Base). I canoni li legge da `site_settings.agenzia.abbonamenti`, con le regole del sito.
+
+**Dove vanno.** A Nicola su Telegram, in quattro messaggi: il riepilogo (cosa ho letto, da chiedere al
+titolare, cosa controllare prima di mandare) e una bozza per abbonamento. **Al titolare non parte niente**:
+il programma `controlla()` ferma ogni nodo che scriva a qualcuno che non sia la chat di Nicola nel Config.
+
+**Chi lo fa partire.** Il 18, come ultimo passo, senza aspettarlo. Quindi la catena è: iscrizione su MyCity
+→ 16 (scheda Clienti) → 18 (analisi) → 19 (bozze). Oppure a mano, col webhook protetto dallo stesso segreto del 16:
+
+```bash
+curl -X POST https://n8n-shdy.sliplane.app/webhook/mycity-bozze-abbonamenti -H "x-mycity-segreto: <segreto>" -H "content-type: application/json" -d '{"id":"<id MyCity dell attività>"}'
+```
+
+**Il listino resta uguale al sito.** La prova `il listino copiato nel 19 è parola per parola quello del sito`
+legge `../mycity/lib/agenzia/preventivo.ts` (o `MYCITY_REPO`) e diventa rossa se lì cambia un testo, un
+canone di listino o uno scontrino di partenza. Senza il sito accanto la prova si salta e lo dice.
+
+```bash
+N8N_API_KEY=… node flussi/19-bozze-abbonamenti/costruisci.mjs --manda --marketplace <id credenziale Supabase> --segreto <id credenziale del segreto>
+```
+
+Dopo il 19, il 18 si ricostruisce con `--manda` (trova il 19 per nome) o con `--bozze <id del 19>`.
+
+**Senza la chiave dell'API, col collegamento MCP a n8n.** `--sdk <file>` scrive lo stesso flusso in codice
+SDK (`flussi/in-sdk.mjs`), che gli strumenti `validate_workflow` e `create_workflow_from_code` accettano;
+con `--telegram <id> --chat <id>` le credenziali e la chat si passano a mano. Il file con la chat non va
+nel repository.
 
 ## 17 · Analisi del marketplace
 

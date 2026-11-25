@@ -21,6 +21,7 @@
 // Uso: N8N_API_KEY=… node flussi/18-analisi-attivita/costruisci.mjs --manda --marketplace <id> --segreto <id>
 //   --marketplace  la credenziale Supabase in sola lettura (la stessa del 17)
 //   --segreto      la credenziale Header Auth del webhook (la stessa del 16)
+//   --bozze        il flusso 19 da chiamare alla fine (con --manda lo cerca per nome su n8n)
 
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -45,7 +46,10 @@ export const LETTURE_18 = [
   ['Leggi i negozi approvati', 'profiles?role=eq.seller&approval_status=eq.approved&select=id&limit=1000'],
 ];
 
-export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, webhookId } = {}) {
+export const PASSA_ALLE_BOZZE = 'Passa alle bozze';
+export const BOZZE = 'Bozze dei 3 abbonamenti (flusso 19)';
+
+export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, webhookId, bozze } = {}) {
   const pos = (i, riga = 0) => [i * 220, riga * 200];
   const nodi = [];
   const collega = {};
@@ -128,6 +132,19 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
       additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
     credentials: { telegramApi: credTelegram } });
   vai('Componi il messaggio', 'Manda a Nicola');
+  // Ultimo passo (25/11/2026): le bozze dei tre abbonamenti per la stessa attività, nel flusso 19. Partono
+  // dopo l'analisi, senza farla aspettare: se le bozze si guastano, l'analisi è già arrivata a Nicola.
+  if (bozze) {
+    nodi.push({ id: randomUUID(), name: PASSA_ALLE_BOZZE, type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
+      parameters: { jsCode: "// 18 · Al flusso 19 passa la stessa richiesta: l'attività e la scheda della ricerca sul web.\nreturn [{ json: $('Leggi la richiesta').first().json }];" } });
+    nodi.push({ id: randomUUID(), name: BOZZE, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: pos(i++),
+      onError: 'continueRegularOutput',
+      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: bozze },
+        workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+        mode: 'once', options: { waitForSubWorkflow: false } } });
+    vai('Manda a Nicola', PASSA_ALLE_BOZZE);
+    vai(PASSA_ALLE_BOZZE, BOZZE);
+  }
   nodi.push({ id: randomUUID(), name: 'Nota · Leggimi', type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: [0, -660],
     parameters: { width: 760, height: 400, content: [
       "## 18 · Analisi di un'attività",
@@ -137,6 +154,8 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
       "**Il commento di Claude** (COMMENTO_CLAUDE nel Config) è spento di serie: «non si paga MAI un'API di IA» (registro dei fatti, ad.uso-e-crediti). Si accende con «si» solo se Nicola lo decide.",
       '',
       "**Chi la fa partire.** Il 16 (nuovo cliente da MyCity), come ultimo passo di ogni iscrizione, con la scheda del modulo 12. Oppure il webhook «Su richiesta» (stesso segreto del 16) con `{ \"id\": \"<id MyCity>\" }`.",
+      '',
+      "**Dopo.** Alla fine chiama il 19 (bozze dei 3 abbonamenti) senza aspettarlo, con la stessa richiesta.",
       '',
       '**Regole.** Solo lettura, niente dati personali del titolare. I numeri li fa il codice, mai Claude; «non misurato» non è zero.',
       '',
@@ -168,6 +187,12 @@ export function controlla(w) {
     if (!nomi.has(da)) problemi.push(`collegamento da un nodo che non esiste: «${da}»`);
     for (const ramo of uscite.main || []) for (const v of ramo || []) if (!nomi.has(v.node)) problemi.push(`collegamento verso «${v.node}», che non esiste`);
   }
+  const bozze = w.nodes.find((n) => n.name === BOZZE);
+  if (bozze) {
+    if (bozze.parameters?.options?.waitForSubWorkflow !== false) problemi.push('le bozze devono partire senza far aspettare il 18');
+    if (!bozze.parameters?.workflowId?.value) problemi.push('la chiamata delle bozze non dice quale flusso');
+    if (w.connections['Manda a Nicola']?.main?.[0]?.[0]?.node !== PASSA_ALLE_BOZZE) problemi.push("le bozze non partono dopo l'analisi");
+  }
   const webhook = w.nodes.find((n) => n.type === 'n8n-nodes-base.webhook');
   if (!webhook || webhook.parameters.authentication !== 'headerAuth') problemi.push('il webhook non chiede il segreto');
   if (w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.find((a) => a.name === 'TELEGRAM_CHAT_ID').value === 'DA_IMPOSTARE') {
@@ -178,7 +203,7 @@ export function controlla(w) {
 
 async function principale(argv) {
   const valore = (nome) => { const i = argv.indexOf(nome); return i >= 0 ? argv[i + 1] : undefined; };
-  let pezzi = { marketplace: valore('--marketplace'), segreto: valore('--segreto') };
+  let pezzi = { marketplace: valore('--marketplace'), segreto: valore('--segreto'), bozze: valore('--bozze') };
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
@@ -190,7 +215,9 @@ async function principale(argv) {
       telegram: m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi,
       anthropic: m12.nodes.find((n) => n.name === 'Cerca il locale con Claude')?.credentials?.httpHeaderAuth,
       chatId: String(m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value || ''),
-      webhookId: gia?.nodes?.find((n) => n.name === 'Su richiesta')?.webhookId };
+      webhookId: gia?.nodes?.find((n) => n.name === 'Su richiesta')?.webhookId,
+      // Il 19 si trova per nome; n8n lo vuole acceso prima di accettare il 18 che lo chiama.
+      bozze: pezzi.bozze || tutti.find((w) => w.name === '19 · Bozze dei 3 abbonamenti')?.id };
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
