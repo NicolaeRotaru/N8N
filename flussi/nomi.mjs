@@ -19,6 +19,7 @@ export const NOMI = {
   consegnaScheda: "29 · Consegna la scheda scritta dall'AD",
   montatore: '31 · Montatore',
   chiediAllAd: "90 · Chiedi all'AD",
+  argomentoAttivita: "97 · Scrivi nell'argomento dell'attività",
   avvisiErrori: '99 · Avvisi errori',
 };
 
@@ -32,6 +33,8 @@ export const NOMI_VECCHI = {
   [NOMI.consegnaScheda]: ["19 · Consegna la scheda scritta dall'AD"],
   [NOMI.montatore]: ['16 · Montatore'],
   [NOMI.chiediAllAd]: ["Chiedi all'AD"],
+  // Il 25/11 è nato col numero 20, già preso da «Iscrivi il cliente in MyCity»: rinominato subito in 97.
+  [NOMI.argomentoAttivita]: ["20 · Scrivi nell'argomento dell'attività"],
 };
 
 /** Tutti i nomi con cui un flusso può chiamarsi: il nuovo per primo. */

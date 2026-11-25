@@ -46,7 +46,7 @@ export const LETTURE = [
 
 export const SALUTE_N8N = 'Chiedi la salute di n8n';
 
-export function costruisci({ telegram, anthropic, chatId, marketplace, salute } = {}) {
+export function costruisci({ telegram, anthropic, chatId, marketplace, salute, chatMarketplace } = {}) {
   const credMarketplace = marketplace ? { id: marketplace, name: CREDENZIALE_MARKETPLACE.name } : CREDENZIALE_MARKETPLACE;
   const pos = (i, riga = 0) => [i * 220, riga * 200];
   const nodi = [];
@@ -70,6 +70,8 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, salute } 
         ['SUPABASE_URL', 'https://clmpyfvpvfjgeviworth.supabase.co'],
         ['SITO_URL', 'https://mycity-phi.vercel.app'],
         ['TELEGRAM_CHAT_ID', chatId || 'DA_IMPOSTARE'],
+        // Il gruppo Telegram «Marketplace» (25/11/2026). Vuoto = il briefing va nella chat privata.
+        ['CHAT_MARKETPLACE', chatMarketplace || ''],
         ['CLAUDE_MODEL', 'claude-sonnet-5-5'],
         // Spento di serie: «non si paga MAI un'API di IA» (registro-fatti.json, voce ad.uso-e-crediti,
         // Nicola 1/11/2026). Numeri e segnali non ne hanno bisogno. «si» solo se Nicola decide di pagarla.
@@ -142,7 +144,7 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, salute } 
     parameters: { jsCode: codice('componi-messaggio.js') } });
   nodi.push({ id: randomUUID(), name: 'Manda a Nicola', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: pos(i++),
     onError: 'continueRegularOutput',
-    parameters: { resource: 'message', operation: 'sendMessage', chatId: "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    parameters: { resource: 'message', operation: 'sendMessage', chatId: "={{ $('Config').first().json.CHAT_MARKETPLACE || $('Config').first().json.TELEGRAM_CHAT_ID }}",
       text: "={{ $('Componi il messaggio').first().json.messaggio }}",
       additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
     credentials: { telegramApi: telegram || { id: 'DA_IMPOSTARE', name: 'Telegram - Bot agenzia' } } });
@@ -215,12 +217,13 @@ export function controlla(w) {
 
 async function principale(argv) {
   const valore = (nome) => { const i = argv.indexOf(nome); return i >= 0 ? argv[i + 1] : undefined; };
-  let pezzi = {};
+  let pezzi = { chatMarketplace: valore('--gruppo') };
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
     const elenco = await api.elencoFlussi();
     const m12 = trovaFlusso(elenco, NOMI.nuovoCliente);
+    const gia17 = trovaFlusso(elenco, NOME_17);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
     const tg = m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi;
     const an = m12.nodes.find((n) => n.name === 'Cerca il locale con Claude')?.credentials?.httpHeaderAuth;
@@ -228,8 +231,10 @@ async function principale(argv) {
     const f98 = elenco.find((w) => w.name === '98 · Salute di n8n');
     pezzi = { telegram: tg, anthropic: an, chatId: chat ? String(chat) : undefined, // Senza --marketplace si tiene la credenziale che il 17 ha già su n8n: aggiornarlo senza
       // staccava la chiave del database (successo il 25/11, rimediato subito).
-      marketplace: valore('--marketplace') || trovaFlusso(elenco, NOME_17)?.nodes?.find((n) => n.credentials?.supabaseApi?.name === CREDENZIALE_MARKETPLACE.name)?.credentials?.supabaseApi?.id,
-      salute: valore('--salute') || f98?.id };
+      marketplace: valore('--marketplace') || gia17?.nodes?.find((n) => n.credentials?.supabaseApi?.name === CREDENZIALE_MARKETPLACE.name)?.credentials?.supabaseApi?.id,
+      salute: valore('--salute') || f98?.id,
+      // Il gruppo già scritto su n8n non si perde quando si rigenera il flusso.
+      chatMarketplace: pezzi.chatMarketplace ?? gia17?.nodes?.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'CHAT_MARKETPLACE')?.value };
     if (!pezzi.salute) console.warn('Il 98 · Salute di n8n non è su n8n: il 17 parte senza la salute di n8n.');
   }
   const w = costruisci(pezzi);

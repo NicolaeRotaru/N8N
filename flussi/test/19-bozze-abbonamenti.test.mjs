@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { eseguiCodice } from './esegui-codice.mjs';
-import { costruisci, controlla, NOME_19 } from '../19-bozze-abbonamenti/costruisci.mjs';
+import { costruisci, controlla, NOME_19, PER_L_ARGOMENTO, SCRIVI } from '../19-bozze-abbonamenti/costruisci.mjs';
 import { inSdk } from '../in-sdk.mjs';
 
 const leggi = (nome) => readFileSync(new URL(`../19-bozze-abbonamenti/codice/${nome}`, import.meta.url), 'utf8');
@@ -203,4 +203,23 @@ test('la traduzione in codice SDK porta ogni nodo e ogni collegamento', () => {
   assert.match(codice, /\.output\(1\)\.to\(/, 'il ramo «no» dell\'if esce dalla seconda uscita');
   assert.match(codice, /export default workflow\(/);
   assert.ok(codice.includes(JSON.stringify(leggi('prepara-bozze.js'))), 'il codice del nodo passa intero');
+});
+
+// --- Le bozze nell'argomento del negozio (flusso 97) e gli scarti in Tecnica ---------------------
+
+test("col 97 le bozze vanno nell'argomento del negozio, col suo nome; gli scarti vanno in Tecnica", async () => {
+  const w = costruisci({ ...PEZZI, argomento: 'id20' });
+  assert.deepEqual(controlla(w), []);
+  assert.equal(w.nodes.find((n) => n.name === 'Manda a Nicola'), undefined);
+  assert.equal(w.connections['Prepara le bozze'].main[0][0].node, PER_L_ARGOMENTO);
+  assert.equal(w.connections[PER_L_ARGOMENTO].main[0][0].node, SCRIVI);
+  assert.equal(w.nodes.find((n) => n.name === SCRIVI).parameters.workflowId.value, 'id20');
+  const per = w.nodes.find((n) => n.name === PER_L_ARGOMENTO).parameters.jsCode;
+  const out = await eseguiCodice(per, { input: [{ json: { messaggio: 'riepilogo' } }, { json: { messaggio: 'Base' } }], nodi: {
+    'Leggi la richiesta': [{ json: { id: ID, nome: '' } }], "Leggi l'attività": risposta([{ store_name: 'Ora del Gusto' }]) } });
+  assert.deepEqual(out.map((x) => x.json), [{ id: ID, nome: 'Ora del Gusto', messaggio: 'riepilogo' }, { id: ID, nome: 'Ora del Gusto', messaggio: 'Base' }]);
+  const scarto = w.nodes.find((n) => n.name === 'Avvisa: richiesta scartata');
+  assert.match(scarto.parameters.chatId, /CHAT_TECNICA \|\| \$\('Config'\)\.first\(\)\.json\.TELEGRAM_CHAT_ID/);
+  const sm = (fn) => { const x = costruisci({ ...PEZZI, argomento: 'id20' }); fn(x); return controlla(x); };
+  assert.ok(sm((x) => { x.nodes.find((n) => n.name === SCRIVI).name = 'Chiama un altro flusso'; x.connections[PER_L_ARGOMENTO].main[0][0].node = 'Chiama un altro flusso'; }).some((p) => /non è il 97/.test(p)));
 });

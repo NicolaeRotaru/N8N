@@ -343,6 +343,14 @@ test('i venditori di sistema (il negozio «MyCity», SDG) non contano come negoz
   assert.deepEqual(a.negozi_fermi, ['Bottega Ferma']);
 });
 
+test('il briefing va nel gruppo «Marketplace» se c è, se no nella chat privata', () => {
+  const w = costruisci({ chatMarketplace: '-1009876543210' });
+  const cfg = w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  assert.equal(cfg.find((a) => a.name === 'CHAT_MARKETPLACE').value, '-1009876543210');
+  assert.equal(costruisci().nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.find((a) => a.name === 'CHAT_MARKETPLACE').value, '');
+  assert.equal(w.nodes.find((n) => n.name === 'Manda a Nicola').parameters.chatId, "={{ $('Config').first().json.CHAT_MARKETPLACE || $('Config').first().json.TELEGRAM_CHAT_ID }}");
+});
+
 test('la salute di n8n (flusso 98) finisce in fondo al messaggio; se il 98 non risponde lo dice', async () => {
   const a = await calcola(datiNormali());
   const base = { Config: [{ json: config() }], 'Calcola i numeri': [{ json: a }], 'Chiedi il commento a Claude': claudeRisponde(COMMENTO) };

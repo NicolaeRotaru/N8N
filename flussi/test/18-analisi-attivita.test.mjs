@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { eseguiCodice } from './esegui-codice.mjs';
-import { costruisci, controlla, BOZZE, PASSA_ALLE_BOZZE } from '../18-analisi-attivita/costruisci.mjs';
+import { costruisci, controlla, BOZZE, PASSA_ALLE_BOZZE, PER_L_ARGOMENTO as PER_L_ARGOMENTO_18, SCRIVI as SCRIVI_18 } from '../18-analisi-attivita/costruisci.mjs';
 
 const leggi = (nome) => readFileSync(new URL(`../18-analisi-attivita/codice/${nome}`, import.meta.url), 'utf8');
 const RICHIESTA = leggi('leggi-richiesta.js');
@@ -308,4 +308,24 @@ test("alla fine il 18 passa la stessa richiesta al 19, senza aspettarlo; senza i
   // Se la chiamata facesse aspettare il 18, il controllo lo ferma.
   chiama.parameters.options.waitForSubWorkflow = true;
   assert.ok(controlla(con).some((p) => /senza far aspettare/.test(p)));
+});
+
+// --- L'analisi nell'argomento del negozio (flusso 97) ---------------------------------------------
+
+test("col 97 l'analisi va nell'argomento del negozio, il 18 lo aspetta e poi passano le bozze", async () => {
+  const pezzi = { telegram: { id: 'tg', name: 'Telegram - Bot agenzia' }, chatId: '1', marketplace: 'sb', segreto: 'hd', chiedi: 'id90' };
+  const w = costruisci({ ...pezzi, bozze: 'id19', argomento: 'id20' });
+  assert.deepEqual(controlla(w), []);
+  assert.equal(w.nodes.find((n) => n.name === 'Manda a Nicola'), undefined);
+  assert.equal(w.connections['Componi il messaggio'].main[0][0].node, PER_L_ARGOMENTO_18);
+  assert.equal(w.connections[PER_L_ARGOMENTO_18].main[0][0].node, SCRIVI_18);
+  assert.equal(w.connections[SCRIVI_18].main[0][0].node, PASSA_ALLE_BOZZE);
+  const scrivi = w.nodes.find((n) => n.name === SCRIVI_18);
+  assert.equal(scrivi.parameters.options.waitForSubWorkflow, true);
+  const out = await eseguiCodice(w.nodes.find((n) => n.name === PER_L_ARGOMENTO_18).parameters.jsCode, { nodi: {
+    'Leggi la richiesta': [{ json: { id: ID, nome: 'Bar' } }], "Calcola l'analisi": [{ json: { nome: 'Bar Roma' } }], 'Componi il messaggio': [{ json: { messaggio: 'analisi' } }] } });
+  assert.deepEqual(out[0].json, { id: ID, nome: 'Bar Roma', messaggio: 'analisi' });
+  assert.match(w.nodes.find((n) => n.name === 'Avvisa: richiesta scartata').parameters.chatId, /CHAT_TECNICA/);
+  scrivi.parameters.options.waitForSubWorkflow = false;
+  assert.ok(controlla(w).some((p) => /deve aspettare il 97/.test(p)), 'senza attesa due argomenti per lo stesso negozio');
 });
