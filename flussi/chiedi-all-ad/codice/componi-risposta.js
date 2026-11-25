@@ -11,6 +11,8 @@ const prep = $('Prepara il lavoro').first().json;
 const n = Math.max(1, Number(prep.n_lavori) || 1);
 const flusso = prep.flusso;
 const memoria = $getWorkflowStaticData('global');
+// Gli allegati di questa corsa sono stati cancellati (o non sono mai stati salvati): escono dal conto dello spazio.
+if (Array.isArray(memoria.allegati) && prep.corsa) memoria.allegati = memoria.allegati.filter((x) => x && x.corsa !== prep.corsa && x.scade > Date.now());
 // Tutto quello che arriva dall'AD si trasforma in testo senza fidarsi della sua forma.
 const comeTesto = (x) => { if (typeof x === 'string') return x; try { return JSON.stringify(x) ?? ''; } catch (e) { return ''; } };
 

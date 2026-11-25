@@ -129,6 +129,39 @@ test('tanti lavori: ogni lavoro porta solo i suoi allegati; in prova le righe ci
   assert.deepEqual([p.json.azione, p.json.righe.length], ['prova', 1]);
 });
 
+test('lo spazio: oltre la soglia di allegati vivi il lavoro non parte; la risposta toglie la corsa dal conto', async () => {
+  const COMPONI = leggi('componi-risposta.js');
+  const statico = {};
+  const cfg = { ...CFG, ALLEGATI_SOGLIA_MB: 1 };
+  const testo = (n) => lavoro({ dati: { n }, allegati: [{ nome: 'catalogo', tipo: 'testo', contenuto: String(n).repeat(400 * 1024) }] });
+  const [a] = await prepara([testo(1)], { cfg, statico });
+  assert.equal(a.json.azione, 'parti');
+  assert.equal(statico.allegati.length, 1);
+  assert.equal(statico.allegati[0].corsa, '77');
+  assert.equal(a.json.righe[0].contenuto.length, 400 * 1024);
+  const esec2 = { ...ESECUZIONE, id: '78' };
+  const imp2 = conGettoni(await allegatiDi([testo(2)]));
+  const [b] = await eseguiCodice(PREPARA, { nodi: { Config: [{ json: cfg }], 'Da un altro flusso': [testo(2)], Impronte: imp2 }, statico, execution: esec2 });
+  assert.equal(b.json.azione, 'parti', '800 KB stanno sotto 1 MB');
+  const esec3 = { ...ESECUZIONE, id: '79' };
+  const imp3 = conGettoni(await allegatiDi([testo(3)]));
+  const [c] = await eseguiCodice(PREPARA, { nodi: { Config: [{ json: cfg }], 'Da un altro flusso': [testo(3)], Impronte: imp3 }, statico, execution: esec3 });
+  assert.equal(c.json.azione, 'errore');
+  assert.match(c.json.errore, /spazio degli allegati quasi pieno/);
+  assert.equal(c.json.righe, undefined, 'niente da salvare');
+  assert.equal(statico.allegati.length, 2, 'la corsa fermata non si conta');
+  // l'AD risponde alla prima corsa: le sue righe sono cancellate e il conto scende
+  await eseguiCodice(COMPONI, { input: [{ json: { body: { ok: true, risultato: {} } } }], nodi: { 'Prepara il lavoro': [a], [ASPETTA]: [{ json: {} }] }, statico });
+  assert.deepEqual(statico.allegati.map((x) => x.corsa), ['78']);
+  const [d] = await eseguiCodice(PREPARA, { nodi: { Config: [{ json: cfg }], 'Da un altro flusso': [testo(3)], Impronte: imp3 }, statico, execution: esec3 });
+  assert.equal(d.json.azione, 'parti', 'adesso c\'è spazio');
+  // le voci scadute non contano; un lavoro fermato dal tetto di corse non si segna
+  const pieno = { allegati: [{ corsa: 'vecchia', byte: 5 * 1024 * 1024, scade: Date.now() - 1 }], giorno: new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' }), corse_oggi: 40, partenze: [] };
+  const [e] = await prepara([testo(4)], { cfg, statico: pieno });
+  assert.match(e.json.errore, /tetto di 40 corse/);
+  assert.deepEqual(pieno.allegati, [], 'scaduta tolta, corsa fermata non segnata');
+});
+
 test('un allegato sbagliato: il lavoro non parte, non si conta, e il motivo arriva a chi ha chiamato', async () => {
   const statico = {};
   const [r] = await prepara([lavoro({ allegati: [{ nome: 'x', tipo: 'officina', percorso: '/salute' }] })], { statico });

@@ -66,6 +66,8 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
         ['PROVA_ATTESA_MINUTI', 2],
         // Dove l'AD scarica gli allegati (flusso «Allegati per l'AD»): il gettone va dopo «?g=».
         ['ALLEGATI_URL', URL_ALLEGATI],
+        // Oltre questi MB di allegati vivi il lavoro non parte (il tetto di n8n è comune a tutte le tabelle).
+        ['ALLEGATI_SOGLIA_MB', 40],
       ].map(([name, value]) => ({ id: randomUUID(), name, value, type: typeof value === 'number' ? 'number' : 'string' })) } } },
     // Gli allegati: controllati, un gettone casuale da 256 bit per ognuno, e la sua impronta SHA-256.
     { id: randomUUID(), name: 'Allegati del lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2, 1),

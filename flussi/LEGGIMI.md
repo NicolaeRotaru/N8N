@@ -229,6 +229,10 @@ resta identica a prima, carattere per carattere.
 - **Quanto restano:** «Chiedi all'AD» cancella le righe della corsa appena l'AD risponde, o se la routine non parte. Il
   giro «Ogni ora» toglie gli avanzi scaduti.
 - **La memoria** riconosce «stesso lavoro» dal contenuto degli allegati, non dal gettone.
+- **Lo spazio:** in n8n 2.49 tutte le Data table insieme hanno un tetto di 200 MB di serie (`N8N_DATA_TABLES_MAX_SIZE_BYTES`).
+  «Chiedi all'AD» conta nella sua memoria gli allegati vivi delle corse in corso. Se con la corsa nuova si supera
+  `ALLEGATI_SOGLIA_MB` (40 di serie), il lavoro non parte e lo dice. Il conto è prudente: ogni riga vale almeno 1 KB, e le
+  voci scadono da sole dopo un'ora.
 - **Da fare una volta su n8n:** creare la Data table «Allegati per l'AD» con le colonne `impronta`, `corsa`, `nome`,
   `tipo`, `mime`, `contenuto` (testo) e `scade` (numero). Poi:
 

@@ -35,6 +35,7 @@ const impronta = (s) => {
 };
 
 const esci = (extra) => [{ json: { n_lavori: voci.length, ...extra } }];
+const byteDi = (s) => (typeof Buffer !== 'undefined' ? Buffer.byteLength(s, 'utf8') : unescape(encodeURIComponent(s)).length);
 const conAllegati = $('Impronte').isExecuted ? $('Impronte').all().map((i) => (i && i.json) || {}) : [];
 const erroreAllegati = conAllegati.find((a) => a.errore);
 const allegati = conAllegati.filter((a) => !a.nessuno && !a.errore && a.gettone && a.impronta);
@@ -102,11 +103,29 @@ if (Math.max(daMandare.length, byte) > MAX_TESTO) {
 }
 
 // Le righe della tabella degli allegati: l'impronta del gettone (mai il gettone), la corsa, la scadenza, il contenuto.
-const righe = allegati.map((a) => ({ impronta: a.impronta, corsa: String($execution.id ?? ''), scade: ora + DURATA_ALLEGATI, nome: a.nome, tipo: a.tipo, mime: a.mime || '', contenuto: String(a.contenuto) }));
-const conRighe = righe.length ? { righe } : {};
+const corsa = String($execution.id ?? '');
+const righe = allegati.map((a) => ({ impronta: a.impronta, corsa, scade: ora + DURATA_ALLEGATI, nome: a.nome, tipo: a.tipo, mime: a.mime || '', contenuto: String(a.contenuto) }));
+let conRighe = righe.length ? { righe, corsa } : {};
+// Lo spazio: le tabelle di n8n hanno un tetto comune (200 MB di serie in n8n 2.49, per tutti i flussi). Gli allegati
+// vivi delle corse in corso si contano nella memoria; oltre ALLEGATI_SOGLIA_MB il lavoro non parte, così le tabelle
+// degli altri flussi non si riempiono. Il conto è prudente: ogni riga vale almeno 1 KB, le voci scadono da sole.
+if (righe.length) {
+  const soglia = Math.max(1, numero(cfg.ALLEGATI_SOGLIA_MB, 40)) * 1024 * 1024;
+  const vivi = (Array.isArray(memoria.allegati) ? memoria.allegati : []).filter((x) => x && x.scade > ora && x.corsa !== corsa);
+  const nuovi = righe.reduce((t, r) => t + Math.max(1024, byteDi(r.contenuto)), 0);
+  const giaVivi = vivi.reduce((t, x) => t + (Number(x.byte) || 0), 0);
+  if (giaVivi + nuovi > soglia) {
+    memoria.allegati = vivi;
+    return esci({ azione: 'errore', flusso, chiave, errore: `spazio degli allegati quasi pieno: ${Math.round(giaVivi / 1048576)} MB vivi più ${Math.round(nuovi / 1048576)} MB di questa corsa superano ${Math.round(soglia / 1048576)} MB; riprova fra poco` });
+  }
+  memoria.allegati = vivi;
+  // si conta solo se la corsa parte davvero (o è una prova): un lavoro fermato dai tetti non salva niente
+  conRighe.segna = { corsa, byte: nuovi, scade: ora + DURATA_ALLEGATI };
+}
+const segnaSpazio = () => { if (conRighe.segna) { memoria.allegati = [...(memoria.allegati || []), conRighe.segna]; delete conRighe.segna; } };
 
 // In prova l'indirizzo di ritorno si mostra: chi prova può rispondere a mano al posto dell'AD.
-if (!vero) return esci({ azione: 'prova', flusso, chiave, caratteri: daMandare.length, rispondi_a: $execution.resumeUrl, ...conRighe });
+if (!vero) { segnaSpazio(); return esci({ azione: 'prova', flusso, chiave, caratteri: daMandare.length, rispondi_a: $execution.resumeUrl, ...conRighe }); }
 
 if ((memoria.corse_oggi || 0) >= tettoGiorno) {
   return esci({ azione: 'errore', flusso, chiave, errore: `tetto di ${tettoGiorno} corse al giorno raggiunto: riprova domani` });
@@ -116,4 +135,5 @@ if (memoria.partenze.length >= tettoOra) {
 }
 memoria.corse_oggi = (memoria.corse_oggi || 0) + 1;
 memoria.partenze.push(ora);
+segnaSpazio();
 return esci({ azione: 'parti', flusso, chiave, corpo: { text: daMandare }, caratteri: daMandare.length, corse_oggi: memoria.corse_oggi, ...conRighe });
