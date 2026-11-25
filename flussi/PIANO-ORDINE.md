@@ -54,7 +54,8 @@ prendono 91-95; restano liberi 96 e 97.
 
 **Prima di rinominare.** Dentro n8n i flussi si chiamano per ID, quindi il nome si può cambiare. Fuori, i
 generatori cercano per nome esatto: `16-…/genera.mjs` (12, 16, 18), `17-…`, `18-…` e `19-…/costruisci.mjs`
-(12, 19). Si rinomina insieme al generatore e alle sue prove (`node --test flussi/test/*.test.mjs`),
+(12, 19), e `chiedi-all-ad/costruisci.mjs` della sessione B cerca «99 · Avvisi errori» (resta uguale) e il nome
+di «Chiedi all'AD». Si rinomina insieme al generatore e alle sue prove (`node --test flussi/test/*.test.mjs`),
 avvisando la sessione padrona del flusso.
 
 ## I pezzi che si ripetono
@@ -79,14 +80,14 @@ differenze fra copie (oggi il logo si scarica in quattro modi diversi).
 
 1. **Repository privato** (Nicola). Poi `node flussi/copia-di-sicurezza.mjs <cartella nel repository privato>`
    e `--verifica`. La prova della copia è già girata il 25/11: 47 flussi, 12 credenziali, 0 problemi.
-2. Archiviare «Prepara foglio», «MyCity · 11 Foto prodotto» e «PROVA · padre di Chiedi all'AD».
+2. Archiviare i tre flussi in più: fatto il 25/11 (il «PROVA · padre» l'ha cancellato la sessione B).
 3. Cancellare i 19 archiviati: irreversibile, quindi con la conferma di Nicola in una riga.
-4. Snellire 06, 07 e 16 · Montatore: sono spenti, si caricano uno per volta e si prova un giro in «prova».
+4. Snellire 06, 07 e 16 · Montatore. 06 e 07 caricati spenti il 25/11; prima di riaccenderli un giro vero guardato.
+   Il 16 · Montatore aspetta: il 25/11 qualcuno ci stava lavorando.
 5. I pezzi 91-95, uno per volta: prima il pezzo spento con le sue prove, poi un flusso che lo usa in prova,
    poi vero.
 6. La numerazione nuova, flusso per flusso, insieme ai generatori.
-7. Tutti gli errori al 99: oggi 18, 19 · Bozze e Chiedi all'AD non mandano gli errori al 99 (17, 19 · Consegna e 20
-   fatti il 25/11).
+7. Tutti gli errori al 99: fatto il 25/11 per tutti i flussi vivi.
 
 ## Da sapere
 
