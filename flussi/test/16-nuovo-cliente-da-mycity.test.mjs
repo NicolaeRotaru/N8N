@@ -696,3 +696,68 @@ test("con --sito e «Chiedi all'AD» il 16 manda i social alla porta analisi-can
   rotto.nodes.find((n) => n.name === 'Manda i social al sito').credentials.httpHeaderAuth.id = 'DA_IMPOSTARE';
   assert.match(controlla(rotto).join('\n'), /social al sito non ha la credenziale/);
 });
+
+// --- Dal collaudo indipendente, e i due pezzi in più chiesti dall'AD (25/11/2026 sera) ------------------------------
+
+test("dal collaudo: una fonte https che non si apre non passa, e nemmeno telefoni, email e prezzi in non_trovato o nelle migliorie", async () => {
+  const r = structuredClone(RISPOSTA_COMPLETA);
+  r.social.instagram.fonte = 'https://%zz';
+  r.social.facebook = { stato: 'privato', fonte: 'https://[foo' };
+  r.giudizio_sito.non_trovato = ['telefono del titolare 0523 123456', 'listino: caffè 1,20 €', 'mail mario.rossi@gmail.com', { x: 1 }, 'orari di apertura'];
+  r.giudizio_sito.migliorie = 'Pacchetto sito da EUR2 o chf 50, Brioche 2 E';
+  r.social.google.non_trovato = ['cell 333 1234567'];
+  r.social.google.migliorie = 'Brioche 2 E per chi lascia una recensione.';
+  r.social.google.ultimo_post_il = '2026-13-45';
+  const u = await unisci(r);
+  assert.equal(u.analisi_canali.instagram.stato, 'non_disponibile');
+  assert.equal(u.analisi_canali.facebook.fonte, null);
+  assert.deepEqual(problemiCanali({ tipo: 'analisi-canali', id_attivita: ID, fatta_il: '2026-11-25T20:00:00.000Z', canali: u.analisi_canali }), []);
+  assert.deepEqual(u.scheda.analisi.giudizio_sito.non_trovato, ['orari di apertura']);
+  assert.equal(u.scheda.analisi.giudizio_sito.migliorie, null);
+  assert.deepEqual(u.analisi_canali.google.giudizio.non_trovato, []);
+  assert.equal(u.analisi_canali.google.giudizio.migliorie, null);
+  assert.equal(u.analisi_canali.google.consigli, undefined);
+  // Un anno seguito da «e» non è un prezzo; una data che non esiste o nel futuro non si tiene.
+  const r2 = structuredClone(RISPOSTA_COMPLETA);
+  r2.giudizio_sito.nota = 'Rifatto nel 1980 e mai più aggiornato.';
+  r2.social.instagram.ultimo_post_il = '2999-01-01';
+  const u2 = await unisci(r2);
+  assert.equal(u2.scheda.analisi.giudizio_sito.nota, 'Rifatto nel 1980 e mai più aggiornato.');
+  assert.equal(u2.analisi_canali.instagram.numeri.ultimo_post_il, undefined);
+});
+
+test("l'AD: il segno «analisi fatta» arriva al sito anche quando tutte le sezioni sono vuote, con gli avvisi dell'AD", async () => {
+  const vuota = { situazione: [], mercato: [], clienti: [], opportunita: [], rischi: [], prime_mosse: [], giudizio_sito: { esiste: 'non_so' }, social: {} };
+  const [{ json: u }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, {
+    input: [{ json: { content: [{ text: JSON.stringify(vuota) }], avvisi: ['Nessuna fonte pubblica sul locale.', 'Chiamate il 0523 123456', 7] } }],
+    nodi: { "Prepara l'analisi del business": [{ json: { id: 'x', scheda: null, richiesta: {} } }] } });
+  assert.equal(u.scheda.analisi.business, undefined);
+  assert.ok(!Number.isNaN(Date.parse(u.scheda.analisi.business_fatta_il)));
+  assert.deepEqual(u.scheda.analisi.business_avvisi, ['Nessuna fonte pubblica sul locale.']);
+  assert.equal(u.analisi_business, 'fatta, senza fonti');
+  // La ricerca si è fermata e l'analisi è vuota: il segno va al sito lo stesso.
+  const [{ json: s }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', { ok: false }) });
+  assert.equal(s.mandare, true);
+  assert.equal(s.corpo.analisi.business_fatta_il, u.scheda.analisi.business_fatta_il);
+  assert.deepEqual(s.corpo.analisi.business_avvisi, ['Nessuna fonte pubblica sul locale.']);
+  // Se l'AD non ha risposto davvero, nessun segno: l'analisi non è fatta.
+  const [{ json: no }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, { input: [{ json: { error: { message: 'AD: tempo scaduto' } } }],
+    nodi: { "Prepara l'analisi del business": [{ json: { id: 'x', scheda: null, richiesta: {} } }] } });
+  assert.equal(no.scheda, null);
+});
+
+test("l'AD: ogni opportunità dice quale servizio la copre (foto_video, sito_web, social, analisi)", async () => {
+  const [{ json: d }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  const voce = d.richiesta.output_config.format.schema.properties.opportunita.items;
+  assert.ok(voce.required.includes('servizio'));
+  assert.deepEqual(voce.properties.servizio.enum, ['foto_video', 'sito_web', 'social', 'analisi', null]);
+  const r = { ...RISPOSTA_COMPLETA, opportunita: [
+    { testo: 'Frase senza fonte, da scartare per prima.', fonte: 'x', servizio: 'social' },
+    { testo: 'Nessuno pubblica foto della colazione in zona.', fonte: 'https://x.it/a', servizio: 'foto_video' },
+    { testo: 'Il sito non permette di prenotare un tavolo.', fonte: 'https://x.it/b', servizio: 'teletrasporto' },
+  ] };
+  const u = await unisci(r);
+  assert.deepEqual(u.scheda.analisi.business.opportunita.map((v) => v.servizio), ['foto_video', null]);
+  assert.equal('servizio' in u.scheda.analisi.business.situazione[0], false);
+});

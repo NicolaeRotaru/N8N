@@ -204,6 +204,10 @@ const VOCE = { type: 'object', additionalProperties: false, required: ['testo', 
   properties: { testo: { type: 'string', description: 'Una frase, al massimo 30 parole.' },
     fonte: { type: 'string', description: "L'indirizzo https della pagina pubblica da cui viene la frase." } } };
 const lista = (cosa) => ({ type: 'array', maxItems: 3, description: cosa, items: VOCE });
+// 25/11/2026 sera (AD) — Ogni opportunità dice quale servizio di SDG la copre: il sito la trasforma in una proposta.
+const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
+const VOCE_OPPORTUNITA = { ...VOCE, required: ['testo', 'fonte', 'servizio'], properties: { ...VOCE.properties,
+  servizio: { type: ['string', 'null'], enum: [...SERVIZI, null], description: 'Il servizio che la copre: foto_video, sito_web, social o analisi. null se nessuno dei quattro.' } } };
 // 25/11/2026 sera — Il giudizio sul sito di oggi e sui social (Nicola: sito e social nel preventivo solo dove valgono di
 // più di quello che l'attività ha già). I valori di aspetto e pagine sono quelli che il sito legge già (leggiGiudizioSito).
 const forse = (tipo, descrizione, extra = {}) => ({ type: [tipo, 'null'], description: descrizione, ...extra });
@@ -252,7 +256,7 @@ const SCHEMA = { type: 'object', additionalProperties: false,
     situazione: lista("Com'è messa oggi l'attività: cosa fa, da quanto, dove, come si presenta in rete."),
     mercato: lista('Il mercato e i concorrenti vicini: chi fa la stessa cosa nella zona, cosa li distingue.'),
     clienti: lista('I clienti e la reputazione: chi sono, cosa dicono le recensioni pubbliche.'),
-    opportunita: lista('Le opportunità che si vedono dalle fonti.'),
+    opportunita: { ...lista('Le opportunità che si vedono dalle fonti, ognuna col servizio che la copre.'), items: VOCE_OPPORTUNITA },
     rischi: lista('I rischi che si vedono dalle fonti.'),
     prime_mosse: lista('Le prime mosse concrete per far crescere gli incassi, come le diresti a voce, ognuna legata a una fonte.'),
   } };
@@ -297,7 +301,11 @@ const prima = $("Prepara l'analisi del business").first().json;
 const r = $input.first().json || {};
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
 const SEZIONI = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
-const VIETATO = /€|\b(eur|euro)\b|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
+const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
+const VIETATO = /€|\b(eur|euro|euri|chf)\b|\beur\d|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
+// Come il sito (mycity/lib/agenzia/scheda-cliente.ts, NUMERO_DA_PREZZO): «2.-» e «2 E». Senza /i: «1980 e» non è un prezzo.
+const VIETATO_MAIUSCOLO = /\d+[.,]-|\d\s?E\b/;
+const vietato = (t) => VIETATO.test(t) || VIETATO_MAIUSCOLO.test(t);
 // Un voto («4,6 su 5», «4.5 stelle») non è un prezzo: si toglie prima del controllo.
 const VOTO = /\d[.,]\d\s*(su\s*5|\/\s*5|stell[ae])/gi;
 let letta = null;
@@ -311,8 +319,9 @@ if (letta && typeof letta === 'object') {
   let quante = 0;
   for (const s of SEZIONI) {
     const voci = Array.isArray(letta[s]) ? letta[s] : [];
-    business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte) }))
-      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !VIETATO.test(v.testo.replace(VOTO, 'voto')))
+    business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte),
+      ...(s === 'opportunita' ? { servizio: SERVIZI.includes(v && v.servizio) ? v.servizio : null } : {}) }))
+      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !vietato(v.testo.replace(VOTO, 'voto')))
       .slice(0, 3);
     quante += business[s].length;
   }
@@ -322,9 +331,13 @@ if (letta && typeof letta === 'object') {
 // 25/11/2026 sera — Il giudizio sul sito di oggi (va nella scheda, analisi.giudizio_sito) e sui social (va al sito con la
 // porta analisi-canali). Valori fuori elenco = non detto; un giudizio senza la sua fonte https non si tiene.
 const tra = (v, elenco) => (elenco.includes(v) ? v : null);
-const https = (u) => { const t = testo(u); return /^https:\/\/[^\s]+$/i.test(t) && t.length <= 500 ? t : null; };
-const frase = (v, max) => { const t = testo(v); return t.length >= 3 && t.length <= max && !VIETATO.test(t.replace(VOTO, 'voto')) ? t : null; };
-const mancano = (x) => (Array.isArray(x) ? [...new Set(x.map((v) => testo(v).slice(0, 120)).filter(Boolean))].slice(0, 8) : []);
+// Come il sito: un indirizzo che new URL non apre (https://%zz) farebbe respingere tutto il giudizio sui social.
+const https = (u) => { const t = testo(u); if (!/^https:\/\/[^\s]+$/i.test(t) || t.length > 500) return null; try { return new URL(t).protocol === 'https:' ? t : null; } catch (e) { return null; } };
+const frase = (v, max) => { const t = typeof v === 'string' ? testo(v) : ''; return t.length >= 3 && t.length <= max && !vietato(t.replace(VOTO, 'voto')) ? t : null; };
+const mancano = (x) => (Array.isArray(x) ? [...new Set(x.map((v) => frase(v, 120)).filter(Boolean))].slice(0, 8) : []);
+// Una data vera e non nel futuro: «2026-13-45» il sito la mostrerebbe com'è.
+const giorno = (v) => { const t = testo(v); if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return undefined; const d = new Date(t + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === t && d.getTime() <= Date.now() ? t : undefined; };
 const intero = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : undefined);
 const FUNZIONI = ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'contatti', 'galleria', 'newsletter'];
 const LIVELLI = ['semplice', 'medio', 'pregio'];
@@ -360,7 +373,7 @@ if (so) {
       const metti = (k, v) => { if (v !== undefined) numeri[k] = v; };
       metti('follower', intero(c.follower, 100000000));
       metti('post_ultimi_30_giorni', intero(c.post_al_mese, 100000));
-      metti('ultimo_post_il', /^\d{4}-\d{2}-\d{2}$/.test(testo(c.ultimo_post_il)) ? testo(c.ultimo_post_il) : undefined);
+      metti('ultimo_post_il', giorno(c.ultimo_post_il));
       metti('valutazione', typeof c.valutazione === 'number' && c.valutazione >= 0 && c.valutazione <= 5 ? c.valutazione : undefined);
       metti('recensioni', intero(c.recensioni, 100000000));
       if (Object.keys(numeri).length) uno.numeri = numeri;
@@ -376,10 +389,16 @@ if (so) {
   if (!Object.keys(canali).length) canali = null;
 }
 
+// 25/11/2026 sera (AD) — Il segno «analisi fatta», anche quando l'AD non ha trovato fonti e tutte le sezioni sono vuote:
+// senza, il sito mostrerebbe per sempre «la stiamo preparando». Con gli avvisi dell'AD (perché è vuota). Nomi provvisori,
+// finché il contratto della sessione del preventivo non li fissa.
+const fatta = letta && typeof letta === 'object' && !Array.isArray(letta);
+const avvisi = fatta ? [...new Set((Array.isArray(r.avvisi) ? r.avvisi : []).map((v) => frase(v, 240)).filter(Boolean))].slice(0, 6) : [];
+const segno = fatta ? { business_fatta_il: new Date().toISOString(), business_avvisi: avvisi } : {};
 const { richiesta, ...resto } = prima;
-const aggiunte = { ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
+const aggiunte = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
 const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...aggiunte } } : (Object.keys(aggiunte).length ? { analisi: aggiunte } : null);
-return [{ json: { ...resto, scheda, analisi_canali: canali, analisi_business: business ? 'fatta' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
+return [{ json: { ...resto, scheda, analisi_canali: canali, analisi_business: business ? 'fatta' : fatta ? 'fatta, senza fonti' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
 
 /** Dopo la scheda: la stessa scheda va al sito, che la conserva e la mostra al venditore da confermare. */
 export const CODICE_SCHEDA_SITO = String.raw`// 16 · La scheda va anche al sito (formato concordato con la sessione «Servizi SDG», 24/11/2026):
@@ -397,7 +416,10 @@ const dalPasso = $input.first().json || {};
 const business = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.business ? dalPasso.scheda.analisi.business : null;
 // 25/11/2026 sera — Il giudizio dell'AD sul sito di oggi: il sito lo usa per offrire il suo sito solo dove vale di più.
 const giudizioSito = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.giudizio_sito ? dalPasso.scheda.analisi.giudizio_sito : null;
-const dellAd = { ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
+const an = (dalPasso.scheda && dalPasso.scheda.analisi) || {};
+// Il segno «analisi fatta» (anche vuota) e i suoi avvisi: il sito smette di dire «la stiamo preparando».
+const segno = an.business_fatta_il ? { business_fatta_il: an.business_fatta_il, business_avvisi: Array.isArray(an.business_avvisi) ? an.business_avvisi : [] } : {};
+const dellAd = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
 if (!p || !p.ok) {
   // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business o guardato il sito, quella va al sito.
   if (!Object.keys(dellAd).length) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
