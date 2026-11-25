@@ -49,7 +49,13 @@ export const LETTURE_18 = [
 export const PASSA_ALLE_BOZZE = 'Passa alle bozze';
 export const BOZZE = 'Bozze dei 3 abbonamenti (flusso 19)';
 
-export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, webhookId, bozze } = {}) {
+export const PER_L_ARGOMENTO = "Per l'argomento";
+export const SCRIVI = "Scrivi nell'argomento (flusso 97)";
+const CHAT = "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}";
+// Gli scarti (richiesta senza un'attività vera) vanno nel gruppo «Tecnica»; senza gruppo, nella chat privata.
+const CHAT_TECNICA = "={{ $('Config').first().json.CHAT_TECNICA || $('Config').first().json.TELEGRAM_CHAT_ID }}";
+
+export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, webhookId, bozze, argomento, chatTecnica } = {}) {
   const pos = (i, riga = 0) => [i * 220, riga * 200];
   const nodi = [];
   const collega = {};
@@ -72,6 +78,8 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
         ['COMMENTO_CLAUDE', 'no'],
         ['NEGOZI_IN_ATTESA', 'c0b240c0-2a86-4218-9d0f-5154f08ff929:2026-11-30'],
         ['ORE_ORDINE_FERMO', 2], ['ORE_PAYOUT', 24], ['GIORNI_NEGOZIO_FERMO', 14],
+        // Il gruppo «Tecnica», per gli scarti. Vuoto = chat privata.
+        ['CHAT_TECNICA', chatTecnica || ''],
       ].map(([name, value]) => ({ id: randomUUID(), name, value, type: typeof value === 'number' ? 'number' : 'string' })) } } },
     { id: randomUUID(), name: 'Leggi la richiesta', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2),
       parameters: { jsCode: codice('leggi-richiesta.js') } },
@@ -87,7 +95,7 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
   const esc = (expr) => `String(${expr} ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')`;
   nodi.push({ id: randomUUID(), name: 'Avvisa: richiesta scartata', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: pos(4, 1),
     onError: 'continueRegularOutput',
-    parameters: { resource: 'message', operation: 'sendMessage', chatId: "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
+    parameters: { resource: 'message', operation: 'sendMessage', chatId: CHAT_TECNICA,
       text: `={{ '🏪 <b>Analisi non fatta</b> · ' + ${esc('$json.nome')} + '\\nMotivo: ' + ${esc('$json.motivo')} }}`,
       additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
     credentials: { telegramApi: credTelegram } });
@@ -125,13 +133,35 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
   i += 2;
   nodi.push({ id: randomUUID(), name: 'Componi il messaggio', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
     parameters: { jsCode: codice('componi-messaggio.js') } });
-  nodi.push({ id: randomUUID(), name: 'Manda a Nicola', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: pos(i++),
-    onError: 'continueRegularOutput',
-    parameters: { resource: 'message', operation: 'sendMessage', chatId: "={{ $('Config').first().json.TELEGRAM_CHAT_ID }}",
-      text: "={{ $('Componi il messaggio').first().json.messaggio }}",
-      additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
-    credentials: { telegramApi: credTelegram } });
-  vai('Componi il messaggio', 'Manda a Nicola');
+  // Dal 25/11/2026 l'analisi va nell'argomento del negozio, nel gruppo «Attività»: la scrive il 97. Il 18 lo
+  // aspetta, così l'argomento di un negozio nuovo lo apre una volta sola, prima che partano le bozze (19).
+  let ultimo;
+  if (argomento) {
+    nodi.push({ id: randomUUID(), name: PER_L_ARGOMENTO, type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(i++),
+      parameters: { jsCode: [
+        "// 18 · L'analisi porta il negozio a cui appartiene: il 97 la scrive nel suo argomento.",
+        "const r = $('Leggi la richiesta').first().json;",
+        "const a = $(\"Calcola l'analisi\").first().json;",
+        "return [{ json: { id: r.id, nome: a.nome || r.nome, messaggio: $('Componi il messaggio').first().json.messaggio } }];",
+      ].join('\n') } });
+    nodi.push({ id: randomUUID(), name: SCRIVI, type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: pos(i++),
+      onError: 'continueRegularOutput',
+      parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: argomento },
+        workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+        mode: 'once', options: { waitForSubWorkflow: true } } });
+    vai('Componi il messaggio', PER_L_ARGOMENTO);
+    vai(PER_L_ARGOMENTO, SCRIVI);
+    ultimo = SCRIVI;
+  } else {
+    nodi.push({ id: randomUUID(), name: 'Manda a Nicola', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: pos(i++),
+      onError: 'continueRegularOutput',
+      parameters: { resource: 'message', operation: 'sendMessage', chatId: CHAT,
+        text: "={{ $('Componi il messaggio').first().json.messaggio }}",
+        additionalFields: { appendAttribution: false, parse_mode: 'HTML', disable_web_page_preview: true } },
+      credentials: { telegramApi: credTelegram } });
+    vai('Componi il messaggio', 'Manda a Nicola');
+    ultimo = 'Manda a Nicola';
+  }
   // Ultimo passo (25/11/2026): le bozze dei tre abbonamenti per la stessa attività, nel flusso 19. Partono
   // dopo l'analisi, senza farla aspettare: se le bozze si guastano, l'analisi è già arrivata a Nicola.
   if (bozze) {
@@ -142,7 +172,7 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, segreto, 
       parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: bozze },
         workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
         mode: 'once', options: { waitForSubWorkflow: false } } });
-    vai('Manda a Nicola', PASSA_ALLE_BOZZE);
+    vai(ultimo, PASSA_ALLE_BOZZE);
     vai(PASSA_ALLE_BOZZE, BOZZE);
   }
   nodi.push({ id: randomUUID(), name: 'Nota · Leggimi', type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: [0, -660],
@@ -191,8 +221,12 @@ export function controlla(w) {
   if (bozze) {
     if (bozze.parameters?.options?.waitForSubWorkflow !== false) problemi.push('le bozze devono partire senza far aspettare il 18');
     if (!bozze.parameters?.workflowId?.value) problemi.push('la chiamata delle bozze non dice quale flusso');
-    if (w.connections['Manda a Nicola']?.main?.[0]?.[0]?.node !== PASSA_ALLE_BOZZE) problemi.push("le bozze non partono dopo l'analisi");
+    const dopo = w.nodes.some((n) => n.name === SCRIVI) ? SCRIVI : 'Manda a Nicola';
+    if (w.connections[dopo]?.main?.[0]?.[0]?.node !== PASSA_ALLE_BOZZE) problemi.push("le bozze non partono dopo l'analisi");
   }
+  const scrivi = w.nodes.find((n) => n.name === SCRIVI);
+  if (scrivi && scrivi.parameters?.options?.waitForSubWorkflow !== true) problemi.push("il 18 deve aspettare il 97, se no l'argomento di un negozio nuovo si apre due volte");
+  for (const n of w.nodes) if (n.type === 'n8n-nodes-base.telegram' && ![CHAT, CHAT_TECNICA].includes(n.parameters.chatId)) problemi.push(`«${n.name}» scrive a una chat che non è nel Config`);
   const webhook = w.nodes.find((n) => n.type === 'n8n-nodes-base.webhook');
   if (!webhook || webhook.parameters.authentication !== 'headerAuth') problemi.push('il webhook non chiede il segreto');
   if (w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.find((a) => a.name === 'TELEGRAM_CHAT_ID').value === 'DA_IMPOSTARE') {
@@ -203,7 +237,7 @@ export function controlla(w) {
 
 async function principale(argv) {
   const valore = (nome) => { const i = argv.indexOf(nome); return i >= 0 ? argv[i + 1] : undefined; };
-  let pezzi = { marketplace: valore('--marketplace'), segreto: valore('--segreto'), bozze: valore('--bozze') };
+  let pezzi = { marketplace: valore('--marketplace'), segreto: valore('--segreto'), bozze: valore('--bozze'), argomento: valore('--argomento'), chatTecnica: valore('--tecnica') };
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
@@ -217,7 +251,9 @@ async function principale(argv) {
       chatId: String(m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value || ''),
       webhookId: gia?.nodes?.find((n) => n.name === 'Su richiesta')?.webhookId,
       // Il 19 si trova per nome; n8n lo vuole acceso prima di accettare il 18 che lo chiama.
-      bozze: pezzi.bozze || tutti.find((w) => w.name === '19 · Bozze dei 3 abbonamenti')?.id };
+      bozze: pezzi.bozze || tutti.find((w) => w.name === '19 · Bozze dei 3 abbonamenti')?.id,
+      argomento: pezzi.argomento || tutti.find((w) => w.name === "97 · Scrivi nell'argomento dell'attività")?.id,
+      chatTecnica: pezzi.chatTecnica ?? gia?.nodes?.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'CHAT_TECNICA')?.value };
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));

@@ -41,7 +41,7 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.1.1", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.2.0", ffmpeg:true, whisper:true, telegram:true, coda:0, memoria_mb:…}`.
 
 ## Cosa non ho verificato
 - **L'immagine Docker non l'ho costruita.** Qui il programma Docker c'è, ma il suo servizio non gira, e Docker Hub non è tra le fonti che potevo usare.
@@ -264,6 +264,23 @@ Prove reali fatte qui, con whisper.cpp 1.9.1, il modello `small` e una voce sint
 | 429 | `coda_piena`, con l'header `Retry-After` |
 | 500 | `errore_interno`, `trascrizione_fallita`, `jpeg_troppo_grande` |
 | 503 | `trascrizione_non_disponibile` |
+
+### Telegram: aprire l'argomento di un negozio (dalla 1.2.0)
+
+Nicola, 25/11/2026: ogni negozio ha il suo argomento nel gruppo Telegram «Attività». Per aprirne uno serve la
+chiamata `createForumTopic` con la chiave del bot nell'indirizzo, e la richiesta HTTP di n8n non sa usare la
+credenziale del bot (provato: Telegram risponde «Not Found»). Per questo lo fa l'officina.
+
+- **Variabile:** `TELEGRAM_BOT_TOKEN` = la chiave del bot (da @BotFather). Senza, la porta risponde 503
+  `telegram_non_configurato`. `/salute` con chiave dice `telegram: true|false`.
+- **POST `/telegram/argomento`**, JSON `{ "chat_id": "-100…", "nome": "Ora del Gusto" }`, con la chiave
+  dell'officina. Risponde `{ "message_thread_id": 42, "nome": "Ora del Gusto" }`.
+- Solo gruppi grandi (il numero comincia con `-100`): gli altri danno 400 `chat_non_valida`. Il nome si accorcia
+  a 128 caratteri; vuoto = 400 `nome_mancante`.
+- Se Telegram rifiuta (per esempio il bot non è amministratore) = 502 `telegram_rifiutato` col motivo di
+  Telegram; se non risponde = 502 `telegram_non_raggiungibile`. La chiave del bot non esce mai, né nelle
+  risposte né nei log (le prove lo controllano).
+- Chi la chiama: il flusso «97 · Scrivi nell'argomento dell'attività».
 
 ### Come chiamarla da n8n (nodo HTTP Request 4.5)
 - **Metodo** POST; **URL** `{{ $('Config').item.json.OFFICINA_URL }}/video/reel`.

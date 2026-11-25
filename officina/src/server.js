@@ -15,6 +15,7 @@ import { creaProvino, preparaFoto, creaConfronto } from './immagini.js';
 import { creaGrafica } from './grafiche.js';
 import { creaReel, creaStoriaVideo } from './video.js';
 import { trascrivi, whisperDisponibile, presetDtw } from './trascrizione.js';
+import { apriArgomento } from './telegram.js';
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
 
@@ -81,6 +82,7 @@ export async function creaServer(cfg = leggiConfig()) {
       versione: VERSIONE,
       ffmpeg: ffmpegOk,
       whisper: whisperDisponibile(cfg),
+      telegram: Boolean(cfg.telegramToken),
       coda: coda.lunghezza,
       memoria_mb: Math.round(process.memoryUsage().rss / 1048576),
     };
@@ -162,6 +164,9 @@ export async function creaServer(cfg = leggiConfig()) {
     const r = await creaConfronto(file.originale[0].percorso, file.risultato[0].percorso, lavoro.dirOut, 'confronto.jpg', cfg);
     return { file: [{ url: url(r.nome) }] };
   });
+
+  // Telegram: apre l'argomento di un gruppo (un'attività = un argomento). Lavoro leggero: niente coda.
+  app.post('/telegram/argomento', async (req) => apriArgomento(req.body, cfg));
 
   // Pulizia: all'avvio e poi a intervalli regolari.
   const fai = () => pulisci(cfg.datiDir, cfg.durataFileMs, lavoriAttivi)

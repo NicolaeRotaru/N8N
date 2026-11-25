@@ -109,6 +109,33 @@ SDK (`flussi/in-sdk.mjs`), che gli strumenti `validate_workflow` e `create_workf
 con `--telegram <id> --chat <id>` le credenziali e la chat si passano a mano. Il file con la chat non va
 nel repository.
 
+## 97 · Scrivi nell'argomento dell'attività
+
+**A cosa serve.** Nicola, 25/11/2026: i messaggi divisi per argomento su Telegram, «un solo posto per attività».
+I gruppi sono tre, con dentro solo Nicola e il bot: **Attività** (con gli argomenti accesi, uno per negozio),
+**Marketplace** (il giro del mattino) e **Tecnica** (scarti ed errori).
+
+**Come funziona.** Chi ha messaggi su un negozio chiama il 97 con una voce per messaggio `{ id, nome, messaggio }`.
+Il 97 cerca l'argomento nella tabella dati «Argomenti delle attività» (id MyCity + gruppo); se non c'è lo fa aprire
+all'officina (`POST /telegram/argomento`, la chiave del bot sta lì) e lo segna; poi manda i messaggi
+nell'argomento. Lo chiamano l'analisi di un'attività (che lo aspetta, così l'argomento si apre una volta sola) e
+le bozze dei 3 abbonamenti.
+
+**Finché un gruppo non c'è non cambia niente.** Nei Config: `CHAT_ATTIVITA` (97), `CHAT_MARKETPLACE` (analisi
+del marketplace), `CHAT_TECNICA` (analisi e bozze, per gli scarti). Vuoti = chat privata, come prima. Se l'officina
+non apre l'argomento, i messaggi vanno nello spazio generale del gruppo col nome del negozio in testa e il perché.
+
+```bash
+N8N_API_KEY=… node flussi/97-argomento-attivita/costruisci.mjs --manda --officina <id credenziale «Officina - Chiave»> --tabella <id tabella>
+```
+
+Dopo il 97, l'analisi e le bozze si ricostruiscono con `--argomento <id del 97>` (con `--manda` lo trovano per nome).
+Senza `--argomento` restano come prima, col Telegram diretto.
+
+**I numeri dei flussi su n8n sono cambiati il 25/11** (un'altra sessione li ha rimessi in ordine per gruppi:
+l'analisi di un'attività è il 28, le bozze sono il 15, l'analisi del marketplace il 27). Le cartelle qui
+tengono i numeri di prima; i nomi che i programmi cercano su n8n vanno allineati.
+
 ## 17 · Analisi del marketplace
 
 **A cosa serve.** È il giro dell'AD sui numeri di MyCity (`ad-mycity/cervello/giro.md`, passo 1, con le
