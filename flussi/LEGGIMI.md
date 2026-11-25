@@ -147,3 +147,13 @@ usano un modulo 12 in miniatura con gli stessi nomi di nodo.
 
 `n8n-api.mjs` parla con l'API pubblica di n8n. Vuole `N8N_API_KEY` (n8n → Settings → n8n API) e
 facoltativamente `N8N_URL`. Dietro un proxy, con Node 22: `NODE_USE_ENV_PROXY=1`.
+
+## Strumenti per mettere in ordine n8n
+
+Il piano intero è in `PIANO-ORDINE.md`.
+
+- **`copia-di-sicurezza.mjs`** salva tutti i flussi (vivi e archiviati, senza pinData) e l'elenco delle
+  credenziali (solo id, nome e tipo). Si rifiuta di scrivere dentro un repository pubblico.
+  `node flussi/copia-di-sicurezza.mjs <cartella>`, poi `--verifica <cartella>`.
+- **`snellisci-aiuti.mjs`** toglie da ogni nodo Code gli aiuti comuni che quel nodo non usa. Lavora su un
+  file esportato e non parla con n8n: `node flussi/snellisci-aiuti.mjs <flusso.json> --scrivi <uscita.json>`.
