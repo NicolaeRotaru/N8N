@@ -92,7 +92,7 @@ const LT = (() => {
     h = h.replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/(p|div|section|article|header|footer|li|ul|ol|h[1-6]|tr|table|address|blockquote|nav|main|aside|dd|dt|figcaption)\s*>/gi, '\n')
       .replace(/<(li)\b[^>]{0,2000}>/gi, '\n')
-      .replace(/<\/t[dh]\s*>/gi, ' | ');
+      .replace(/<\/t[dh]\s*>/gi, ' ');
     h = senzaTag(h);
     const corpo = decodifica(h).replace(/[ \t\u00a0\u202f]+/g, ' ').split('\n').map((r) => r.trim()).filter(Boolean)
       .filter((r, i, a) => r !== a[i - 1]).join('\n');

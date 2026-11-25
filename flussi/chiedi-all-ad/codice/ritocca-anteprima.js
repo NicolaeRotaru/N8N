@@ -6,6 +6,16 @@
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const eseguito = (nome) => { try { return $(nome).isExecuted; } catch (e) { return false; } };
+// Su Telegram non va mai un link o un numero di Meta (regole m1/m2 del 12): la stessa maschera di «Leggi la ricerca»,
+// applicata alla riga degli avvisi prima di accorciarla. Gli avvisi li scrive l'AD dopo aver letto il web.
+const DOMINI_META = ['facebook.com', 'm.facebook.com', 'facebook.net', 'fb.com', 'fb.me', 'fb.watch', 'instagram.com', 'instagr.am',
+  'cdninstagram.com', 'fbcdn.net', 'ig.me', 'threads.com', 'threads.net', 'messenger.com', 'whatsapp.com', 'wa.me', 'm.me',
+  'api.whatsapp.com', 'web.whatsapp.com', 'chat.whatsapp.com'].sort((x, y) => y.length - x.length);
+const RE_META = new RegExp(`(?<![\\w@-])(?:https?:\\/\\/)?((?:[a-z0-9-]+\\.)*(?:${DOMINI_META.map((d) => d.replace(/\./g, '\\.')).join('|')}))(?![\\w-])(?!\\/…)(?:[/?#][^\\s<>"«»]*)?`, 'gi');
+const mascheraMeta = (t) => String(t ?? '')
+  .replace(/whatsapp:\/\/(?!…)[^\s<>"«»]*/gi, 'whatsapp://… (nascosto)')
+  .replace(RE_META, (_, h) => `${h.toLowerCase().replace(/^www\./, '')}/… (nascosto)`)
+  .replace(/(whats\s?app|wapp)([^0-9<\n]{0,20})(\+?\d[\d .\/-]{5,}\d)/gi, '$1$2… (nascosto)');
 // Telegram tiene 4096 caratteri; il flusso 26 dopo allunga ancora l'ultima riga e mette un'intestazione.
 const MASSIMO = 3850;
 return $input.all().map((item, indice) => {
@@ -26,7 +36,7 @@ return $input.all().map((item, indice) => {
   if (utili.length) {
     const righe = m.split('\n');
     const ultima = righe.pop();
-    let piano = utili.join(' · ');
+    let piano = mascheraMeta(utili.join(' · '));
     let riga = `ℹ️ ${esc(piano)}`;
     const spazio = MASSIMO - Array.from(m).length - 1;
     while (piano && Array.from(riga).length > spazio) {

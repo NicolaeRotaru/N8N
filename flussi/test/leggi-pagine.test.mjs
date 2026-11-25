@@ -134,6 +134,48 @@ test('collaudo: il tetto dei 30.000 caratteri regge anche con appunti lunghi e i
   }
 });
 
+// ── dal secondo collaudo (lente B, 25/11) ───────────────────────────────────────────────────────────
+test('collaudo B: con 10 indirizzi un rinvio si segue lo stesso (non conta come pagina letta)', async () => {
+  const urls = Array.from({ length: 10 }, (_, i) => (i === 0 ? EATBU : `https://bar-esempio-${i}.it/`));
+  const scaricate = urls.map((u, i) => (i === 0 ? { json: { statusCode: 302, headers: { location: `${EATBU}?lang=it` }, data: '' } } : html('<p>pagina senza collegamenti utili qui</p>')));
+  const fuori = await eseguiCodice(codiceNodo('sottopagine-da-leggere.js'), { input: scaricate, nodi: { Config: [CONFIG], 'Pagine da leggere': voci(urls) } });
+  assert.deepEqual(fuori.map((x) => x.json.url), [`${EATBU}?lang=it`]);
+});
+
+test("collaudo B: sull'anteprima i link e i numeri di Meta scritti negli avvisi restano nascosti", async () => {
+  const dall = await dallAD({ ...RISPOSTA_AD, avvisi: ['Ho trovato solo la Pagina https://www.facebook.com/oradelgusto.pc e il WhatsApp 347 1234567'] });
+  const [r] = await eseguiCodice(codiceNodo('ritocca-anteprima.js'), { input: [{ json: { messaggio_anteprima: ANTEPRIMA } }], nodi: { "Dall'AD: la ricerca": [dall] } });
+  assert.doesNotMatch(r.json.messaggio_anteprima, /oradelgusto\.pc|347 1234567/);
+  assert.match(r.json.messaggio_anteprima, /facebook\.com\/… \(nascosto\)/);
+});
+
+test('collaudo B: con molte foto del menu e pagine in cinese, appunti, foto e incollati stanno nei byte della richiesta della scheda', async () => {
+  const foto = Array.from({ length: 8 }, (_, n) => ({ n: n + 1, testo: 'Tagliatelle al ragù della casa con parmigiano. '.repeat(85) }));
+  const incollati = { scheda_google: 'x'.repeat(3000), pagina_facebook: '', appunti: 'Arrivata da MyCity. '.repeat(50) };
+  const prepara = { json: { richiesta: { nome: 'Ora del Gusto', citta: 'Piacenza', sito: '' }, foto, incollati } };
+  const byte = (t) => Buffer.byteLength(JSON.stringify(String(t)), 'utf8');
+  for (const pagina of ['Lorem ipsum dolor sit amet, perché più già. ', '欢迎光临我们的餐厅，我们提供最好的意大利菜。']) {
+    const dall = await dallAD();
+    const urls = Array.from({ length: 10 }, (_, i) => `https://bar-esempio.it/p${i}`);
+    const nodi = { "Dall'AD: la ricerca": [dall], 'Prepara la ricerca': [prepara], 'Pagine da leggere': voci(urls), 'Scarica le pagine': urls.map(() => html(`<p>${pagina.repeat(3000)}</p>`)) };
+    const [m] = await eseguiCodice(codiceNodo('metti-le-pagine.js'), { nodi });
+    const appunti = m.json.body.content.filter((x) => x.type === 'text').map((x) => x.text).join('');
+    const totale = byte(appunti) + byte(foto.map((f) => f.testo).join('')) + byte(Object.values(incollati).join(''));
+    assert.ok(totale <= 65024 - 9000, `${pagina.slice(0, 8)}…: ${totale} byte`);
+    assert.match(appunti, /--- PAGINA: https:\/\/bar-esempio\.it\/p0 ---/, 'almeno la prima pagina entra negli appunti');
+  }
+});
+
+test('collaudo B: se gli appunti dell\'AD riempiono già la richiesta, n8n non aggiunge niente agli appunti', async () => {
+  const dall = await dallAD({ ...RISPOSTA_AD, risultato: '我们的餐厅'.repeat(4000) });
+  const nodi = { "Dall'AD: la ricerca": [dall], 'Pagine da leggere': voci(['https://bar-esempio.it/']),
+    'Scarica le pagine': [{ json: { error: { message: 'getaddrinfo ENOTFOUND bar-esempio.it' } } }] };
+  const [m] = await eseguiCodice(codiceNodo('metti-le-pagine.js'), { nodi });
+  const testi = m.json.body.content.filter((x) => x.type === 'text').map((x) => x.text);
+  assert.equal(testi.length, 1, 'resta solo il testo dell\'AD');
+  assert.ok(m.json.body.avvisi.some((x) => /^n8n: una pagina non si è aperta/.test(x)), "l'avviso sulla pagina persa arriva lo stesso");
+});
+
 // ── i nodi, uno per uno ───────────────────────────────────────────────────────────────────────────
 test('Pagine da leggere: dalla risposta vera di Ora del Gusto escono i due siti del locale', async () => {
   const fuori = await eseguiCodice(codiceNodo('pagine-da-leggere.js'), { input: [await dallAD()], nodi: { Config: [CONFIG], 'Prepara la ricerca': [PREPARA()] } });
@@ -404,10 +446,20 @@ test('sul 12 vero: con la catena vecchia ogni dato del web è «non trovato», c
   assert.equal(nuova.campi.indirizzo.stato, 'confermato', JSON.stringify(nuova.campi.indirizzo));
   assert.equal(nuova.campi.telefono.valore, '0523 337635');
 
-  // La richiesta della scheda all'AD sta nei 64 KB della routine.
-  const lavoro = (await eseguiCodice(js("Per l'AD: la scheda"), { input: [lettaNuova] }))[0].json;
-  const byte = Buffer.byteLength(JSON.stringify({ ...lavoro, rispondi_a: 'https://n8n-shdy.sliplane.app/webhook-waiting/99999?signature=' + 'a'.repeat(64) }), 'utf8');
-  assert.ok(byte < 65536 - 512, `richiesta della scheda di ${byte} byte`);
+  // La richiesta della scheda all'AD sta nei 64 KB della routine, anche con 8 foto di menu e 10 pagine lunghe (collaudo B, D1).
+  const misura = async (letta) => {
+    const lavoro = (await eseguiCodice(js("Per l'AD: la scheda"), { input: [letta] }))[0].json;
+    return Buffer.byteLength(JSON.stringify({ ...lavoro, rispondi_a: 'https://n8n-shdy.sliplane.app/webhook-waiting/99999?signature=' + 'a'.repeat(64) }), 'utf8');
+  };
+  assert.ok(await misura(lettaNuova) < 65536 - 512, 'richiesta della scheda');
+  const conFoto = { ...base, foto: Array.from({ length: 8 }, (_, n) => ({ n: n + 1, testo: 'Tagliatelle al ragù della casa con parmigiano. '.repeat(85), elementi: [], persone: false })) };
+  const nodiFoto = { ...nodiBase, 'Prepara la ricerca': [{ json: conFoto }] };
+  const urls10 = Array.from({ length: 10 }, (_, i) => `https://bar-esempio.it/p${i}`);
+  const [messaFoto] = await eseguiCodice(codiceNodo('metti-le-pagine.js'), { nodi: { ...nodiFoto, "Dall'AD: la ricerca": [dall], 'Pagine da leggere': voci(urls10),
+    'Scarica le pagine': urls10.map(() => html(`<p>${'Pasta fresca fatta a mano ogni giorno, perché è più buona. '.repeat(2500)}</p>`)) } });
+  const lettaFoto = (await eseguiCodice(js('Leggi la ricerca'), { input: [messaFoto], nodi: nodiFoto }))[0];
+  const byteFoto = await misura(lettaFoto);
+  assert.ok(byteFoto < 65536 - 512, `richiesta della scheda con 8 foto: ${byteFoto} byte`);
 
   // L'anteprima finale.
   const [r] = await eseguiCodice(codiceNodo('ritocca-anteprima.js'), { input: [{ json: nuova }], nodi: { ...nodi, 'Metti le pagine nella risposta': [messa], "Dall'AD: la scheda": [dallScheda] } });

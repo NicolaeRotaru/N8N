@@ -9,7 +9,8 @@ const cfg = $('Config').first().json;
 const MAX = Math.min(10, Math.max(1, Number(cfg.MAX_LETTURE) || 10));
 const richieste = $('Pagine da leggere').all();
 const lette = LP.risposte(richieste, $input.all());
-const posto = MAX - richieste.length;
+// Un rinvio non è una pagina letta: il suo posto passa all'indirizzo nuovo (con 10 indirizzi, il rinvio di eatbu si perdeva).
+const posto = MAX - richieste.length + lette.filter((p) => p.rinvio).length;
 const visti = new Set(richieste.map((x) => LP.chiave(x.json.url)));
 const nuove = [];
 // Prima i rinvii (http → https, senza www → con www): sono la pagina stessa, a un altro indirizzo.
