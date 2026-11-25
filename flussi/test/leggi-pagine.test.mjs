@@ -313,6 +313,8 @@ test("Ritocca l'anteprima: senza pagine lette l'avviso sulla rete resta; senza l
 test('Chiedi gli indirizzi delle pagine: una riga nel compito, una volta sola', async () => {
   const [a] = await eseguiCodice(codiceNodo('indirizzi-nel-compito.js'), { input: [{ json: { flusso: '12', compito: 'Sei il ricercatore.', dati: {} } }] });
   assert.match(a.json.compito, /^Sei il ricercatore\.\n\nLE PAGINE LE SCARICA n8n\n[\s\S]*«PAGINE DA LEGGERE:»/);
+  assert.match(a.json.compito, /anche se non li hai letti/, 'la riga elenca i candidati, non solo le pagine lette (prova vera del 25/11 22:38)');
+  assert.match(a.json.compito, /non vuole citazioni/);
   const [b] = await eseguiCodice(codiceNodo('indirizzi-nel-compito.js'), { input: [a] });
   assert.equal(b.json.compito, a.json.compito);
   const [c] = await eseguiCodice(codiceNodo('indirizzi-nel-compito.js'), { input: [{ json: { compito: 'x', non_mandare: 'foto' } }] });
