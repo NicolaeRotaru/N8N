@@ -26,6 +26,7 @@ import { montaContenuto } from './montaggio.js';
 import { leggiSceneggiatura } from './sceneggiatura.js';
 import { controllaRegia, regoleDelloStile } from './regia.js';
 import { montaRegia, stileDa, FORMATI } from './regia-render.js';
+import { provaFiltri } from './autoprova.js';
 import { forseRallenta, modoRallenty } from './rallenty.js';
 import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
 
@@ -63,6 +64,8 @@ export async function creaServer(cfg = leggiConfig()) {
   } catch {
     ffmpegOk = false;
   }
+  // I filtri del montaggio provati sull'FFmpeg di questo server (qualche secondo, in sottofondo): lo dice /salute.
+  const autoprova = ffmpegOk ? provaFiltri(cfg) : Promise.resolve({ ok: false, errore: 'FFmpeg non risponde' });
 
   const app = Fastify({
     logger: { level: cfg.livelloLog },
@@ -105,6 +108,7 @@ export async function creaServer(cfg = leggiConfig()) {
       versione: VERSIONE,
       ffmpeg: ffmpegOk,
       whisper: whisperDisponibile(cfg),
+      filtri: await autoprova,
       coda: coda.lunghezza,
       memoria_mb: Math.round(process.memoryUsage().rss / 1048576),
     };

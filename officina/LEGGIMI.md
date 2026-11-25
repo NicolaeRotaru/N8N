@@ -57,7 +57,9 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.4.0", ffmpeg:true, whisper:true, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.4.0", ffmpeg:true, whisper:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], ritardo_voce:…}, coda:0, memoria_mb:…}`.
+
+**`filtri`** è la prova che l'officina fa da sola all'avvio, in pochi secondi: fa girare su un secondo sintetico i filtri del montaggio (curva, LUT, zoom delle foto, voce da studio, musica sotto la voce) con l'FFmpeg di quel server. Se `filtri.ok` è `false`, `errore` dice cosa non va (un filtro che manca, un'opzione che quella versione non conosce) **prima** di montare un video vero. Il primo controllo da fare dopo ogni pubblicazione.
 
 ## Cosa non ho verificato
 - **1.4.0 con materiale vero.** Rallenty, LUT e doppio formato li ho provati con clip sintetiche: una clip a 50 fotogrammi, una LUT che inverte i colori, una clip orizzontale. Con una LUT vera di una camera (S-Log3, V-Log…) non li ho visti.
@@ -170,7 +172,7 @@ Le richieste di lavoro sono `multipart/form-data` con il campo `dati` (JSON) pi�
 
 | Indirizzo | File | Cosa restituisce |
 |---|---|---|
-| `GET /salute` | — | `{ok, versione, ffmpeg, whisper, coda, memoria_mb}`; `coda` = lavori in corso + in attesa |
+| `GET /salute` | — | `{ok, versione, ffmpeg, whisper, filtri, coda, memoria_mb}`; `filtri` = la prova dei filtri sull'FFmpeg del server (`ok`, `ffmpeg`, `mancanti`, `ritardo_voce`, `errore`); `coda` = lavori in corso + in attesa |
 | `POST /foto/provino` | `foto` × 2-12 | `{id, provino:{url,larghezza,altezza}, foto:[{numero, nome_file, larghezza, altezza, nitidezza, luminosita, doppione_di, orientamento}]}` |
 | `POST /foto/prepara` | `foto`, `logo`? | `{id, file:[{formato,url,larghezza,altezza,byte}], miniatura:{url}, avvisi}` |
 | `POST /grafica/storia` | `foto`, `logo`? | `{id, file:[{url}], confronto:{url}, avvisi}` — 1080×1920 |
@@ -488,6 +490,7 @@ L'esito dell'ultimo giro è scritto in `../CHANGELOG-officina.md`.
 officina/
   Dockerfile, avvio.sh, .dockerignore, .gitignore, package.json, package-lock.json
   src/server.js       rotte, chiave, coda, pulizia, GET / e /salute
+  src/autoprova.js    prova dei filtri sull'FFmpeg del server, all'avvio (per /salute)
   src/coda.js         un lavoro pesante alla volta, max 5 in attesa
   src/upload.js       multipart su disco con i limiti (40 file, 40 campi di testo)
   src/lavori.js       cartelle su /dati, scadenza 24 h
