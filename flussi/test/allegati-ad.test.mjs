@@ -191,6 +191,8 @@ test('il flusso «Chiedi all\'AD»: gettoni e impronte prima di prepararsi, alle
   assert.deepEqual(controlla(w), []);
   assert.equal(w.settings.saveDataSuccessExecution, 'none', 'le corse riuscite non si salvano');
   assert.ok(controlla({ ...w, settings: { ...w.settings, saveDataSuccessExecution: 'all' } }).some((p) => /non devono salvarsi/.test(p)));
+  assert.equal(w.settings.saveDataErrorExecution, 'none', 'nemmeno le corse fallite: terrebbero le foto per 14 giorni');
+  assert.ok(controlla({ ...w, settings: { ...w.settings, saveDataErrorExecution: 'all' } }).some((p) => /fallite non devono salvarsi/.test(p)));
   const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
   assert.deepEqual([dopo('Config'), dopo('Allegati del lavoro'), dopo('Gettoni'), dopo('Impronte')], [['Allegati del lavoro'], ['Gettoni'], ['Impronte'], ['Prepara il lavoro']]);
   const nodo = (nome) => w.nodes.find((n) => n.name === nome);

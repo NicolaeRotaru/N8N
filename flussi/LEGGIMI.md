@@ -226,6 +226,10 @@ resta identica a prima, carattere per carattere.
 - **L'indirizzo fisso:** `https://n8n-shdy.sliplane.app/webhook/allegati-ad?g=<gettone>`, solo GET. Lo serve il flusso
   «89 · Allegati per l'AD». Un gettone sbagliato o scaduto riceve 404 senza dettagli. Quel flusso non salva
   le esecuzioni, né riuscite né fallite.
+- **Lo storico:** anche «90 · Chiedi all'AD» non salva le corse, né riuscite né fallite, perché nei dati del trigger
+  arrivano i cataloghi e le foto dei clienti. Se una corsa si rompe, l'avviso parte lo stesso dal «99 · Avvisi errori».
+  Durante l'attesa (al massimo 15 minuti) i dati stanno nel database di n8n, come serve per riprendere la corsa. Il
+  flusso che chiama (montatore, 08, 12) tiene le sue foto nel suo storico come prima: chi manda foto non salvi le corse.
 - **Quanto restano:** «Chiedi all'AD» cancella le righe della corsa appena l'AD risponde, o se la routine non parte. Il
   giro «Ogni ora» toglie gli avanzi scaduti.
 - **La memoria** riconosce «stesso lavoro» dal contenuto degli allegati, non dal gettone.
