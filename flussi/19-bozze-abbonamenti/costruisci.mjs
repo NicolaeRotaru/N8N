@@ -27,8 +27,9 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 
-export const NOME_19 = '19 · Bozze dei 3 abbonamenti';
+export const NOME_19 = NOMI.bozzeAbbonamenti;
 export const PERCORSO_WEBHOOK_19 = 'mycity-bozze-abbonamenti';
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
@@ -165,7 +166,7 @@ async function principale(argv) {
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
     const tutti = await api.elencoFlussi();
-    const m12 = tutti.find((w) => w.name === '12 · Nuovo cliente (automatico)');
+    const m12 = trovaFlusso(tutti, NOMI.nuovoCliente);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
     const gia = tutti.find((w) => w.name === NOME_19);
     pezzi = { ...pezzi,

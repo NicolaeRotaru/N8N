@@ -128,7 +128,7 @@ const vai = (...nomi) => ({ main: nomi.map((n) => (n ? [{ node: n, type: 'main',
 
 function modulo12Mini() {
   return {
-    id: 'X12', name: '12 · Nuovo cliente (automatico)', active: false,
+    id: 'X12', name: '12 · Nuovo cliente (automatico)' /* nome vecchio: deve funzionare lo stesso */, active: false,
     settings: { executionOrder: 'v1', timezone: 'Europe/Rome' },
     nodes: [
       nodo('Modulo nuovo cliente', 'n8n-nodes-base.formTrigger', { formTitle: 'Nuovo cliente' }),

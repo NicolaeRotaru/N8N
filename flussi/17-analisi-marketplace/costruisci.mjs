@@ -25,8 +25,9 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 
-export const NOME_17 = '17 · Analisi del marketplace';
+export const NOME_17 = NOMI.analisiMarketplace;
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
 
@@ -203,7 +204,7 @@ async function principale(argv) {
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
-    const m12 = (await api.elencoFlussi()).find((w) => w.name === '12 · Nuovo cliente (automatico)');
+    const m12 = trovaFlusso(await api.elencoFlussi(), NOMI.nuovoCliente);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
     const tg = m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi;
     const an = m12.nodes.find((n) => n.name === 'Cerca il locale con Claude')?.credentials?.httpHeaderAuth;

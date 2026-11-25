@@ -36,9 +36,10 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 
-export const NOME_MODULO_12 = '12 · Nuovo cliente (automatico)';
-export const NOME_16 = '16 · Nuovo cliente da MyCity';
+export const NOME_MODULO_12 = NOMI.nuovoCliente;
+export const NOME_16 = NOMI.nuovoClienteDaMyCity;
 export const PERCORSO_WEBHOOK = 'mycity-nuovo-cliente';
 export const NOME_CREDENZIALE = 'MyCity - Segreto nuovo cliente';
 const TRIGGER = 'Modulo nuovo cliente';
@@ -511,7 +512,7 @@ async function principale(argv) {
   let modulo12;
   if (valore('--file')) modulo12 = JSON.parse(readFileSync(valore('--file'), 'utf8'));
   else {
-    const trovato = (await api.elencoFlussi()).find((w) => w.name === NOME_MODULO_12);
+    const trovato = trovaFlusso(await api.elencoFlussi(), NOME_MODULO_12);
     if (!trovato) throw new Error(`Su n8n non trovo «${NOME_MODULO_12}».`);
     modulo12 = await api.leggiFlusso(trovato.id);
   }
@@ -519,12 +520,12 @@ async function principale(argv) {
   // Se il 16 esiste già, si tiene lo stesso webhookId: l'indirizzo non cambia.
   let webhookId;
   try {
-    const gia = (await api.elencoFlussi()).find((w) => w.name === NOME_16);
+    const gia = trovaFlusso(await api.elencoFlussi(), NOME_16);
     webhookId = gia?.nodes?.find((n) => n.name === WEBHOOK)?.webhookId;
   } catch { /* senza API: un id nuovo */ }
   let idAnalisi = valore('--analisi');
   if (!idAnalisi && !valore('--file')) {
-    idAnalisi = (await api.elencoFlussi()).find((x) => x.name === "18 · Analisi di un'attività")?.id;
+    idAnalisi = trovaFlusso(await api.elencoFlussi(), NOMI.analisiAttivita)?.id;
   }
   const w = trasforma(modulo12, {
     modalita: argv.includes('--vero') ? 'vero' : 'prova',
