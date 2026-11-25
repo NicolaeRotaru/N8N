@@ -508,7 +508,8 @@ test("un'attività del modulo 12 trova la sua riga Clienti: non si riscrive e l'
   const [{ json: altro }] = await eseguiCodice(CODICE_PAGINA_4, { nodi: { ...proposta, 'Modulo nuovo cliente': [{ json: {} }] } });
   assert.match(altro.motivo_auto, /possibile doppione/);
   const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
-  assert.match(w.nodes.find((n) => n.name === 'Fine: annullato').parameters.text, /Normale: analisi del business e bozze partono lo stesso/);
+  assert.match(w.nodes.find((n) => n.name === 'Fine: annullato').parameters.text, /Normale: l.+ha appena scritta il modulo 12\. Le bozze partono lo stesso\./);
+  assert.doesNotMatch(trasforma(modulo12Mini(), { credenziale }).nodes.find((n) => n.name === 'Fine: annullato').parameters.text, /bozze partono/);
   assert.throws(() => trasforma(modulo12Mini(), { credenziale, sito: 'https://mycity.example' }), /serve anche --bozze/);
 });
 
@@ -519,4 +520,19 @@ test('dal sito arrivano il sito del locale (solo https) e se l attività l ha is
   const [{ json: altro }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'http://x.it', id: 'c0b240c0-2a86-4218-9d0f-5154f08ff930' }), statico: {} });
   assert.equal(altro.sito, '');
   assert.equal(altro.dal_modulo_12, false);
+});
+
+test("dal secondo collaudo: l'AD può cercare sul web, i voti non sono prezzi, con la ricerca fermata l'analisi del business va al sito", async () => {
+  const [{ json: d }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  assert.ok(d.richiesta.tools.some((t) => t.type.startsWith('web_search')));
+  const prima = { id: 'x', scheda: null, richiesta: {} };
+  const voto = { content: [{ text: JSON.stringify({ situazione: [], mercato: [], opportunita: [], rischi: [], prime_mosse: [],
+    clienti: [{ testo: 'Media 4,6 su 5 da duecento recensioni su Google.', fonte: 'https://maps.google.com/x' }] }) }] };
+  const [{ json: u }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, { input: [{ json: voto }], nodi: { "Prepara l'analisi del business": [{ json: prima }] } });
+  assert.equal(u.scheda.analisi.business.clienti.length, 1);
+  const [{ json: s }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', { ok: false }) });
+  assert.equal(s.mandare, true);
+  assert.deepEqual(s.corpo.campi, {});
+  assert.equal(s.corpo.analisi.business.clienti.length, 1);
 });

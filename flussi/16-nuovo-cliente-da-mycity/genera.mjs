@@ -232,6 +232,8 @@ const richiesta = {
   model: String(cfg.CLAUDE_MODEL || 'claude-sonnet-5-5'),
   max_tokens: 3000,
   output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
+  // La ricerca sul web è richiesta in modo esplicito: «Chiedi all'AD» la concede solo se la richiesta la porta.
+  tools: [{ type: 'web_search_20250305', name: 'web_search' }, { type: 'web_fetch_20250910', name: 'web_fetch' }],
   system: SISTEMA,
   messages: [{ role: 'user', content: '<dati_dell_attivita>\n' + JSON.stringify(dati, null, 1).replace(/</g, '‹').replace(/>/g, '›') + '\n</dati_dell_attivita>\n\nScrivi l\'analisi del business di questa attività.' }],
 };
@@ -245,6 +247,8 @@ const r = $input.first().json || {};
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
 const SEZIONI = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
 const VIETATO = /€|\b(eur|euro)\b|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
+// Un voto («4,6 su 5», «4.5 stelle») non è un prezzo: si toglie prima del controllo.
+const VOTO = /\d[.,]\d\s*(su\s*5|\/\s*5|stell[ae])/gi;
 let letta = null;
 try {
   const t = r.content && r.content[0] && r.content[0].text;
@@ -257,7 +261,7 @@ if (letta && typeof letta === 'object') {
   for (const s of SEZIONI) {
     const voci = Array.isArray(letta[s]) ? letta[s] : [];
     business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte) }))
-      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !VIETATO.test(v.testo))
+      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !VIETATO.test(v.testo.replace(VOTO, 'voto')))
       .slice(0, 3);
     quante += business[s].length;
   }
@@ -278,7 +282,15 @@ const prova = testo(cfg.MODALITA).toLowerCase() !== 'vero';
 const f = $('Modulo nuovo cliente').first().json;
 const p = $('Controlla la proposta').isExecuted ? $('Controlla la proposta').first().json : null;
 if (prova) return [{ json: { mandare: false, motivo: 'modalità prova' } }];
-if (!p || !p.ok) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
+// L'analisi del business arriva dal passo prima («Unisci l'analisi del business»), se il 16 la fa.
+const dalPasso = $input.first().json || {};
+const business = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.business ? dalPasso.scheda.analisi.business : null;
+if (!p || !p.ok) {
+  // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business, quella va al sito.
+  if (!business) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
+  return [{ json: { mandare: true, corpo: { tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(),
+    id_attivita: f.id_mycity, campi: {}, analisi: { business }, da_confermare: [] } } }];
+}
 const STATI = { confermato: 'confermato', da_confermare: 'da_confermare', foto: 'foto', frammento: 'frammento', proposta: 'proposta',
   nessuna: 'nessuna', non_trovata: 'da_confermare', bloccata: 'nessuna' };
 const MANDO = ['indirizzo', 'telefono', 'orari', 'link_prenotazione', 'link_menu', 'tono_di_voce', 'regole_risposte', 'hashtag_fissi', 'note_piano', 'menu_testo'];
@@ -294,9 +306,6 @@ for (const nome of MANDO) {
 const sito = testo(p.sito_ufficiale);
 campi.sito_ufficiale = { valore: /^https?:\/\//i.test(sito) ? sito : null, stato: sito ? 'da_confermare' : 'nessuna', fonte: soloHttps(sito) };
 const a = p.analisi || {};
-// L'analisi del business arriva dal passo prima («Unisci l'analisi del business»), se il 16 la fa.
-const dalPasso = $input.first().json || {};
-const business = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.business ? dalPasso.scheda.analisi.business : null;
 const lista = (x, quanti) => (Array.isArray(x) ? x.map((v) => testo(v).slice(0, 500)).filter(Boolean).slice(0, quanti) : []);
 const chiave = testo(p.chiave_proposta).slice(0, 120);
 return [{ json: { mandare: true, corpo: {
@@ -387,7 +396,7 @@ export function trasforma(modulo12, opzioni = {}) {
       return nodoTelegram(telegram, n, n.name, `'${DA_MYCITY}⚠️ <b>Scheda non scritta</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\n' + ${escExpr("($('Controlla il cliente').first().json.errori || []).join('\\n')")} + '\\nCrea il cliente a mano col modulo 12.'`, chatId);
     }
     if (n.name === 'Fine: annullato') {
-      return nodoTelegram(telegram, n, n.name, `'${DA_MYCITY}👯 <b>Scheda non scritta</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nMotivo: ' + ${escExpr(`$('${PAGINA_4}').first().json.motivo_auto`)} + ($('${PAGINA_4}').first().json.dal_modulo_12 ? '\\nNormale: analisi del business e bozze partono lo stesso.' : '\\nControlla nella scheda Clienti; se è davvero un cliente nuovo, crealo col modulo 12.')`, chatId);
+      return nodoTelegram(telegram, n, n.name, `'${DA_MYCITY}👯 <b>Scheda non scritta</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nMotivo: ' + ${escExpr(`$('${PAGINA_4}').first().json.motivo_auto`)} + ($('${PAGINA_4}').first().json.dal_modulo_12 ? '\\nNormale: l\\'ha appena scritta il modulo 12.${opzioni.bozze ? ' Le bozze partono lo stesso.' : ''}' : '\\nControlla nella scheda Clienti; se è davvero un cliente nuovo, crealo col modulo 12.')`, chatId);
     }
     if (n.name === DOPO_LO_STOP) return nodoFermo(n);
     if (eForm(n)) return nodoFermo(n);
