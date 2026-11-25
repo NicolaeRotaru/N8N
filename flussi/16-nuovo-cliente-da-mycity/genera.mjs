@@ -33,6 +33,7 @@
 //     --scrivi <path> salva il flusso generato in un file (fuori dal repository: contiene gli ID
 //                     del foglio, della cartella e della chat Telegram)
 
+import { aPagamento } from '../conta-api-claude.mjs';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -255,7 +256,9 @@ export function trasforma(modulo12, opzioni = {}) {
   voce.value = modalita;
   const ricerca = assegnazioni.find((a) => a.name === RICERCA_CON_CLAUDE);
   if (!ricerca) throw new Error(`Nel Config del 12 non trovo ${RICERCA_CON_CLAUDE}: senza, il 16 chiamerebbe l'API di Claude a pagamento.`);
-  ricerca.value = 'no';
+  // Finché il 12 chiama l'API di Claude a pagamento, il 16 tiene la ricerca spenta. Quando il 12 la fa fare
+  // all'AD col piano Max («Chiedi all'AD»: nessun nodo a pagamento), il 16 tiene la scelta del 12.
+  if (w.nodes.some((n) => aPagamento(n))) ricerca.value = 'no';
 
   // Via i nodi che servono solo al 12, con i collegamenti che entrano ed escono.
   const via = new Set(SOLO_NEL_12);
@@ -335,7 +338,7 @@ export function trasforma(modulo12, opzioni = {}) {
       '',
       `**MODALITA** nel Config: «${modalita}» al momento della generazione.`,
       '',
-      "**RICERCA_CON_CLAUDE = no**, sempre: nessuna API di IA a pagamento. Senza ricerca la riga non si scrive (avviso su Telegram), l'analisi del 18 e la scheda al sito partono lo stesso.",
+      `**${RICERCA_CON_CLAUDE} = ${ricerca.value}**: ${w.nodes.some((n) => aPagamento(n)) ? "spenta perché il 12 chiama ancora l'API di Claude a pagamento" : "la ricerca la fa l'AD col piano Max («Chiedi all'AD»), come nel 12"}. Senza ricerca la riga non si scrive (avviso su Telegram), l'analisi del 18 e la scheda al sito partono lo stesso.`,
     ].join('\n') },
   };
   w.nodes.push(webhook, valida, daAvvisare, scartata, nota);
@@ -495,7 +498,7 @@ export function controlla(w) {
   const mod = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
   if (!['prova', 'vero'].includes(mod)) problemi.push(`MODALITA nel Config è «${mod}»`);
   const ric = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === RICERCA_CON_CLAUDE)?.value;
-  if (ric !== 'no') problemi.push(`${RICERCA_CON_CLAUDE} nel Config è «${ric}»: il 16 chiamerebbe l'API di Claude a pagamento`);
+  if (ric !== 'no' && w.nodes.some((n) => aPagamento(n))) problemi.push(`${RICERCA_CON_CLAUDE} nel Config è «${ric}»: il 16 chiamerebbe l'API di Claude a pagamento`);
   for (const nome of SOLO_NEL_12) {
     if (nomi.has(nome)) problemi.push(`c'è «${nome}»: il 16 iscriverebbe di nuovo in MyCity chi si è appena iscritto`);
   }

@@ -23,10 +23,9 @@ copia dove:
 - la pagina 4 conferma da sola, **tranne** sul possibile doppione: lì non scrive e avvisa;
 - se la ricerca di Claude si ferma, non scrive una scheda vuota: avvisa;
 - la stessa attività una volta sola in 7 giorni, al massimo 10 attività al giorno (il credito di Claude);
-- **la ricerca con Claude è sempre spenta** (`RICERCA_CON_CLAUDE = no` nel Config, imposto dal
-  generatore): nessuna API di IA a pagamento, decisione di Nicola del 24/11. Senza ricerca la riga non
-  si scrive e arriva l'avviso su Telegram; l'analisi del 18 e la scheda al sito partono lo stesso. La
-  ricerca tornerà quando la fa l'AD col piano Max («Chiedi all'AD»);
+- **la ricerca la fa l'AD col piano Max** («Chiedi all'AD»), come nel 12: nessuna API di IA a pagamento
+  (Nicola, 24/11). Se nel 12 tornasse un nodo verso l'API di Claude, il generatore spegne la ricerca
+  (`RICERCA_CON_CLAUDE = no`): senza ricerca la riga non si scrive e arriva l'avviso su Telegram;
 - i due nodi con cui il 12 iscrive un cliente nuovo in MyCity («Prepara l'iscrizione in MyCity» e
   «Iscrivi in MyCity», che chiamano il flusso 20) restano fuori: chi arriva al 16 su MyCity c'è già.
 
@@ -133,6 +132,65 @@ N8N_API_KEY=… node flussi/17-analisi-marketplace/costruisci.mjs --manda --mark
 **Per accenderlo:** in n8n apri la credenziale «Supabase MyCity - Marketplace (lettura)», incolla la
 chiave del database di MyCity (la stessa che l'AD usa come `MARKETPLACE_SUPABASE_KEY`), poi accendi il flusso.
 
+## Chiedi all'AD · niente più API di Claude a pagamento
+
+**Perché.** Decisione di Nicola del 24/11/2026: nessun flusso n8n acceso chiama più l'API di Claude a
+pagamento. Il lavoro con l'IA lo fa l'AD col piano Max, attraverso la routine «Chiedi all'AD».
+
+**Il sotto-flusso «Chiedi all'AD»** (`chiedi-all-ad/costruisci.mjs`). Lo chiamano gli altri flussi con
+«Esegui un flusso», una volta per tutti gli elementi. Riceve uno o più lavori `{ flusso, compito, dati,
+schema }` e restituisce un elemento per lavoro `{ ok, flusso, risultato, avvisi, errore, dalla_memoria, prova }`.
+Dentro:
+
+- tanti lavori diventano **una corsa sola** della routine (es. tutti i testi del giro);
+- **memoria**: se compito e dati sono uguali all'ultima volta per quel flusso, ridà la risposta di allora
+  senza far partire la routine;
+- **tetti**: al massimo 40 corse al giorno e 25 in un'ora (la routine ne accetta 30: il resto è riserva),
+  contati nella memoria del flusso; una corsa che non parte non si conta;
+- fa partire la routine (`POST /v1/claude_code/routines/<id>/fire`) con dentro l'indirizzo di ritorno
+  (`$execution.resumeUrl`), poi **aspetta** col nodo Wait al massimo 15 minuti la risposta dell'AD;
+- se un lavoro ha `non_mandare` (per esempio servono foto che non possono arrivare), non parte niente;
+- **MODALITA = prova** (di serie): la routine non parte e non si conta; il flusso aspetta 2 minuti e torna
+  con `prova = true`. In prova, mentre aspetta, si può rispondere a mano all'indirizzo `rispondi_a` che
+  «Prepara il lavoro» mostra.
+
+```bash
+N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs --manda --routine <id della routine>   # prova
+N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs --manda --vero                         # vero
+```
+
+La prima volta crea la credenziale **«Chiedi all'AD - chiave della routine»** (Header Auth) con un valore
+finto. **Nicola** crea la chiave dalla pagina web della routine e la incolla lì: nome `Authorization`,
+valore `Bearer <chiave>`. Mai nel repository, mai in chat.
+
+**Collegare un flusso** (`chiedi-all-ad/collega.mjs 01|04|08|12`). Ogni nodo HTTP verso
+`api.anthropic.com/v1/messages` diventa tre nodi: «Per l'AD: …» (la richiesta di prima diventa un
+lavoro), «Chiedi all'AD: …» (chiama il sotto-flusso e lo aspetta) e «Dall'AD: …» (rimette la risposta
+nella forma che il nodo dopo leggeva da Claude). Il resto del flusso non cambia: se l'AD non risponde, il
+flusso segue la strada che seguiva quando Claude non rispondeva. Le foto mandate dentro il messaggio
+(base64) non arrivano all'AD; quelle con un indirizzo web sì, se la rete della routine lo apre.
+
+```bash
+N8N_API_KEY=… node flussi/chiedi-all-ad/collega.mjs 04 --manda --salva /tmp/04-prima.json
+```
+
+Collegati il 25/11/2026: **01** (controllo finale: se non riesce, pubblica lo stesso con la nota), **04**
+(i testi, senza la foto), **08** (le foto non possono arrivare: il lavoro non parte e il 08 va avanti senza
+IA, finché Nicola non apre gli indirizzi delle foto nella rete della routine), **18** (dal suo
+`costruisci.mjs`; il commento resta spento). Il **99** non chiede più spiegazioni:
+`99-avvisi-errori/togli-spiegazione-ai.mjs --manda`, l'avviso parte uguale. Il **12** è collegato dalle 14:05
+circa (col via della sessione che lo segue): RICERCA_CON_CLAUDE = si, perché il ramo ora va all'AD; la lettura
+delle foto non parte finché le foto non arrivano come indirizzi web. Il **16** si è rigenerato dal 12 e tiene la
+ricerca accesa: `genera.mjs` la spegne solo se nel 12 resta un nodo a pagamento. **Il contatore dà 0.**
+
+**Il contatore** (`conta-api-claude.mjs`). Conta i nodi verso l'API di Claude a pagamento nei flussi
+accesi e in quelli che possono far partire (sotto-flussi e flusso degli errori). Il risultato giusto è
+zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.
+
+```bash
+N8N_API_KEY=… node flussi/conta-api-claude.mjs
+```
+
 ## Le prove
 
 ```bash
@@ -140,7 +198,7 @@ node --test "flussi/test/*.test.mjs"
 ```
 
 Girano senza n8n e senza database: il codice dei nodi si esegue su dati finti (`test/esegui-codice.mjs`
-imita `$('Nodo')`, `$input` e la memoria del flusso). Il modulo 12 vero non sta qui: le prove del 16
+imita `$('Nodo')`, `$input`, la memoria del flusso e `$execution.resumeUrl`). Il modulo 12 vero non sta qui: le prove del 16
 usano un modulo 12 in miniatura con gli stessi nomi di nodo.
 
 ## Il client dell'API

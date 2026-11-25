@@ -191,7 +191,7 @@ test('la domanda a Claude porta numeri, segnali e la scheda del modulo 12, come 
 
 test('il messaggio: punto adesso, segnali, a che punto è, numeri dal codice, il web del 12, mosse', async () => {
   const a = await calcola(appenaIscritta());
-  const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }], 'Chiedi il commento a Claude': claude(COMMENTO) } });
+  const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }], "Dall'AD: commento": claude(COMMENTO) } });
   const m = json.messaggio;
   assert.equal(json.con_commento, true);
   assert.match(m, /🏪 <b>Analisi dell'attività<\/b> · Bar Roma \(bar\)/);
@@ -211,7 +211,7 @@ test('il messaggio: punto adesso, segnali, a che punto è, numeri dal codice, il
 test('senza Claude il messaggio parte lo stesso: numeri, segnali e le domande della scheda del 12', async () => {
   const a = await calcola(appenaIscritta());
   const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }],
-    'Chiedi il commento a Claude': [{ json: { error: { message: 'Your credit balance is too low' } } }] } });
+    "Dall'AD: commento": [{ json: { error: { message: 'Your credit balance is too low' } } }] } });
   assert.equal(json.con_commento, false);
   assert.match(json.messaggio, /Ci sono \d+ cose da guardare/);
   assert.match(json.messaggio, /a che ora apre la domenica/);
@@ -234,7 +234,7 @@ test('i testi che arrivano da fuori sono scappati per l\'HTML di Telegram', asyn
   d["Leggi l'attività"][0].json.body[0].store_name = 'Bar <Roma> & C.';
   const a = await calcola(d);
   const c = { ...COMMENTO, punto_adesso: 'Attenzione <script> & co' };
-  const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }], 'Chiedi il commento a Claude': claude(c) } });
+  const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }], "Dall'AD: commento": claude(c) } });
   assert.match(json.messaggio, /Bar &lt;Roma&gt; &amp; C\./);
   assert.match(json.messaggio, /Attenzione &lt;script&gt; &amp; co/);
   assert.equal(json.messaggio.includes('<script>'), false);
@@ -244,7 +244,7 @@ test('un commento lunghissimo non fa rifiutare il messaggio da Telegram', async 
   const a = await calcola(chevende());
   const lungo = { punto_adesso: 'p', prossime_mosse: Array(4).fill({ titolo: 'm'.repeat(900), perche: 'x & y', colore: 'verde', reparto: '@x' }),
     domande_per_il_titolare: Array(4).fill('d'.repeat(800)), rischi: Array(3).fill('r'.repeat(1500)) };
-  const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }], 'Chiedi il commento a Claude': claude(lungo) } });
+  const [{ json }] = await eseguiCodice(COMPONI, { nodi: { Config: [{ json: config() }], "Calcola l'analisi": [{ json: a }], "Dall'AD: commento": claude(lungo) } });
   assert.ok(json.messaggio.length <= 4096);
   assert.equal((json.messaggio.match(/<b>/g) || []).length, (json.messaggio.match(/<\/b>/g) || []).length);
   assert.match(json.messaggio, /Prodotti in vendita/, 'i numeri restano');
@@ -253,7 +253,7 @@ test('un commento lunghissimo non fa rifiutare il messaggio da Telegram', async 
 // --- Il flusso costruito ---------------------------------------------------------------------------
 
 test('il flusso 18: due ingressi, legge soltanto, i nodi citati dal codice esistono', () => {
-  const w = costruisci({ telegram: { id: 't', name: 'T' }, anthropic: { id: 'a', name: 'A' }, chatId: '42', marketplace: 'm', segreto: 's' });
+  const w = costruisci({ telegram: { id: 't', name: 'T' }, chiedi: 'id-chiedi', chatId: '42', marketplace: 'm', segreto: 's' });
   assert.deepEqual(controlla(w), []);
   assert.ok(w.nodes.some((n) => n.type === 'n8n-nodes-base.executeWorkflowTrigger'));
   assert.equal(w.nodes.find((n) => n.type === 'n8n-nodes-base.webhook').parameters.authentication, 'headerAuth');
@@ -266,6 +266,10 @@ test('il flusso 18: due ingressi, legge soltanto, i nodi citati dal codice esist
   for (const m of tutto.matchAll(/(?:\$|lettura)\((['"])([^'"]+)\1\)/g)) assert.ok(nomi.has(m[2]), `il codice cita «${m[2]}»`);
   // Senza credenziali il controllo dice cosa manca.
   assert.match(controlla(costruisci()).join('\n'), /credenziale/);
+  assert.match(controlla(costruisci()).join('\n'), /Chiedi all'AD/);
+  // Il commento passa da «Chiedi all'AD»: nessuna chiamata all'API di Claude a pagamento.
+  assert.equal(JSON.stringify(w).includes('api.anthropic.com'), false);
+  assert.equal(w.nodes.find((n) => n.name === "Chiedi all'AD: commento").parameters.workflowId.value, 'id-chiedi');
 });
 
 test("il commento di Claude nasce spento: «non si paga MAI un'API di IA» (registro dei fatti)", () => {
@@ -286,7 +290,7 @@ test('nel confronto con gli altri negozi i venditori di sistema non contano', as
 // --- L'ultimo passo: le bozze dei 3 abbonamenti (flusso 19) ---------------------------------------
 
 test("alla fine il 18 passa la stessa richiesta al 19, senza aspettarlo; senza il 19 non c'è il passo", async () => {
-  const pezzi = { telegram: { id: 'tg', name: 'Telegram - Bot agenzia' }, anthropic: { id: 'an', name: 'Anthropic API' }, chatId: '1', marketplace: 'sb', segreto: 'hd' };
+  const pezzi = { telegram: { id: 'tg', name: 'Telegram - Bot agenzia' }, chiedi: 'id-chiedi', chatId: '1', marketplace: 'sb', segreto: 'hd' };
   const senza = costruisci(pezzi);
   assert.equal(senza.nodes.find((n) => n.name === BOZZE), undefined);
   assert.deepEqual(controlla(senza), []);

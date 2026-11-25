@@ -12,9 +12,9 @@ const MAX = 3900;
 let commento = null;
 let motivoSenza = /^(si|sì)$/i.test(String(cfg.COMMENTO_CLAUDE ?? '').trim()) ? '' : 'commento di Claude spento nel Config';
 if (!motivoSenza) {
-  if (!$('Chiedi il commento a Claude').isExecuted) motivoSenza = 'Claude non è stato chiamato';
+  if (!$("Dall'AD: commento").isExecuted) motivoSenza = 'Claude non è stato chiamato';
   else {
-    const r = $('Chiedi il commento a Claude').first().json || {};
+    const r = $("Dall'AD: commento").first().json || {};
     if (r.error !== undefined) motivoSenza = 'Claude non ha risposto';
     else if (r.stop_reason === 'refusal') motivoSenza = 'Claude non ha dato una risposta';
     else {
