@@ -28,6 +28,7 @@
 //     --bozze <id>   il flusso 19 da chiamare alla fine (di serie lo cerca per nome su n8n). Dal 25/11/2026
 //                    il 16 non chiama più il 18: la pagella parte dal sito al primo abbonamento pagato
 //     --sito <https://…> e --credenziale-sito <id>: manda la scheda anche al sito (/api/agenzia/scheda-cliente)
+//     --chiedi <id>  «Chiedi all'AD», per l'analisi del business (di serie lo cerca per nome su n8n)
 //     --vero         il 16 scrive davvero nel foglio Clienti (di serie «prova»: cerca ma non scrive)
 //     --manda        crea o aggiorna il flusso su n8n (resta come è: acceso o spento)
 //     --file <path>  invece di scaricare il 12 da n8n, lo legge da un file esportato
@@ -39,6 +40,8 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { NOMI, trovaFlusso } from '../nomi.mjs';
+import { collega } from '../chiedi-all-ad/collega.mjs';
+import { NOME_CHIEDI } from '../chiedi-all-ad/costruisci.mjs';
 
 export const NOME_MODULO_12 = NOMI.nuovoCliente;
 export const NOME_16 = NOMI.nuovoClienteDaMyCity;
@@ -121,7 +124,10 @@ const appunti = [
 ].filter(Boolean).join('\n');
 return [{ json: {
   scartata: false, modalita: 'nuovo cliente', nome_locale: nome, citta: taglia(a.citta, 80) || 'Piacenza',
-  sito: '', testo_scheda_google: '', testo_pagina_facebook: '', appunti,
+  // 25/11/2026 — Il sito del locale, se il sito MyCity lo conosce (solo https), e se l'attività l'ha appena
+  // iscritta il modulo 12: allora la riga Clienti c'è già, e il «doppione» è normale.
+  sito: /^https:\/\//i.test(testo(a.sito)) ? taglia(a.sito, 300) : '', testo_scheda_google: '', testo_pagina_facebook: '', appunti,
+  dal_modulo_12: corpo.provenienza === 'modulo-12',
   id_mycity: id, submittedAt: new Date().toISOString(), formMode: 'mycity',
 } }];`;
 
@@ -148,11 +154,15 @@ export const CODICE_PAGINA_4 = String.raw`// 16 · Al posto della pagina 4: si c
 const proposta = $('Controlla la proposta').isExecuted ? $('Controlla la proposta').first().json : null;
 const doppioni = proposta && Array.isArray(proposta.doppioni) ? proposta.doppioni.map((d) => String(d)) : [];
 if (doppioni.length) {
-  return [{ json: { pagina: 'decisione', decisione: 'Annulla', motivo_auto: 'possibile doppione: ' + doppioni.join('; '), formMode: 'mycity' } }];
+  // 25/11/2026 — Un'attività iscritta dal modulo 12 arriva qui dal sito subito dopo: la sua riga Clienti l'ha
+  // appena scritta il 12. Non si riscrive, e l'avviso dice che è normale (analisi e bozze partono lo stesso).
+  const dal12 = $('Modulo nuovo cliente').isExecuted && $('Modulo nuovo cliente').first().json.dal_modulo_12 === true;
+  return [{ json: { pagina: 'decisione', decisione: 'Annulla', dal_modulo_12: dal12,
+    motivo_auto: dal12 ? "c'era già: l'ha scritta il modulo 12 poco fa" : 'possibile doppione: ' + doppioni.join('; '), formMode: 'mycity' } }];
 }
 return [{ json: { pagina: 'decisione', decisione: 'Conferma e salva', motivo_auto: '', formMode: 'mycity' } }];`;
 
-/** Ultimo passo del 16: prepara quello che serve al flusso 18 per analizzare l'attività. */
+/** Ultimo passo del 16: prepara quello che serve alle bozze (flusso 19) e all'analisi del business. */
 export const CODICE_PREPARA_ANALISI = String.raw`// 16 · Ultimo passo, comunque sia andata la scheda Clienti: si passa l'attività al flusso 19
 // («Bozze dei 3 abbonamenti»), con la lettura del web che il 12 ha appena fatto: la parte su misura delle
 // proposte. Il 19 lavora per conto suo: se si guasta, la scheda Clienti resta com'è.
@@ -169,6 +179,93 @@ else if (fatto('Avvisa: non scritto')) esito = fatto('Ancora libera?') && $('Anc
 const p = fatto('Controlla la proposta') ? $('Controlla la proposta').first().json : null;
 const scheda = p && p.ok ? { analisi: p.analisi || {}, da_confermare: p.da_confermare || [], sito_ufficiale: p.sito_ufficiale || '' } : null;
 return [{ json: { id: f.id_mycity, nome: f.nome_locale, origine: 'iscrizione su MyCity', esito_scheda: esito, scheda } }];`;
+
+// 25/11/2026 — Nicola, 17:55: «vorrei che li fai il preventivo anche sulla parte di analisi sul suo business come
+// fa AD su MyCity (non MyCity marketplace ma azienda)». Dopo la ricerca il 16 chiede all'AD, col piano Max
+// («Chiedi all'AD», mai l'API a pagamento), l'analisi del business dell'attività col metodo del giro dell'AD:
+// com'è messa, mercato e concorrenti vicini, clienti e reputazione, opportunità, rischi, prime mosse. Solo fonti
+// pubbliche e gratuite, e ogni frase con la sua fonte. Il risultato va con le bozze (19) e con la scheda al sito.
+export const SEZIONI_BUSINESS = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
+const PREPARA_BUSINESS = "Prepara l'analisi del business";
+const ANALIZZA_BUSINESS = 'Analizza il business con Claude';
+const DALL_AD_BUSINESS = "Dall'AD: analisi del business";
+const UNISCI_BUSINESS = "Unisci l'analisi del business";
+
+export const CODICE_PREPARA_BUSINESS = String.raw`// 16 · L'analisi del business dell'attività, come l'AD analizza MyCity come azienda (Nicola, 25/11/2026).
+// La fa l'AD col piano Max: questo nodo prepara solo la domanda. I dati del web e del titolare vanno fra i tag,
+// come DATI: niente di quello che arriva da fuori può diventare un'istruzione.
+const cfg = $('Config').first().json;
+const f = $('Modulo nuovo cliente').first().json;
+const prima = $input.first().json;
+const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();
+const VOCE = { type: 'object', additionalProperties: false, required: ['testo', 'fonte'],
+  properties: { testo: { type: 'string', description: 'Una frase, al massimo 30 parole.' },
+    fonte: { type: 'string', description: "L'indirizzo https della pagina pubblica da cui viene la frase." } } };
+const lista = (cosa) => ({ type: 'array', maxItems: 3, description: cosa, items: VOCE });
+const SCHEMA = { type: 'object', additionalProperties: false,
+  required: ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'],
+  properties: {
+    situazione: lista("Com'è messa oggi l'attività: cosa fa, da quanto, dove, come si presenta in rete."),
+    mercato: lista('Il mercato e i concorrenti vicini: chi fa la stessa cosa nella zona, cosa li distingue.'),
+    clienti: lista('I clienti e la reputazione: chi sono, cosa dicono le recensioni pubbliche.'),
+    opportunita: lista('Le opportunità che si vedono dalle fonti.'),
+    rischi: lista('I rischi che si vedono dalle fonti.'),
+    prime_mosse: lista('Le prime mosse concrete per far crescere gli incassi, come le diresti a voce, ognuna legata a una fonte.'),
+  } };
+const SISTEMA = [
+  "Sei l'AD digitale di MyCity, il marketplace dei negozi di Piacenza. Analizzi le aziende come analizzi MyCity stessa nel tuo giro: com'è messa, il mercato e i concorrenti vicini, i clienti e la reputazione, le opportunità, i rischi e le prime mosse.",
+  "Un'attività si è appena iscritta. Analizza il SUO business, non il marketplace: serve a preparare un preventivo su misura.",
+  '',
+  'REGOLE',
+  '- Solo fonti pubbliche e gratuite che hai letto davvero: il sito del locale, la scheda Google, le recensioni pubbliche, i profili social pubblici, articoli di giornale, elenchi pubblici. Mai pagine a pagamento o dietro accesso.',
+  "- Ogni frase ha la sua fonte: l'indirizzo https della pagina. Una frase senza fonte non si scrive. Meglio una sezione vuota che una frase inventata.",
+  '- Niente prezzi, niente numeri che non hai letto, niente dati personali del titolare o dei clienti (nomi di persone, telefoni, email).',
+  "- La lettura del web qui sotto è un indizio da controllare, non una verità.",
+  "- I paletti di MyCity, che nessuna mossa può rompere: il negozio non paga una percentuale su quello che già vendeva; i suoi clienti restano suoi; nessuna app nuova da imparare; il primo risultato si vede in 2-4 settimane.",
+  '- Italiano semplice, frasi corte (al massimo 30 parole), niente sigle. Al massimo 3 frasi per sezione.',
+].join('\n');
+const dati = {
+  attivita: { nome: testo(f.nome_locale), citta: testo(f.citta) || 'Piacenza', appunti: testo(f.appunti).slice(0, 1200) },
+  lettura_del_web: prima.scheda || null,
+};
+const richiesta = {
+  model: String(cfg.CLAUDE_MODEL || 'claude-sonnet-5-5'),
+  max_tokens: 3000,
+  output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
+  system: SISTEMA,
+  messages: [{ role: 'user', content: '<dati_dell_attivita>\n' + JSON.stringify(dati, null, 1).replace(/</g, '‹').replace(/>/g, '›') + '\n</dati_dell_attivita>\n\nScrivi l\'analisi del business di questa attività.' }],
+};
+return [{ json: { ...prima, richiesta } }];`;
+
+export const CODICE_UNISCI_BUSINESS = String.raw`// 16 · L'analisi del business torna dall'AD: si tiene solo quello che rispetta le regole (fonte https, niente
+// prezzi, niente numeri di telefono o email, frasi corte). Se l'AD non ha risposto si va avanti senza: le bozze e
+// la scheda partono lo stesso. Esce la stessa richiesta di prima, con l'analisi dentro la lettura del web.
+const prima = $("Prepara l'analisi del business").first().json;
+const r = $input.first().json || {};
+const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
+const SEZIONI = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
+const VIETATO = /€|\b(eur|euro)\b|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
+let letta = null;
+try {
+  const t = r.content && r.content[0] && r.content[0].text;
+  letta = typeof t === 'string' ? JSON.parse(t) : null;
+} catch (e) { letta = null; }
+let business = null;
+if (letta && typeof letta === 'object') {
+  business = {};
+  let quante = 0;
+  for (const s of SEZIONI) {
+    const voci = Array.isArray(letta[s]) ? letta[s] : [];
+    business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte) }))
+      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !VIETATO.test(v.testo))
+      .slice(0, 3);
+    quante += business[s].length;
+  }
+  if (!quante) business = null;
+}
+const { richiesta, ...resto } = prima;
+const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...(business ? { business } : {}) } } : (business ? { analisi: { business } } : null);
+return [{ json: { ...resto, scheda, analisi_business: business ? 'fatta' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
 
 /** Dopo la scheda: la stessa scheda va al sito, che la conserva e la mostra al venditore da confermare. */
 export const CODICE_SCHEDA_SITO = String.raw`// 16 · La scheda va anche al sito (formato concordato con la sessione «Servizi SDG», 24/11/2026):
@@ -197,6 +294,9 @@ for (const nome of MANDO) {
 const sito = testo(p.sito_ufficiale);
 campi.sito_ufficiale = { valore: /^https?:\/\//i.test(sito) ? sito : null, stato: sito ? 'da_confermare' : 'nessuna', fonte: soloHttps(sito) };
 const a = p.analisi || {};
+// L'analisi del business arriva dal passo prima («Unisci l'analisi del business»), se il 16 la fa.
+const dalPasso = $input.first().json || {};
+const business = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.business ? dalPasso.scheda.analisi.business : null;
 const lista = (x, quanti) => (Array.isArray(x) ? x.map((v) => testo(v).slice(0, 500)).filter(Boolean).slice(0, quanti) : []);
 const chiave = testo(p.chiave_proposta).slice(0, 120);
 return [{ json: { mandare: true, corpo: {
@@ -208,7 +308,9 @@ return [{ json: { mandare: true, corpo: {
   analisi: { tipo_di_locale: testo(a.tipo_di_locale).slice(0, 500) || null, pubblico: testo(a.pubblico).slice(0, 500) || null,
     tono_consigliato: testo(a.tono_consigliato).slice(0, 500) || null,
     punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6),
-    dubbi: lista(a.dubbi, 6) },
+    dubbi: lista(a.dubbi, 6),
+    // 25/11/2026 — L'analisi del business dell'AD, se c'è (già ripulita in «Unisci l'analisi del business»).
+    ...(business ? { business } : {}) },
   da_confermare: lista(p.da_confermare, 20).map((v) => v.slice(0, 40)),
 } } }];`;
 
@@ -285,7 +387,7 @@ export function trasforma(modulo12, opzioni = {}) {
       return nodoTelegram(telegram, n, n.name, `'${DA_MYCITY}⚠️ <b>Scheda non scritta</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\n' + ${escExpr("($('Controlla il cliente').first().json.errori || []).join('\\n')")} + '\\nCrea il cliente a mano col modulo 12.'`, chatId);
     }
     if (n.name === 'Fine: annullato') {
-      return nodoTelegram(telegram, n, n.name, `'${DA_MYCITY}👯 <b>Scheda non scritta</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nMotivo: ' + ${escExpr(`$('${PAGINA_4}').first().json.motivo_auto`)} + '\\nControlla nella scheda Clienti; se è davvero un cliente nuovo, crealo col modulo 12.'`, chatId);
+      return nodoTelegram(telegram, n, n.name, `'${DA_MYCITY}👯 <b>Scheda non scritta</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nMotivo: ' + ${escExpr(`$('${PAGINA_4}').first().json.motivo_auto`)} + ($('${PAGINA_4}').first().json.dal_modulo_12 ? '\\nNormale: analisi del business e bozze partono lo stesso.' : '\\nControlla nella scheda Clienti; se è davvero un cliente nuovo, crealo col modulo 12.')`, chatId);
     }
     if (n.name === DOPO_LO_STOP) return nodoFermo(n);
     if (eForm(n)) return nodoFermo(n);
@@ -384,15 +486,36 @@ export function trasforma(modulo12, opzioni = {}) {
     w.nodes.push(prepara, chiama);
     for (const nome of arrivi) c[nome] = { main: [[{ node: PREPARA_ANALISI, type: 'main', index: 0 }]] };
     c[PREPARA_ANALISI] = { main: [[{ node: BOZZE_19, type: 'main', index: 0 }]] };
+    // L'analisi del business (25/11/2026), solo se si sa dov'è «Chiedi all'AD»: fra la ricerca e le bozze.
+    if (opzioni.chiedi) {
+      const [px, py] = prepara.position;
+      const domanda = nodoCodice(null, PREPARA_BUSINESS, CODICE_PREPARA_BUSINESS);
+      domanda.position = [px + 220, py - 220];
+      // Un nodo nella forma della vecchia chiamata a Claude: collega() lo sostituisce coi tre nodi verso «Chiedi all'AD».
+      const analizza = { id: randomUUID(), name: ANALIZZA_BUSINESS, type: 'n8n-nodes-base.httpRequest', typeVersion: 4.4, position: [px + 440, py - 220],
+        onError: 'continueRegularOutput',
+        parameters: { method: 'POST', url: 'https://api.anthropic.com/v1/messages', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+          sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.richiesta) }}', options: { timeout: 90000 } } };
+      const unisci = nodoCodice(null, UNISCI_BUSINESS, CODICE_UNISCI_BUSINESS);
+      unisci.position = [px + 660, py - 220];
+      w.nodes.push(domanda, analizza, unisci);
+      c[PREPARA_ANALISI] = { main: [[{ node: PREPARA_BUSINESS, type: 'main', index: 0 }]] };
+      c[PREPARA_BUSINESS] = { main: [[{ node: ANALIZZA_BUSINESS, type: 'main', index: 0 }]] };
+      c[ANALIZZA_BUSINESS] = { main: [[{ node: UNISCI_BUSINESS, type: 'main', index: 0 }]] };
+      c[UNISCI_BUSINESS] = { main: [[{ node: BOZZE_19, type: 'main', index: 0 }]] };
+    }
   }
+  // Il passo da cui partono bozze e scheda al sito: l'analisi del business se c'è, se no la ricerca.
+  const ultimoPasso = w.nodes.some((n) => n.name === UNISCI_BUSINESS) ? UNISCI_BUSINESS : PREPARA_ANALISI;
 
   // La scheda al sito (solo con --sito e --credenziale-sito): accanto alle bozze, dallo stesso ultimo passo.
   // Il sito la tiene chiusa (ne legge solo l'analisi) finché il negozio non paga l'abbonamento (25/11/2026).
+  if (opzioni.sito && !opzioni.bozze) throw new Error('La scheda al sito parte dallo stesso passo delle bozze: serve anche --bozze <id del 19>.');
   if (opzioni.bozze && opzioni.sito) {
     const base = String(opzioni.sito).replace(/\/+$/, '');
     if (!/^https:\/\//i.test(base)) throw new Error("L'indirizzo del sito deve cominciare con https://");
     assegnazioni.push({ id: randomUUID(), name: 'MYCITY_SITO', value: base, type: 'string' });
-    const prepara = w.nodes.find((n) => n.name === PREPARA_ANALISI);
+    const prepara = w.nodes.find((n) => n.name === ultimoPasso);
     const [px, py] = prepara.position;
     const schedaCodice = nodoCodice(null, SCHEDA_SITO, CODICE_SCHEDA_SITO);
     schedaCodice.position = [px + 220, py + 220];
@@ -421,7 +544,7 @@ export function trasforma(modulo12, opzioni = {}) {
       `'${DA_MYCITY}⚠️ <b>La scheda non è arrivata al sito</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nRisposta: ' + ${escExpr("$json.statusCode || ($json.error && $json.error.message) || 'nessuna'")} + '\\nLa riga nella scheda Clienti c\\'è; il venditore non la vede ancora nella sua dashboard.'`, chatId);
     avvisa.position = [px + 1100, py + 320];
     w.nodes.push(schedaCodice, siManda, manda, arrivata, avvisa);
-    c[PREPARA_ANALISI] = { main: [[{ node: BOZZE_19, type: 'main', index: 0 }, { node: SCHEDA_SITO, type: 'main', index: 0 }]] };
+    c[ultimoPasso] = { main: [[{ node: BOZZE_19, type: 'main', index: 0 }, { node: SCHEDA_SITO, type: 'main', index: 0 }]] };
     c[SCHEDA_SITO] = { main: [[{ node: siManda.name, type: 'main', index: 0 }]] };
     c[siManda.name] = { main: [[{ node: MANDA_SITO, type: 'main', index: 0 }], []] };
     c[MANDA_SITO] = { main: [[{ node: arrivata.name, type: 'main', index: 0 }]] };
@@ -429,6 +552,12 @@ export function trasforma(modulo12, opzioni = {}) {
   }
 
   w.name = NOME_16;
+  // Dopo il nome: «Chiedi all'AD» registra il lavoro col nome del flusso che lo chiede.
+  if (opzioni.chiedi && w.nodes.some((n) => n.name === ANALIZZA_BUSINESS)) {
+    const collegato = collega(w, { nodi: [{ nodo: ANALIZZA_BUSINESS, cosa: 'analisi del business', forma: 'corpo' }], chiediId: opzioni.chiedi }).flusso;
+    w.nodes = collegato.nodes;
+    w.connections = collegato.connections;
+  }
   w.settings = { ...(w.settings || {}), saveManualExecutions: false };
   delete w.id; delete w.active; delete w.versionId; delete w.triggerCount; delete w.shared; delete w.tags;
   delete w.createdAt; delete w.updatedAt; delete w.staticData; delete w.pinData; delete w.meta; delete w.isArchived;
@@ -537,11 +666,15 @@ async function principale(argv) {
   if (!idBozze && !valore('--file')) {
     idBozze = trovaFlusso(await api.elencoFlussi(), NOMI.bozzeAbbonamenti)?.id;
   }
+  // «Chiedi all'AD» per l'analisi del business (25/11/2026): con --chiedi <id>, o cercato per nome su n8n.
+  let idChiedi = valore('--chiedi');
+  if (!idChiedi && !valore('--file')) idChiedi = trovaFlusso(await api.elencoFlussi(), NOME_CHIEDI)?.id;
   const w = trasforma(modulo12, {
     modalita: argv.includes('--vero') ? 'vero' : 'prova',
     credenziale: idCredenziale ? { id: idCredenziale, name: NOME_CREDENZIALE } : undefined,
     webhookId,
     bozze: idBozze,
+    chiedi: idChiedi,
     sito: valore('--sito'),
     credenzialeSito: valore('--credenziale-sito') ? { id: valore('--credenziale-sito'), name: 'MyCity - Segreto scheda cliente' } : undefined,
   });

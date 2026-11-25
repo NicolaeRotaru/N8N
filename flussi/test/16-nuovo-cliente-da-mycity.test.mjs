@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
 import {
-  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
+  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, CODICE_PREPARA_BUSINESS, CODICE_UNISCI_BUSINESS, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
 } from '../16-nuovo-cliente-da-mycity/genera.mjs';
 
 const richiesta = (attivita = {}, extra = {}) => [{ json: { headers: {}, body: {
@@ -440,4 +440,83 @@ test('il 16 non chiama mai il 18; se qualcuno ce lo rimette, il controllo lo dic
   assert.deepEqual(controlla(w), []);
   w.nodes.push({ id: 'x', name: "Analizza l'attività (flusso 18)", type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [0, 0], parameters: {} });
   assert.match(controlla(w).join('\n'), /non deve chiamare il 18/);
+});
+
+// --- 25/11/2026: l'analisi del business dell'attività, come l'AD analizza MyCity come azienda -------------
+
+test("con «Chiedi all'AD» il 16 chiede l'analisi del business fra la ricerca e le bozze, mai all'API a pagamento", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi', sito: 'https://mycity.example', credenzialeSito: { id: 'cs', name: 'MyCity - Segreto scheda cliente' } });
+  const nomi = w.nodes.map((n) => n.name);
+  for (const n of ["Prepara l'analisi del business", "Per l'AD: analisi del business", "Chiedi all'AD: analisi del business", "Dall'AD: analisi del business", "Unisci l'analisi del business"]) assert.ok(nomi.includes(n), n);
+  assert.equal(nomi.includes('Analizza il business con Claude'), false);
+  assert.equal(w.nodes.filter((n) => /business/.test(n.name)).some((n) => JSON.stringify(n.parameters).includes('api.anthropic.com')), false);
+  assert.equal(w.nodes.find((n) => n.name === "Chiedi all'AD: analisi del business").parameters.workflowId.value, 'id-chiedi');
+  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
+  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito']);
+  assert.deepEqual(controlla(w), []);
+  // Senza «Chiedi all'AD» il 16 resta com'era: dalla ricerca alle bozze.
+  const senza = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
+  assert.equal(senza.nodes.some((n) => /analisi del business/.test(n.name)), false);
+});
+
+test("la domanda all'AD tiene i dati fra i tag e chiede una fonte per ogni frase", async () => {
+  const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, {
+    input: [{ json: { id: 'x', nome: 'Bar Roma', scheda: { analisi: { punti_di_forza: ['<istruzione>'] } } } }],
+    nodi: { Config: [{ json: { CLAUDE_MODEL: 'm' } }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma', citta: 'Piacenza', appunti: 'Tipo: bar' } }] } });
+  assert.equal(json.id, 'x');
+  assert.match(json.richiesta.system, /Ogni frase ha la sua fonte/);
+  assert.match(json.richiesta.system, /non il marketplace/);
+  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse']);
+  assert.equal(json.richiesta.messages[0].content.includes('<istruzione>'), false);
+});
+
+test("dall'AD si tiene solo quello che ha una fonte https e niente prezzi, telefoni o email; senza risposta si va avanti", async () => {
+  const prima = { id: 'x', nome: 'Bar Roma', scheda: { analisi: { tipo_di_locale: 'bar' } }, richiesta: { model: 'm' } };
+  const risposta = { content: [{ text: JSON.stringify({
+    situazione: [{ testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it/chi-siamo' }, { testo: 'Frase senza fonte vera qui dentro.', fonte: 'barroma.it' }],
+    mercato: [{ testo: 'Il caffè costa 1,20 euro come dai vicini.', fonte: 'https://x.it' }],
+    clienti: [{ testo: 'Scrivete a mario@example.it per prenotare il tavolo.', fonte: 'https://x.it' }],
+    opportunita: [], rischi: [], prime_mosse: [{ testo: 'Mettere gli orari giusti sulla scheda Google del bar.', fonte: 'https://maps.google.com/x' }],
+  }) }] };
+  const [{ json }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, { input: [{ json: risposta }], nodi: { "Prepara l'analisi del business": [{ json: prima }] } });
+  assert.equal(json.richiesta, undefined);
+  assert.equal(json.scheda.analisi.tipo_di_locale, 'bar');
+  assert.deepEqual(json.scheda.analisi.business.situazione, [{ testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it/chi-siamo' }]);
+  assert.deepEqual(json.scheda.analisi.business.mercato, []);
+  assert.deepEqual(json.scheda.analisi.business.clienti, []);
+  assert.equal(json.scheda.analisi.business.prime_mosse.length, 1);
+  assert.equal(json.analisi_business, 'fatta');
+  const [{ json: senza }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, { input: [{ json: { error: { message: 'AD: tempo scaduto' } } }], nodi: { "Prepara l'analisi del business": [{ json: prima }] } });
+  assert.equal(senza.scheda.analisi.business, undefined);
+  assert.match(senza.analisi_business, /non fatta: AD: tempo scaduto/);
+});
+
+test("la scheda al sito porta l'analisi del business che arriva dal passo prima", async () => {
+  const business = { situazione: [{ testo: 'Bar storico in centro.', fonte: 'https://barroma.it' }], mercato: [], clienti: [], opportunita: [], rischi: [], prime_mosse: [] };
+  const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: { scheda: { analisi: { business } } } }], nodi: NODI_SCHEDA('vero') });
+  assert.deepEqual(json.corpo.analisi.business, business);
+  const [{ json: senza }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA('vero') });
+  assert.equal(senza.corpo.analisi.business, undefined);
+});
+
+test("un'attività del modulo 12 trova la sua riga Clienti: non si riscrive e l'avviso dice che è normale; il sito del locale arriva", async () => {
+  const proposta = { 'Controlla la proposta': [{ json: { doppioni: ['Bar Roma (riga 12)'] } }] };
+  const [{ json: dal12 }] = await eseguiCodice(CODICE_PAGINA_4, { nodi: { ...proposta, 'Modulo nuovo cliente': [{ json: { dal_modulo_12: true } }] } });
+  assert.equal(dal12.decisione, 'Annulla');
+  assert.equal(dal12.dal_modulo_12, true);
+  assert.match(dal12.motivo_auto, /modulo 12 poco fa/);
+  const [{ json: altro }] = await eseguiCodice(CODICE_PAGINA_4, { nodi: { ...proposta, 'Modulo nuovo cliente': [{ json: {} }] } });
+  assert.match(altro.motivo_auto, /possibile doppione/);
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
+  assert.match(w.nodes.find((n) => n.name === 'Fine: annullato').parameters.text, /Normale: analisi del business e bozze partono lo stesso/);
+  assert.throws(() => trasforma(modulo12Mini(), { credenziale, sito: 'https://mycity.example' }), /serve anche --bozze/);
+});
+
+test('dal sito arrivano il sito del locale (solo https) e se l attività l ha iscritta il modulo 12', async () => {
+  const [{ json }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'https://barroma.it' }, { provenienza: 'modulo-12' }), statico: {} });
+  assert.equal(json.sito, 'https://barroma.it');
+  assert.equal(json.dal_modulo_12, true);
+  const [{ json: altro }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'http://x.it', id: 'c0b240c0-2a86-4218-9d0f-5154f08ff930' }), statico: {} });
+  assert.equal(altro.sito, '');
+  assert.equal(altro.dal_modulo_12, false);
 });
