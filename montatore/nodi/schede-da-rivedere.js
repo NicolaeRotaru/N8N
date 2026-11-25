@@ -23,5 +23,7 @@ return (E.schede || []).map((x, i) => ({ json: {
     controllo: siNo(J.USA_CONTROLLO, true),
     di: P.contenuti.length,
     contesto,
+    // le idee del 03 di questo mese: alla prima approvazione diventano «sostituito»
+    idee_03: $('Leggi cosa c\'è').first().json.idee_03 || [],
   },
 } }));

@@ -23,7 +23,8 @@
 - **Le quantità di ogni cliente vengono dal suo preventivo.** Nel foglio Clienti ci sono tre colonne: `reel_mese`, `post_mese`, `storie_mese`. Il guardiano e il modulo, se lasciato vuoto, le usano da soli; senza le colonne valgono 10 reel, 8 post e 16 storie.
 - **Il workflow 03 resta per la lista delle riprese.** Il piano e le righe del Calendario li fa il 16, dal girato vero.
   - Le idee del 03 per quel cliente e quel mese (righe «PI-…» in stato «idea») entrano nel piano del 16 come traccia.
-  - A piano pronto, in modalità attivo, diventano «sostituito», così nel Calendario non restano due piani dello stesso mese.
+  - Diventano «sostituito» (solo in modalità attivo) quando il piano del 16 entra davvero nel Calendario: alla prima ✅ Approva su Telegram, oppure, senza revisione, a fine giro se tutti i contenuti sono montati e scritti. Se il montaggio o il foglio falliscono restano «idea». Così nel Calendario non restano due piani dello stesso mese.
+  - Il mese di un'idea è quello della sua data nel foglio (se il team l'ha spostata, conta la data nuova).
 - **Le clip a 50-120 fotogrammi** senza voce si rallentano da sole. Il girato in log si corregge con la LUT della camera (campo `LUT` del Config, dopo averla caricata nell'officina).
 
 ## In parole semplici

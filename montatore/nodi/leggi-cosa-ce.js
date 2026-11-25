@@ -22,13 +22,19 @@ const arricchito = testo(cat.testo).split('\n').map((r) => {
 const mese = J.mese;
 const oggi = partiRoma();
 // Le idee del workflow 03 (piano pensato prima del servizio, righe «PI-…» in stato «idea» nel Calendario) per questo
-// cliente e questo mese: entrano nel piano come traccia. A fine giro (in attivo, con almeno un contenuto montato) le segna «sostituito».
+// cliente e questo mese: entrano nel piano come traccia. Quando una riga del 16 entra davvero nel Calendario, le segna «sostituito».
 const cal = $('Leggi il Calendario').isExecuted ? $('Leggi il Calendario').first().json : {};
 const idee = (cal && Array.isArray(cal.values) ? righeFoglio(cal) : [])
-  // il mese si legge dall'id (PI-<cliente>-AAAAMMGG-hhmm): la cella data_ora può essere formattata dal foglio («04/12/2026»)
+  // il mese dalla cella data_ora, scritta dal 03 («2026-12-04 18:30») o formattata dal foglio («04/12/2026 18:30»): se
+  // l'idea è stata spostata a mano, conta la data nuova. Solo se la cella non si legge, la data di quando il 03 l'ha
+  // creata, scritta nell'id (PI-<cliente>-AAAAMMGG-hhmm).
   .filter((r) => {
-    const m = testo(r.id).match(/-(\d{4})(\d{2})\d{2}-\d{4}$/);
-    const meseRiga = m ? m[1] + '-' + m[2] : testo(r.data_ora).slice(0, 7);
+    const d = testo(r.data_ora).trim();
+    const iso = d.match(/^(\d{4})-(\d{1,2})-\d{1,2}\b/);
+    const it = d.match(/^\d{1,2}\/(\d{1,2})\/(\d{4})\b/);
+    const id = testo(r.id).match(/-(\d{4})(\d{2})\d{2}-\d{4}$/);
+    const due = (n) => String(Number(n)).padStart(2, '0');
+    const meseRiga = iso ? iso[1] + '-' + due(iso[2]) : it ? it[2] + '-' + due(it[1]) : id ? id[1] + '-' + id[2] : '';
     return testo(r.id).startsWith('PI-') && norm(r.stato) === 'idea' && testo(r.cliente) === testo(J.cliente.cliente) && meseRiga === mese.chiave;
   })
   .slice(0, 80);

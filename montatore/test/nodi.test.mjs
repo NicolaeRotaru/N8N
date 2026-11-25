@@ -130,6 +130,18 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.match(pacchetto.messaggio, /12 reel, 6 post e caroselli, 20 storie \(dal pacchetto del cliente\)/);
   assert.deepEqual(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '3', post: '', storie: '' }, { reel: 12, post: 6, storie: null }), input: [files] })[0].json.lavoro.richiesta, { reel: 3, post: 6, storie: 16 });
   assert.deepEqual(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '', post: '', storie: '' }, undefined), input: [files] })[0].json.lavoro.richiesta, { reel: 10, post: 8, storie: 16 });
+  // nel modulo vale solo un intero da 0 a 999: «0» = nessuno; il resto si ignora (pacchetto) e il messaggio lo dice
+  const PACC = { reel: 12, post: 6, storie: 20 };
+  const zero = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: ' 5 ', post: '0', storie: '' }, PACC), input: [files] })[0].json;
+  assert.deepEqual(zero.lavoro.richiesta, { reel: 5, post: 0, storie: 20 });
+  assert.doesNotMatch(zero.messaggio, /non è un numero/);
+  for (const male of ['dieci', '-3', '7.5', '1.000', 'nessuna']) {
+    const r = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '', post: '', storie: male }, PACC), input: [files] })[0].json;
+    assert.equal(r.lavoro.richiesta.storie, 20, male);
+    assert.match(r.messaggio, new RegExp('«' + male.replace('.', '\\.') + '» \\(storie\\) non è un numero: ho usato il pacchetto'), male);
+  }
+  const senzaPacc = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: 'tanti', post: '', storie: '' }, undefined), input: [files] })[0].json;
+  assert.deepEqual([senzaPacc.lavoro.richiesta.reel, /ho usato le quantità di serie/.test(senzaPacc.messaggio)], [10, true]);
   // il mese vuoto: quello in corso fino al giorno 10 compreso (ora di Roma), poi il successivo — con un orologio finto
   const meseAlle = (iso, cfg = {}) => {
     const Vero = globalThis.Date;
@@ -140,6 +152,8 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.equal(meseAlle('2026-12-10T23:10:00Z'), '2027-01', '11 dicembre alle 00:10 di Roma (in UTC è ancora il 10): gennaio');
   assert.equal(meseAlle('2026-12-31T22:59:00Z'), '2027-01', 'fine anno: gennaio dell\'anno dopo');
   assert.equal(meseAlle('2027-01-03T10:00:00Z'), '2027-01', 'il 3 gennaio: gennaio');
+  assert.equal(meseAlle('2027-08-10T21:30:00Z'), '2027-08', 'ora legale: 10 agosto alle 23:30 di Roma');
+  assert.equal(meseAlle('2027-08-10T22:30:00Z'), '2027-09', 'ora legale: 11 agosto alle 00:30 di Roma (in UTC è ancora il 10)');
   assert.equal(meseAlle('2026-11-25T10:00:00Z', { GIORNO_LIMITE_MESE: 31 }), '2026-11');
   // lo stesso servizio non parte due volte: il segno è la cartella «Pronti (montatore)» dentro il servizio (su Drive,
   // uguale per tutte le esecuzioni e senza scadenza). Il modulo la fa creare subito; se c'è già si ferma; «rifai» riparte.
@@ -199,9 +213,19 @@ test('Leggi cosa c\'è: descrizioni nel catalogo, domanda del piano con mese, fe
     ['MO-el-tropico-20261205-1830-abcd1', 'el-tropico', 'reel', '2026-12-05 18:30', 'montatore', 'idea']] };
   const conIdee = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL }, input: [risposta({ scene: [] })] })[0].json;
   assert.deepEqual(conIdee.idee_03, ['PI-el-tropico-20261204-1830']);
-  // la cella della data formattata dal foglio («04/12/2026 18:30»): il mese si legge dall'id
+  // la cella della data formattata dal foglio («04/12/2026 18:30») si legge lo stesso
   const CAL2 = { values: [CAL.values[0], ['PI-el-tropico-20261204-1830', 'el-tropico', 'reel', '04/12/2026 18:30', 'Idea: mojito', 'Idea'], ['PI-el-tropico-2-20261204-1830', 'el-tropico-2', 'reel', '04/12/2026 18:30', 'Idea: altro locale', 'idea']] };
   assert.deepEqual(esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL2 }, input: [risposta({ scene: [] })] })[0].json.idee_03, ['PI-el-tropico-20261204-1830'], 'data formattata, «Idea» maiuscolo, cliente dal nome simile escluso');
+  // un'idea spostata a mano in un altro mese segue la data nuova; la data illeggibile lascia decidere l'id
+  const CAL3 = { values: [CAL.values[0],
+    ['PI-el-tropico-20261228-1830', 'el-tropico', 'reel', '2027-01-03 18:30', 'spostata a gennaio', 'idea'],
+    ['PI-el-tropico-20270105-1830', 'el-tropico', 'reel', '30/12/2026 18:30', 'spostata a dicembre', 'idea'],
+    ['PI-el-tropico-20261215-1830', 'el-tropico', 'reel', '46371,77', 'data come numero', 'idea'],
+    ['PI-el-tropico-20270120-1830', 'el-tropico', 'reel', '', 'senza data', 'idea'],
+    ['PI-el-tropico-20261201-0900', 'el-tropico', 'reel', '3/1/2027 9:00', 'giorno e mese a una cifra', 'idea']] };
+  const idee = (mese) => esegui('leggi-cosa-ce.js', { nodi: { Config: { ...GIRO, mese }, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL3 }, input: [risposta({ scene: [] })] })[0].json.idee_03;
+  assert.deepEqual(idee({ ...GIRO.mese }), ['PI-el-tropico-20270105-1830', 'PI-el-tropico-20261215-1830']);
+  assert.deepEqual(idee({ chiave: '2027-01', anno: 2027, mese: 1, nome: 'gennaio 2027' }), ['PI-el-tropico-20261228-1830', 'PI-el-tropico-20270120-1830', 'PI-el-tropico-20261201-0900']);
   assert.match(conIdee.testo_utente, /<idee_del_piano>\n- 2026-12-04 18:30 · reel · Idea: il mojito al bancone/);
   const t = r.testo_utente;
   assert.match(t, /V01\.1 {2}0,0–4,0 s \(4,0 s\) · fermo · buona · vede: «mani che preparano un mojito» · drink · valore 5\/5 · aggancio/);
@@ -270,6 +294,10 @@ test('Esito dei montaggi: righe del Calendario solo in attivo, stati giusti, rie
   assert.match(att.messaggi[0], /con intoppi/);
   assert.match(att.messaggi[0], /❌ lun 7\/12 ore 12:00 · Quarto: sub-workflow fallito/);
   assert.match(att.messaggi[0], /https:\/\/drive\.google\.com\/drive\/folders\/idPronti/);
+  // «completo» (tutti montati, almeno uno): solo allora le idee del 03 si possono segnare a fine giro
+  assert.equal(att.completo, false, '3 riusciti e 1 fallito');
+  assert.equal(esegui('esito-dei-montaggi.js', { nodi: nodi('attivo'), input: esiti.slice(0, 3) })[0].json.completo, true);
+  assert.equal(esegui('esito-dei-montaggi.js', { nodi: nodi('attivo'), input: esiti.slice(3) })[0].json.completo, false, 'solo falliti');
   const prova = esegui('esito-dei-montaggi.js', { nodi: nodi('prova'), input: esiti.slice(0, 3) })[0].json;
   assert.deepEqual([prova.scrivi, prova.righe.length, prova.chiudi], [false, 0, true]);
   assert.match(prova.messaggi[0], /Modalità prova/);
@@ -308,6 +336,29 @@ test('File da caricare ed Esito del contenuto: nomi leggibili, link Drive, uploa
   assert.match(ko.motivo, /slide|Tacos al pastor 2\.jpg.*quota/);
   const vid = esegui('file-da-caricare.js', { nodi: { Config: { ...J, contenuto: CONT[0] }, 'Esito del montaggio': { ok: true, file: [{ tipo: 'video', percorso: 'a/reel.mp4' }, { tipo: 'copertina', percorso: 'a/copertina.jpg' }] } } }).map((x) => x.json.nome_file);
   assert.deepEqual(vid, ['2026-12-04 1830 · reel · Mojito.mp4', '2026-12-04 1830 · reel · Mojito (copertina).jpg']);
+});
+
+test('Righe da sostituire: solo le idee ancora «idea» nel foglio riletto, con la data di Roma', () => {
+  const CAL = { values: [['id', 'cliente', 'stato', 'note'],
+    ['PI-a-20261204-1830', 'el-tropico', 'idea', ''],
+    ['PI-b-20261205-1830', 'el-tropico', 'Idea', ''],
+    ['PI-c-20261206-1830', 'el-tropico', 'sostituito', 'già fatto'],
+    ['PI-d-20261207-1830', 'el-tropico', 'approvato', 'il team l\'ha usata']] };
+  const ids = ['PI-a-20261204-1830', 'PI-b-20261205-1830', 'PI-c-20261206-1830', 'PI-d-20261207-1830', 'PI-e-sparita'];
+  const alle = (iso, nodi) => {
+    const Vero = globalThis.Date;
+    globalThis.Date = class extends Vero { constructor(...a) { super(...(a.length ? a : [iso])); } static now() { return new Vero(iso).getTime(); } };
+    try { return esegui('righe-da-sostituire.js', { nodi, input: [CAL] }).map((x) => x.json); } finally { globalThis.Date = Vero; }
+  };
+  // corsia «rivedi»: le idee arrivano con la scheda
+  const r = alle('2026-12-31T23:30:00Z', { Config: { MODALITA: 'attivo', giro: { idee_03: ids } } });
+  assert.deepEqual(r.map((x) => [x.id, x.stato]), [['PI-a-20261204-1830', 'sostituito'], ['PI-b-20261205-1830', 'sostituito']]);
+  assert.match(r[0].note, /sostituita dal piano del montatore \(16\) il 2027-01-01$/, 'la data è quella di Roma, non UTC');
+  // fine giro: le idee le ha lette «Leggi cosa c'è»
+  const g = alle('2026-11-25T10:00:00Z', { Config: { MODALITA: 'attivo' }, "Leggi cosa c'è": { idee_03: ['PI-a-20261204-1830', 'PI-c-20261206-1830'] } });
+  assert.deepEqual(g.map((x) => x.id), ['PI-a-20261204-1830']);
+  // il foglio non si è riletto (errore): non si segna niente
+  assert.deepEqual(esegui('righe-da-sostituire.js', { nodi: { Config: { giro: { idee_03: ids } } }, input: [{ error: { message: '429' } }] }), []);
 });
 
 test('Leggi il controllo: un punto segnato da solo non boccia; voto 1-2 sì, e il motivo dice cosa non va', () => {
@@ -404,13 +455,29 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
   // i campi quantità del modulo sono di testo: un campo «number» vuoto n8n lo manda come 0 (piano da zero contenuti)
   const campi = NODO('Modulo montatore').parameters.formFields.values;
   for (const k of ['reel', 'post', 'storie']) assert.equal(campi.find((c) => c.fieldName === k).fieldType, 'text', k);
-  // le idee del 03: il Calendario si legge all'inizio del giro; a piano pronto, in attivo, le idee diventano «sostituito»
+  // le idee del 03: il Calendario si legge all'inizio del giro; diventano «sostituito» solo quando una riga del 16 entra
+  // davvero nel Calendario: a fine giro senza revisione (dopo la scrittura) o alla prima Approva (corsia «rivedi»)
   assert.deepEqual(workflow.connections['Telegram: si parte'].main[0].map((x) => x.node), ['Leggi il Calendario']);
-  assert.ok(workflow.connections['Esito dei montaggi'].main[0].some((x) => x.node === 'Idee da sostituire?'), 'si segnano a fine giro');
-  // solo in attivo, solo con almeno un contenuto montato, solo se ci sono idee (D6)
+  const versoIdee = Object.entries(workflow.connections).filter(([, o]) => o.main.some((u) => (u || []).some((x) => x.node.startsWith('Idee da sostituire?')))).map(([da]) => da).sort();
+  assert.deepEqual(versoIdee, ['Scrivi la riga approvata', 'Scrivi nel Calendario']);
+  assert.deepEqual(workflow.connections['Scrivi nel Calendario'].main[0].map((x) => x.node), ['Idee da sostituire?']);
+  for (const se of ['Idee da sostituire?', 'Idee da sostituire? (approvato)']) {
+    assert.deepEqual(workflow.connections[se].main.map((u) => (u || []).map((x) => x.node)).filter((u) => u.length), [['Rileggi il Calendario']], se + ': solo il ramo «vero» va avanti');
+    assert.deepEqual(workflow.connections[se].main[0].map((x) => x.node), ['Rileggi il Calendario'], se);
+  }
+  assert.deepEqual([workflow.connections['Rileggi il Calendario'].main[0].map((x) => x.node), workflow.connections['Righe da sostituire'].main[0].map((x) => x.node)], [['Righe da sostituire'], ['Segna le idee sostituite']]);
+  assert.equal(NODO('Rileggi il Calendario').executeOnce, true, 'una lettura sola anche con tante righe scritte');
+  assert.deepEqual(NODO('Rileggi il Calendario').parameters, NODO('Leggi il Calendario').parameters);
+  // fine giro: attivo, scrittura riuscita, tutti i contenuti montati, idee presenti
   const cond = NODO('Idee da sostituire?').parameters.conditions.conditions[0].leftValue;
-  const vale = (modalita, riusciti, idee) => valuta(cond, { config: { MODALITA: modalita }, json: { riusciti }, nodi: { "Leggi cosa c'è": { idee_03: idee } } });
-  assert.deepEqual([vale('attivo', 3, ['PI-x']), vale('prova', 3, ['PI-x']), vale('attivo', 0, ['PI-x']), vale('attivo', 3, [])], [true, false, false, false]);
+  const vale = (modalita, json, completo, idee) => valuta(cond, { config: { MODALITA: modalita }, json, nodi: { "Leggi cosa c'è": { idee_03: idee }, 'Esito dei montaggi': { completo } } });
+  assert.deepEqual([vale('attivo', { id: 'MO-1' }, true, ['PI-x']), vale('prova', { id: 'MO-1' }, true, ['PI-x']), vale('attivo', { error: { message: 'quota' } }, true, ['PI-x']), vale('attivo', { id: 'MO-1' }, false, ['PI-x']), vale('attivo', { id: 'MO-1' }, true, [])], [true, false, false, false, false]);
+  // prima approvazione: attivo, riga scritta, idee arrivate con la scheda
+  const condA = NODO('Idee da sostituire? (approvato)').parameters.conditions.conditions[0].leftValue;
+  const valeA = (modalita, json, giro) => valuta(condA, { config: { MODALITA: modalita, giro }, json });
+  assert.deepEqual([valeA('attivo', {}, { idee_03: ['PI-x'] }), valeA('prova', {}, { idee_03: ['PI-x'] }), valeA('attivo', { error: 'no' }, { idee_03: ['PI-x'] }), valeA('attivo', {}, { idee_03: [] }), valeA('attivo', {}, undefined)], [true, false, false, false, false]);
+  // il segnaposto del mese non promette un giorno fisso (il limite si cambia nel Config)
+  assert.match(NODO('Modulo montatore').parameters.formFields.values.find((c) => c.fieldName === 'mese').placeholder, /GIORNO_LIMITE_MESE/);
   const segna = NODO('Segna le idee sostituite').parameters;
   assert.deepEqual([segna.operation, segna.columns.matchingColumns, Object.keys(segna.columns.value)], ['update', ['id'], ['id', 'stato', 'note']]);
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo
@@ -567,6 +634,9 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
     const schede = esegui('schede-da-rivedere.js', { nodi: { ...nodiEsito({}), "Leggi cosa c'è": leggi }, input: [totTg] }).map((x) => x.json);
     assert.deepEqual(schede.map((x) => [x.lavoro, x.versione, x.esito.contenuto.tipo]), [['rivedi', 1, 'reel'], ['rivedi', 1, 'post'], ['rivedi', 1, 'storia_foto']]);
     assert.match(schede[0].giro.contesto, /<catalogo>/);
+    assert.ok(Array.isArray(schede[0].giro.idee_03));
+    const conIdee03 = esegui('schede-da-rivedere.js', { nodi: { ...nodiEsito({}), "Leggi cosa c'è": { ...leggi, idee_03: ['PI-el-tropico-20261204-1830'] } }, input: [totTg] }).map((x) => x.json);
+    assert.deepEqual(conIdee03.map((x) => x.giro.idee_03), [['PI-el-tropico-20261204-1830'], ['PI-el-tropico-20261204-1830'], ['PI-el-tropico-20261204-1830']]);
     const R = { ...CONFIG, MODALITA: 'attivo', OFFICINA_URL: s.base, ...schede[0] };
     const sch = esegui('prepara-la-scheda.js', { nodi: { Config: R } })[0].json;
     assert.equal(sch.anteprima, false, 'senza consenso niente anteprima');

@@ -41,9 +41,13 @@ const musica = audio.find((a) => /^musica\b/i.test(chiaveNome(a.nome))) || audio
 const mese = meseDelPiano(CFG.mese, intero(CFG.GIORNO_LIMITE_MESE, 10));
 // quanti contenuti: quelli scritti nel modulo, altrimenti il pacchetto del cliente (foglio Clienti), altrimenti il Config
 const Q = T.quantita || {};
-const quanti = (scritto, pacchetto, diSerie) => Math.max(0, testo(scritto) !== '' && Number.isFinite(parseInt(scritto, 10)) ? parseInt(scritto, 10) : Number.isFinite(pacchetto) && pacchetto !== null ? pacchetto : diSerie);
+// Nel modulo vale solo un numero intero da 0 a 999 («0» = nessuno); qualunque altra cosa («dieci», «-3», «7.5») si
+// ignora e lo dice il messaggio di partenza.
+const scrittoBene = (v) => /^\d{1,3}$/.test(testo(v).trim());
+const malScritti = ['reel', 'post', 'storie'].filter((k) => testo(CFG[k]).trim() !== '' && !scrittoBene(CFG[k]));
+const quanti = (scritto, pacchetto, diSerie) => (scrittoBene(scritto) ? Number(testo(scritto).trim()) : Number.isFinite(pacchetto) && pacchetto !== null ? Math.max(0, pacchetto) : diSerie);
 const richiesta = { reel: quanti(CFG.reel, Q.reel, intero(CFG.REEL, 10)), post: quanti(CFG.post, Q.post, intero(CFG.POST, 8)), storie: quanti(CFG.storie, Q.storie, intero(CFG.STORIE, 16)) };
-const dalPacchetto = ['reel', 'post', 'storie'].some((k) => testo(CFG[k]) === '' && Number.isFinite(Q[k]) && Q[k] !== null);
+const dalPacchetto = ['reel', 'post', 'storie'].some((k) => !scrittoBene(CFG[k]) && Number.isFinite(Q[k]) && Q[k] !== null);
 const nv = file.filter((x) => x.tipo === 'video').length;
 const nf = file.length - nv;
 const secondi = file.reduce((s, x) => s + (x.durata || 0), 0);
@@ -68,6 +72,7 @@ const durataTesto = secondi >= 60 ? Math.round(secondi / 60) + ' minuti di girat
 const messaggio = 'Ho trovato ' + nv + ' video' + (secondi ? ' (' + durataTesto + ')' : '') + ' e ' + nf + ' foto in «' + S.nome + '» di ' + T.nome_locale + '. '
   + 'Preparo il piano di ' + mese.nome + ': ' + richiesta.reel + ' reel, ' + richiesta.post + ' post e caroselli, ' + richiesta.storie + ' storie' + (dalPacchetto ? ' (dal pacchetto del cliente)' : '') + '. '
   + 'Ci vorrà circa ' + (minuti >= 90 ? Math.round(minuti / 60) + ' ore' : minuti + ' minuti') + ': ti scrivo su Telegram a ogni passo.'
+  + (malScritti.length ? ' Nel modulo ' + malScritti.map((k) => '«' + accorcia(testo(CFG[k]).trim(), 20) + '» (' + k + ')').join(', ') + ' non è un numero: ho usato ' + (dalPacchetto ? 'il pacchetto' : 'le quantità di serie') + '.' : '')
   + (scartati.length ? ' File saltati: ' + accorcia(scartati.join('; '), 400) + '.' : '')
   + (norm(CFG.MODALITA) === 'attivo' ? '' : ' Modalità PROVA: i contenuti finiscono su Drive, nel Calendario non scrivo niente.');
 // Lo stesso servizio non parte due volte. Il segno è la cartella «Pronti (montatore)» dentro il servizio: si crea
