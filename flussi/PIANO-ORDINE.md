@@ -37,18 +37,20 @@ Un numero per flusso. MyCity e i negozi sono righe della scheda Clienti, non cop
 | MyCity · 11 Foto prodotto | 14 · Foto prodotto | l'ultima copia: diventa riga, poi si archivia |
 | Prepara foglio (una tantum) | — | si archivia |
 | 20 · Iscrivi il cliente in MyCity | 20 · Iscrivi il cliente in MyCity | |
-| 16 · Nuovo cliente da MyCity | 21 · Nuovo cliente da MyCity | lo genera `16-nuovo-cliente-da-mycity/genera.mjs` |
-| 17 · Analisi del marketplace | 22 · Analisi del marketplace | |
-| 18 · Analisi di un'attività | 23 · Analisi di un'attività | |
-| 19 · Bozze dei 3 abbonamenti | 24 · Bozze dei 3 abbonamenti | |
-| 19 · Consegna la scheda scritta dall'AD | 25 · Consegna la scheda scritta dall'AD | |
+| 16 · Nuovo cliente da MyCity | 26 · Nuovo cliente da MyCity | lo genera `16-nuovo-cliente-da-mycity/genera.mjs` |
+| 17 · Analisi del marketplace | 27 · Analisi del marketplace | la sessione D ci aggiunge la riga di salute di n8n |
+| 18 · Analisi di un'attività | 28 · Analisi di un'attività | |
+| 19 · Consegna la scheda scritta dall'AD | 29 · Consegna la scheda scritta dall'AD | |
+| 19 · Bozze dei 3 abbonamenti | 15 · Bozze dei 3 abbonamenti | passa ai clienti: sono le proposte da mandare al cliente |
 | 07 Reel dalle clip | 30 · Reel dalle clip | |
 | 16 · Montatore | 31 · Montatore | |
 | Chiedi all'AD | 90 · Chiedi all'AD | |
 | 99 · Avvisi errori | 99 · Avvisi errori | |
 | PROVA · padre di Chiedi all'AD | — | si archivia |
 
-**I flussi nuovi 2x della sessione D** partono da 26. I pezzi riusabili prendono i numeri da 91 a 98.
+**I numeri già presi dalla sessione D** (25/11): 21 · Sentinella dei dati, 22 · Sito che risponde, 23 · Mani del
+Pannello, 24 · Radar del web, 25 · Numeri del mattino e della sera, 98 · Salute di n8n. I pezzi riusabili
+prendono 91-95; restano liberi 96 e 97.
 
 **Prima di rinominare.** Dentro n8n i flussi si chiamano per ID, quindi il nome si può cambiare. Fuori, i
 generatori cercano per nome esatto: `16-…/genera.mjs` (12, 16, 18), `17-…`, `18-…` e `19-…/costruisci.mjs`
@@ -83,7 +85,8 @@ differenze fra copie (oggi il logo si scarica in quattro modi diversi).
 5. I pezzi 91-95, uno per volta: prima il pezzo spento con le sue prove, poi un flusso che lo usa in prova,
    poi vero.
 6. La numerazione nuova, flusso per flusso, insieme ai generatori.
-7. Tutti gli errori al 99: oggi 18, 19 (tutti e due), 20 e Chiedi all'AD non mandano gli errori al 99.
+7. Tutti gli errori al 99: oggi 18, 19 · Bozze e Chiedi all'AD non mandano gli errori al 99 (17, 19 · Consegna e 20
+   fatti il 25/11).
 
 ## Da sapere
 
