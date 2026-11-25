@@ -455,7 +455,7 @@ nodo('Scrivi nel Calendario', 'n8n-nodes-base.googleSheets', 4.7, {
   options: { cellFormat: 'RAW', useAppend: true, handlingExtraData: 'ignoreIt' },
 }, [COL(41), G + 50], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
 se('Chiudo il progetto?', '$json.chiudi', [COL(39), G + 200]);
-// la lettura del foglio Calendario (valori come li vede il team), per «Leggi il Calendario» e «Rileggi il Calendario»
+// la lettura del foglio Calendario (valori come li vede il team), per «Leggi il Calendario»
 const LEGGI_CALENDARIO = {
   method: 'GET',
   url: "={{ \"https://sheets.googleapis.com/v4/spreadsheets/\" + encodeURIComponent($('Config').first().json.SHEET_ID) + '/values/' + encodeURIComponent(\"Calendario!A:Z\") }}",
@@ -466,25 +466,8 @@ const LEGGI_CALENDARIO = {
   queryParameters: { parameters: [{ name: 'valueRenderOption', value: 'FORMATTED_VALUE' }, { name: 'majorDimension', value: 'ROWS' }] },
   options: { timeout: 30000, response: { response: { responseFormat: 'json' } } },
 };
-// le idee del 03 per questo mese diventano «sostituito» (il piano ora è quello del 16) solo quando una riga del 16 è
-// entrata davvero nel Calendario: qui, a fine giro senza revisione, se tutti i contenuti sono montati e la scrittura è
-// riuscita; nella corsia «rivedi», alla prima ✅ Approva. Se il montaggio o il foglio falliscono, le idee restano.
-se('Idee da sostituire?', "String($('Config').first().json.MODALITA || '').toLowerCase() === 'attivo' && !$json.error && $('Esito dei montaggi').first().json.completo === true && ($('Leggi cosa c\\'è').first().json.idee_03 || []).length > 0", [COL(42), G + 500]);
-// una lettura sola anche se arrivano più righe scritte
-nodo('Rileggi il Calendario', 'n8n-nodes-base.httpRequest', 4.5, LEGGI_CALENDARIO, [COL(43), G + 500], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput', executeOnce: true });
-codice('Righe da sostituire', 'righe-da-sostituire.js', [COL(44), G + 500]);
-const COLONNA = (id, match = false) => ({ id, displayName: id, required: false, defaultMatch: match, display: true, type: 'string', canBeUsedToMatch: true, removed: false });
-nodo('Segna le idee sostituite', 'n8n-nodes-base.googleSheets', 4.7, {
-  authentication: 'oAuth2',
-  resource: 'sheet',
-  operation: 'update',
-  documentId: { __rl: true, value: "={{ $('Config').first().json.SHEET_ID }}", mode: 'id' },
-  sheetName: { __rl: true, value: 'Calendario', mode: 'name' },
-  columns: { mappingMode: 'defineBelow', value: { id: '={{ $json.id }}', stato: '={{ $json.stato }}', note: '={{ $json.note }}' }, matchingColumns: ['id'], schema: [COLONNA('id', true), COLONNA('stato'), COLONNA('note')], attemptToConvertTypes: false, convertFieldsToString: false },
-  options: {},
-}, [COL(45), G + 500], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
-collega('Idee da sostituire?', 'Rileggi il Calendario', 0);
-catena('Rileggi il Calendario', 'Righe da sostituire', 'Segna le idee sostituite');
+// Le idee del 03 per questo mese entrano nel piano come traccia e restano com'erano nel foglio: il 16 non scrive mai
+// sulle righe del 03 (Nicola, 25/11: strada A, dopo tre collaudi bocciati sul segno «sostituito»).
 se('Ci sono schede?', 'Array.isArray($json.schede) && $json.schede.length > 0', [COL(39), G + 350]);
 codice('Schede da rivedere', 'schede-da-rivedere.js', [COL(40), G + 350]);
 seStesso('Manda le schede', [COL(41), G + 350], false, true);
@@ -526,7 +509,7 @@ collega('Esito dei montaggi', 'Chiudo il progetto?');
 collega('Esito dei montaggi', 'Ci sono schede?');
 catena('Messaggi finali', 'Telegram: riepilogo');
 collega('Scrivo nel Calendario?', 'Righe del Calendario', 0);
-catena('Righe del Calendario', 'Scrivi nel Calendario', 'Idee da sostituire?');
+catena('Righe del Calendario', 'Scrivi nel Calendario');
 collega('Chiudo il progetto?', 'Officina: chiudi il progetto', 0);
 catena('Messaggio di stop', 'Telegram: giro fermo');
 collega('Ci sono schede?', 'Schede da rivedere', 0);
@@ -690,7 +673,6 @@ nodo('Scrivi la riga approvata', 'n8n-nodes-base.googleSheets', 4.7, {
   columns: { mappingMode: 'autoMapInputData', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: false },
   options: { cellFormat: 'RAW', useAppend: true, handlingExtraData: 'ignoreIt' },
 }, [COL(14), V - 280], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
-se('Idee da sostituire? (approvato)', "String($('Config').first().json.MODALITA || '').toLowerCase() === 'attivo' && !$json.error && ((($('Config').first().json.giro || {}).idee_03) || []).length > 0", [COL(15), V - 420]);
 telegramDa('Telegram: approvato', "$('Riga approvata').first().json.messaggio + ($('Scrivi la riga approvata').isExecuted && $('Scrivi la riga approvata').first().json.error ? '\\n⚠️ Ma il Calendario non ha accettato la riga: scrivetela a mano.' : '')", [COL(15), V - 200]);
 // Correggi
 nodo('Chiedi: cosa cambio?', 'n8n-nodes-base.telegram', 1.2, {
@@ -742,8 +724,6 @@ catena('Riga approvata', 'Scrivo la riga?');
 collega('Scrivo la riga?', 'Riga per il foglio', 0);
 collega('Scrivo la riga?', 'Telegram: approvato', 1);
 catena('Riga per il foglio', 'Scrivi la riga approvata', 'Telegram: approvato');
-collega('Scrivi la riga approvata', 'Idee da sostituire? (approvato)');
-collega('Idee da sostituire? (approvato)', 'Rileggi il Calendario', 0);
 catena('Chiedi: cosa cambio?', 'Domanda di ritocco', 'Ritocco possibile?');
 collega('Ritocco possibile?', 'Claude: ritocca la regia', 0);
 collega('Ritocco possibile?', 'Telegram: niente ritocco', 1);

@@ -299,10 +299,7 @@ test('Esito dei montaggi: righe del Calendario solo in attivo, stati giusti, rie
   assert.match(att.messaggi[0], /con intoppi/);
   assert.match(att.messaggi[0], /❌ lun 7\/12 ore 12:00 · Quarto: sub-workflow fallito/);
   assert.match(att.messaggi[0], /https:\/\/drive\.google\.com\/drive\/folders\/idPronti/);
-  // «completo» (tutti montati, almeno uno): solo allora le idee del 03 si possono segnare a fine giro
-  assert.equal(att.completo, false, '3 riusciti e 1 fallito');
-  assert.equal(esegui('esito-dei-montaggi.js', { nodi: nodi('attivo'), input: esiti.slice(0, 3) })[0].json.completo, true);
-  assert.equal(esegui('esito-dei-montaggi.js', { nodi: nodi('attivo'), input: esiti.slice(3) })[0].json.completo, false, 'solo falliti');
+  assert.equal(att.completo, undefined, 'niente più segno sulle idee del 03 (strada A)');
   const prova = esegui('esito-dei-montaggi.js', { nodi: nodi('prova'), input: esiti.slice(0, 3) })[0].json;
   assert.deepEqual([prova.scrivi, prova.righe.length, prova.chiudi], [false, 0, true]);
   assert.match(prova.messaggi[0], /Modalità prova/);
@@ -341,29 +338,6 @@ test('File da caricare ed Esito del contenuto: nomi leggibili, link Drive, uploa
   assert.match(ko.motivo, /slide|Tacos al pastor 2\.jpg.*quota/);
   const vid = esegui('file-da-caricare.js', { nodi: { Config: { ...J, contenuto: CONT[0] }, 'Esito del montaggio': { ok: true, file: [{ tipo: 'video', percorso: 'a/reel.mp4' }, { tipo: 'copertina', percorso: 'a/copertina.jpg' }] } } }).map((x) => x.json.nome_file);
   assert.deepEqual(vid, ['2026-12-04 1830 · reel · Mojito.mp4', '2026-12-04 1830 · reel · Mojito (copertina).jpg']);
-});
-
-test('Righe da sostituire: solo le idee ancora «idea» nel foglio riletto, con la data di Roma', () => {
-  const CAL = { values: [['id', 'cliente', 'stato', 'note'],
-    ['PI-a-20261204-1830', 'el-tropico', 'idea', ''],
-    ['PI-b-20261205-1830', 'el-tropico', 'Idea', ''],
-    ['PI-c-20261206-1830', 'el-tropico', 'sostituito', 'già fatto'],
-    ['PI-d-20261207-1830', 'el-tropico', 'approvato', 'il team l\'ha usata']] };
-  const ids = ['PI-a-20261204-1830', 'PI-b-20261205-1830', 'PI-c-20261206-1830', 'PI-d-20261207-1830', 'PI-e-sparita'];
-  const alle = (iso, nodi) => {
-    const Vero = globalThis.Date;
-    globalThis.Date = class extends Vero { constructor(...a) { super(...(a.length ? a : [iso])); } static now() { return new Vero(iso).getTime(); } };
-    try { return esegui('righe-da-sostituire.js', { nodi, input: [CAL] }).map((x) => x.json); } finally { globalThis.Date = Vero; }
-  };
-  // corsia «rivedi»: le idee arrivano con la scheda
-  const r = alle('2026-12-31T23:30:00Z', { Config: { MODALITA: 'attivo', giro: { idee_03: ids } } });
-  assert.deepEqual(r.map((x) => [x.id, x.stato]), [['PI-a-20261204-1830', 'sostituito'], ['PI-b-20261205-1830', 'sostituito']]);
-  assert.match(r[0].note, /sostituita dal piano del montatore \(16\) il 2027-01-01$/, 'la data è quella di Roma, non UTC');
-  // fine giro: le idee le ha lette «Leggi cosa c'è»
-  const g = alle('2026-11-25T10:00:00Z', { Config: { MODALITA: 'attivo' }, "Leggi cosa c'è": { idee_03: ['PI-a-20261204-1830', 'PI-c-20261206-1830'] } });
-  assert.deepEqual(g.map((x) => x.id), ['PI-a-20261204-1830']);
-  // il foglio non si è riletto (errore): non si segna niente
-  assert.deepEqual(esegui('righe-da-sostituire.js', { nodi: { Config: { giro: { idee_03: ids } } }, input: [{ error: { message: '429' } }] }), []);
 });
 
 test('Leggi il controllo: un punto segnato da solo non boccia; voto 1-2 sì, e il motivo dice cosa non va', () => {
@@ -463,28 +437,10 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
   // le idee del 03: il Calendario si legge all'inizio del giro; diventano «sostituito» solo quando una riga del 16 entra
   // davvero nel Calendario: a fine giro senza revisione (dopo la scrittura) o alla prima Approva (corsia «rivedi»)
   assert.deepEqual(workflow.connections['Telegram: si parte'].main[0].map((x) => x.node), ['Leggi il Calendario']);
-  const versoIdee = Object.entries(workflow.connections).filter(([, o]) => o.main.some((u) => (u || []).some((x) => x.node.startsWith('Idee da sostituire?')))).map(([da]) => da).sort();
-  assert.deepEqual(versoIdee, ['Scrivi la riga approvata', 'Scrivi nel Calendario']);
-  assert.deepEqual(workflow.connections['Scrivi nel Calendario'].main[0].map((x) => x.node), ['Idee da sostituire?']);
-  for (const se of ['Idee da sostituire?', 'Idee da sostituire? (approvato)']) {
-    assert.deepEqual(workflow.connections[se].main.map((u) => (u || []).map((x) => x.node)).filter((u) => u.length), [['Rileggi il Calendario']], se + ': solo il ramo «vero» va avanti');
-    assert.deepEqual(workflow.connections[se].main[0].map((x) => x.node), ['Rileggi il Calendario'], se);
-  }
-  assert.deepEqual([workflow.connections['Rileggi il Calendario'].main[0].map((x) => x.node), workflow.connections['Righe da sostituire'].main[0].map((x) => x.node)], [['Righe da sostituire'], ['Segna le idee sostituite']]);
-  assert.equal(NODO('Rileggi il Calendario').executeOnce, true, 'una lettura sola anche con tante righe scritte');
-  assert.deepEqual(NODO('Rileggi il Calendario').parameters, NODO('Leggi il Calendario').parameters);
-  // fine giro: attivo, scrittura riuscita, tutti i contenuti montati, idee presenti
-  const cond = NODO('Idee da sostituire?').parameters.conditions.conditions[0].leftValue;
-  const vale = (modalita, json, completo, idee) => valuta(cond, { config: { MODALITA: modalita }, json, nodi: { "Leggi cosa c'è": { idee_03: idee }, 'Esito dei montaggi': { completo } } });
-  assert.deepEqual([vale('attivo', { id: 'MO-1' }, true, ['PI-x']), vale('prova', { id: 'MO-1' }, true, ['PI-x']), vale('attivo', { error: { message: 'quota' } }, true, ['PI-x']), vale('attivo', { id: 'MO-1' }, false, ['PI-x']), vale('attivo', { id: 'MO-1' }, true, [])], [true, false, false, false, false]);
-  // prima approvazione: attivo, riga scritta, idee arrivate con la scheda
-  const condA = NODO('Idee da sostituire? (approvato)').parameters.conditions.conditions[0].leftValue;
-  const valeA = (modalita, json, giro) => valuta(condA, { config: { MODALITA: modalita, giro }, json });
-  assert.deepEqual([valeA('attivo', {}, { idee_03: ['PI-x'] }), valeA('prova', {}, { idee_03: ['PI-x'] }), valeA('attivo', { error: 'no' }, { idee_03: ['PI-x'] }), valeA('attivo', {}, { idee_03: [] }), valeA('attivo', {}, undefined)], [true, false, false, false, false]);
-  // il segnaposto del mese non promette un giorno fisso (il limite si cambia nel Config)
-  assert.match(NODO('Modulo montatore').parameters.formFields.values.find((c) => c.fieldName === 'mese').placeholder, /GIORNO_LIMITE_MESE/);
-  const segna = NODO('Segna le idee sostituite').parameters;
-  assert.deepEqual([segna.operation, segna.columns.matchingColumns, Object.keys(segna.columns.value)], ['update', ['id'], ['id', 'stato', 'note']]);
+  // strada A (Nicola, 25/11): il 16 non scrive mai sulle righe del 03; legge solo il Calendario all'inizio del giro
+  for (const via of ['Idee da sostituire?', 'Idee da sostituire? (approvato)', 'Rileggi il Calendario', 'Righe da sostituire', 'Segna le idee sostituite']) assert.equal(workflow.nodes.find((n) => n.name === via), undefined, via);
+  const aggiornaFoglio = workflow.nodes.filter((n) => n.type === 'n8n-nodes-base.googleSheets' && ['update', 'appendOrUpdate', 'delete'].includes(n.parameters.operation)).map((n) => n.name);
+  assert.deepEqual(aggiornaFoglio, [], 'nessun nodo modifica righe che esistono già nel foglio');
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo
   const uscite = workflow.connections['Quale lavoro?'].main.map((u) => u.map((x) => x.node));
   assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: leggi Clienti'], ['Leggi Clienti'], ['Leggi Clienti']]);
@@ -639,9 +595,7 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
     const schede = esegui('schede-da-rivedere.js', { nodi: { ...nodiEsito({}), "Leggi cosa c'è": leggi }, input: [totTg] }).map((x) => x.json);
     assert.deepEqual(schede.map((x) => [x.lavoro, x.versione, x.esito.contenuto.tipo]), [['rivedi', 1, 'reel'], ['rivedi', 1, 'post'], ['rivedi', 1, 'storia_foto']]);
     assert.match(schede[0].giro.contesto, /<catalogo>/);
-    assert.ok(Array.isArray(schede[0].giro.idee_03));
-    const conIdee03 = esegui('schede-da-rivedere.js', { nodi: { ...nodiEsito({}), "Leggi cosa c'è": { ...leggi, idee_03: ['PI-el-tropico-20261204-1830'] } }, input: [totTg] }).map((x) => x.json);
-    assert.deepEqual(conIdee03.map((x) => x.giro.idee_03), [['PI-el-tropico-20261204-1830'], ['PI-el-tropico-20261204-1830'], ['PI-el-tropico-20261204-1830']]);
+    assert.equal(schede[0].giro.idee_03, undefined, 'le idee del 03 non viaggiano più con le schede');
     const R = { ...CONFIG, MODALITA: 'attivo', OFFICINA_URL: s.base, ...schede[0] };
     const sch = esegui('prepara-la-scheda.js', { nodi: { Config: R } })[0].json;
     assert.equal(sch.anteprima, false, 'senza consenso niente anteprima');

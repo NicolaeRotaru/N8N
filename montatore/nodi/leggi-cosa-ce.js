@@ -22,7 +22,7 @@ const arricchito = testo(cat.testo).split('\n').map((r) => {
 const mese = J.mese;
 const oggi = partiRoma();
 // Le idee del workflow 03 (piano pensato prima del servizio, righe «PI-…» in stato «idea» nel Calendario) per questo
-// cliente e questo mese: entrano nel piano come traccia. Quando una riga del 16 entra davvero nel Calendario, le segna «sostituito».
+// cliente e questo mese: entrano nel piano come traccia. Restano com'erano nel foglio: il 16 non le tocca.
 const cal = $('Leggi il Calendario').isExecuted ? $('Leggi il Calendario').first().json : {};
 const idee = (cal && Array.isArray(cal.values) ? righeFoglio(cal) : [])
   // il mese dalla cella data_ora, scritta dal 03 («2026-12-04 18:30») o formattata dal foglio («04/12/2026 18:30»): se
