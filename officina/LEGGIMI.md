@@ -19,6 +19,8 @@ Non inventa niente. Ritaglia, corregge luce e colore su tutta la foto, mette scr
 Non allarga mai una foto e non crea sfondi finti. Le scritte sono solo quelle che le passa n8n.
 
 ## Cosa cambia per te
+**Versione 1.5.0 (25/11/2026): la 1.4.0 qui sotto, più la porta Telegram della 1.2.0 (le due strade unite) e la prova dei filtri all'avvio (`filtri` in `/salute`).**
+
 **Versione 1.4.0 (24/11/2026, notte): la moodboard di Scatti di G.** Lo stile `sdg` adesso segue la moodboard. Il video è calmo: inquadrature da 2,5 a 6 secondi, mai sotto 1. Il nero è morbido, senza grana. I testi sono in Poppins avorio, con un filo d'oro sul cartello del nome. Esce a 25 fotogrammi al secondo.
 - Esempio: un reel da 20 secondi con 6 clip lunghe aveva 8-10 tagli nello stile veloce; adesso ne ha 4-6. Il sottotitolo è la frase intera in minuscolo, non la parola che salta.
 - Lo stile veloce di prima c'è ancora, si chiama `virale`.
@@ -57,7 +59,7 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.4.0", ffmpeg:true, whisper:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], ritardo_voce:…}, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.5.0", ffmpeg:true, whisper:true, telegram:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], ritardo_voce:…}, coda:0, memoria_mb:…}`.
 
 **`filtri`** è la prova che l'officina fa da sola all'avvio, in meno di un secondo, con l'FFmpeg di quel server:
 - controlla che ci siano **tutti** i filtri che usa (l'elenco è in `src/autoprova.js`; due prove lo confrontano con i filtri scritti nel codice e con le chiamate vere a FFmpeg durante i montaggi delle prove: se il codice ne usa uno nuovo, diventano rosse finché non lo si aggiunge);
@@ -452,6 +454,23 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 **Conservazione e spazio.** `PROGETTO_DURATA_ORE` di serie 336 (14 giorni). Sotto `MIN_DISCO_LIBERO_MB` (3000) liberi sul volume il materiale nuovo riceve 507 `disco_pieno`.
 
 **Errori nuovi:** 415 `lut_non_valida`, 422 `lut_mancante`, 507 `disco_pieno`, 400 `dati_non_validi` per i formati sbagliati.
+
+### Telegram: aprire l'argomento di un negozio (dalla 1.2.0)
+
+Nicola, 25/11/2026: ogni negozio ha il suo argomento nel gruppo Telegram «Attività». Per aprirne uno serve la
+chiamata `createForumTopic` con la chiave del bot nell'indirizzo, e la richiesta HTTP di n8n non sa usare la
+credenziale del bot (provato: Telegram risponde «Not Found»). Per questo lo fa l'officina.
+
+- **Variabile:** `TELEGRAM_BOT_TOKEN` = la chiave del bot (da @BotFather). Senza, la porta risponde 503
+  `telegram_non_configurato`. `/salute` con chiave dice `telegram: true|false`.
+- **POST `/telegram/argomento`**, JSON `{ "chat_id": "-100…", "nome": "Ora del Gusto" }`, con la chiave
+  dell'officina. Risponde `{ "message_thread_id": 42, "nome": "Ora del Gusto" }`.
+- Solo gruppi grandi (il numero comincia con `-100`): gli altri danno 400 `chat_non_valida`. Il nome si accorcia
+  a 128 caratteri; vuoto = 400 `nome_mancante`.
+- Se Telegram rifiuta (per esempio il bot non è amministratore) = 502 `telegram_rifiutato` col motivo di
+  Telegram; se non risponde = 502 `telegram_non_raggiungibile`. La chiave del bot non esce mai, né nelle
+  risposte né nei log (le prove lo controllano).
+- Chi la chiama: il flusso «97 · Scrivi nell'argomento dell'attività».
 
 ### Come chiamarla da n8n (nodo HTTP Request 4.5)
 - **Metodo** POST; **URL** `{{ $('Config').item.json.OFFICINA_URL }}/video/reel`.

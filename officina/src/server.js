@@ -39,6 +39,7 @@ async function discoLibero(dir) {
     return null;
   }
 }
+import { apriArgomento } from './telegram.js';
 
 const TIPI = { '.jpg': 'image/jpeg', '.png': 'image/png', '.mp4': 'video/mp4', '.srt': 'application/x-subrip; charset=utf-8' };
 
@@ -112,6 +113,7 @@ export async function creaServer(cfg = leggiConfig()) {
       ffmpeg: ffmpegOk,
       whisper: whisperDisponibile(cfg),
       filtri: await autoprova,
+      telegram: Boolean(cfg.telegramToken),
       coda: coda.lunghezza,
       memoria_mb: Math.round(process.memoryUsage().rss / 1048576),
     };
@@ -400,6 +402,9 @@ export async function creaServer(cfg = leggiConfig()) {
     return { lut: r.nome, punti: r.punti, elenco: await elencoLut(cfg) };
   });
   app.get('/lut', async () => ({ elenco: await elencoLut(cfg) }));
+
+  // Telegram: apre l'argomento di un gruppo (un'attività = un argomento). Lavoro leggero: niente coda.
+  app.post('/telegram/argomento', async (req) => apriArgomento(req.body, cfg));
 
   // Pulizia: all'avvio e poi a intervalli regolari.
   const fai = () => Promise.all([

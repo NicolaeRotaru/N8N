@@ -1,6 +1,6 @@
 {
   "name": "officina",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Officina dell'agenzia: lavora foto, grafiche e video per i workflow n8n (contratto API v1).",
   "type": "module",

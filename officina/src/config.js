@@ -59,5 +59,8 @@ export function leggiConfig(env = process.env) {
     urlBase: (env.URL_BASE || '').replace(/\/+$/, ''),
     timeoutProcessoMs: numero(env.TIMEOUT_PROCESSO_MIN, 20) * 60 * 1000,
     livelloLog: env.LOG_LEVEL || 'info',
+    // La chiave del bot Telegram, per aprire gli argomenti dei gruppi (25/11/2026). Vuota = porta spenta.
+    telegramToken: (env.TELEGRAM_BOT_TOKEN || '').trim(),
+    telegramApi: (env.TELEGRAM_API_URL || 'https://api.telegram.org').replace(/\/+$/, ''),
   };
 }
