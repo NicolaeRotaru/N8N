@@ -182,10 +182,10 @@ si torna indietro in un minuto.
    Il 16 · Montatore è della sessione «Montatore video autonomo AI»: lo snellisce e lo chiama 31 lei, sulla sua
    versione, quando ha finito il collegamento a «Chiedi all'AD» (in `nomi.mjs` c'è già `NOMI.montatore`).
 5. I pezzi 91-95, uno per volta: prima il pezzo spento con le sue prove, poi un flusso che lo usa in prova,
+   poi vero.
    **Fatti il 25/11, spenti:** 92 · Logo del cliente e 94 · Foto sulla tela (`pezzi/costruisci.mjs`). Il 92 è provato su
    n8n coi download simulati (ramo «nessun logo» e ramo Drive con errore); il download vero e il 94 non ancora.
    Il 93 (controllo del provino) aspetta la sessione B: il controllo passa da «Chiedi all'AD». Il 91 aspetta lo stesso.
-   poi vero.
 6. La numerazione nuova: **fatta il 25/11 per tutti i flussi vivi, tranne «16 · Montatore»** (diventerà
    31 · Montatore, che fa la sua sessione). I nomi che i programmi cercano stanno in `nomi.mjs`:
    `trovaFlusso` trova anche il nome di prima. Per rinominare un flusso con dati salvati dentro (staticData),
