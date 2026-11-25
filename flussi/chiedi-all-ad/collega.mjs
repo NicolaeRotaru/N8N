@@ -26,7 +26,7 @@ export const FLUSSI = {
   '01': { nome: '01 · Pubblica contenuti (Instagram + Facebook)', nodi: [
     { nodo: 'Controllo finale AI', cosa: 'controllo finale', forma: 'corpo' },
   ] },
-  '04': { nome: '04 · Scrivi i testi (AI)', nodi: [
+  '04': { nome: '04 · Scrivi i testi (AI)', altri: ['04 · Scrivi i testi'], nodi: [
     { nodo: 'Chiedi i testi a Claude', cosa: 'i testi', forma: 'completa' },
   ] },
   // Il 12 è della sessione «Ora del Gusto 2.0»: si collega solo col suo via, poi si rigenera il 16 (che lo copia).
@@ -41,7 +41,7 @@ export const FLUSSI = {
   // Le foto del 08 viaggiano solo dentro il messaggio (base64): all'AD non arrivano. Finché Nicola non apre
   // nella rete della routine gli indirizzi da cui l'AD può scaricarle, il lavoro non si manda (FOTO_NECESSARIE)
   // e il 08 segue la sua strada senza IA.
-  '08': { nome: '08 Post dalle foto', nodi: [
+  '08': { nome: '08 Post dalle foto', altri: ['08 · Post dalle foto'], nodi: [
     { nodo: 'Claude: scegli ordine e copertina', cosa: 'ordine e copertina', forma: 'corpo', fotoNecessarie: true },
     { nodo: 'Claude: controlla la foto', cosa: 'controllo della foto', forma: 'corpo', fotoNecessarie: true },
   ] },
@@ -136,7 +136,8 @@ async function principale(argv) {
   if (!quale) throw new Error(`Quale flusso? Uno di: ${Object.keys(FLUSSI).join(', ')}`);
   const api = await import('../n8n-api.mjs');
   const tutti = await api.elencoFlussi();
-  const trovato = tutti.find((w) => w.name === quale.nome);
+  // Il nome può essere cambiato (la sessione C rinumera i flussi): si cerca anche coi nomi nuovi.
+  const trovato = tutti.find((w) => [quale.nome, ...(quale.altri || [])].includes(w.name));
   if (!trovato) throw new Error(`Non trovo «${quale.nome}» su n8n.`);
   const chiedi = tutti.find((w) => w.name === NOME_CHIEDI);
   if (!chiedi) throw new Error(`Non trovo «${NOME_CHIEDI}» su n8n: prima node flussi/chiedi-all-ad/costruisci.mjs --manda`);
