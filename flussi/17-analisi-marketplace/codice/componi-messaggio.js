@@ -80,6 +80,15 @@ if (commento && commento.opportunita.length) {
   blocchi.push(`<b>Opportunità</b>\n${commento.opportunita.map((o) => `• ${esc(o.titolo)} — ${esc(o.perche)} (impatto ${esc(o.impatto)}, sforzo ${esc(o.sforzo)})`).join('\n')}`);
 }
 if (commento && commento.rischi.length) blocchi.push(`<b>Rischi</b>\n${commento.rischi.map((r) => `• ${esc(r)}`).join('\n')}`);
+// La salute di n8n (flusso 98), se il 17 l'ha chiesta e ha risposto. Il testo è già HTML di Telegram.
+// Il nodo c'è solo se il 98 esisteva quando il 17 è stato costruito: n8n lancia un errore se si cita
+// un nodo che non c'è, quindi la domanda sta dentro un try.
+let salute = null;
+try { salute = $('Chiedi la salute di n8n').isExecuted ? ($('Chiedi la salute di n8n').first().json || {}) : null; } catch { salute = null; }
+if (salute) {
+  if (typeof salute.testo === 'string' && salute.testo) blocchi.push(salute.testo);
+  else a.gap.push('salute di n8n: il flusso 98 non ha risposto');
+}
 const nonVerificato = [...a.gap];
 if (motivoSenza) nonVerificato.push(`commento: ${motivoSenza}, qui ci sono solo i numeri`);
 if (!a.giro_prima) nonVerificato.push('confronto col giro prima: questo è il primo giro automatico (o un giro a mano), non c\'è un prima');
@@ -91,7 +100,7 @@ blocchi.push(`<b>Cosa non ho verificato</b>\n${nonVerificato.map((g) => `• ${e
 // farebbe rifiutare a Telegram l'intero messaggio.
 const togliBlocco = (titolo) => { const i = blocchi.findIndex((b) => b.startsWith(`<b>${titolo}</b>`)); if (i >= 0) blocchi.splice(i, 1); };
 let messaggio = blocchi.join('\n\n');
-for (const titolo of ['Rischi', 'Opportunità']) {
+for (const titolo of ['Rischi', 'Opportunità', '⚙️ Salute di n8n']) {
   if (messaggio.length <= MAX) break;
   togliBlocco(titolo);
   messaggio = blocchi.join('\n\n');
