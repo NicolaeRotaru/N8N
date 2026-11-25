@@ -887,3 +887,39 @@ test("le pagine del sito si tagliano: il lavoro per l'AD resta sotto i 64 KB anc
   assert.ok(dati.pagine_del_sito.length >= 1);
   assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
 });
+
+// --- 25/11/2026, 23:05 (AD, terza prova vera su Ora del Gusto): l'analisi del business riceve TUTTE le pagine scaricate ----
+// La ricerca aveva trovato e scaricato una pagina di un portale (sluurpy.it), ma l'analisi del business restava vuota: l'AD
+// non poteva aprirla, e «Prepara l'analisi del business» passava solo le pagine del sito del locale.
+
+test("l'analisi del business riceve anche le altre pagine scaricate (portali, elenchi, giornali), dopo quelle del sito", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/piacenza/ora-del-gusto', testo: 'Ora del Gusto, Piacenza: bar caffetteria, 4,5 su 5.' },
+    { url: 'https://www.barroma.it/', testo: 'Bar Roma. Colazioni dal 1980.' },
+    { url: 'https://www.ilpiacenza.it/articolo', testo: 'Articolo di giornale sul bar.' },
+  ]));
+  const dati = datiDi(json);
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.barroma.it/']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/ora-del-gusto', 'https://www.ilpiacenza.it/articolo']);
+  assert.match(dati.altre_pagine[0].testo, /bar caffetteria/);
+  assert.match(json.richiesta.system, /altre_pagine/);
+  assert.match(json.richiesta.system, /omonim/);
+  // Senza sito del locale conosciuto, tutte le pagine scaricate vanno fra le altre.
+  const senzaSito = datiDi(await preparaConPagine(CORPUS([{ url: 'https://www.sluurpy.it/x', testo: 'Scheda del locale.' }]), { nome_locale: 'Ora del Gusto' }));
+  assert.deepEqual(senzaSito.pagine_del_sito, []);
+  assert.deepEqual(senzaSito.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
+});
+
+test("con tante pagine lunghe il sito del locale ha la precedenza, e il lavoro resta sotto i 64 KB", async () => {
+  const lunga = 'Qualità è perché più caffè '.repeat(2000);
+  const json = await preparaConPagine(CORPUS([
+    ...Array.from({ length: 8 }, (_, i) => ({ url: `https://portale${i}.it/scheda`, testo: lunga })),
+    ...Array.from({ length: 3 }, (_, i) => ({ url: `https://www.barroma.it/p${i}`, testo: lunga })),
+  ]));
+  const lavoro = JSON.stringify({ compito: json.richiesta.system, dati: { messaggio: json.richiesta.messages[0].content }, schema: json.richiesta.output_config.format.schema });
+  assert.ok(Buffer.byteLength(lavoro, 'utf8') < 60000, `il lavoro pesa ${Buffer.byteLength(lavoro, 'utf8')} byte`);
+  const dati = datiDi(json);
+  assert.equal(dati.pagine_del_sito.length, 3, 'le pagine del sito ci sono tutte');
+  assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
+  assert.ok(dati.altre_pagine.length >= 1);
+});
