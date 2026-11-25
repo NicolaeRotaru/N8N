@@ -53,6 +53,12 @@ const ANALIZZA = "Analizza l'attività (flusso 18)";
 const SCHEDA_SITO = 'Prepara la scheda per il sito';
 const MANDA_SITO = 'Manda la scheda al sito';
 export const PERCORSO_SCHEDA_SITO = '/api/agenzia/scheda-cliente';
+// Nodi che il 12 usa per iscrivere in MyCity un cliente nuovo: il 16 parte da chi su MyCity c'è già,
+// quindi non li prende mai (lo iscriverebbe due volte).
+export const SOLO_NEL_12 = ["Prepara l'iscrizione in MyCity", 'Iscrivi in MyCity'];
+// Nel 16 la ricerca con Claude resta sempre spenta: nessuna API di IA a pagamento (Nicola, 24/11).
+// Tornerà quando la ricerca la fa l'AD col piano Max («Chiedi all'AD»).
+export const RICERCA_CON_CLAUDE = 'RICERCA_CON_CLAUDE';
 // Va dentro un testo fra apici di un'espressione n8n: l'a capo si scrive \\n, mai un a capo vero.
 const DA_MYCITY = '🛒 <b>Da MyCity, in automatico</b>\\n';
 const FRASE_PAGINE = "Correggi nelle pagine del modulo che si aprono nel browser; nell'ultima pagina scegli Conferma o Annulla.";
@@ -246,6 +252,19 @@ export function trasforma(modulo12, opzioni = {}) {
   const voce = assegnazioni.find((a) => a.name === 'MODALITA');
   if (!voce) throw new Error('Nel Config del 12 non trovo MODALITA.');
   voce.value = modalita;
+  const ricerca = assegnazioni.find((a) => a.name === RICERCA_CON_CLAUDE);
+  if (!ricerca) throw new Error(`Nel Config del 12 non trovo ${RICERCA_CON_CLAUDE}: senza, il 16 chiamerebbe l'API di Claude a pagamento.`);
+  ricerca.value = 'no';
+
+  // Via i nodi che servono solo al 12, con i collegamenti che entrano ed escono.
+  const via = new Set(SOLO_NEL_12);
+  w.nodes = w.nodes.filter((n) => !via.has(n.name));
+  for (const nome of SOLO_NEL_12) delete w.connections[nome];
+  for (const uscite of Object.values(w.connections)) {
+    for (const [tipo, rami] of Object.entries(uscite)) {
+      uscite[tipo] = (rami || []).map((ramo) => (ramo || []).filter((v) => !via.has(v.node)));
+    }
+  }
   const chat = assegnazioni.find((a) => a.name === 'TELEGRAM_CHAT_ID');
   if (!chat || !String(chat.value || '').trim()) throw new Error('Nel Config del 12 non trovo TELEGRAM_CHAT_ID.');
   const chatId = String(chat.value);
@@ -314,6 +333,8 @@ export function trasforma(modulo12, opzioni = {}) {
       `Quando un'attività si iscrive su MyCity, il sito chiama questo webhook (\`/webhook/${PERCORSO_WEBHOOK}\`) col segreto \`x-mycity-segreto\`. Le pagine del modulo si compilano da sole coi valori proposti dal 12; la riga nasce con **attivo = no**. Doppione possibile o ricerca fermata = niente scritto, avviso su Telegram.`,
       '',
       `**MODALITA** nel Config: «${modalita}» al momento della generazione.`,
+      '',
+      "**RICERCA_CON_CLAUDE = no**, sempre: nessuna API di IA a pagamento. Senza ricerca la riga non si scrive (avviso su Telegram), l'analisi del 18 e la scheda al sito partono lo stesso.",
     ].join('\n') },
   };
   w.nodes.push(webhook, valida, daAvvisare, scartata, nota);
@@ -472,6 +493,11 @@ export function controlla(w) {
   const cfg = w.nodes.find((n) => n.name === 'Config');
   const mod = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
   if (!['prova', 'vero'].includes(mod)) problemi.push(`MODALITA nel Config è «${mod}»`);
+  const ric = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === RICERCA_CON_CLAUDE)?.value;
+  if (ric !== 'no') problemi.push(`${RICERCA_CON_CLAUDE} nel Config è «${ric}»: il 16 chiamerebbe l'API di Claude a pagamento`);
+  for (const nome of SOLO_NEL_12) {
+    if (nomi.has(nome)) problemi.push(`c'è «${nome}»: il 16 iscriverebbe di nuovo in MyCity chi si è appena iscritto`);
+  }
   return problemi;
 }
 

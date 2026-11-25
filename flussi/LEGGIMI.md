@@ -22,9 +22,16 @@ copia dove:
 - le pagine 1-3 si compilano coi valori che il 12 stesso ha proposto;
 - la pagina 4 conferma da sola, **tranne** sul possibile doppione: lì non scrive e avvisa;
 - se la ricerca di Claude si ferma, non scrive una scheda vuota: avvisa;
-- la stessa attività una volta sola in 7 giorni, al massimo 10 attività al giorno (il credito di Claude).
+- la stessa attività una volta sola in 7 giorni, al massimo 10 attività al giorno (il credito di Claude);
+- **la ricerca con Claude è sempre spenta** (`RICERCA_CON_CLAUDE = no` nel Config, imposto dal
+  generatore): nessuna API di IA a pagamento, decisione di Nicola del 24/11. Senza ricerca la riga non
+  si scrive e arriva l'avviso su Telegram; l'analisi del 18 e la scheda al sito partono lo stesso. La
+  ricerca tornerà quando la fa l'AD col piano Max («Chiedi all'AD»);
+- i due nodi con cui il 12 iscrive un cliente nuovo in MyCity («Prepara l'iscrizione in MyCity» e
+  «Iscrivi in MyCity», che chiamano il flusso 20) restano fuori: chi arriva al 16 su MyCity c'è già.
 
 Tutto il resto è il codice del 12, copiato com'è. **Quando cambi il modulo 12, rilancia il generatore.**
+Se nel 12 manca la voce `RICERCA_CON_CLAUDE`, il generatore si ferma invece di produrre un 16 che paga Claude.
 
 **Ultimo passo: l'analisi dell'attività.** Comunque sia andata la scheda Clienti (scritta, doppione,
 ricerca fermata, prova), il 16 chiama il flusso **18 · Analisi di un'attività** e gli passa la lettura
