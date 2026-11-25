@@ -37,8 +37,11 @@ const impronta = (s) => {
 const esci = (extra) => [{ json: { n_lavori: voci.length, ...extra } }];
 const byteDi = (s) => (typeof Buffer !== 'undefined' ? Buffer.byteLength(s, 'utf8') : unescape(encodeURIComponent(s)).length);
 const conAllegati = $('Impronte').isExecuted ? $('Impronte').all().map((i) => (i && i.json) || {}) : [];
-const erroreAllegati = conAllegati.find((a) => a.errore);
-const allegati = conAllegati.filter((a) => !a.nessuno && !a.errore && a.gettone && a.impronta);
+const ESA = /^[a-f0-9]{64}$/;
+// Un allegato senza un gettone e un'impronta giusti non si scarta in silenzio: il lavoro si ferma.
+const senzaGettone = conAllegati.find((a) => !a.nessuno && !a.errore && !(ESA.test(String(a.gettone || '')) && ESA.test(String(a.impronta || ''))));
+const erroreAllegati = conAllegati.find((a) => a.errore) || (senzaGettone ? { errore: `l'allegato «${testo(senzaGettone.nome)}» è senza gettone o impronta (nodi «Gettoni» e «Impronte»)` } : null);
+const allegati = conAllegati.filter((a) => !a.nessuno && !a.errore);
 // L'indirizzo fisso del flusso «Allegati per l'AD»: il gettone va dopo «?g=».
 const baseAllegati = (testo(cfg.ALLEGATI_URL) || 'https://n8n-shdy.sliplane.app/webhook/allegati-ad').replace(/\/+$/, '') + '?g=';
 const DURATA_ALLEGATI = 3600000; // un'ora al massimo; si cancellano prima, appena l'AD risponde
@@ -83,7 +86,7 @@ const componi = (forma) => {
 };
 const richiesta = componi(daMostrare);
 let chiave;
-try { chiave = impronta(JSON.stringify(allegati.length ? componi((a) => ({ nome: a.nome, tipo: a.tipo, firma: impronta(String(a.contenuto)) })) : richiesta)); } catch (e) { return esci({ azione: 'errore', flusso, errore: `dati non trasformabili in testo: ${String(e.message).slice(0, 100)}` }); }
+try { chiave = impronta(JSON.stringify(allegati.length ? componi((a) => ({ nome: a.nome, tipo: a.tipo, mime: a.mime || '', firma: impronta(String(a.contenuto)) })) : richiesta)); } catch (e) { return esci({ azione: 'errore', flusso, errore: `dati non trasformabili in testo: ${String(e.message).slice(0, 100)}` }); }
 
 const memoria = $getWorkflowStaticData('global');
 if (memoria.giorno !== giorno) { memoria.giorno = giorno; memoria.corse_oggi = 0; }

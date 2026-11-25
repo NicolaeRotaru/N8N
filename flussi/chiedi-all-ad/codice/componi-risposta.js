@@ -20,6 +20,8 @@ const uguale = (r) => Array.from({ length: n }, () => ({ json: r }));
 const errore = (motivo, extra = {}) => uguale({ ok: false, flusso, risultato: null, avvisi: [], errore: motivo, dalla_memoria: false, prova: false, ...extra });
 
 if (prep.azione === 'errore') return errore(prep.errore);
+// La tabella degli allegati non ha preso le righe: la routine non è partita e il posto è già stato restituito.
+if ($('Allegati non salvati').isExecuted) return errore(String($('Allegati non salvati').first().json.errore || 'allegati non salvati'));
 
 let risposta = null; // { ok, risultato, avvisi, errore } dell'AD
 let dallaMemoria = false;

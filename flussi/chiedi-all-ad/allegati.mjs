@@ -30,9 +30,14 @@ export const NOME_CHIAVE_OFFICINA = 'Officina - Chiave';
 export const COLONNE_ALLEGATI = [['impronta', 'string'], ['corsa', 'string'], ['scade', 'number'], ['nome', 'string'], ['tipo', 'string'], ['mime', 'string'], ['contenuto', 'string']];
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
-const tabella = () => ({ __rl: true, mode: 'name', value: TABELLA_ALLEGATI });
+/**
+ * La tabella: per id quando lo si conosce (con --manda, cercata per nome ESATTO), altrimenti per nome. Per nome n8n
+ * cerca «contiene» e prende la più recente: una «Copia di Allegati per l'AD» verrebbe usata al suo posto.
+ */
+export const tabellaDa = (id) => (id ? { __rl: true, mode: 'id', value: id, cachedResultName: TABELLA_ALLEGATI } : { __rl: true, mode: 'name', value: TABELLA_ALLEGATI });
 
-export function costruisciAllegati({ officina, errori, webhookId } = {}) {
+export function costruisciAllegati({ officina, errori, webhookId, tabellaId } = {}) {
+  const tabella = () => tabellaDa(tabellaId);
   const pos = (i, riga = 0) => [i * 240, riga * 200];
   const nodi = [];
   const collega = {};
@@ -45,6 +50,7 @@ export function costruisciAllegati({ officina, errori, webhookId } = {}) {
     combinator: 'and' }, looseTypeValidation: true, options: {} });
   const rispondi = (nome, p, parametri) => ({ id: randomUUID(), name: nome, type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: p, parameters: parametri });
   const senzaCache = { name: 'cache-control', value: 'no-store' };
+  const sicuro = [senzaCache, { name: 'x-content-type-options', value: 'nosniff' }, { name: 'content-disposition', value: 'attachment' }];
 
   nodi.push(
     { id: randomUUID(), name: "L'AD chiede un allegato", type: 'n8n-nodes-base.webhook', typeVersion: 2, position: pos(0), webhookId: webhookId || randomUUID(),
@@ -59,7 +65,8 @@ export function costruisciAllegati({ officina, errori, webhookId } = {}) {
     { id: randomUUID(), name: 'Gettone ben fatto?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(3), parameters: vero('={{ $json.ok === true }}') },
     { id: randomUUID(), name: 'Impronta del gettone', type: 'n8n-nodes-base.crypto', typeVersion: 1, position: pos(4, -1),
       parameters: { action: 'hash', type: 'SHA256', value: '={{ $json.gettone }}', dataPropertyName: 'impronta', encoding: 'hex' } },
-    { id: randomUUID(), name: "Cerca l'allegato", type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(5, -1), alwaysOutputData: true,
+    // Tabella mancante o in errore: un elemento vuoto, quindi 404 (non 500).
+    { id: randomUUID(), name: "Cerca l'allegato", type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(5, -1), alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), matchType: 'allConditions',
         filters: { conditions: [{ keyName: 'impronta', condition: 'eq', keyValue: '={{ $json.impronta }}' }] }, returnAll: false, limit: 1 } },
     { id: randomUUID(), name: 'Cosa mandare', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(6, -1), parameters: { jsCode: codice('cosa-mandare.js') } },
@@ -67,21 +74,22 @@ export function costruisciAllegati({ officina, errori, webhookId } = {}) {
       parameters: { mode: 'rules', rules: { values: [uguale('testo', 'testo'), uguale('file', 'file'), uguale('officina', 'officina')] },
         options: { fallbackOutput: 'extra', renameFallbackOutput: 'niente' } } },
     rispondi('Rispondi col testo', pos(8, -3), { respondWith: 'text', responseBody: '={{ $json.contenuto }}',
-      options: { responseCode: 200, responseHeaders: { entries: [{ name: 'content-type', value: 'text/plain; charset=utf-8' }, senzaCache] } } }),
-    rispondi('Rispondi col file', pos(10, -2), { respondWith: 'binary', inputDataFieldName: 'file', options: { responseCode: 200, responseHeaders: { entries: [senzaCache] } } }),
+      options: { responseCode: 200, responseHeaders: { entries: [{ name: 'content-type', value: 'text/plain; charset=utf-8' }, ...sicuro] } } }),
+    rispondi('Rispondi col file', pos(10, -2), { respondWith: 'binary', responseDataSource: 'set', inputFieldName: 'file', options: { responseCode: 200, responseHeaders: { entries: sicuro } } }),
     { id: randomUUID(), name: "Dall'officina", type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: pos(8, -1), onError: 'continueRegularOutput',
       parameters: { method: 'GET', url: "={{ String($('Config').first().json.OFFICINA_URL).replace(/\\/+$/, '') + $json.percorso }}",
         authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
         options: { timeout: 60000, response: { response: { responseFormat: 'file', outputPropertyName: 'file' } } } },
       credentials: { httpHeaderAuth: { id: officina || 'DA_IMPOSTARE', name: NOME_CHIAVE_OFFICINA } } },
     { id: randomUUID(), name: 'Il file è arrivato?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(9, -1),
-      parameters: vero('={{ !!($binary && $binary.file) && !$json.error }}') },
+      parameters: vero("={{ !!($binary && $binary.file) && !$json.error && ['image/jpeg', 'image/png', 'image/webp'].includes(String($binary.file.mimeType).split(';')[0].trim()) }}") },
     rispondi('Rispondi 404', pos(10, 1), { respondWith: 'noData', options: { responseCode: 404, responseHeaders: { entries: [senzaCache] } } }),
     { id: randomUUID(), name: 'Ogni ora', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: pos(0, 3),
       parameters: { rule: { interval: [{ field: 'hours', hoursInterval: 1 }] } } },
-    { id: randomUUID(), name: 'Cancella gli scaduti', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(1, 3), onError: 'continueRegularOutput',
-      parameters: { resource: 'row', operation: 'deleteRows', dataTableId: tabella(), matchType: 'allConditions',
-        filters: { conditions: [{ keyName: 'scade', condition: 'lt', keyValue: '={{ Date.now() }}' }] }, options: {} } },
+    // Scadute, o senza scadenza (irraggiungibili comunque). Se la pulizia si rompe, l'avviso arriva dal 99.
+    { id: randomUUID(), name: 'Cancella gli scaduti', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(1, 3),
+      parameters: { resource: 'row', operation: 'deleteRows', dataTableId: tabella(), matchType: 'anyCondition',
+        filters: { conditions: [{ keyName: 'scade', condition: 'lt', keyValue: '={{ Date.now() }}' }, { keyName: 'scade', condition: 'isEmpty' }] }, options: {} } },
   );
   vai("L'AD chiede un allegato", 'Config');
   vai('Config', 'Gettone valido?');
@@ -138,6 +146,9 @@ export function controllaAllegati(w) {
   const gancio = w.nodes.find((n) => n.type === 'n8n-nodes-base.webhook');
   if (!gancio || gancio.parameters.httpMethod !== 'GET' || gancio.parameters.path !== PERCORSO_ALLEGATI) problemi.push('il webhook deve essere GET sul percorso fisso');
   if (w.settings.saveDataSuccessExecution !== 'none' || w.settings.saveDataErrorExecution !== 'none') problemi.push('le esecuzioni non devono salvarsi');
+  // La chiave dell'officina va solo all'officina, sulla rete interna di Sliplane: mai verso un indirizzo pubblico.
+  const officina = w.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'OFFICINA_URL')?.value;
+  if (!/^http:\/\/[a-z0-9-]+\.internal(:\d+)?\/?$/.test(String(officina))) problemi.push("OFFICINA_URL deve essere l'indirizzo interno dell'officina (http://….internal)");
   if (!w.settings.errorWorkflow) problemi.push('gli errori non vanno al «99 · Avvisi errori»');
   return problemi;
 }
@@ -153,8 +164,10 @@ async function principale(argv) {
     const vecchio = gia ? await api.leggiFlusso(gia.id) : null;
     // La credenziale dell'officina la usa già il montatore: si prende da lì (mai scritta nel repository).
     const conOfficina = tutti.flatMap((w) => w.nodes || []).find((n) => n.credentials?.httpHeaderAuth?.name === NOME_CHIAVE_OFFICINA);
+    const tabella = (await api.elencoTabelle()).find((t) => t.name === TABELLA_ALLEGATI);
+    if (!tabella) throw new Error(`Su n8n non c'è la Data table «${TABELLA_ALLEGATI}»: creala prima, con le colonne ${COLONNE_ALLEGATI.map(([c, t]) => `${c} (${t})`).join(', ')}.`);
     pezzi = { officina: conOfficina?.credentials?.httpHeaderAuth?.id, errori: trovaFlusso(tutti, NOMI.avvisiErrori)?.id,
-      webhookId: vecchio?.nodes?.find((n) => n.type === 'n8n-nodes-base.webhook')?.webhookId };
+      webhookId: vecchio?.nodes?.find((n) => n.type === 'n8n-nodes-base.webhook')?.webhookId, tabellaId: tabella.id };
   }
   const w = costruisciAllegati(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));

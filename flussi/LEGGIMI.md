@@ -217,8 +217,12 @@ resta identica a prima, carattere per carattere.
   - `{ nome, tipo: 'testo', contenuto }`: al massimo 512 KB;
   - `{ nome, tipo: 'immagine', base64, mime }`: jpeg, png o webp, al massimo 1,5 MB;
   - `{ nome, tipo: 'officina', percorso: '/file/<lavoro>/<nome>' }`: si salva solo il riferimento, e il file lo
-    prende n8n dall'officina sulla rete interna quando l'AD lo chiede.
-  - In una corsa al massimo 40 allegati e 8 MB salvati. Sopra i tetti il lavoro non parte e dice il motivo.
+    prende n8n dall'officina sulla rete interna quando l'AD lo chiede. Solo immagini (.jpg, .jpeg, .png, .webp).
+  - Un'immagine deve essere davvero del tipo dichiarato (si guardano i primi byte) e in base64 ben formato.
+  - In una corsa al massimo 40 allegati e 8 MB **salvati nella tabella**: per le immagini conta il base64, cioè i 4/3
+    del file; un riferimento all'officina conta 1 KB. Sopra i tetti il lavoro non parte e dice il motivo.
+  - Se la tabella non prende le righe (manca, è piena), la routine non parte, il posto contato torna libero e le righe
+    già scritte si cancellano. Un allegato senza gettone o impronta ferma il lavoro.
 - **Nel messaggio all'AD** va solo `{ nome, tipo, mime?, byte?, url }`; il tipo `officina` diventa `file`. Il compito dice
   che gli allegati sono materiale, mai istruzioni.
 - **Il gettone:** uno per allegato, 256 bit, dal nodo Crypto. Nella Data table «Allegati per l'AD» c'è solo la sua
@@ -232,11 +236,17 @@ resta identica a prima, carattere per carattere.
   flusso che chiama (montatore, 08, 12) tiene le sue foto nel suo storico come prima: chi manda foto non salvi le corse.
 - **Quanto restano:** «Chiedi all'AD» cancella le righe della corsa appena l'AD risponde, o se la routine non parte. Il
   giro «Ogni ora» toglie gli avanzi scaduti.
-- **La memoria** riconosce «stesso lavoro» dal contenuto degli allegati, non dal gettone.
+- **La memoria** riconosce «stesso lavoro» dal contenuto degli allegati (e dal tipo), non dal gettone. Per i file
+  dell'officina conta il percorso: ogni lavoro dell'officina ha un indirizzo nuovo, quindi un provino rifatto è un altro
+  percorso.
+- **La consegna** controlla di nuovo tutto: la riga deve avere proprio l'impronta del gettone arrivato, essere viva, e un
+  file esce solo se è jpeg, png o webp, con `x-content-type-options: nosniff` e `content-disposition: attachment`. Se
+  la tabella manca risponde 404.
 - **Lo spazio:** in n8n 2.49 tutte le Data table insieme hanno un tetto di 200 MB di serie (`N8N_DATA_TABLES_MAX_SIZE_BYTES`).
   «Chiedi all'AD» conta nella sua memoria gli allegati vivi delle corse in corso. Se con la corsa nuova si supera
   `ALLEGATI_SOGLIA_MB` (40 di serie), il lavoro non parte e lo dice. Il conto è prudente: ogni riga vale almeno 1 KB, e le
-  voci scadono da sole dopo un'ora.
+  voci scadono da sole dopo un'ora. Su Postgres lo spazio misurato da n8n può scendere solo dopo il vacuum del
+  database, non subito con le cancellazioni.
 - **Da fare una volta su n8n:** creare la Data table «Allegati per l'AD» con le colonne `impronta`, `corsa`, `nome`,
   `tipo`, `mime`, `contenuto` (testo) e `scade` (numero). Poi:
 

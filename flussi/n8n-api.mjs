@@ -32,6 +32,12 @@ async function chiama(metodo, percorso, corpo) {
 
 export const leggiFlusso = (id) => chiama('GET', `/workflows/${encodeURIComponent(id)}`);
 
+/** Le Data table dell'istanza: [{ id, name, columns }]. */
+export async function elencoTabelle() {
+  const r = await chiama('GET', '/data-tables?limit=250');
+  return Array.isArray(r?.data) ? r.data : [];
+}
+
 export async function elencoFlussi() {
   const tutti = [];
   let cursore = '';
