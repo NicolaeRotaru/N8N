@@ -4,6 +4,8 @@
 // Il modulo 12 vero non sta nel repository (è pubblico, e il 12 ha gli ID del foglio, della cartella
 // e della chat): qui c'è un modulo 12 in miniatura con gli stessi nomi di nodo e la stessa forma.
 
+import { collega } from '../chiedi-all-ad/collega.mjs';
+import { conta } from '../conta-api-claude.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
@@ -136,7 +138,7 @@ function modulo12Mini() {
         { name: 'MODALITA', value: 'prova' }, { name: 'TELEGRAM_CHAT_ID', value: '123' }, { name: 'SHEET_ID', value: 'foglio' },
         { name: 'RICERCA_CON_CLAUDE', value: 'si' }] } }),
       nodo('Prepara la ricerca', 'n8n-nodes-base.code', { jsCode: "const f = $('Modulo nuovo cliente').first().json;" }),
-      nodo('Cerca il locale con Claude', 'n8n-nodes-base.httpRequest'),
+      nodo('Cerca il locale con Claude', 'n8n-nodes-base.httpRequest', { url: 'https://api.anthropic.com/v1/messages', jsonBody: '={{ JSON.stringify($json.corpo) }}' }),
       nodo('Controlla la proposta', 'n8n-nodes-base.code', { jsCode: 'return [];' }),
       tg('Avvisa: ricerca fermata', '={{ $json.messaggio_stop }}'),
       nodo('Nuovo cliente? (dopo lo stop)', 'n8n-nodes-base.if'),
@@ -406,6 +408,16 @@ test('il 16 tiene sempre spenta la ricerca con Claude, anche se nel 12 è accesa
   assert.equal(m.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.find((a) => a.name === RICERCA_CON_CLAUDE).value, 'si', 'il 12 ricevuto non si tocca');
   cfg.find((a) => a.name === RICERCA_CON_CLAUDE).value = 'si';
   assert.match(controlla(w).join('\n'), /API di Claude a pagamento/);
+});
+
+test("quando il 12 fa la ricerca con l'AD, il 16 tiene la ricerca accesa e non paga niente", () => {
+  const { flusso: m } = collega(modulo12Mini(), { nodi: [{ nodo: 'Cerca il locale con Claude', cosa: 'la ricerca', forma: 'completa' }], chiediId: 'id-chiedi' });
+  const w = trasforma(m, { credenziale });
+  const cfg = w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  assert.equal(cfg.find((a) => a.name === RICERCA_CON_CLAUDE).value, 'si');
+  assert.equal(conta([{ ...w, id: '16', active: true }]).totale, 0);
+  assert.doesNotMatch(controlla(w).join('\n'), /API di Claude a pagamento/);
+  assert.ok(w.nodes.some((n) => n.name === "Chiedi all'AD: la ricerca" && n.parameters.workflowId.value === 'id-chiedi'));
 });
 
 test('senza la voce RICERCA_CON_CLAUDE nel 12 il generatore si ferma', () => {
