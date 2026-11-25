@@ -18,6 +18,12 @@
 - **Claude riconosce le inquadrature** (largo, medio, dettaglio, volto) quando guarda il materiale: il piano va da largo a stretto, mai tre dettagli di fila.
 - **La voce si pulisce come in studio**: tolto il rimbombo e il soffio di fondo, frasi a volume uniforme.
 - **L'identità di Scatti di G sta nel Config** (`SDG_COLORE_FONDO`, `SDG_COLORE_TESTO`, `SDG_COLORE_ACCENTO`, `SDG_FONT_TITOLI`, `SDG_FONT_TESTO`): quando arrivano i colori nuovi si cambiano lì, senza toccare l'officina. Il logo nei video è quello del cliente, preso dal foglio Clienti a ogni giro: se cambia il file, cambia anche nei video.
+- **Un servizio al mese.** Il mese del piano si decide da solo. Un servizio caricato entro il giorno 10 vale per il mese in corso; dopo, per il mese successivo (`GIORNO_LIMITE_MESE`).
+  - Consiglio: girate fra il 15 e il 25 del mese prima, così c'è tempo per montare e approvare prima che il mese cominci.
+- **Le quantità di ogni cliente vengono dal suo preventivo.** Nel foglio Clienti ci sono tre colonne: `reel_mese`, `post_mese`, `storie_mese`. Il guardiano e il modulo, se lasciato vuoto, le usano da soli; senza le colonne valgono 10 reel, 8 post e 16 storie.
+- **Il workflow 03 resta per la lista delle riprese.** Il piano e le righe del Calendario li fa il 16, dal girato vero.
+  - Le idee del 03 per quel cliente e quel mese (righe «PI-…» in stato «idea») entrano nel piano del 16 come traccia.
+  - A piano pronto, in modalità attivo, diventano «sostituito», così nel Calendario non restano due piani dello stesso mese.
 - **Le clip a 50-120 fotogrammi** senza voce si rallentano da sole. Il girato in log si corregge con la LUT della camera (campo `LUT` del Config, dopo averla caricata nell'officina).
 
 ## In parole semplici
@@ -122,11 +128,13 @@ Un'esecuzione per file e una per contenuto: n8n tiene in memoria un file alla vo
 | `ATTESA_REVISIONE_GIORNI` | `7` | quanto aspetta la risposta a una scheda |
 | `MAX_RITOCCHI` / `EFFORT_RITOCCO` | `3` / `medium` | quante volte si può correggere un video, e quanto ragiona Claude per farlo |
 | `AVVIO_DA_CARTELLA` / `QUIETE_MINUTI` | `si` / `30` | il guardiano delle cartelle, e quanti minuti senza file nuovi prima di partire |
+| `GIORNO_LIMITE_MESE` | `10` | servizio caricato entro questo giorno → piano del mese in corso; dopo → del mese successivo |
 
 ### Il foglio Clienti
 Il montatore usa le colonne che usano già gli altri workflow:
 - `cliente`, `nome_locale`, `cartella_drive` (obbligatoria);
 - `marchio`, il JSON con colori, font, `font_testo`, `peso_titolo`, `stile_foto` e `logo` (link Drive o https);
+- `reel_mese`, `post_mese`, `storie_mese`: le quantità del pacchetto del cliente (facoltative: senza, valgono quelle del Config);
 - per il piano: `tono_di_voce`, `orari`, `giorni_chiusura`, `indirizzo`, `telefono`, `link_prenotazione`, `link_menu`, `menu_testo`, `hashtag_fissi`, `account_da_taggare`, `note_piano`, `esempi_didascalie`, `regole_risposte`, e se ci sono `tipo_locale`, `categoria`, `descrizione`.
 
 ### Le righe del Calendario (solo con MODALITA = attivo; con la revisione le scrive ✅ Approva)

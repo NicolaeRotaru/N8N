@@ -28,6 +28,7 @@ COME SI MONTA (regole dell'officina, il montaggio è solo tagli veri: niente eff
 - MAI lo stesso momento in due contenuti diversi e MAI la stessa foto in due contenuti: il mese deve sembrare vario. Se il materiale buono non basta per tutti i contenuti richiesti, fanne meno e scrivilo in note_per_il_team.
 
 CALENDARIO
+- Nelle <idee_del_piano> ci sono le idee pensate prima del servizio (giorni, temi, cosa si voleva raccontare). Usale come traccia quando il materiale girato lo permette: se un'idea ha il suo materiale, tienine giorno e tema; se no, lasciala. Non sono obbligatorie, e non vanno copiate parola per parola.
 - Tutte le date dentro il mese indicato, formato AAAA-MM-GG; ora HH:MM.
 - Distribuisci i contenuti in modo regolare nel mese; le storie quasi ogni giorno di apertura; non più di un contenuto del feed (reel, post, carosello) nello stesso giorno, salvo eventi.
 - Orari adatti al tipo di locale e agli orari della scheda (per esempio prima di pranzo, all'ora dell'aperitivo, prima di cena). Niente contenuti nei giorni di chiusura se la scheda li indica.

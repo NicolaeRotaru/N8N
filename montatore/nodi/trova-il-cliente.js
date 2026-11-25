@@ -30,5 +30,7 @@ return [{ json: {
   marchio_valido: m.valido,
   // foto e video con persone su Telegram solo con il consenso firmato (stessa regola del workflow 15)
   anteprime: siNo(c.anteprime_con_persone, false),
+  // le quantità del pacchetto del cliente (dal preventivo): colonne reel_mese, post_mese, storie_mese del foglio Clienti
+  quantita: { reel: intero(c.reel_mese, null), post: intero(c.post_mese, null), storie: intero(c.storie_mese, null) },
   logo: m.logo,
 } }];

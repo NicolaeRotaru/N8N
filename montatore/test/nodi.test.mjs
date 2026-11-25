@@ -41,6 +41,9 @@ test('Trova il cliente: per nome del locale senza accenti/maiuscole, parziale, a
   assert.deepEqual(r.marchio, { colori: { primario: '#D61D73', secondario: '#3D7C2B', testo: '#FFFFFF' }, font: 'Roboto Slab', font_testo: 'Archivo', peso_titolo: 800, stile: { luminosita: 1, contrasto: 1.05 } });
   assert.deepEqual(r.logo, { tipo: 'drive', id: '1LoGoLoGoLoGoLoGoLoGoLoGo12', url: '' });
   assert.equal(r.scheda.menu_testo, 'Tacos, mojito');
+  assert.deepEqual(r.quantita, { reel: null, post: null, storie: null }, 'senza le colonne del pacchetto: niente quantità');
+  const conPacchetto = { values: [[...CLIENTI.values[0], 'reel_mese', 'post_mese', 'storie_mese'], [...CLIENTI.values[1], '12', '6', '20']] };
+  assert.deepEqual(esegui('trova-il-cliente.js', { nodi: { Config: CFG_MODULO }, input: [conPacchetto] })[0].json.quantita, { reel: 12, post: 6, storie: 20 });
   const amb = esegui('trova-il-cliente.js', { nodi: { Config: { ...CFG_MODULO, cliente: 'bar' } }, input: [CLIENTI] })[0].json;
   assert.equal(amb.ok, false);
   assert.match(amb.messaggio, /più clienti.*Bar Sole, Bar Luna/);
@@ -120,6 +123,19 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.match(r.messaggio, /Modalità PROVA/);
   const vuoto = esegui('prepara-il-lavoro.js', { nodi: { Config: CFG_MODULO, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC }, input: [{ files: [] }] })[0].json;
   assert.equal(vuoto.ok, false);
+  // quanti contenuti: il modulo vince; vuoto → il pacchetto del cliente (foglio Clienti); niente pacchetto → il Config
+  const nodiQ = (cfg, quantita) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': { ...TROVATO, quantita }, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC });
+  const pacchetto = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '', post: '', storie: '' }, { reel: 12, post: 6, storie: 20 }), input: [files] })[0].json;
+  assert.deepEqual(pacchetto.lavoro.richiesta, { reel: 12, post: 6, storie: 20 });
+  assert.match(pacchetto.messaggio, /12 reel, 6 post e caroselli, 20 storie \(dal pacchetto del cliente\)/);
+  assert.deepEqual(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '3', post: '', storie: '' }, { reel: 12, post: 6, storie: null }), input: [files] })[0].json.lavoro.richiesta, { reel: 3, post: 6, storie: 16 });
+  assert.deepEqual(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '', post: '', storie: '' }, undefined), input: [files] })[0].json.lavoro.richiesta, { reel: 10, post: 8, storie: 16 });
+  // il mese vuoto: quello in corso fino al giorno 10, poi il successivo
+  const ora = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).reduce((o, x) => ({ ...o, [x.type]: Number(x.value) }), {});
+  const atteso = ora.day <= 10 ? `${ora.year}-${String(ora.month).padStart(2, '0')}` : (ora.month === 12 ? `${ora.year + 1}-01` : `${ora.year}-${String(ora.month + 1).padStart(2, '0')}`);
+  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ mese: '' }, undefined), input: [files] })[0].json.lavoro.mese.chiave, atteso);
+  const sempreQuesto = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ mese: '', GIORNO_LIMITE_MESE: 31 }, undefined), input: [files] })[0].json.lavoro.mese.chiave;
+  assert.equal(sempreQuesto, `${ora.year}-${String(ora.month).padStart(2, '0')}`);
   // lo stesso servizio non parte due volte: il segno è la cartella «Pronti (montatore)» dentro il servizio (su Drive,
   // uguale per tutte le esecuzioni e senza scadenza). Il modulo la fa creare subito; se c'è già si ferma; «rifai» riparte.
   const nodiP = (cfg, figli) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC, 'Elenca il servizio': { files: figli } });
@@ -168,6 +184,17 @@ test('Leggi cosa c\'è: descrizioni nel catalogo, domanda del piano con mese, fe
   ] })[0].json;
   assert.equal(r.descritte, 2);
   assert.equal(r.gruppi_falliti, 1);
+  assert.match(r.testo_utente, /<idee_del_piano>nessuna<\/idee_del_piano>/);
+  // le idee del 03 per questo cliente e questo mese entrano come traccia; quelle di altri clienti, mesi o stati no
+  const CAL = { values: [['id', 'cliente', 'tipo', 'data_ora', 'brief', 'stato'],
+    ['PI-el-tropico-20261204-1830', 'el-tropico', 'reel', '2026-12-04 18:30', 'Idea: il mojito al bancone. Da riprendere: mani e ghiaccio', 'idea'],
+    ['PI-el-tropico-20261210-1200', 'el-tropico', 'post', '2026-12-10 12:00', 'Idea: tacos', 'approvato'],
+    ['PI-bar-sole-20261204-1830', 'bar-sole', 'reel', '2026-12-04 18:30', 'Idea: caffè', 'idea'],
+    ['PI-el-tropico-20270104-1830', 'el-tropico', 'reel', '2027-01-04 18:30', 'Idea: gennaio', 'idea'],
+    ['MO-el-tropico-20261205-1830-abcd1', 'el-tropico', 'reel', '2026-12-05 18:30', 'montatore', 'idea']] };
+  const conIdee = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL }, input: [risposta({ scene: [] })] })[0].json;
+  assert.deepEqual(conIdee.idee_03, ['PI-el-tropico-20261204-1830']);
+  assert.match(conIdee.testo_utente, /<idee_del_piano>\n- 2026-12-04 18:30 · reel · Idea: il mojito al bancone/);
   const t = r.testo_utente;
   assert.match(t, /V01\.1 {2}0,0–4,0 s \(4,0 s\) · fermo · buona · vede: «mani che preparano un mojito» · drink · valore 5\/5 · aggancio/);
   assert.match(t, /F01 · foto verticale .* · vede: «tacos su piatto blu» · piatto · valore 4\/5 · problemi: leggermente buia/);
@@ -327,7 +354,7 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
   assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': sub.map((x) => ({ ...x, diretti: [] })) }, input: [{ files: [{ id: 'h1', name: 'a.HEIC', mimeType: 'image/heif', createdTime: vecchio }] }, { files: [{ id: 'm1', name: 'b.mp3', mimeType: 'audio/mpeg', createdTime: vecchio }] }], statico: { servizi: {} } }), []);
   const pronti = esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': sub }, input: file, statico: S }).map((x) => x.json);
   assert.equal(pronti.length, 1);
-  assert.deepEqual([pronti[0].lavoro, pronti[0].origine, pronti[0].cliente, pronti[0].cartella, pronti[0].reel], ['avvia', 'cartella', 'el-tropico', 'https://drive.google.com/drive/folders/svc1aaaaaaaaaaaaaaaaaaaa', 10]);
+  assert.deepEqual([pronti[0].lavoro, pronti[0].origine, pronti[0].cliente, pronti[0].cartella, pronti[0].reel], ['avvia', 'cartella', 'el-tropico', 'https://drive.google.com/drive/folders/svc1aaaaaaaaaaaaaaaaaaaa', ''], 'quantità vuote: le decide il pacchetto del cliente');
   assert.match(pronti[0].messaggio, /Servizio nuovo.*El Tropico Latino.*Servizio dicembre[\s\S]*2 file/);
   assert.ok(S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.avviato);
   // al giro dopo il servizio avviato non torna
@@ -366,6 +393,11 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
     assert.equal(corpo.oggi, '2026-11-24');
     assert.equal(corpo.mese, '2026-12');
   }
+  // le idee del 03: il Calendario si legge all'inizio del giro; a piano pronto, in attivo, le idee diventano «sostituito»
+  assert.deepEqual(workflow.connections['Telegram: si parte'].main[0].map((x) => x.node), ['Leggi il Calendario']);
+  assert.ok(workflow.connections['Piano pronto?'].main[0].some((x) => x.node === 'Idee da sostituire?'));
+  const segna = NODO('Segna le idee sostituite').parameters;
+  assert.deepEqual([segna.operation, segna.columns.matchingColumns, Object.keys(segna.columns.value)], ['update', ['id'], ['id', 'stato', 'note']]);
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo
   const uscite = workflow.connections['Quale lavoro?'].main.map((u) => u.map((x) => x.node));
   assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: leggi Clienti'], ['Leggi Clienti'], ['Leggi Clienti']]);

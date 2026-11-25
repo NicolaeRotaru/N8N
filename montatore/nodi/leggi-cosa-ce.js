@@ -21,6 +21,12 @@ const arricchito = testo(cat.testo).split('\n').map((r) => {
 }).join('\n');
 const mese = J.mese;
 const oggi = partiRoma();
+// Le idee del workflow 03 (piano pensato prima del servizio, righe «PI-…» in stato «idea» nel Calendario) per questo
+// cliente e questo mese: entrano nel piano come traccia. A piano pronto (in attivo) il giro le segna «sostituito».
+const cal = $('Leggi il Calendario').isExecuted ? $('Leggi il Calendario').first().json : {};
+const idee = (cal && Array.isArray(cal.values) ? righeFoglio(cal) : [])
+  .filter((r) => testo(r.id).startsWith('PI-') && norm(r.stato) === 'idea' && testo(r.cliente) === testo(J.cliente.cliente) && testo(r.data_ora).startsWith(mese.chiave))
+  .slice(0, 80);
 const fest = festivita(mese.anno, mese.mese);
 const scheda = J.cliente.scheda || {};
 const righeScheda = Object.keys(scheda).map((k) => k + ': ' + dato(scheda[k]));
@@ -35,6 +41,8 @@ const testoUtente = [
   '<richiesta>reel: ' + J.richiesta.reel + '; post e caroselli: ' + J.richiesta.post + ' (decidi tu quanti caroselli); storie (video o foto): ' + J.richiesta.storie + '</richiesta>',
   '',
   '<note>' + (dato(J.note) || 'nessuna nota') + '</note>',
+  '',
+  '<idee_del_piano>' + (idee.length ? '\n' + idee.map((r) => '- ' + testo(r.data_ora) + ' · ' + testo(r.tipo) + ' · ' + dato(accorcia(testo(r.brief), 300))).join('\n') + '\n' : 'nessuna') + '</idee_del_piano>',
   '',
   '<musica>' + (J.musica ? 'c\'è un file musicale con licenza: puoi mettere musica = true nei reel senza parlato' : 'nessun file musicale: musica = false sempre') + '</musica>',
   '',
@@ -78,4 +86,4 @@ const schemaPiano = {
   additionalProperties: false,
 };
 const corpo = corpoClaude(J, { effort: J.EFFORT_PIANO || 'high', max_tokens: 32000, schema: schemaPiano, sistema: PROMPT_PIANO, testo: testoUtente });
-return [{ json: { corpo, testo_utente: testoUtente, descritte: Object.keys(descr).length, gruppi, gruppi_falliti: falliti } }];
+return [{ json: { corpo, testo_utente: testoUtente, descritte: Object.keys(descr).length, gruppi, gruppi_falliti: falliti, idee_03: idee.map((r) => testo(r.id)) } }];

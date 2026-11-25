@@ -38,8 +38,12 @@ if (!file.length) {
   return [{ json: { ok: false, messaggio: 'Nella cartella «' + S.nome + '» non ho trovato foto o video da montare.' + (scartati.length ? ' Saltati: ' + accorcia(scartati.join('; '), 500) : '') + ' Le sottocartelle devono chiamarsi per esempio «video verticali», «video orizzontali», «foto».' } }];
 }
 const musica = audio.find((a) => /^musica\b/i.test(chiaveNome(a.nome))) || audio.find((a) => a.ruolo === 'musica') || audio[0] || null;
-const mese = meseDelPiano(CFG.mese);
-const richiesta = { reel: Math.max(0, intero(CFG.reel, intero(CFG.REEL, 8))), post: Math.max(0, intero(CFG.post, intero(CFG.POST, 8))), storie: Math.max(0, intero(CFG.storie, intero(CFG.STORIE, 16))) };
+const mese = meseDelPiano(CFG.mese, intero(CFG.GIORNO_LIMITE_MESE, 10));
+// quanti contenuti: quelli scritti nel modulo, altrimenti il pacchetto del cliente (foglio Clienti), altrimenti il Config
+const Q = T.quantita || {};
+const quanti = (scritto, pacchetto, diSerie) => Math.max(0, testo(scritto) !== '' && Number.isFinite(parseInt(scritto, 10)) ? parseInt(scritto, 10) : Number.isFinite(pacchetto) && pacchetto !== null ? pacchetto : diSerie);
+const richiesta = { reel: quanti(CFG.reel, Q.reel, intero(CFG.REEL, 10)), post: quanti(CFG.post, Q.post, intero(CFG.POST, 8)), storie: quanti(CFG.storie, Q.storie, intero(CFG.STORIE, 16)) };
+const dalPacchetto = ['reel', 'post', 'storie'].some((k) => testo(CFG[k]) === '' && Number.isFinite(Q[k]) && Q[k] !== null);
 const nv = file.filter((x) => x.tipo === 'video').length;
 const nf = file.length - nv;
 const secondi = file.reduce((s, x) => s + (x.durata || 0), 0);
@@ -62,7 +66,7 @@ const lavoro = {
 };
 const durataTesto = secondi >= 60 ? Math.round(secondi / 60) + ' minuti di girato' : Math.round(secondi) + ' secondi di girato';
 const messaggio = 'Ho trovato ' + nv + ' video' + (secondi ? ' (' + durataTesto + ')' : '') + ' e ' + nf + ' foto in «' + S.nome + '» di ' + T.nome_locale + '. '
-  + 'Preparo il piano di ' + mese.nome + ': ' + richiesta.reel + ' reel, ' + richiesta.post + ' post e caroselli, ' + richiesta.storie + ' storie. '
+  + 'Preparo il piano di ' + mese.nome + ': ' + richiesta.reel + ' reel, ' + richiesta.post + ' post e caroselli, ' + richiesta.storie + ' storie' + (dalPacchetto ? ' (dal pacchetto del cliente)' : '') + '. '
   + 'Ci vorrà circa ' + (minuti >= 90 ? Math.round(minuti / 60) + ' ore' : minuti + ' minuti') + ': ti scrivo su Telegram a ogni passo.'
   + (scartati.length ? ' File saltati: ' + accorcia(scartati.join('; '), 400) + '.' : '')
   + (norm(CFG.MODALITA) === 'attivo' ? '' : ' Modalità PROVA: i contenuti finiscono su Drive, nel Calendario non scrivo niente.');

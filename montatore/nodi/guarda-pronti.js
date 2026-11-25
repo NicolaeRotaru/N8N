@@ -30,12 +30,13 @@ for (const [id, e] of per) {
     cliente: e.s.cliente,
     cartella: linkCartella(id),
     servizio_nome: e.s.servizio_nome,
+    // mese e quantità vuoti: li decide «Prepara il lavoro» (regola del giorno limite, pacchetto del cliente)
     mese: '',
-    reel: intero(J.REEL, 10),
-    post: intero(J.POST, 8),
-    storie: intero(J.STORIE, 16),
+    reel: '',
+    post: '',
+    storie: '',
     note: '',
-    messaggio: '👀 <b>Servizio nuovo</b> · ' + h(e.s.nome_locale) + ' · «' + h(e.s.servizio_nome) + '»\n' + materiale.length + ' file, l\'ultimo caricato ' + Math.round((ora - ultimo) / 60000) + ' minuti fa: parto da solo con il piano del mese prossimo.',
+    messaggio: '👀 <b>Servizio nuovo</b> · ' + h(e.s.nome_locale) + ' · «' + h(e.s.servizio_nome) + '»\n' + materiale.length + ' file, l\'ultimo caricato ' + Math.round((ora - ultimo) / 60000) + ' minuti fa: parto da solo con il piano del mese (quello in corso fino al giorno ' + intero(J.GIORNO_LIMITE_MESE, 10) + ', poi il successivo).',
   } });
 }
 return out;

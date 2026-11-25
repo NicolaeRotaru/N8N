@@ -53,15 +53,19 @@ function leggibileData(data, ora) {
   return GIORNI_BREVI[giornoSettimana(a, me, g)] + ' ' + g + '/' + me + (ora ? ' ore ' + ora : '');
 }
 // Il mese del piano: «AAAA-MM» scritto nel modulo, altrimenti il mese prossimo.
-function meseDelPiano(v) {
+// Il mese del piano: quello scritto, altrimenti il mese in corso fino al giorno «giornoLimite» compreso (servizio fatto a
+// inizio mese per quel mese), poi il mese dopo (servizio fatto a fine mese per il mese che viene).
+function meseDelPiano(v, giornoLimite) {
   const s = testo(v);
   const m = s.match(/^(\d{4})[-/.](\d{1,2})$/) || s.match(/^(\d{1,2})[-/.](\d{4})$/);
   let anno; let mese;
   if (m && m[1].length === 4) { anno = Number(m[1]); mese = Number(m[2]); } else if (m) { anno = Number(m[2]); mese = Number(m[1]); }
   if (!(mese >= 1 && mese <= 12)) {
     const oggi = partiRoma();
-    anno = oggi.mese === 12 ? oggi.anno + 1 : oggi.anno;
-    mese = oggi.mese === 12 ? 1 : oggi.mese + 1;
+    if (oggi.giorno <= (Number(giornoLimite) || 0)) { anno = oggi.anno; mese = oggi.mese; } else {
+      anno = oggi.mese === 12 ? oggi.anno + 1 : oggi.anno;
+      mese = oggi.mese === 12 ? 1 : oggi.mese + 1;
+    }
   }
   return { anno, mese, chiave: anno + '-' + due(mese), nome: MESI[mese - 1] + ' ' + anno, giorni: giorniNelMese(anno, mese) };
 }

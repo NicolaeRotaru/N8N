@@ -246,12 +246,15 @@ export const CONFIG = {
   EFFORT_RITOCCO: 'medium',
   // il guardiano delle cartelle: un servizio nuovo nella cartella Drive di un cliente parte da solo dopo QUIETE_MINUTI
   AVVIO_DA_CARTELLA: 'si',
+  // servizio caricato entro questo giorno del mese → piano del mese in corso; dopo → piano del mese successivo
+  GIORNO_LIMITE_MESE: 10,
   QUIETE_MINUTI: 30,
   TRASCRIVI: 'si',
   LINGUA: 'it',
   PROVINI_PER_DOMANDA: 6,
   MAX_MB_FILE: 500,
   MAX_FILE: 400,
+  // le quantità di serie, se il cliente non ha il pacchetto nel foglio Clienti (colonne reel_mese, post_mese, storie_mese)
   REEL: 10,
   POST: 8,
   STORIE: 16,
@@ -269,10 +272,10 @@ nodo('Modulo montatore', 'n8n-nodes-base.formTrigger', 2.5, {
   formFields: { values: [
     { fieldLabel: 'Cliente', fieldName: 'cliente', fieldType: 'text', placeholder: 'il nome del locale o la colonna «cliente» del foglio, es. El Tropico', requiredField: true },
     { fieldLabel: 'Cartella del servizio', fieldName: 'cartella', fieldType: 'text', placeholder: 'il nome della cartella dentro quella del cliente, es. Servizio novembre (o il link di Drive)', requiredField: true },
-    { fieldLabel: 'Mese del piano (AAAA-MM)', fieldName: 'mese', fieldType: 'text', placeholder: 'vuoto = il mese prossimo', requiredField: false },
-    { fieldLabel: 'Reel', fieldName: 'reel', fieldType: 'number', defaultValue: String(CONFIG.REEL), requiredField: false },
-    { fieldLabel: 'Post e caroselli', fieldName: 'post', fieldType: 'number', defaultValue: String(CONFIG.POST), requiredField: false },
-    { fieldLabel: 'Storie', fieldName: 'storie', fieldType: 'number', defaultValue: String(CONFIG.STORIE), requiredField: false },
+    { fieldLabel: 'Mese del piano (AAAA-MM)', fieldName: 'mese', fieldType: 'text', placeholder: 'vuoto = il mese in corso fino al giorno 10, poi il successivo', requiredField: false },
+    { fieldLabel: 'Reel', fieldName: 'reel', fieldType: 'number', placeholder: 'vuoto = il pacchetto del cliente', requiredField: false },
+    { fieldLabel: 'Post e caroselli', fieldName: 'post', fieldType: 'number', placeholder: 'vuoto = il pacchetto del cliente', requiredField: false },
+    { fieldLabel: 'Storie', fieldName: 'storie', fieldType: 'number', placeholder: 'vuoto = il pacchetto del cliente', requiredField: false },
     { fieldLabel: 'Note: eventi e promozioni del mese decisi dal cliente', fieldName: 'note', fieldType: 'textarea', placeholder: 'es. venerdì 12 serata jazz; dal 1 al 24 menu di Natale', requiredField: false },
   ] },
   options: { appendAttribution: false, buttonLabel: 'Monta il mese', path: 'montatore' },
@@ -451,6 +454,21 @@ nodo('Scrivi nel Calendario', 'n8n-nodes-base.googleSheets', 4.7, {
   options: { cellFormat: 'RAW', useAppend: true, handlingExtraData: 'ignoreIt' },
 }, [COL(41), G + 50], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
 se('Chiudo il progetto?', '$json.chiudi', [COL(39), G + 200]);
+// le idee del 03 per questo mese, a piano pronto e solo in attivo, diventano «sostituito» (il piano ora è quello del 16)
+se('Idee da sostituire?', "String($('Config').first().json.MODALITA || '').toLowerCase() === 'attivo' && ($('Leggi cosa c\\'è').first().json.idee_03 || []).length > 0", [COL(31), G - 300]);
+nodo('Righe da sostituire', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// Una riga per idea del 03 da segnare: stato «sostituito» e una nota con la data.\nconst ids = $('Leggi cosa c\\'è').first().json.idee_03 || [];\nconst oggi = new Date().toISOString().slice(0, 10);\nreturn ids.map((id) => ({ json: { id, stato: 'sostituito', note: 'piano AI · sostituita dal piano del montatore (16) il ' + oggi } }));" }, [COL(32), G - 300]);
+const COLONNA = (id, match = false) => ({ id, displayName: id, required: false, defaultMatch: match, display: true, type: 'string', canBeUsedToMatch: true, removed: false });
+nodo('Segna le idee sostituite', 'n8n-nodes-base.googleSheets', 4.7, {
+  authentication: 'oAuth2',
+  resource: 'sheet',
+  operation: 'update',
+  documentId: { __rl: true, value: "={{ $('Config').first().json.SHEET_ID }}", mode: 'id' },
+  sheetName: { __rl: true, value: 'Calendario', mode: 'name' },
+  columns: { mappingMode: 'defineBelow', value: { id: '={{ $json.id }}', stato: '={{ $json.stato }}', note: '={{ $json.note }}' }, matchingColumns: ['id'], schema: [COLONNA('id', true), COLONNA('stato'), COLONNA('note')], attemptToConvertTypes: false, convertFieldsToString: false },
+  options: {},
+}, [COL(33), G - 300], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
+collega('Idee da sostituire?', 'Righe da sostituire', 0);
+catena('Righe da sostituire', 'Segna le idee sostituite');
 se('Ci sono schede?', 'Array.isArray($json.schede) && $json.schede.length > 0', [COL(39), G + 350]);
 codice('Schede da rivedere', 'schede-da-rivedere.js', [COL(40), G + 350]);
 seStesso('Manda le schede', [COL(41), G + 350], false, true);
@@ -458,7 +476,18 @@ officinaJson('Officina: chiudi il progetto', "'/progetto/' + $json.progetto + '/
 codice('Messaggio di stop', 'messaggi.js', [COL(13), G + 250]);
 telegram('Telegram: giro fermo', [COL(14), G + 250]);
 
-catena('Inizio del giro', 'Telegram: si parte', 'Officina: nuovo progetto', 'Un file alla volta', 'Progetto creato?');
+// le idee del workflow 03 per questo mese (righe «PI-…» in stato «idea»): le legge «Leggi cosa c'è»
+nodo('Leggi il Calendario', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'GET',
+  url: "={{ \"https://sheets.googleapis.com/v4/spreadsheets/\" + encodeURIComponent($('Config').first().json.SHEET_ID) + '/values/' + encodeURIComponent(\"Calendario!A:Z\") }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleSheetsOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'valueRenderOption', value: 'FORMATTED_VALUE' }, { name: 'majorDimension', value: 'ROWS' }] },
+  options: { timeout: 30000, response: { response: { responseFormat: 'json' } } },
+}, [COL(4) + 120, G + 150], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
+catena('Inizio del giro', 'Telegram: si parte', 'Leggi il Calendario', 'Officina: nuovo progetto', 'Un file alla volta', 'Progetto creato?');
 collega('Progetto creato?', 'Carica il file', 0);
 collega('Progetto creato?', 'Messaggio di stop', 1);
 catena('Carica il file', 'Esito dei caricamenti', 'Telegram: materiale guardato', 'Qualcosa caricato?');
@@ -474,6 +503,7 @@ collega('Serve una correzione?', 'Domanda di correzione', 0);
 collega('Serve una correzione?', 'Piano finale', 1);
 catena('Domanda di correzione', 'Claude: correggi il piano', 'Leggi la correzione', 'Officina: ricontrolla il piano', 'Piano finale', 'Piano pronto?');
 collega('Piano pronto?', 'Messaggi del piano', 0);
+collega('Piano pronto?', 'Idee da sostituire?', 0);
 collega('Piano pronto?', "Cartelle d'uscita", 0);
 collega('Piano pronto?', 'Messaggio di stop', 1);
 catena('Messaggi del piano', 'Telegram: il piano');
