@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
 import {
-  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16,
+  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
 } from '../16-nuovo-cliente-da-mycity/genera.mjs';
 
 const richiesta = (attivita = {}, extra = {}) => [{ json: { headers: {}, body: {
@@ -133,7 +133,8 @@ function modulo12Mini() {
     nodes: [
       nodo('Modulo nuovo cliente', 'n8n-nodes-base.formTrigger', { formTitle: 'Nuovo cliente' }),
       nodo('Config', 'n8n-nodes-base.set', { assignments: { assignments: [
-        { name: 'MODALITA', value: 'prova' }, { name: 'TELEGRAM_CHAT_ID', value: '123' }, { name: 'SHEET_ID', value: 'foglio' }] } }),
+        { name: 'MODALITA', value: 'prova' }, { name: 'TELEGRAM_CHAT_ID', value: '123' }, { name: 'SHEET_ID', value: 'foglio' },
+        { name: 'RICERCA_CON_CLAUDE', value: 'si' }] } }),
       nodo('Prepara la ricerca', 'n8n-nodes-base.code', { jsCode: "const f = $('Modulo nuovo cliente').first().json;" }),
       nodo('Cerca il locale con Claude', 'n8n-nodes-base.httpRequest'),
       nodo('Controlla la proposta', 'n8n-nodes-base.code', { jsCode: 'return [];' }),
@@ -154,6 +155,8 @@ function modulo12Mini() {
       nodo('Scrivi il cliente', 'n8n-nodes-base.googleSheets'),
       tg('Avvisa: cliente creato', "={{ $('Ancora libera?').first().json.testo_telegram }}"),
       form('Fine: cliente creato', 'completion'),
+      nodo("Prepara l'iscrizione in MyCity", 'n8n-nodes-base.code', { jsCode: 'return [];' }),
+      nodo('Iscrivi in MyCity', 'n8n-nodes-base.executeWorkflow'),
     ],
     connections: {
       'Modulo nuovo cliente': vai('Config'),
@@ -175,7 +178,8 @@ function modulo12Mini() {
       'Confermato?': vai('Ancora libera?', 'Fine: annullato'),
       'Ancora libera?': vai('Scrivi il cliente'),
       'Scrivi il cliente': vai('Avvisa: cliente creato'),
-      'Avvisa: cliente creato': vai('Fine: cliente creato'),
+      'Avvisa: cliente creato': { main: [[{ node: 'Fine: cliente creato', type: 'main', index: 0 }, { node: "Prepara l'iscrizione in MyCity", type: 'main', index: 0 }]] },
+      "Prepara l'iscrizione in MyCity": vai('Iscrivi in MyCity'),
     },
   };
 }
@@ -380,4 +384,39 @@ test('la scheda per il sito: il formato concordato, senza prezzi, mai in prova',
     assert.equal(j.mandare, false);
     assert.match(j.motivo, motivo);
   }
+});
+
+test("il 16 non iscrive in MyCity: i nodi dell'iscrizione del 12 restano fuori, coi loro collegamenti", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, analisi: 'id-18' });
+  assert.deepEqual(controlla(w), []);
+  for (const nome of SOLO_NEL_12) {
+    assert.equal(w.nodes.some((n) => n.name === nome), false, `«${nome}» non deve esserci`);
+    assert.equal(w.connections[nome], undefined);
+  }
+  const tutti = Object.values(w.connections).flatMap((u) => Object.values(u).flat(2)).filter(Boolean).map((v) => v.node);
+  for (const nome of SOLO_NEL_12) assert.equal(tutti.includes(nome), false, `nessun collegamento verso «${nome}»`);
+  assert.ok(tutti.includes('Fine: cliente creato'), 'il resto dopo «Avvisa: cliente creato» resta');
+});
+
+test('il 16 tiene sempre spenta la ricerca con Claude, anche se nel 12 è accesa', () => {
+  const m = modulo12Mini();
+  const w = trasforma(m, { credenziale });
+  const cfg = w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  assert.equal(cfg.find((a) => a.name === RICERCA_CON_CLAUDE).value, 'no');
+  assert.equal(m.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.find((a) => a.name === RICERCA_CON_CLAUDE).value, 'si', 'il 12 ricevuto non si tocca');
+  cfg.find((a) => a.name === RICERCA_CON_CLAUDE).value = 'si';
+  assert.match(controlla(w).join('\n'), /API di Claude a pagamento/);
+});
+
+test('senza la voce RICERCA_CON_CLAUDE nel 12 il generatore si ferma', () => {
+  const m = modulo12Mini();
+  const cfg = m.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments;
+  cfg.splice(cfg.findIndex((a) => a.name === RICERCA_CON_CLAUDE), 1);
+  assert.throws(() => trasforma(m, { credenziale }), /RICERCA_CON_CLAUDE/);
+});
+
+test("controlla() vede un nodo dell'iscrizione rimasto nel 16", () => {
+  const w = trasforma(modulo12Mini(), { credenziale });
+  w.nodes.push({ id: 'x', name: 'Iscrivi in MyCity', type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: [0, 0], parameters: {} });
+  assert.match(controlla(w).join('\n'), /iscriverebbe di nuovo in MyCity/);
 });
