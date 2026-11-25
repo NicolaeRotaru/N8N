@@ -98,10 +98,12 @@ export const STILI = {
 const f3 = (n) => Number(n).toFixed(3);
 const RE_HEX = /^#[0-9a-fA-F]{6}$/;
 
-// Catena della voce «studio» (registrazioni da telefono e da camera): taglio sotto 80 Hz (rimbombo, vento, colpi sul
+// Catena della voce «studio» (registrazioni da telefono e da camera): taglio ripido sotto 80 Hz, 24 dB per ottava (rimbombo, vento, colpi sul
 // microfono), riduzione del rumore che segue il fondo, compressione dolce (le frasi sussurrate e quelle forti si
 // avvicinano), de-esser. Il volume finale lo decide dopo il loudnorm a -14 LUFS.
-export const VOCE_STUDIO = 'highpass=f=80,afftdn=nr=12:nf=-42:tn=1,acompressor=threshold=0.1:ratio=2.5:attack=8:release=150:makeup=1.5,deesser=i=0.3';
+// La riduzione del rumore ritarda il suono di 1200 campioni (25 ms a 48 kHz, misurati): senza compenso la voce arriverebbe
+// dopo le labbra. Si tolgono all'inizio e si rimettono in fondo, così la durata resta la stessa.
+export const VOCE_STUDIO = 'highpass=f=80,highpass=f=80,afftdn=nr=12:nf=-42:tn=1,acompressor=threshold=0.1:ratio=2.5:attack=8:release=150:makeup=1.5,deesser=i=0.3,atrim=start_sample=1200,asetpts=PTS-STARTPTS,apad=pad_len=1200';
 export function filtroVoce(stile) {
   return stile?.voce === 'studio' ? `${VOCE_STUDIO},` : '';
 }
@@ -120,7 +122,8 @@ export function luminanza(hex) {
 export function stileDa(nome, marchio, identita = null) {
   const base = STILI[String(nome || 'sdg').toLowerCase()] || STILI.sdg;
   const s = JSON.parse(JSON.stringify(base));
-  const id = identita && typeof identita === 'object' ? identita : {};
+  // l'identità di Scatti di G vale per lo stile «sdg»: «virale» e «pulito» restano come sono
+  const id = identita && typeof identita === 'object' && (STILI[String(nome || 'sdg').toLowerCase()] || STILI.sdg) === STILI.sdg ? identita : {};
   for (const k of ['fondo', 'testo', 'accento']) if (RE_HEX.test(id[k] || '')) s.colori[k] = id[k];
   const fontValido = (v) => typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9 ]{0,59}$/.test(v.trim());
   if (fontValido(id.font_titoli)) s.font_titoli = id.font_titoli.trim();
@@ -345,8 +348,10 @@ const CODIFICA_PEZZO = (t, fps) => ['-an', '-c:v', 'libx264', '-preset', 'veryfa
 // sfondo sfocato della stessa clip): ritagliato terrebbe un terzo dell'altezza e taglierebbe la testa.
 export function modoInquadratura(q, info, fmt, stile) {
   if (q.posizione === 'intera') return 'intera';
-  if (q.tipo === 'volto') return info && info.altezza > info.larghezza && fmt.w > fmt.h ? 'intera' : stile.volto;
-  return stile.coperture;
+  // una clip verticale in un formato orizzontale esce sempre intera: ritagliata terrebbe un terzo dell'altezza
+  // (la testa di chi parla, o il soggetto al centro di una copertura, resterebbero fuori)
+  if (info && info.altezza > info.larghezza && fmt.w > fmt.h) return 'intera';
+  return q.tipo === 'volto' ? stile.volto : stile.coperture;
 }
 
 async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null) {

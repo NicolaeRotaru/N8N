@@ -133,6 +133,8 @@ test('identità dal Config, voce da studio, volto verticale nel formato orizzont
   assert.deepEqual([id.font_titoli, id.font_testo], ['Playfair Display', 'Poppins'], 'un nome di font non valido si ignora');
   assert.equal(stileDa('sdg', { colori: { primario: '#D94F3D' } }, { accento: '#C9A227' }).colori.accento, '#D94F3D', 'il colore del cliente vince sull\'oro di Scatti di G');
   assert.equal(stileDa('sdg', null, { fondo: 'nero' }).colori.fondo, '#2C2A27');
+  assert.equal(stileDa('virale', null, { accento: '#C9A227', font_titoli: 'Playfair Display' }).colori.accento, '#D2FF3A', 'l\'identità di Scatti di G non tocca lo stile virale');
+  assert.equal(stileDa('pulito', null, { fondo: '#1E1C1A' }).colori.fondo, '#111111');
   assert.equal(filtroVoce(stileDa('sdg')), `${VOCE_STUDIO},`);
   assert.equal(filtroVoce(stileDa('virale')), '');
   const vert = { larghezza: 1080, altezza: 1920, trasferimento: '' };
@@ -142,8 +144,32 @@ test('identità dal Config, voce da studio, volto verticale nel formato orizzont
   assert.equal(modoInquadratura({ tipo: 'volto' }, oriz, FORMATI.verticale, sdg), 'riempi');
   assert.equal(modoInquadratura({ tipo: 'copertura' }, oriz, FORMATI.verticale, sdg), 'riempi');
   assert.equal(modoInquadratura({ tipo: 'copertura', posizione: 'intera' }, oriz, FORMATI.verticale, sdg), 'intera');
+  assert.equal(modoInquadratura({ tipo: 'copertura' }, vert, FORMATI.orizzontale, sdg), 'intera', 'anche una copertura verticale in 16:9 esce intera');
   assert.match(grafoInquadratura(vert, FORMATI.orizzontale, { modo: 'riempi' }), /crop=1920:1080:max\(0\\,min\(iw-ow\\,iw\/2-ow\/2\)\):\(ih-oh\)\*0\.3,/, 'una copertura verticale in 16:9 si ritaglia dal terzo alto');
   assert.match(grafoInquadratura(oriz, FORMATI.verticale, { modo: 'riempi' }), /\(ih-oh\)\/2/);
+});
+
+test('voce da studio: toglie il ronzio sotto 80 Hz, non ritarda la voce, non cambia la durata', () => {
+  const dir = path.join(TMP, 'voce-studio');
+  fs.mkdirSync(dir, { recursive: true });
+  const ingresso = path.join(dir, 'ingresso.wav');
+  // un colpo secco a 1 s (per misurare il ritardo), una «voce» a 220 Hz e un ronzio a 40 Hz sotto
+  ffmpeg(['-y', '-f', 'lavfi', '-i', "aevalsrc='if(between(t,1,1.002),0.9,0)+0.25*sin(2*PI*220*t)*between(t,1.5,3.5)+0.2*sin(2*PI*40*t)':s=48000:d=4", '-ac', '2', ingresso]);
+  // il ritardo si misura su un colpo da solo (con il ronzio sotto, il passa-alto cambia la forma del colpo)
+  const colpo = path.join(dir, 'colpo.wav');
+  ffmpeg(['-y', '-f', 'lavfi', '-i', "aevalsrc='if(between(t,1,1.002),0.9,0)+0.3*sin(2*PI*1000*t)*between(t,0.5,3)':s=48000:d=4", '-ac', '2', colpo]);
+  const campioni = (filtro) => {
+    const b = execFileSync('ffmpeg', ['-v', 'error', '-i', colpo, '-af', `aformat=sample_rates=48000,${filtro}aformat=sample_fmts=s16:channel_layouts=mono`, '-f', 's16le', '-'], { maxBuffer: 1 << 26 });
+    return new Int16Array(b.buffer, b.byteOffset, b.length / 2);
+  };
+  const prima = campioni('');
+  const dopo = campioni(`${VOCE_STUDIO},`);
+  assert.equal(dopo.length, prima.length, 'stessa durata');
+  const picco = (x) => { let m = 47000; for (let i = 47000; i < 50000; i++) if (Math.abs(x[i]) > Math.abs(x[m])) m = i; return m; };
+  assert.ok(Math.abs(picco(dopo) - picco(prima)) <= 48, `la voce si sposta di ${(picco(dopo) - picco(prima)) / 48} ms (massimo 1)`);
+  const ronzioPrima = Number(/mean_volume: (-?[\d.]+) dB/.exec(execFileSync('sh', ['-c', `ffmpeg -hide_banner -nostats -i "${ingresso}" -af "bandpass=f=40:width_type=h:w=12,volumedetect" -f null - 2>&1`]).toString())[1]);
+  const ronzioDopo = Number(/mean_volume: (-?[\d.]+) dB/.exec(execFileSync('sh', ['-c', `ffmpeg -hide_banner -nostats -i "${ingresso}" -af "aformat=sample_rates=48000,${VOCE_STUDIO},bandpass=f=40:width_type=h:w=12,volumedetect" -f null - 2>&1`]).toString())[1]);
+  assert.ok(ronzioPrima - ronzioDopo >= 12, `il ronzio a 40 Hz scende solo di ${(ronzioPrima - ronzioDopo).toFixed(1)} dB`);
 });
 
 test('il caso del millesimo: 4,931 s da coprire con 4,93 s di clip non lascia un volto da 1 ms', () => {
@@ -209,6 +235,16 @@ test('rallenty vero: una clip a 50 fotogrammi senza voce entra rallentata (doppi
   const no = await carica(s.base, pid, f50, { rallenta: 'no' });
   assert.equal(no.stato, 200, JSON.stringify(no.json));
   assert.ok(Math.abs(no.json.materiale.durata - 4) < 0.1, `con «no» la durata resta 4: ${no.json.materiale.durata}`);
+  const falso = await carica(s.base, pid, f50, { rallenta: false });
+  assert.ok(Math.abs(falso.json.materiale.durata - 4) < 0.1, `con false (sì/no del modulo) la durata resta 4: ${falso.json.materiale.durata}`);
+  // la clip rallentata per sbaglio, ricaricata con lo STESSO id di Drive e «rallenta: no», rientra a velocità normale
+  const stessoId = (dati) => chiama(s.base, `/progetto/${pid}/materiale`, { dati: { nome: 'mb-50.mp4', drive_id: 'drive-stesso-50', ...dati }, file: { file: f50 } });
+  const prima = await stessoId({});
+  assert.ok(prima.json.materiale.durata > 7.5, 'la prima volta si rallenta');
+  const rientra = await stessoId({ rallenta: 'no' });
+  assert.notEqual(rientra.json.gia_caricato, true, 'con «rallenta: no» non è un doppione');
+  assert.ok(Math.abs(rientra.json.materiale.durata - 4) < 0.1);
+  assert.equal((await stessoId({ rallenta: 'no' })).json.gia_caricato, true, 'il Retry di n8n resta un doppione');
   // il file rallentato si monta: una regia di 7 secondi di sole immagini sulla clip da 8, e si MUOVE per tutti i 7
   // secondi (se il rallenty allungasse solo la durata scritta, dopo 4 s l'immagine resterebbe ferma)
   const piano = { battute: [{ immagini: 7, coperture: ['V01.1'] }] };
@@ -221,6 +257,10 @@ test('rallenty vero: una clip a 50 fotogrammi senza voce entra rallentata (doppi
   assert.equal(iv.stato, 200, JSON.stringify(iv.json));
   assert.ok(Math.abs(iv.json.materiale.durata - 4) < 0.1, `l'intervista non va rallentata: ${iv.json.materiale.durata}`);
   assert.ok(iv.json.avvisi.some((a) => a.codice === 'rallenty_incerto'), JSON.stringify(iv.json.avvisi));
+  // il rimedio che l'avviso propone funziona: ricaricata con «rallenta: si» (stesso id di Drive) entra rallentata
+  const si = await chiama(s.base, `/progetto/${pid}/materiale`, { dati: { nome: path.basename(voce50), drive_id: `${voce50}:{}`, rallenta: 'si' }, file: { file: voce50 } });
+  assert.notEqual(si.json.gia_caricato, true, JSON.stringify(si.json));
+  assert.ok(si.json.materiale.durata > 7.5, `con «si» si rallenta: ${si.json.materiale.durata}`);
   // la clip rallentata ricaricata senza id di Drive (stessi byte dell'originale) è la stessa
   const doppia = await chiama(s.base, `/progetto/${pid}/materiale`, { dati: { nome: path.basename(f50) }, file: { file: f50 } });
   const ancora = await chiama(s.base, `/progetto/${pid}/materiale`, { dati: { nome: path.basename(f50) }, file: { file: f50 } });
@@ -308,6 +348,18 @@ test('due formati dalla stessa regia: verticale 1080×1920 e orizzontale 1920×1
     misure.push([sv.width, sv.height, pacchetti(pv)]);
   }
   assert.deepEqual(misure, [[1080, 1920, 150], [1920, 1080, 150]]);
+  // una copertura VERTICALE nel 16:9 esce intera, con i lati sfocati (non ritagliata a un terzo dell'altezza)
+  const vert = clip('mb-vert.mp4', ['-f', 'lavfi', '-i', 'testsrc2=size=1080x1920:rate=30:duration=8']);
+  assert.equal((await carica(s.base, pid, vert)).stato, 200);
+  const mv = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 4, coperture: ['V02.1'] }] }, stile: 'sdg', formato: 'orizzontale' }, file: {} });
+  assert.equal(mv.stato, 200, JSON.stringify(mv.json));
+  const pvv = path.join(TMP, 'mb-vert-16-9.mp4');
+  fs.writeFileSync(pvv, (await scarica(mv.json.file[0].url)).buf);
+  const fgv = path.join(TMP, 'mb-vert-16-9.png');
+  ffmpeg(['-ss', '2', '-i', pvv, '-frames:v', '1', '-y', fgv]);
+  const { data: dv, info: iv } = await sharp(fgv).removeAlpha().greyscale().raw().toBuffer({ resolveWithObject: true });
+  const salti = (x0, x1) => { let t = 0; for (let y = 100; y < 980; y += 4) for (let x = x0; x < x1; x++) t += Math.abs(dv[y * iv.width + x + 1] - dv[y * iv.width + x]); return t / ((x1 - x0) * 220); };
+  assert.ok(salti(40, 400) < salti(800, 1100) / 3, `i lati non sono sfocati (${salti(40, 400).toFixed(2)} contro ${salti(800, 1100).toFixed(2)} al centro)`);
   const no = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, formati: ['verticale', 'cinema'] }, file: {} });
   assert.equal(no.stato, 400);
 });
@@ -321,7 +373,13 @@ test('montatore: un reel del piano con la regia passa da /piano e da /monta ed e
   const ctl = await (await fetch(`${s.base}/progetto/${pid}/piano`, { method: 'POST', headers: H, body: JSON.stringify({ piano: { contenuti: [contenuto] }, mese: '2026-12', stile: 'sdg' }) })).json();
   assert.equal(ctl.contenuti.length, 1, JSON.stringify(ctl.problemi));
   assert.equal(ctl.contenuti[0].motore, 'regia');
-  const mt = await chiama(s.base, `/progetto/${pid}/monta`, { dati: { contenuto: ctl.contenuti[0], marchio: { colori: { primario: '#222222' }, font: 'Inter' }, marchio_valido: false, stile: 'sdg' }, file: {} });
+  // il ritmo dello stile arriva anche alla rotta /piano: quattro coperture su 9 s → 3 inquadrature (sdg), 4 (virale)
+  const quattro = { ...contenuto, regia: { ...contenuto.regia, battute: [{ ...contenuto.regia.battute[0], coperture: ['V01.1', 'V02.1', 'V01.1 destra', 'V02.1'] }] } };
+  const conta = async (stile) => (await (await fetch(`${s.base}/progetto/${pid}/piano`, { method: 'POST', headers: H, body: JSON.stringify({ piano: { contenuti: [quattro] }, mese: '2026-12', stile }) })).json()).contenuti[0].pezzi_usati.length;
+  assert.deepEqual([await conta('sdg'), await conta('virale')], [3, 4]);
+  // /monta: l'identità di Scatti di G dal Config (accento blu) e la LUT arrivano al montaggio
+  const conChiusura = { ...ctl.contenuti[0], regia: { ...ctl.contenuti[0].regia, chiusura: 'Prenota' } };
+  const mt = await chiama(s.base, `/progetto/${pid}/monta`, { dati: { contenuto: conChiusura, marchio: { colori: { primario: '#222222' }, font: 'Inter' }, marchio_valido: false, stile: 'sdg', identita: { accento: '#3FA7D6' }, lut: 'inverti-prova' }, file: {} });
   assert.equal(mt.stato, 200, JSON.stringify(mt.json));
   assert.deepEqual(mt.json.file.map((f) => f.tipo), ['video', 'copertina', 'fotogrammi']);
   assert.ok(mt.json.avvisi.some((a) => a.codice === 'musica_mancante'), 'senza file musicale lo dice');
@@ -329,4 +387,15 @@ test('montatore: un reel del piano con la regia passa da /piano e da /monta ed e
   fs.writeFileSync(pv, (await scarica(mt.json.file[0].url)).buf);
   const sv = sondaFile(pv).streams.find((x) => x.codec_type === 'video');
   assert.deepEqual([sv.width, sv.height, sv.avg_frame_rate, pacchetti(pv)], [1080, 1920, '25/1', 225]);
+  // alla fine: il filo della chiusura è blu (l'accento dell'identità), e la clip bianca è diventata nera (la LUT)
+  const fgf = path.join(TMP, 'mb-montatore-fine.png');
+  ffmpeg(['-ss', '8.5', '-i', pv, '-frames:v', '1', '-y', fgf]);
+  const { data: df, info: inf } = await sharp(fgf).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  let blu = 0;
+  for (let y = 1100; y < 1320; y++) for (let x = 400; x < 680; x++) { const i = (y * inf.width + x) * 3; if (Math.abs(df[i] - 0x3f) < 40 && Math.abs(df[i + 1] - 0xa7) < 40 && df[i + 2] > 170) blu++; }
+  assert.ok(blu > 200, `il filo della chiusura non è blu: ${blu} pixel`);
+  const fgm = path.join(TMP, 'mb-montatore-lut.png');
+  ffmpeg(['-ss', '7', '-i', pv, '-frames:v', '1', '-y', fgm]);
+  const { data: dm, info: inm } = await sharp(fgm).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  assert.ok(dm[(900 * inm.width + 540) * 3] < 60, `la clip bianca dovrebbe essere nera con la LUT: ${dm[(900 * inm.width + 540) * 3]}`);
 });

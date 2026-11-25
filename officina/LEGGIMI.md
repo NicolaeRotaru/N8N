@@ -408,13 +408,14 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
   - Con `marchio_valido: false` il marchio non tocca lo stile.
 - `virale` è lo stile 1.3.0: Bricolage, lime, parola evidenziata, grana, 30 fotogrammi. `pulito` è neutro, a 30.
 
-**Identità dal Config.** `stileDa(nome, marchio, identita)`: `identita = {fondo, testo, accento, font_titoli, font_testo}` arriva dal workflow (Config `SDG_…`) in `/regia/monta`, `/regia/controlla` e `/progetto/:pid/monta`. Prende solo colori `#RRGGBB` e nomi di font validi. Poi l'accento del cliente, se si vede sul fondo scuro. Così i colori nuovi di Scatti di G non richiedono di ripubblicare l'officina.
+**Identità dal Config.** `stileDa(nome, marchio, identita)`: `identita = {fondo, testo, accento, font_titoli, font_testo}` arriva dal workflow (Config `SDG_…`) in `/regia/monta`, `/regia/controlla` e `/progetto/:pid/monta`. Prende solo colori `#RRGGBB` e nomi di font validi, e vale solo per lo stile `sdg` (`virale` e `pulito` restano come sono). Poi l'accento del cliente, se si vede sul fondo scuro. Così i colori nuovi di Scatti di G non richiedono di ripubblicare l'officina.
 
 **Voce da studio** (`voce: 'studio'` nello stile `sdg`, `VOCE_STUDIO` in `src/regia-render.js`). Sulla voce, prima della musica e del loudnorm, passano quattro filtri:
-- `highpass` 80 Hz: toglie il rimbombo, il vento e i colpi sul microfono;
+- `highpass` 80 Hz due volte (24 dB per ottava: un ronzio a 40 Hz scende di oltre 12 dB): toglie il rimbombo, il vento e i colpi sul microfono;
 - `afftdn`: riduce il rumore di fondo, seguendolo nel tempo;
 - `acompressor` dolce: le frasi sussurrate e quelle forti si avvicinano;
 - `deesser`: le «s» meno taglienti.
+- La riduzione del rumore ritarda il suono di 1200 campioni (25 ms a 48 kHz, misurati): si compensano togliendoli all'inizio e rimettendoli in fondo, così la voce resta sulle labbra e la durata non cambia.
 
 **Rallenty** (`src/rallenty.js`). Una clip a 47 fotogrammi o più si «conforma» quando entra nel progetto. Ogni fotogramma girato diventa un fotogramma a 25: una clip a 50 dura il doppio. Il limite è 4 volte, quindi una clip a 240 si rallenta 4 volte.
 - Il file conformato prende il posto dell'originale (`V03-rallenty.mp4`, senza audio, lato lungo al massimo 1920). Scene e durata si allungano dello stesso fattore. Arriva l'avviso `rallenty`.
@@ -422,7 +423,7 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
   - Con un audio che si sente e nessuna trascrizione (whisper assente, piantato, o `trascrivi: no`) la clip resta com'è, con l'avviso `rallenty_incerto`: potrebbe essere un'intervista girata a 50.
   - Una clip rallentata per sbaglio si ricarica con `rallenta: no`: entra di nuovo, a velocità normale.
 - Il rallenty esce a `RALLENTY_FPS` (25): negli stili a 30 fotogrammi (`virale`, `pulito`) un fotogramma ogni sei si ripete.
-- Campo `rallenta` del materiale: `auto` (di serie), `si`, `no` (anche `true`/`false`). Variabili: `RALLENTY` (auto/si/no) e `RALLENTY_FPS` (25).
+- Campo `rallenta` del materiale: `auto` (di serie), `si`, `no` (anche `true`/`false`, `on`/`off`). Una clip ricaricata per cambiare il rallenty entra di nuovo anche con lo stesso id di Drive: rallentata e poi `no`, oppure non rallentata (avviso `rallenty_incerto`) e poi `si`. Variabili: `RALLENTY` (auto/si/no) e `RALLENTY_FPS` (25).
 
 **LUT** (`src/lut.js`).
 - `POST /lut` (multipart: `file` .cube + `dati {nome}`) salva `/dati/lut/<nome>.cube`. Va bene solo una LUT 3D, `LUT_3D_SIZE` da 2 a 129, con tutti i punti; altrimenti risponde 415 `lut_non_valida`.
@@ -431,7 +432,7 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 - Una LUT che non c'è dà 422 `lut_mancante`, con l'elenco di quelle che ci sono. Vale sia per `/regia/monta` sia per `/progetto/:pid/monta`.
 
 **Più formati.** `/regia/monta` con `dati.formati: ["verticale","orizzontale"]` (al massimo 3) monta la stessa regia in ogni formato.
-- Un volto girato in verticale, nel formato orizzontale, esce intero, con lo sfondo sfocato della stessa clip: ritagliato perderebbe la testa. Una copertura verticale in orizzontale si ritaglia dal terzo alto.
+- Una clip girata in verticale (volto o copertura), nel formato orizzontale, esce intera, con lo sfondo sfocato della stessa clip: ritagliata terrebbe un terzo dell'altezza e perderebbe la testa o il soggetto al centro.
 - I file si chiamano `verticale-video.mp4`, `orizzontale-copertina.jpg` e così via.
 - La risposta ha `formati:[{formato, file, controllo}]`. `file` e `controllo` restano quelli del primo formato.
 

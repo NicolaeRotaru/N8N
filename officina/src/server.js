@@ -262,9 +262,11 @@ export async function creaServer(cfg = leggiConfig()) {
     const nomeOriginale = String(dati.nome || f.nome).slice(0, 200);
     const driveId = dati.drive_id ? String(dati.drive_id).slice(0, 200) : null;
     // Lo stesso file mandato due volte (es. «Retry on Fail» di n8n): si restituisce quello già caricato.
-    // (una clip rallentata ricaricata con «rallenta: no» entra di nuovo, a velocità normale; i byte sono quelli dell'originale)
+    // Una clip ricaricata per cambiare il rallenty entra di nuovo: rallentata e ricaricata con «rallenta: no», oppure
+    // veloce non rallentata (avviso «rallenty_incerto») e ricaricata con «rallenta: si». I byte sono quelli dell'originale.
+    const cambiaRallenty = (m) => (m.rallenty && modoRallenty(dati.rallenta) === 'no') || (!m.rallenty && m.fps >= 47 && modoRallenty(dati.rallenta) === 'si');
     const gia = progetto.materiali.find((m) => ((driveId && m.drive_id === driveId) || (!driveId && !m.drive_id && m.nome_originale === nomeOriginale && (m.byte_originale ?? m.byte) === f.byte))
-      && !(m.rallenty && modoRallenty(dati.rallenta) === 'no'));
+      && !cambiaRallenty(m));
     if (gia) {
       const pub = materialiPubblici(progetto).find((m) => m.codice === gia.codice);
       return { progetto: progetto.id, materiale: pub, gia_caricato: true, avvisi: [{ codice: 'gia_caricato', messaggio: `«${nomeOriginale}» era già nel progetto come ${gia.codice}: non l'ho caricato due volte.` }] };

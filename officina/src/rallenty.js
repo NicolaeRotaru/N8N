@@ -29,8 +29,8 @@ export function modoRallenty(v) {
   if (v === false || v === 0) return 'no';
   if (v === true || v === 1) return 'si';
   const m = String(v ?? 'auto').trim().toLowerCase();
-  if (['no', 'false', '0'].includes(m)) return 'no';
-  if (['si', 'sì', 'true', '1'].includes(m)) return 'si';
+  if (['no', 'false', '0', 'off', 'spento', 'mai'].includes(m)) return 'no';
+  if (['si', 'sì', 'true', '1', 'on', 'acceso', 'sempre'].includes(m)) return 'si';
   return 'auto';
 }
 
