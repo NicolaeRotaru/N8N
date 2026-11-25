@@ -49,7 +49,7 @@ il doppione nel foglio Clienti e non riscrive la riga.
 **Il sito e i social di oggi** (Nicola, 25/11/2026 sera: sito e social nel preventivo solo dove valgono di
 più di quello che l'attività ha già). Nella stessa domanda dell'analisi del business, l'AD giudica anche il
 sito che l'attività ha già (livello semplice/medio/pregio, aspetto, pagine, funzioni, e cosa daremmo di più
-nel Premium) e Instagram, Facebook, TikTok e la scheda Google Maps (livello, post al mese, video, cura,
+nel Premium) e Instagram, Facebook, TikTok e la scheda Google Maps (livello debole/attivo/forte, post al mese, video sì/no, cura,
 risposte alle recensioni, cosa daremmo di più). Ogni giudizio ha la sua fonte https; dove un dato manca si
 dice. Il giudizio sul sito va nella scheda (`analisi.giudizio_sito`); quello sui social va al sito con
 `POST /api/agenzia/analisi-canali` (stessa credenziale della scheda), mai in prova.

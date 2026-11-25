@@ -549,12 +549,12 @@ const RISPOSTA_COMPLETA = {
     migliorie: 'Prenotazione dal telefono in due tocchi e il menu del giorno aggiornato da WhatsApp.', nota: 'Foto grandi e professionali, testi in tre lingue.',
     fonte: 'https://barroma.it', non_trovato: ['quando è stato aggiornato'] },
   social: {
-    instagram: { stato: 'fatta', fonte: 'https://www.instagram.com/barroma', livello: 'semplice', follower: 1200, post_al_mese: 2, ultimo_post_il: '2026-11-02',
-      video: 'mai', cura: 'fai-da-te', risposte_recensioni: null, osservazioni: ['Foto scattate col telefono, senza testo.', 'Il caffè costa 1,20 euro.'],
+    instagram: { stato: 'fatta', fonte: 'https://www.instagram.com/barroma', livello: 'debole', follower: 1200, post_al_mese: 2, ultimo_post_il: '2026-11-02',
+      video: false, cura: 'fai-da-te', risposte_recensioni: null, osservazioni: ['Foto scattate col telefono, senza testo.', 'Il caffè costa 1,20 euro.'],
       migliorie: 'Un post a settimana con la colazione del giorno e un breve video.', non_trovato: ['risposte ai commenti'] },
-    facebook: { stato: 'fatta', fonte: 'barroma-facebook', livello: 'medio', follower: 900, osservazioni: ['Pagina ferma.'] },
+    facebook: { stato: 'fatta', fonte: 'barroma-facebook', livello: 'attivo', follower: 900, osservazioni: ['Pagina ferma.'] },
     tiktok: { stato: 'non_trovato', fonte: null },
-    google: { stato: 'fatta', fonte: 'https://maps.google.com/?cid=1', livello: 'medio', valutazione: 4.6, recensioni: 210, risposte_recensioni: 'mai',
+    google: { stato: 'fatta', fonte: 'https://maps.google.com/?cid=1', livello: 'pregio', valutazione: 4.6, recensioni: 210, risposte_recensioni: false, video: 'spesso',
       osservazioni: ['Media 4,6 su 5, nessuna risposta del titolare.'], migliorie: 'Rispondere a ogni recensione entro due giorni.' },
     myspace: { stato: 'fatta', fonte: 'https://myspace.com/x' },
   },
@@ -595,6 +595,9 @@ test("la domanda all'AD chiede anche il giudizio sul sito di oggi e sui social, 
   const so = schema.properties.social.properties;
   assert.deepEqual(Object.keys(so).sort(), ['facebook', 'google', 'instagram', 'tiktok']);
   for (const k of ['stato', 'fonte', 'livello', 'post_al_mese', 'video', 'cura', 'risposte_recensioni', 'migliorie']) assert.ok(so.instagram.properties[k], `social.instagram.${k}`);
+  assert.deepEqual(so.instagram.properties.livello.enum, ['debole', 'attivo', 'forte', null]);
+  assert.deepEqual(so.instagram.properties.video.type, ['boolean', 'null']);
+  assert.deepEqual(so.instagram.properties.risposte_recensioni.type, ['boolean', 'null']);
   assert.match(json.richiesta.system, /non si trova/i);
   assert.match(json.richiesta.system, /Premium/);
 });
@@ -632,13 +635,15 @@ test("il giudizio sui social esce nel formato che il sito accetta: un canale sen
   assert.deepEqual(instagram.numeri, { follower: 1200, post_ultimi_30_giorni: 2, ultimo_post_il: '2026-11-02' });
   assert.deepEqual(instagram.osservazioni, ['Foto scattate col telefono, senza testo.'], 'la frase col prezzo si toglie');
   assert.deepEqual(instagram.consigli, ['Un post a settimana con la colazione del giorno e un breve video.']);
-  assert.deepEqual(instagram.giudizio, { livello: 'semplice', post_al_mese: 2, video: 'mai', cura: 'fai-da-te', risposte_recensioni: null,
+  assert.deepEqual(instagram.giudizio, { livello: 'debole', post_al_mese: 2, video: false, cura: 'fai-da-te', risposte_recensioni: null,
     migliorie: 'Un post a settimana con la colazione del giorno e un breve video.', non_trovato: ['risposte ai commenti'] });
   assert.equal(facebook.stato, 'non_disponibile', 'letto senza una fonte https: non si tiene');
   assert.equal(facebook.numeri, undefined);
   assert.deepEqual(tiktok, { stato: 'non_trovato', fonte: null });
   assert.deepEqual(google.numeri, { valutazione: 4.6, recensioni: 210 });
-  assert.equal(google.giudizio.risposte_recensioni, 'mai');
+  assert.equal(google.giudizio.risposte_recensioni, false);
+  assert.equal(google.giudizio.livello, null, 'semplice/medio/pregio valgono solo per il sito');
+  assert.equal(google.giudizio.video, null, 'una stringa non è un sì o un no');
   assert.deepEqual(google.osservazioni, ['Media 4,6 su 5, nessuna risposta del titolare.'], 'un voto non è un prezzo');
   // Se l'AD non ha risposto sui social, non si manda niente (non sappiamo, non diciamo «non trovato»).
   const senza = await unisci({ ...RISPOSTA_COMPLETA, social: undefined });
@@ -806,7 +811,7 @@ test('contratto: servizio e proposta su opportunità e prime mosse (10-160 carat
 test("contratto (AD, fonte unica): il giudizio sui social sta solo in analisi-canali, mai nella scheda; il giudizio sul sito arriva con la ricerca in fondo o no", async () => {
   const u = await unisci(RISPOSTA_COMPLETA);
   assert.equal(u.scheda.analisi.giudizio_social, undefined);
-  assert.equal(u.analisi_canali.instagram.giudizio.livello, 'semplice');
+  assert.equal(u.analisi_canali.instagram.giudizio.livello, 'debole');
   for (const proposta of [PROPOSTA, { ok: false }]) {
     const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', proposta) });
     assert.equal(json.mandare, true);

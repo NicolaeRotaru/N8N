@@ -235,13 +235,14 @@ const CANALE = (nome) => ({ type: 'object', additionalProperties: false,
   properties: {
     stato: { type: 'string', enum: ['fatta', 'non_trovato', 'privato', 'non_disponibile'], description: "fatta = l'hai letto; non_trovato = hai cercato e non c'è; privato = c'è ma è chiuso; non_disponibile = non si riesce a leggere senza accesso." },
     fonte: forse('string', "L'indirizzo https del profilo o della scheda che hai letto."),
-    livello: scelta(['semplice', 'medio', 'pregio'], 'semplice = pochi post, foto col telefono, poco curato; medio = regolare e ordinato; pregio = costante, curato, con video, risponde alle persone.'),
+    // I livelli dei social sono la loro tabella (AD, 25/11/2026 21:24): semplice/medio/pregio valgono solo per il sito.
+    livello: scelta(['debole', 'attivo', 'forte'], "debole = pochi post, foto col telefono, poco curato; attivo = regolare e ordinato; forte = costante, curato, con video, risponde alle persone. Un profilo che non c'è non ha livello: è lo stato «non_trovato»."),
     follower: forse('integer', 'Quante persone lo seguono, se lo leggi.'),
     post_al_mese: forse('integer', "Quanti post nell'ultimo mese, se li conti."),
     ultimo_post_il: forse('string', "La data dell'ultimo post, AAAA-MM-GG."),
-    video: scelta(['spesso', 'a_volte', 'mai'], 'Quanto usa i video (reel, storie, filmati).'),
+    video: forse('boolean', 'true se pubblica video (reel, storie, filmati), false se non ne pubblica, null se non lo sai.'),
     cura: scelta(['curato', 'datato', 'fai-da-te'], 'Com\'è a vederlo: foto, testi, ordine.'),
-    risposte_recensioni: scelta(['sempre', 'a_volte', 'mai'], 'Se il titolare risponde alle recensioni o ai commenti.'),
+    risposte_recensioni: forse('boolean', 'true se il titolare risponde alle recensioni o ai commenti, false se non risponde, null se non lo sai.'),
     valutazione: forse('number', 'La media delle stelle da 0 a 5, se il canale la mostra.'),
     recensioni: forse('integer', 'Quante recensioni, se il canale le mostra.'),
     osservazioni: { type: 'array', maxItems: 3, items: { type: 'string' }, description: 'Al massimo 3 frasi corte su cosa hai visto.' },
@@ -387,8 +388,10 @@ if (so) {
       if (osservazioni.length) uno.osservazioni = osservazioni;
       const migl = migliorie(c.migliorie);
       if (migl) uno.consigli = [migl];
-      uno.giudizio = { livello: tra(c.livello, LIVELLI), post_al_mese: intero(c.post_al_mese, 100000) ?? null, video: tra(c.video, ['spesso', 'a_volte', 'mai']),
-        cura: tra(c.cura, ASPETTI), risposte_recensioni: tra(c.risposte_recensioni, ['sempre', 'a_volte', 'mai']), migliorie: migl, non_trovato: mancano(c.non_trovato) };
+      // Vero, falso o non saputo (null): mai una stringa al posto di un sì o di un no.
+      const sino = (v) => (v === true || v === false ? v : null);
+      uno.giudizio = { livello: tra(c.livello, ['debole', 'attivo', 'forte']), post_al_mese: intero(c.post_al_mese, 100000) ?? null, video: sino(c.video),
+        cura: tra(c.cura, ASPETTI), risposte_recensioni: sino(c.risposte_recensioni), migliorie: migl, non_trovato: mancano(c.non_trovato) };
     }
     canali[nome] = uno;
   }
