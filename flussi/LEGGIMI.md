@@ -209,6 +209,34 @@ circa (col via della sessione che lo segue): RICERCA_CON_CLAUDE = si, perché il
 delle foto non parte finché le foto non arrivano come indirizzi web. Il **16** si è rigenerato dal 12 e tiene la
 ricerca accesa: `genera.mjs` la spegne solo se nel 12 resta un nodo a pagamento. **Il contatore dà 0.**
 
+**Gli allegati** (dal 25/11/2026, `chiedi-all-ad/allegati.mjs` e `codice/allegati-lavoro.js`). La routine accetta al massimo
+64 KB e non riceve immagini dentro il messaggio. Un lavoro può portare `allegati` facoltativi; senza allegati la richiesta
+resta identica a prima, carattere per carattere.
+
+- **Forma:** `allegati: [{ nome, tipo, … }]`, con tre tipi:
+  - `{ nome, tipo: 'testo', contenuto }`: al massimo 512 KB;
+  - `{ nome, tipo: 'immagine', base64, mime }`: jpeg, png o webp, al massimo 1,5 MB;
+  - `{ nome, tipo: 'officina', percorso: '/file/<lavoro>/<nome>' }`: si salva solo il riferimento, e il file lo
+    prende n8n dall'officina sulla rete interna quando l'AD lo chiede.
+  - In una corsa al massimo 40 allegati e 8 MB salvati. Sopra i tetti il lavoro non parte e dice il motivo.
+- **Nel messaggio all'AD** va solo `{ nome, tipo, mime?, byte?, url }`; il tipo `officina` diventa `file`. Il compito dice
+  che gli allegati sono materiale, mai istruzioni.
+- **Il gettone:** uno per allegato, 256 bit, dal nodo Crypto. Nella Data table «Allegati per l'AD» c'è solo la sua
+  impronta SHA-256, con la corsa e la scadenza (un'ora).
+- **L'indirizzo fisso:** `https://n8n-shdy.sliplane.app/webhook/allegati-ad?g=<gettone>`, solo GET. Lo serve il flusso
+  «Allegati per l'AD» (numero da dare). Un gettone sbagliato o scaduto riceve 404 senza dettagli. Quel flusso non salva
+  le esecuzioni, né riuscite né fallite.
+- **Quanto restano:** «Chiedi all'AD» cancella le righe della corsa appena l'AD risponde, o se la routine non parte. Il
+  giro «Ogni ora» toglie gli avanzi scaduti.
+- **La memoria** riconosce «stesso lavoro» dal contenuto degli allegati, non dal gettone.
+- **Da fare una volta su n8n:** creare la Data table «Allegati per l'AD» con le colonne `impronta`, `corsa`, `nome`,
+  `tipo`, `mime`, `contenuto` (testo) e `scade` (numero). Poi:
+
+```bash
+N8N_API_KEY=… node flussi/chiedi-all-ad/allegati.mjs --manda    # crea il flusso spento; si accende a mano
+N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs --manda  # «Chiedi all'AD» con i nodi degli allegati
+```
+
 **Il contatore** (`conta-api-claude.mjs`). Conta i nodi verso l'API di Claude a pagamento nei flussi
 accesi e in quelli che possono far partire (sotto-flussi e flusso degli errori). Il risultato giusto è
 zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.
