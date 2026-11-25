@@ -58,6 +58,8 @@ const PREPARA_ANALISI = "Prepara l'analisi dell'attività";
 const BOZZE_19 = 'Bozze dei 3 abbonamenti (flusso 19)';
 const SCHEDA_SITO = 'Prepara la scheda per il sito';
 const MANDA_SITO = 'Manda la scheda al sito';
+const CANALI_SITO = "Prepara l'analisi dei social per il sito";
+const MANDA_CANALI = 'Manda i social al sito';
 export const PERCORSO_SCHEDA_SITO = '/api/agenzia/scheda-cliente';
 // Nodi che il 12 usa per iscrivere in MyCity un cliente nuovo: il 16 parte da chi su MyCity c'è già,
 // quindi non li prende mai (lo iscriverebbe due volte).
@@ -202,15 +204,64 @@ const VOCE = { type: 'object', additionalProperties: false, required: ['testo', 
   properties: { testo: { type: 'string', description: 'Una frase, al massimo 30 parole.' },
     fonte: { type: 'string', description: "L'indirizzo https della pagina pubblica da cui viene la frase." } } };
 const lista = (cosa) => ({ type: 'array', maxItems: 3, description: cosa, items: VOCE });
-const SCHEMA = { type: 'object', additionalProperties: false,
-  required: ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'],
+// 25/11/2026 sera (AD) — Ogni opportunità dice quale servizio di SDG la copre: il sito la trasforma in una proposta.
+const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
+// Contratto del sito (sessione del preventivo): servizio e proposta su opportunità e prime mosse, scartati nelle altre sezioni.
+const MOSSA = { ...VOCE, required: ['testo', 'fonte', 'servizio', 'proposta'], properties: { ...VOCE.properties,
+  servizio: { type: ['string', 'null'], enum: [...SERVIZI, null], description: 'Il servizio che la copre: foto_video, sito_web, social o analisi. null se nessuno dei quattro.' },
+  proposta: { type: ['string', 'null'], description: 'Cosa facciamo NOI, in una frase di al massimo 160 caratteri, senza prezzi né contatti. null se nessun servizio la copre.' } } };
+// 25/11/2026 sera — Il giudizio sul sito di oggi e sui social (Nicola: sito e social nel preventivo solo dove valgono di
+// più di quello che l'attività ha già). I valori di aspetto e pagine sono quelli che il sito legge già (leggiGiudizioSito).
+const forse = (tipo, descrizione, extra = {}) => ({ type: [tipo, 'null'], description: descrizione, ...extra });
+const scelta = (valori, descrizione) => ({ type: ['string', 'null'], enum: [...valori, null], description: descrizione });
+const nonTrovato = { type: 'array', maxItems: 8, items: { type: 'string' }, description: 'I dati che hai cercato e non hai trovato, detti in parole (es. «post al mese»). Dove un dato manca si dice qui, non si inventa.' };
+const GIUDIZIO_SITO = { type: 'object', additionalProperties: false,
+  required: ['esiste', 'livello', 'aspetto', 'pagine', 'funzioni', 'migliorie', 'nota', 'fonte', 'non_trovato'],
+  description: "Il sito che l'attività ha oggi, guardato da te.",
   properties: {
+    esiste: { type: 'string', enum: ['si', 'no', 'non_so'], description: "«si» se hai trovato e aperto il sito dell'attività; «no» se hai cercato e non ce l'ha; «non_so» se non sei riuscito a capirlo." },
+    livello: scelta(['semplice', 'medio', 'pregio'], 'semplice = una o due pagine, fatto in casa o datato; medio = più pagine, curato; pregio = tante pagine, curato, con funzioni (prenotazioni, negozio online, più lingue).'),
+    aspetto: scelta(['curato', 'datato', 'fai-da-te'], "Com'è a vederlo."),
+    pagine: scelta(['una', 'poche', 'molte'], 'Quante pagine ha.'),
+    funzioni: { type: 'array', maxItems: 8, items: { type: 'string', enum: ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti'] }, description: 'Le funzioni che hai visto davvero sul sito.' },
+    migliorie: forse('string', "Al massimo 240 caratteri: cosa daremmo di più rifacendolo nel Premium, scritto in modo che stia dopo «Rifacciamo il tuo sito: …» (per esempio «le prenotazioni dal telefono e il menu in inglese», non «Aggiungere…»). null se non c'è niente da migliorare davvero."),
+    nota: forse('string', 'Una frase di 3-200 caratteri su cosa hai visto.'),
+    fonte: forse('string', "L'indirizzo https del sito che hai aperto."),
+    non_trovato: nonTrovato,
+  } };
+const CANALE = (nome) => ({ type: 'object', additionalProperties: false,
+  required: ['stato', 'fonte', 'livello', 'follower', 'post_al_mese', 'ultimo_post_il', 'video', 'cura', 'risposte_recensioni', 'valutazione', 'recensioni', 'osservazioni', 'migliorie', 'non_trovato'],
+  description: nome,
+  properties: {
+    stato: { type: 'string', enum: ['fatta', 'non_trovato', 'privato', 'non_disponibile'], description: "fatta = l'hai letto; non_trovato = hai cercato e non c'è; privato = c'è ma è chiuso; non_disponibile = non si riesce a leggere senza accesso." },
+    fonte: forse('string', "L'indirizzo https del profilo o della scheda che hai letto."),
+    // I livelli dei social sono la loro tabella (AD, 25/11/2026 21:24): semplice/medio/pregio valgono solo per il sito.
+    livello: scelta(['debole', 'attivo', 'forte'], "debole = pochi post, foto col telefono, poco curato; attivo = regolare e ordinato; forte = costante, curato, con video, risponde alle persone. Un profilo che non c'è non ha livello: è lo stato «non_trovato»."),
+    follower: forse('integer', 'Quante persone lo seguono, se lo leggi.'),
+    post_al_mese: forse('integer', "Quanti post nell'ultimo mese, se li conti."),
+    ultimo_post_il: forse('string', "La data dell'ultimo post, AAAA-MM-GG."),
+    video: forse('boolean', 'true se pubblica video (reel, storie, filmati), false se non ne pubblica, null se non lo sai.'),
+    cura: scelta(['curato', 'datato', 'fai-da-te'], 'Com\'è a vederlo: foto, testi, ordine.'),
+    risposte_recensioni: forse('boolean', 'true se il titolare risponde alle recensioni o ai commenti, false se non risponde, null se non lo sai.'),
+    valutazione: forse('number', 'La media delle stelle da 0 a 5, se il canale la mostra.'),
+    recensioni: forse('integer', 'Quante recensioni, se il canale le mostra.'),
+    osservazioni: { type: 'array', maxItems: 3, items: { type: 'string' }, description: 'Al massimo 3 frasi corte su cosa hai visto.' },
+    migliorie: forse('string', 'Una frase di 10-240 caratteri: cosa daremmo di più seguendo noi questo canale.'),
+    non_trovato: nonTrovato,
+  } });
+const SCHEMA = { type: 'object', additionalProperties: false,
+  required: ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social'],
+  properties: {
+    giudizio_sito: GIUDIZIO_SITO,
+    social: { type: 'object', additionalProperties: false, required: ['instagram', 'facebook', 'tiktok', 'google'],
+      description: 'I canali social e la scheda Google Maps, uno per uno.',
+      properties: { instagram: CANALE('Instagram'), facebook: CANALE('Facebook'), tiktok: CANALE('TikTok'), google: CANALE('La scheda Google Maps') } },
     situazione: lista("Com'è messa oggi l'attività: cosa fa, da quanto, dove, come si presenta in rete."),
     mercato: lista('Il mercato e i concorrenti vicini: chi fa la stessa cosa nella zona, cosa li distingue.'),
     clienti: lista('I clienti e la reputazione: chi sono, cosa dicono le recensioni pubbliche.'),
-    opportunita: lista('Le opportunità che si vedono dalle fonti.'),
+    opportunita: { ...lista('Le opportunità che si vedono dalle fonti, ognuna col servizio che la copre e cosa facciamo noi.'), items: MOSSA },
     rischi: lista('I rischi che si vedono dalle fonti.'),
-    prime_mosse: lista('Le prime mosse concrete per far crescere gli incassi, come le diresti a voce, ognuna legata a una fonte.'),
+    prime_mosse: { ...lista('Le prime mosse concrete per far crescere gli incassi, come le diresti a voce, ognuna legata a una fonte, col servizio che la copre e cosa facciamo noi.'), items: MOSSA },
   } };
 const SISTEMA = [
   "Sei l'AD digitale di MyCity, il marketplace dei negozi di Piacenza. Analizzi le aziende come analizzi MyCity stessa nel tuo giro: com'è messa, il mercato e i concorrenti vicini, i clienti e la reputazione, le opportunità, i rischi e le prime mosse.",
@@ -223,19 +274,26 @@ const SISTEMA = [
   "- La lettura del web qui sotto è un indizio da controllare, non una verità.",
   "- I paletti di MyCity, che nessuna mossa può rompere: il negozio non paga una percentuale su quello che già vendeva; i suoi clienti restano suoi; nessuna app nuova da imparare; il primo risultato si vede in 2-4 settimane.",
   '- Italiano semplice, frasi corte (al massimo 30 parole), niente sigle. Al massimo 3 frasi per sezione.',
+  '',
+  'IL SITO E I SOCIAL DI OGGI',
+  "Servono a decidere se il nostro sito e i nostri social valgono di più di quello che l'attività ha già. Guardali come un cliente.",
+  "- giudizio_sito: apri il sito dell'attività (se c'è) e giudica livello, aspetto, pagine e funzioni che vedi davvero. In «migliorie» scrivi cosa daremmo di più rifacendolo nel Premium; se il sito è già ottimo e non sapresti cosa migliorare, null.",
+  '- social: per Instagram, Facebook, TikTok e la scheda Google Maps, cerca il profilo pubblico. Se lo trovi: livello, post al mese, video, cura, risposte alle recensioni, e in «migliorie» cosa daremmo di più seguendolo noi.',
+  "- Ogni giudizio ha la sua fonte: l'indirizzo https della pagina che hai aperto. Senza fonte il giudizio non vale.",
+  '- Dove un dato non si trova, si dice: null nel campo e una riga in «non_trovato». Non si inventa, non si stima a occhio un numero che non hai letto.',
 ].join('\n');
 const dati = {
-  attivita: { nome: testo(f.nome_locale), citta: testo(f.citta) || 'Piacenza', appunti: testo(f.appunti).slice(0, 1200) },
+  attivita: { nome: testo(f.nome_locale), citta: testo(f.citta) || 'Piacenza', sito_dichiarato: testo(f.sito) || null, appunti: testo(f.appunti).slice(0, 1200) },
   lettura_del_web: prima.scheda || null,
 };
 const richiesta = {
   model: String(cfg.CLAUDE_MODEL || 'claude-sonnet-5-5'),
-  max_tokens: 3000,
+  max_tokens: 6000,
   output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
   // La ricerca sul web è richiesta in modo esplicito: «Chiedi all'AD» la concede solo se la richiesta la porta.
   tools: [{ type: 'web_search_20250305', name: 'web_search' }, { type: 'web_fetch_20250910', name: 'web_fetch' }],
   system: SISTEMA,
-  messages: [{ role: 'user', content: '<dati_dell_attivita>\n' + JSON.stringify(dati, null, 1).replace(/</g, '‹').replace(/>/g, '›') + '\n</dati_dell_attivita>\n\nScrivi l\'analisi del business di questa attività.' }],
+  messages: [{ role: 'user', content: '<dati_dell_attivita>\n' + JSON.stringify(dati, null, 1).replace(/</g, '‹').replace(/>/g, '›') + '\n</dati_dell_attivita>\n\nScrivi l\'analisi del business di questa attività, con il giudizio sul suo sito e sui suoi social di oggi.' }],
 };
 return [{ json: { ...prima, richiesta } }];`;
 
@@ -246,7 +304,11 @@ const prima = $("Prepara l'analisi del business").first().json;
 const r = $input.first().json || {};
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').trim();
 const SEZIONI = ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse'];
-const VIETATO = /€|\b(eur|euro)\b|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\d[\d\s.-]{7,}\d/i;
+const SERVIZI = ['foto_video', 'sito_web', 'social', 'analisi'];
+const VIETATO = /€|\b(eur|euro|euri|chf)\b|\beur\d|\d+[.,]\d{1,2}\b|[\w.+-]+@[\w-]+\.[\w.]+|\+?\(?\d[\d\s.\/()–—-]{7,}\d/i;
+// Come il sito (mycity/lib/agenzia/scheda-cliente.ts, NUMERO_DA_PREZZO): «2.-» e «2 E». Senza /i: «1980 e» non è un prezzo.
+const VIETATO_MAIUSCOLO = /\d+[.,]-|\d\s?E\b/;
+const vietato = (t) => VIETATO.test(t) || VIETATO_MAIUSCOLO.test(t);
 // Un voto («4,6 su 5», «4.5 stelle») non è un prezzo: si toglie prima del controllo.
 const VOTO = /\d[.,]\d\s*(su\s*5|\/\s*5|stell[ae])/gi;
 let letta = null;
@@ -254,22 +316,99 @@ try {
   const t = r.content && r.content[0] && r.content[0].text;
   letta = typeof t === 'string' ? JSON.parse(t) : null;
 } catch (e) { letta = null; }
+// La proposta (cosa facciamo noi) come la vuole il sito: 10-160 caratteri, senza prezzi né contatti.
+const fonteBuona = (u) => { try { return new URL(u).protocol === 'https:'; } catch (e) { return false; } };
+const proposta = (v) => { const t = typeof v === 'string' ? testo(v) : ''; return t.length >= 10 && t.length <= 160 && !vietato(t) ? t : null; };
 let business = null;
 if (letta && typeof letta === 'object') {
   business = {};
   let quante = 0;
   for (const s of SEZIONI) {
     const voci = Array.isArray(letta[s]) ? letta[s] : [];
-    business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte) }))
-      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && v.fonte.length <= 500 && !VIETATO.test(v.testo.replace(VOTO, 'voto')))
+    business[s] = voci.map((v) => ({ testo: testo(v && v.testo).slice(0, 300), fonte: testo(v && v.fonte),
+      ...(s === 'opportunita' || s === 'prime_mosse' ? { servizio: SERVIZI.includes(v && v.servizio) ? v.servizio : null, proposta: SERVIZI.includes(v && v.servizio) ? proposta(v && v.proposta) : null } : {}) }))
+      .filter((v) => v.testo.length >= 10 && v.testo.length <= 300 && /^https:\/\/[^\s]+$/i.test(v.fonte) && fonteBuona(v.fonte) && v.fonte.length <= 500 && !vietato(v.testo.replace(VOTO, 'voto')))
       .slice(0, 3);
     quante += business[s].length;
   }
   if (!quante) business = null;
 }
+
+// 25/11/2026 sera — Il giudizio sul sito di oggi (va nella scheda, analisi.giudizio_sito) e sui social (va al sito con la
+// porta analisi-canali). Valori fuori elenco = non detto; un giudizio senza la sua fonte https non si tiene.
+const tra = (v, elenco) => (elenco.includes(v) ? v : null);
+// Come il sito: un indirizzo che new URL non apre (https://%zz) farebbe respingere tutto il giudizio sui social.
+const https = (u) => { const t = testo(u); if (!/^https:\/\/[^\s]+$/i.test(t) || t.length > 500) return null; try { return new URL(t).protocol === 'https:' ? t : null; } catch (e) { return null; } };
+const frase = (v, max) => { const t = typeof v === 'string' ? testo(v) : ''; return t.length >= 3 && t.length <= max && !vietato(t.replace(VOTO, 'voto')) ? t : null; };
+const mancano = (x) => (Array.isArray(x) ? [...new Set(x.map((v) => frase(v, 120)).filter(Boolean))].slice(0, 8) : []);
+// Una data vera e non nel futuro: «2026-13-45» il sito la mostrerebbe com'è.
+const giorno = (v) => { const t = testo(v); if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return undefined; const d = new Date(t + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === t && t >= '2004-01-01' && d.getTime() <= Date.now() ? t : undefined; };
+// Le migliorie come le vuole il sito: 10-240 caratteri, senza prezzi né telefoni.
+const migliorie = (v) => { const t = frase(v, 240); return t && t.length >= 10 ? t : null; };
+const intero = (v, max) => (Number.isInteger(v) && v >= 0 && v <= max ? v : undefined);
+const FUNZIONI = ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti'];
+const LIVELLI = ['semplice', 'medio', 'pregio'];
+const ASPETTI = ['curato', 'datato', 'fai-da-te'];
+const f16 = $('Modulo nuovo cliente').isExecuted ? $('Modulo nuovo cliente').first().json : {};
+const sitoNoto = testo(f16.sito) || testo(prima.scheda && prima.scheda.sito_ufficiale);
+let giudizioSito = null;
+const gs = letta && letta.giudizio_sito && typeof letta.giudizio_sito === 'object' ? letta.giudizio_sito : null;
+if (gs && gs.esiste === 'no' && !sitoNoto) {
+  // Nessun sito: non c'è una pagina da citare. Se il locale un sito l'ha dichiarato (o la ricerca l'ha trovato), l'AD si è sbagliato e non si tiene.
+  giudizioSito = { esiste: 'no', livello: null, aspetto: null, pagine: null, funzioni: [], migliorie: null, nota: null, fonte: null, non_trovato: mancano(gs.non_trovato) };
+} else if (gs && gs.esiste === 'si' && https(gs.fonte)) {
+  giudizioSito = { esiste: 'si', livello: tra(gs.livello, LIVELLI), aspetto: tra(gs.aspetto, ASPETTI), pagine: tra(gs.pagine, ['una', 'poche', 'molte']),
+    funzioni: [...new Set(Array.isArray(gs.funzioni) ? gs.funzioni.filter((x) => FUNZIONI.includes(x)) : [])],
+    migliorie: migliorie(gs.migliorie), nota: frase(gs.nota, 200), fonte: https(gs.fonte), non_trovato: mancano(gs.non_trovato) };
+}
+// I social, nel formato del sito (mycity/lib/agenzia/analisi.ts, AnalisiCanaliInArrivo). Il giudizio intero va in «giudizio»:
+// il sito lo terrà quando il contratto del preventivo lo chiede; osservazioni e consigli il sito li mostra già.
+let canali = null;
+const so = letta && letta.social && typeof letta.social === 'object' ? letta.social : null;
+if (so) {
+  canali = {};
+  for (const nome of ['instagram', 'facebook', 'tiktok', 'google']) {
+    const c = so[nome] && typeof so[nome] === 'object' ? so[nome] : null;
+    let stato = c ? tra(c.stato, ['fatta', 'non_trovato', 'privato', 'non_disponibile']) : null;
+    if (!stato) continue;
+    const fonte = https(c.fonte);
+    // Letto senza una pagina da citare: non si tiene niente di quello che dice.
+    if (stato === 'fatta' && !fonte) stato = 'non_disponibile';
+    const uno = { stato, fonte: stato === 'fatta' || stato === 'privato' ? fonte : null };
+    if (stato === 'fatta') {
+      const numeri = {};
+      const metti = (k, v) => { if (v !== undefined) numeri[k] = v; };
+      metti('follower', intero(c.follower, 100000000));
+      metti('post_ultimi_30_giorni', intero(c.post_al_mese, 100000));
+      metti('ultimo_post_il', giorno(c.ultimo_post_il));
+      metti('valutazione', typeof c.valutazione === 'number' && c.valutazione >= 0 && c.valutazione <= 5 ? c.valutazione : undefined);
+      metti('recensioni', intero(c.recensioni, 100000000));
+      if (Object.keys(numeri).length) uno.numeri = numeri;
+      const osservazioni = (Array.isArray(c.osservazioni) ? c.osservazioni : []).map((v) => frase(v && typeof v === 'object' ? v.testo : v, 240)).filter(Boolean).slice(0, 3);
+      if (osservazioni.length) uno.osservazioni = osservazioni;
+      const migl = migliorie(c.migliorie);
+      if (migl) uno.consigli = [migl];
+      // Vero, falso o non saputo (null): mai una stringa al posto di un sì o di un no.
+      const sino = (v) => (v === true || v === false ? v : null);
+      uno.giudizio = { livello: tra(c.livello, ['debole', 'attivo', 'forte']), post_al_mese: intero(c.post_al_mese, 100000) ?? null, video: sino(c.video),
+        cura: tra(c.cura, ASPETTI), risposte_recensioni: sino(c.risposte_recensioni), migliorie: migl, non_trovato: mancano(c.non_trovato) };
+    }
+    canali[nome] = uno;
+  }
+  if (!Object.keys(canali).length) canali = null;
+}
+
+// 25/11/2026 sera (AD) — Il segno «analisi fatta», anche quando l'AD non ha trovato fonti e tutte le sezioni sono vuote:
+// senza, il sito mostrerebbe per sempre «la stiamo preparando». Con gli avvisi dell'AD (perché è vuota). Nomi provvisori,
+// finché il contratto della sessione del preventivo non li fissa.
+const fatta = letta && typeof letta === 'object' && !Array.isArray(letta);
+const avvisi = fatta ? [...new Set((Array.isArray(r.avvisi) ? r.avvisi : []).map((v) => frase(v, 240)).filter(Boolean))].slice(0, 6) : [];
+const segno = fatta ? { business_fatta_il: new Date().toISOString(), business_avvisi: avvisi } : {};
 const { richiesta, ...resto } = prima;
-const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...(business ? { business } : {}) } } : (business ? { analisi: { business } } : null);
-return [{ json: { ...resto, scheda, analisi_business: business ? 'fatta' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
+const aggiunte = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
+const scheda = resto.scheda ? { ...resto.scheda, analisi: { ...(resto.scheda.analisi || {}), ...aggiunte } } : (Object.keys(aggiunte).length ? { analisi: aggiunte } : null);
+return [{ json: { ...resto, scheda, analisi_canali: canali, analisi_business: business ? 'fatta' : fatta ? 'fatta, senza fonti' : (r.error ? 'non fatta: ' + testo(r.error.message).slice(0, 120) : 'non fatta') } }];`;
 
 /** Dopo la scheda: la stessa scheda va al sito, che la conserva e la mostra al venditore da confermare. */
 export const CODICE_SCHEDA_SITO = String.raw`// 16 · La scheda va anche al sito (formato concordato con la sessione «Servizi SDG», 24/11/2026):
@@ -285,11 +424,17 @@ if (prova) return [{ json: { mandare: false, motivo: 'modalità prova' } }];
 // L'analisi del business arriva dal passo prima («Unisci l'analisi del business»), se il 16 la fa.
 const dalPasso = $input.first().json || {};
 const business = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.business ? dalPasso.scheda.analisi.business : null;
+// 25/11/2026 sera — Il giudizio dell'AD sul sito di oggi: il sito lo usa per offrire il suo sito solo dove vale di più.
+const giudizioSito = dalPasso.scheda && dalPasso.scheda.analisi && dalPasso.scheda.analisi.giudizio_sito ? dalPasso.scheda.analisi.giudizio_sito : null;
+const an = (dalPasso.scheda && dalPasso.scheda.analisi) || {};
+// Il segno «analisi fatta» (anche vuota) e i suoi avvisi: il sito smette di dire «la stiamo preparando».
+const segno = an.business_fatta_il ? { business_fatta_il: an.business_fatta_il, business_avvisi: Array.isArray(an.business_avvisi) ? an.business_avvisi : [] } : {};
+const dellAd = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ? { giudizio_sito: giudizioSito } : {}) };
 if (!p || !p.ok) {
-  // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business, quella va al sito.
-  if (!business) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
+  // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business o guardato il sito, quella va al sito.
+  if (!Object.keys(dellAd).length) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
   return [{ json: { mandare: true, corpo: { tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(),
-    id_attivita: f.id_mycity, campi: {}, analisi: { business }, da_confermare: [] } } }];
+    id_attivita: f.id_mycity, campi: {}, analisi: dellAd, da_confermare: [] } } }];
 }
 const STATI = { confermato: 'confermato', da_confermare: 'da_confermare', foto: 'foto', frammento: 'frammento', proposta: 'proposta',
   nessuna: 'nessuna', non_trovata: 'da_confermare', bloccata: 'nessuna' };
@@ -318,10 +463,27 @@ return [{ json: { mandare: true, corpo: {
     tono_consigliato: testo(a.tono_consigliato).slice(0, 500) || null,
     punti_di_forza: lista(a.punti_di_forza, 6), idee_contenuti: lista(a.idee_contenuti, 6), cosa_chiedere_al_titolare: lista(a.cosa_chiedere_al_titolare, 6),
     dubbi: lista(a.dubbi, 6),
-    // 25/11/2026 — L'analisi del business dell'AD, se c'è (già ripulita in «Unisci l'analisi del business»).
-    ...(business ? { business } : {}) },
+    // 25/11/2026 — L'analisi del business e il giudizio sul sito dell'AD, se ci sono (già ripuliti in «Unisci l'analisi del business»).
+    ...dellAd },
   da_confermare: lista(p.da_confermare, 20).map((v) => v.slice(0, 40)),
 } } }];`;
+
+/** 25/11/2026 sera — Il giudizio sui social va al sito con la sua porta (POST /api/agenzia/analisi-canali). */
+export const PERCORSO_CANALI_SITO = '/api/agenzia/analisi-canali';
+export const CODICE_CANALI_SITO = String.raw`// 16 · Il giudizio dell'AD sui social va al sito, nel formato di mycity/lib/agenzia/analisi.ts (AnalisiCanaliInArrivo),
+// già ripulito in «Unisci l'analisi del business». Il sito lo salva in analisi_negozi.canali e lo usa per offrire i social
+// solo dove valgono di più. Mai in modalità prova, mai senza un'analisi vera dell'AD, mai con un id che il sito rifiuterebbe.
+const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();
+const cfg = $('Config').first().json;
+if (testo(cfg.MODALITA).toLowerCase() !== 'vero') return [{ json: { mandare: false, motivo: 'modalità prova' } }];
+const f = $('Modulo nuovo cliente').first().json;
+const id = testo(f.id_mycity).toLowerCase();
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) return [{ json: { mandare: false, motivo: "l'id dell'attività non è quello del sito" } }];
+const canali = $input.first().json.analisi_canali;
+if (!canali || typeof canali !== 'object' || !Object.keys(canali).length) return [{ json: { mandare: false, motivo: "l'AD non ha mandato il giudizio sui social" } }];
+const fatta_il = new Date().toISOString();
+const conData = Object.fromEntries(Object.entries(canali).map(([nome, c]) => [nome, c.stato === 'fatta' ? { ...c, letto_il: fatta_il } : c]));
+return [{ json: { mandare: true, corpo: { tipo: 'analisi-canali', origine: 'n8n-16', id_attivita: id, fatta_il, canali: conData } } }];`;
 
 // Testo HTML sicuro per Telegram dentro un'espressione n8n.
 // Fra parentesi: un'espressione con || dentro accanto a ?? senza parentesi non si legge (errore di sintassi).
@@ -558,6 +720,27 @@ export function trasforma(modulo12, opzioni = {}) {
     c[siManda.name] = { main: [[{ node: MANDA_SITO, type: 'main', index: 0 }], []] };
     c[MANDA_SITO] = { main: [[{ node: arrivata.name, type: 'main', index: 0 }]] };
     c[arrivata.name] = { main: [[], [{ node: avvisa.name, type: 'main', index: 0 }]] };
+
+    // 25/11/2026 sera — Il giudizio sui social (solo se l'AD fa l'analisi): accanto alla scheda, con la porta analisi-canali.
+    if (ultimoPasso === UNISCI_BUSINESS) {
+      const canaliCodice = nodoCodice(null, CANALI_SITO, CODICE_CANALI_SITO);
+      canaliCodice.position = [px + 220, py + 560];
+      const siMandano = { ...structuredClone(siManda), id: randomUUID(), name: 'Si mandano i social?', position: [px + 440, py + 560] };
+      siMandano.parameters.conditions.conditions[0].id = randomUUID();
+      const mandaCanali = { ...structuredClone(manda), id: randomUUID(), name: MANDA_CANALI, position: [px + 660, py + 560] };
+      mandaCanali.parameters.url = `={{ $('Config').first().json.MYCITY_SITO }}${PERCORSO_CANALI_SITO}`;
+      const arrivati = { ...structuredClone(arrivata), id: randomUUID(), name: 'Il sito ha preso i social?', position: [px + 880, py + 560] };
+      arrivati.parameters.conditions.conditions[0].id = randomUUID();
+      const avvisaCanali = nodoTelegram(telegram, null, 'Avvisa: social non arrivati al sito',
+        `'${DA_MYCITY}⚠️ <b>Il giudizio sui social non è arrivato al sito</b> · ' + ${escExpr("$('Modulo nuovo cliente').first().json.nome_locale")} + '\\nRisposta: ' + ${escExpr("$json.statusCode || ($json.error && $json.error.message) || 'nessuna'")} + '\\nLa scheda va per conto suo; nel preventivo i social restano «non analizzati».'`, chatId);
+      avvisaCanali.position = [px + 1100, py + 660];
+      w.nodes.push(canaliCodice, siMandano, mandaCanali, arrivati, avvisaCanali);
+      c[ultimoPasso].main[0].push({ node: CANALI_SITO, type: 'main', index: 0 });
+      c[CANALI_SITO] = { main: [[{ node: siMandano.name, type: 'main', index: 0 }]] };
+      c[siMandano.name] = { main: [[{ node: MANDA_CANALI, type: 'main', index: 0 }], []] };
+      c[MANDA_CANALI] = { main: [[{ node: arrivati.name, type: 'main', index: 0 }]] };
+      c[arrivati.name] = { main: [[], [{ node: avvisaCanali.name, type: 'main', index: 0 }]] };
+    }
   }
 
   w.name = NOME_16;
@@ -637,6 +820,11 @@ export function controlla(w) {
     if (!manda.credentials?.httpHeaderAuth?.id || manda.credentials.httpHeaderAuth.id === 'DA_IMPOSTARE') problemi.push('la scheda al sito non ha la credenziale del segreto');
     const scheda = w.nodes.find((n) => n.name === SCHEDA_SITO);
     if (!scheda || /MANDO = \[[^\]]*menu_con_prezzi/.test(scheda.parameters.jsCode || '')) problemi.push('i prezzi non devono andare al sito');
+  }
+  const mandaCanali = w.nodes.find((n) => n.name === MANDA_CANALI);
+  if (mandaCanali) {
+    if (!mandaCanali.credentials?.httpHeaderAuth?.id || mandaCanali.credentials.httpHeaderAuth.id === 'DA_IMPOSTARE') problemi.push('il giudizio sui social al sito non ha la credenziale del segreto');
+    if (!String(mandaCanali.parameters?.url || '').endsWith(PERCORSO_CANALI_SITO)) problemi.push('il giudizio sui social non va alla porta analisi-canali del sito');
   }
   const cfg = w.nodes.find((n) => n.name === 'Config');
   const mod = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
