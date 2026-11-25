@@ -761,3 +761,56 @@ test("l'AD: ogni opportunità dice quale servizio la copre (foto_video, sito_web
   assert.deepEqual(u.scheda.analisi.business.opportunita.map((v) => v.servizio), ['foto_video', null]);
   assert.equal('servizio' in u.scheda.analisi.business.situazione[0], false);
 });
+
+// --- Il contratto del sito (sessione del preventivo, ramo mycity claude/sito-dove-vale-di-piu, 25/11/2026 sera) -----------
+
+test('contratto: ogni oggetto dello schema per l\'AD chiede tutte le sue voci e nessuna in più', async () => {
+  const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  const visita = (nodo, dove) => {
+    if (!nodo || typeof nodo !== 'object') return;
+    if (nodo.properties) {
+      assert.equal(nodo.additionalProperties, false, `${dove}: additionalProperties`);
+      assert.deepEqual([...nodo.required].sort(), Object.keys(nodo.properties).sort(), `${dove}: required`);
+      for (const [k, v] of Object.entries(nodo.properties)) visita(v, `${dove}.${k}`);
+    }
+    if (nodo.items) visita(nodo.items, `${dove}[]`);
+  };
+  visita(json.richiesta.output_config.format.schema, 'schema');
+  const s = json.richiesta.output_config.format.schema.properties;
+  assert.deepEqual(s.giudizio_sito.properties.funzioni.items.enum, ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti']);
+  assert.match(s.giudizio_sito.properties.migliorie.description, /Rifacciamo il tuo sito/);
+  for (const sez of ['opportunita', 'prime_mosse']) {
+    assert.ok(s[sez].items.properties.proposta, `${sez}.proposta`);
+    assert.match(s[sez].items.properties.proposta.description, /160 caratteri/);
+  }
+  assert.equal(s.situazione.items.properties.proposta, undefined);
+});
+
+test('contratto: servizio e proposta su opportunità e prime mosse (10-160 caratteri, niente prezzi), scartati altrove; migliorie da 10 caratteri', async () => {
+  const r = structuredClone(RISPOSTA_COMPLETA);
+  r.situazione = [{ testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it', servizio: 'social', proposta: 'Una proposta che qui non va.' }];
+  r.opportunita = [{ testo: 'Nessuno pubblica foto della colazione in zona.', fonte: 'https://x.it/a', servizio: 'foto_video', proposta: 'Un servizio fotografico della colazione per il profilo.' },
+    { testo: 'Il sito non permette di prenotare un tavolo.', fonte: 'https://x.it/b', servizio: 'sito_web', proposta: 'Corta' }];
+  r.prime_mosse = [{ testo: 'Mettere gli orari giusti sulla scheda Google del bar.', fonte: 'https://maps.google.com/x', servizio: 'analisi', proposta: 'Sistemiamo la scheda Google a 49 euro.' },
+    { testo: 'Pubblicare il menu del giorno ogni mattina su Instagram.', fonte: 'https://www.instagram.com/barroma', servizio: 'social', proposta: 'x'.repeat(161) }];
+  r.giudizio_sito.migliorie = 'Il menu';
+  const u = await unisci(r);
+  const b = u.scheda.analisi.business;
+  assert.deepEqual(b.situazione[0], { testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it' });
+  assert.deepEqual(b.opportunita.map((v) => [v.servizio, v.proposta]), [['foto_video', 'Un servizio fotografico della colazione per il profilo.'], ['sito_web', null]]);
+  assert.deepEqual(b.prime_mosse.map((v) => [v.servizio, v.proposta]), [['analisi', null], ['social', null]]);
+  assert.equal(u.scheda.analisi.giudizio_sito.migliorie, null, 'meno di 10 caratteri');
+});
+
+test('contratto: il giudizio sui social va anche nella scheda (analisi.giudizio_social), con la ricerca arrivata in fondo o no', async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  assert.deepEqual(u.scheda.analisi.giudizio_social, {
+    instagram: { livello: 'debole', post_al_mese: 2, video: false, cura: 'amatoriale', risponde_recensioni: null, migliorie: 'Un post a settimana con la colazione del giorno e un breve video.' } });
+  for (const proposta of [PROPOSTA, { ok: false }]) {
+    const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', proposta) });
+    assert.equal(json.mandare, true);
+    assert.deepEqual(json.corpo.analisi.giudizio_social, u.scheda.analisi.giudizio_social);
+    assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio', 'il giudizio sul sito arriva anche con la ricerca in fondo');
+  }
+});
