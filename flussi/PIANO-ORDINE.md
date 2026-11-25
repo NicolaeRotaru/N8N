@@ -86,13 +86,11 @@ differenze fra copie (oggi il logo si scarica in quattro modi diversi).
    Il 16 · Montatore aspetta: il 25/11 qualcuno ci stava lavorando.
 5. I pezzi 91-95, uno per volta: prima il pezzo spento con le sue prove, poi un flusso che lo usa in prova,
    poi vero.
-6. La numerazione nuova, flusso per flusso, insieme ai generatori. **Fatti il 25/11** i nove che nessun programma
-   cerca per nome: 00, 03, 04, 05, 06, 07, 08, 10, 30. I nomi cercati dai programmi stanno in `nomi.mjs`, che trova
-   anche il nome vecchio. **Dopo l'unione di questa PR** si rinominano 11, 15, 26, 27, 28, 29 e 90, e poi 12 e 13
-   (che oggi pesterebbero il numero del 12 e del 13 vecchi) e 31 · Montatore, quando nessuno ci lavora.
-   **«Chiedi all'AD» per ultimo:** prima che siano unite questa PR e la #5 della sessione B, poi che
-   `chiedi-all-ad/costruisci.mjs`, `collega.mjs` e il 18 cerchino coi nomi di `nomi.mjs`. Solo dopo si rinomina su
-   n8n: oggi `costruisci.mjs --manda`, se non lo trova per nome, ne crea uno nuovo.
+6. La numerazione nuova: **fatta il 25/11 per tutti i flussi vivi, tranne «16 · Montatore»** (diventerà
+   31 · Montatore, quando sapremo chi ci stava lavorando). I nomi che i programmi cercano stanno in `nomi.mjs`:
+   `trovaFlusso` trova anche il nome di prima. Per rinominare un flusso con dati salvati dentro (staticData),
+   si usa l'operazione «setWorkflowMetadata» del server MCP di n8n: cambia solo il nome. Controllato: staticData,
+   nodi, acceso/spento ed etichette restano identici.
 7. Tutti gli errori al 99: fatto il 25/11 per tutti i flussi vivi.
 
 ## Da sapere
