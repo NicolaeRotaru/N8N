@@ -138,10 +138,15 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   for (const male of ['dieci', '-3', '7.5', '1.000', 'nessuna']) {
     const r = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '', post: '', storie: male }, PACC), input: [files] })[0].json;
     assert.equal(r.lavoro.richiesta.storie, 20, male);
-    assert.match(r.messaggio, new RegExp('«' + male.replace('.', '\\.') + '» \\(storie\\) non è un numero: ho usato il pacchetto'), male);
+    assert.match(r.messaggio, new RegExp('«' + male.replace('.', '\\.') + '» \\(storie\\) non è un numero da 0 a 999: ho usato il pacchetto del cliente \\(20\\)'), male);
   }
   const senzaPacc = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: 'tanti', post: '', storie: '' }, undefined), input: [files] })[0].json;
-  assert.deepEqual([senzaPacc.lavoro.richiesta.reel, /ho usato le quantità di serie/.test(senzaPacc.messaggio)], [10, true]);
+  assert.deepEqual([senzaPacc.lavoro.richiesta.reel, /«tanti» \(reel\) non è un numero da 0 a 999: ho usato la quantità di serie \(10\)/.test(senzaPacc.messaggio)], [10, true]);
+  // il pacchetto senza reel: per il reel scritto male vale il Config, e il messaggio non dice «pacchetto»
+  const misto = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: 'tanti', post: '', storie: '' }, { reel: null, post: 6, storie: 20 }), input: [files] })[0].json;
+  assert.deepEqual(misto.lavoro.richiesta, { reel: 10, post: 6, storie: 20 });
+  assert.match(misto.messaggio, /«tanti» \(reel\) non è un numero da 0 a 999: ho usato la quantità di serie \(10\)/);
+  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '100', post: '', storie: '' }, PACC), input: [files] })[0].json.lavoro.richiesta.reel, 100, 'tre cifre');
   // il mese vuoto: quello in corso fino al giorno 10 compreso (ora di Roma), poi il successivo — con un orologio finto
   const meseAlle = (iso, cfg = {}) => {
     const Vero = globalThis.Date;

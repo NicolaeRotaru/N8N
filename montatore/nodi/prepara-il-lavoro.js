@@ -72,7 +72,7 @@ const durataTesto = secondi >= 60 ? Math.round(secondi / 60) + ' minuti di girat
 const messaggio = 'Ho trovato ' + nv + ' video' + (secondi ? ' (' + durataTesto + ')' : '') + ' e ' + nf + ' foto in «' + S.nome + '» di ' + T.nome_locale + '. '
   + 'Preparo il piano di ' + mese.nome + ': ' + richiesta.reel + ' reel, ' + richiesta.post + ' post e caroselli, ' + richiesta.storie + ' storie' + (dalPacchetto ? ' (dal pacchetto del cliente)' : '') + '. '
   + 'Ci vorrà circa ' + (minuti >= 90 ? Math.round(minuti / 60) + ' ore' : minuti + ' minuti') + ': ti scrivo su Telegram a ogni passo.'
-  + (malScritti.length ? ' Nel modulo ' + malScritti.map((k) => '«' + accorcia(testo(CFG[k]).trim(), 20) + '» (' + k + ')').join(', ') + ' non è un numero: ho usato ' + (dalPacchetto ? 'il pacchetto' : 'le quantità di serie') + '.' : '')
+  + malScritti.map((k) => ' Nel modulo «' + accorcia(testo(CFG[k]).trim(), 20) + '» (' + k + ') non è un numero da 0 a 999: ho usato ' + (Number.isFinite(Q[k]) && Q[k] !== null ? 'il pacchetto del cliente' : 'la quantità di serie') + ' (' + richiesta[k] + ').').join('')
   + (scartati.length ? ' File saltati: ' + accorcia(scartati.join('; '), 400) + '.' : '')
   + (norm(CFG.MODALITA) === 'attivo' ? '' : ' Modalità PROVA: i contenuti finiscono su Drive, nel Calendario non scrivo niente.');
 // Lo stesso servizio non parte due volte. Il segno è la cartella «Pronti (montatore)» dentro il servizio: si crea
