@@ -52,7 +52,9 @@ sito che l'attività ha già (livello semplice/medio/pregio, aspetto, pagine, fu
 nel Premium) e Instagram, Facebook, TikTok e la scheda Google Maps (livello debole/attivo/forte, post al mese, video sì/no, cura,
 risposte alle recensioni, cosa daremmo di più). Ogni giudizio ha la sua fonte https; dove un dato manca si
 dice. Il giudizio sul sito va nella scheda (`analisi.giudizio_sito`); quello sui social va al sito con
-`POST /api/agenzia/analisi-canali` (stessa credenziale della scheda), mai in prova.
+`POST /api/agenzia/analisi-canali` (stessa credenziale della scheda), mai in prova. La rete della routine
+dell'AD non apre il sito del locale: le sue pagine, già scaricate da n8n nella ricerca («Leggi la ricerca»),
+arrivano all'AD fra i dati (`pagine_del_sito`, al massimo 6 pagine e 22.000 byte in tutto).
 
 ```bash
 N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id credenziale del segreto> --vero \

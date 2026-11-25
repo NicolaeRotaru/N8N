@@ -139,6 +139,7 @@ function modulo12Mini() {
         { name: 'RICERCA_CON_CLAUDE', value: 'si' }] } }),
       nodo('Prepara la ricerca', 'n8n-nodes-base.code', { jsCode: "const f = $('Modulo nuovo cliente').first().json;" }),
       nodo('Cerca il locale con Claude', 'n8n-nodes-base.httpRequest', { url: 'https://api.anthropic.com/v1/messages', jsonBody: '={{ JSON.stringify($json.corpo) }}' }),
+      nodo('Leggi la ricerca', 'n8n-nodes-base.code', { jsCode: 'return [];' }),
       nodo('Controlla la proposta', 'n8n-nodes-base.code', { jsCode: 'return [];' }),
       tg('Avvisa: ricerca fermata', '={{ $json.messaggio_stop }}'),
       nodo('Nuovo cliente? (dopo lo stop)', 'n8n-nodes-base.if'),
@@ -164,7 +165,8 @@ function modulo12Mini() {
       'Modulo nuovo cliente': vai('Config'),
       Config: vai('Prepara la ricerca'),
       'Prepara la ricerca': vai('Cerca il locale con Claude'),
-      'Cerca il locale con Claude': vai('Controlla la proposta'),
+      'Cerca il locale con Claude': vai('Leggi la ricerca'),
+      'Leggi la ricerca': vai('Controlla la proposta'),
       'Controlla la proposta': vai('Anteprima su Telegram', 'Avvisa: ricerca fermata'),
       'Avvisa: ricerca fermata': vai('Nuovo cliente? (dopo lo stop)'),
       'Nuovo cliente? (dopo lo stop)': vai('Prepara le pagine', 'Fine: aggiornamento fermato'),
@@ -840,4 +842,48 @@ test("dal secondo collaudo: telefoni con barra, parentesi o lineetta lunga non p
   const r2 = structuredClone(RISPOSTA_COMPLETA);
   r2.giudizio_sito.nota = 'Aperto dal 1980, orari 7-19 dal lunedì al sabato.';
   assert.equal((await unisci(r2)).scheda.analisi.giudizio_sito.nota, 'Aperto dal 1980, orari 7-19 dal lunedì al sabato.');
+});
+
+
+// --- 25/11/2026 sera (AD): il giudizio sul sito dalle pagine che n8n ha già scaricato ------------------------------
+// La rete della routine dell'AD è chiusa: non può aprire il sito del locale. Le pagine le ha già scaricate n8n, in
+// «Leggi la ricerca» (corpus.pagine, fino a 30.000 caratteri ciascuna): quelle del sito del locale vanno all'AD fra i dati.
+
+const CORPUS = (pagine) => ({ 'Leggi la ricerca': [{ json: { corpus: { pagine: Object.fromEntries(pagine.map((p, i) => ['p' + i, p])), frammenti: [], citati_letti: [] } } }] });
+const preparaConPagine = async (nodi, f = { nome_locale: 'Bar Roma', sito: 'https://www.barroma.it' }) => (await eseguiCodice(CODICE_PREPARA_BUSINESS, {
+  input: [{ json: { id: 'x', scheda: { sito_ufficiale: '' } } }], nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: f }], ...nodi } }))[0].json;
+const datiDi = (json) => JSON.parse(json.richiesta.messages[0].content.split('<dati_dell_attivita>\n')[1].split('\n</dati_dell_attivita>')[0]);
+
+test("il giudizio sul sito: all'AD vanno le pagine del sito del locale che n8n ha già scaricato, e solo quelle", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://barroma.it/', testo: 'Bar Roma. Colazioni dal 1980. Prenota un tavolo. Menu in inglese.' },
+    { url: 'https://www.barroma.it/menu', testo: 'Il nostro menu: brioche, cappuccino.' },
+    { url: 'https://www.instagram.com/barroma', testo: 'Profilo Instagram del Bar Roma.' },
+    { url: 'https://www.tripadvisor.it/bar-roma', testo: 'Recensioni del Bar Roma.' },
+  ]));
+  const dati = datiDi(json);
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://barroma.it/', 'https://www.barroma.it/menu']);
+  assert.match(dati.pagine_del_sito[0].testo, /Prenota un tavolo/);
+  assert.match(json.richiesta.system, /pagine_del_sito/);
+  assert.match(json.richiesta.system, /scaricat/);
+});
+
+test("il sito del locale si prende da quello dichiarato o, se manca, da quello che ha trovato la ricerca; senza ricerca niente pagine", async () => {
+  const pagine = CORPUS([{ url: 'https://pizzeria-luna.it/chi-siamo', testo: 'Pizzeria Luna, forno a legna.' }]);
+  const dallaRicerca = await preparaConPagine({ ...pagine, 'Controlla la proposta': [{ json: { ok: true, sito_ufficiale: 'https://pizzeria-luna.it' } }] }, { nome_locale: 'Luna' });
+  assert.deepEqual(datiDi(dallaRicerca).pagine_del_sito.map((p) => p.url), ['https://pizzeria-luna.it/chi-siamo']);
+  const senzaSito = await preparaConPagine(pagine, { nome_locale: 'Luna' });
+  assert.deepEqual(datiDi(senzaSito).pagine_del_sito, []);
+  const senzaRicerca = await preparaConPagine({});
+  assert.deepEqual(datiDi(senzaRicerca).pagine_del_sito, []);
+});
+
+test("le pagine del sito si tagliano: il lavoro per l'AD resta sotto i 64 KB anche con pagine lunghe e piene di accenti", async () => {
+  const lunga = 'Qualità è perché più caffè '.repeat(2000);
+  const json = await preparaConPagine(CORPUS(Array.from({ length: 8 }, (_, i) => ({ url: `https://www.barroma.it/p${i}`, testo: lunga }))));
+  const lavoro = JSON.stringify({ compito: json.richiesta.system, dati: { messaggio: json.richiesta.messages[0].content }, schema: json.richiesta.output_config.format.schema });
+  assert.ok(Buffer.byteLength(lavoro, 'utf8') < 60000, `il lavoro pesa ${Buffer.byteLength(lavoro, 'utf8')} byte`);
+  const dati = datiDi(json);
+  assert.ok(dati.pagine_del_sito.length >= 1);
+  assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
 });
