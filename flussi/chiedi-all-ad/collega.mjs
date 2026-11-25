@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { NOME_CHIEDI } from './costruisci.mjs';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 import { aPagamento } from '../conta-api-claude.mjs';
 
 const QUI = dirname(fileURLToPath(import.meta.url));
@@ -33,7 +34,7 @@ export const FLUSSI = {
   // Le foto del 12 viaggiano in base64: la lettura delle foto non parte finché non arrivano come indirizzi web.
   // Nel 12 tre bivi aprono il ramo verso l'IA solo con RICERCA_CON_CLAUDE = si. Tolti i nodi a pagamento,
   // la voce si accende: ora il ramo porta all'AD (piano Max), non all'API di Claude.
-  '12': { nome: '12 · Nuovo cliente (automatico)', accendi: 'RICERCA_CON_CLAUDE', nodi: [
+  '12': { nome: '12 · Nuovo cliente (automatico)', altri: [NOMI.nuovoCliente], accendi: 'RICERCA_CON_CLAUDE', nodi: [
     { nodo: 'Leggi le foto con Claude', cosa: 'le foto', forma: 'completa', fotoNecessarie: true },
     { nodo: 'Cerca il locale con Claude', cosa: 'la ricerca', forma: 'completa' },
     { nodo: 'Scrivi la scheda con Claude', cosa: 'la scheda', forma: 'completa' },
@@ -139,7 +140,7 @@ async function principale(argv) {
   // Il nome può essere cambiato (la sessione C rinumera i flussi): si cerca anche coi nomi nuovi.
   const trovato = tutti.find((w) => [quale.nome, ...(quale.altri || [])].includes(w.name));
   if (!trovato) throw new Error(`Non trovo «${quale.nome}» su n8n.`);
-  const chiedi = tutti.find((w) => w.name === NOME_CHIEDI);
+  const chiedi = trovaFlusso(tutti, NOME_CHIEDI);
   if (!chiedi) throw new Error(`Non trovo «${NOME_CHIEDI}» su n8n: prima node flussi/chiedi-all-ad/costruisci.mjs --manda`);
   const originale = await api.leggiFlusso(trovato.id);
   const i = argv.indexOf('--salva');

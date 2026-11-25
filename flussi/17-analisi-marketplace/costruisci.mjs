@@ -228,7 +228,7 @@ async function principale(argv) {
     const f98 = elenco.find((w) => w.name === '98 · Salute di n8n');
     pezzi = { telegram: tg, anthropic: an, chatId: chat ? String(chat) : undefined, // Senza --marketplace si tiene la credenziale che il 17 ha già su n8n: aggiornarlo senza
       // staccava la chiave del database (successo il 25/11, rimediato subito).
-      marketplace: valore('--marketplace') || elenco.find((w) => w.name === NOME_17)?.nodes?.find((n) => n.credentials?.supabaseApi?.name === CREDENZIALE_MARKETPLACE.name)?.credentials?.supabaseApi?.id,
+      marketplace: valore('--marketplace') || trovaFlusso(elenco, NOME_17)?.nodes?.find((n) => n.credentials?.supabaseApi?.name === CREDENZIALE_MARKETPLACE.name)?.credentials?.supabaseApi?.id,
       salute: valore('--salute') || f98?.id };
     if (!pezzi.salute) console.warn('Il 98 · Salute di n8n non è su n8n: il 17 parte senza la salute di n8n.');
   }

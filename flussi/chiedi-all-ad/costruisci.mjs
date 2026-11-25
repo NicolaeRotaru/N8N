@@ -29,8 +29,9 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 
-export const NOME_CHIEDI = "Chiedi all'AD";
+export const NOME_CHIEDI = NOMI.chiediAllAd; // trovaFlusso trova anche il nome di prima, «Chiedi all'AD»
 export const NOME_CHIAVE = "Chiedi all'AD - chiave della routine";
 export const URL_ROUTINE = 'https://api.anthropic.com/v1/claude_code/routines/';
 export const PARTI = 'Fai partire la routine';
@@ -158,7 +159,7 @@ async function principale(argv) {
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
     const tutti = await api.elencoFlussi();
-    const gia = tutti.find((w) => w.name === NOME_CHIEDI);
+    const gia = trovaFlusso(tutti, NOME_CHIEDI);
     const vecchio = gia ? await api.leggiFlusso(gia.id) : null;
     const nodo = (nome) => vecchio?.nodes?.find((n) => n.name === nome);
     const vecchiaRoutine = nodo('Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'ROUTINE_ID')?.value;
@@ -173,7 +174,7 @@ async function principale(argv) {
     pezzi = { ...pezzi, vero: scelta ?? vecchiaModalita === 'vero', chiave, routine: pezzi.routine || (vecchiaRoutine !== 'DA_IMPOSTARE' ? vecchiaRoutine : undefined),
       webhookId: nodo(ASPETTA)?.webhookId,
       // Se il sotto-flusso si guasta, l'avviso parte dal 99 come per gli altri flussi.
-      errori: tutti.find((w) => w.name === '99 · Avvisi errori')?.id };
+      errori: trovaFlusso(tutti, NOMI.avvisiErrori)?.id };
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
