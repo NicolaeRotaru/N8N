@@ -11,7 +11,7 @@ export const N8N_URL = (process.env.N8N_URL || 'https://n8n-shdy.sliplane.app').
 // Le sole impostazioni che l'API pubblica accetta quando si crea o si aggiorna un flusso.
 const IMPOSTAZIONI_AMMESSE = [
   'saveExecutionProgress', 'saveManualExecutions', 'saveDataErrorExecution', 'saveDataSuccessExecution',
-  'executionTimeout', 'errorWorkflow', 'timezone', 'executionOrder', 'callerPolicy',
+  'executionTimeout', 'errorWorkflow', 'timezone', 'executionOrder', 'callerPolicy', 'availableInMCP',
 ];
 
 async function chiama(metodo, percorso, corpo) {
