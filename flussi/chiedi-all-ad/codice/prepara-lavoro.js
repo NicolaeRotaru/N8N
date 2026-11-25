@@ -1,5 +1,5 @@
 // Chiedi all'AD · Prepara il lavoro
-// Riceve dal flusso che chiama uno o più lavori { flusso, compito, dati, schema } e ne fa UNA sola
+// Riceve dal flusso che chiama uno o più lavori { flusso, compito, dati, schema, non_mandare? } e ne fa UNA sola
 // richiesta per la routine «Chiedi all'AD»: tanti lavori, una corsa sola.
 // Qui si decide anche se la routine parte davvero:
 //   - «memoria»: compito e dati uguali all'ultima volta per quel flusso → si ridà la risposta di allora;
@@ -35,6 +35,10 @@ const esci = (extra) => [{ json: { n_lavori: voci.length, ...extra } }];
 const flusso = testo(voci[0] && voci[0].flusso) || 'flusso senza nome';
 const lavori = voci.map((v, indice) => ({ indice, compito: testo(v.compito), dati: v.dati ?? null, schema: v.schema ?? null }));
 if (!voci.length) return esci({ azione: 'errore', flusso, errore: 'nessun lavoro ricevuto' });
+// Il flusso che chiama può dire che un lavoro non va mandato (per esempio: servono foto che non possono
+// arrivare all'AD). Allora non parte niente e non si conta niente.
+const fermo = voci.find((v) => testo(v.non_mandare));
+if (fermo) return esci({ azione: 'errore', flusso, errore: testo(fermo.non_mandare).slice(0, 300) });
 const senzaCompito = lavori.filter((l) => !l.compito).map((l) => l.indice);
 if (senzaCompito.length) return esci({ azione: 'errore', flusso, errore: `lavoro senza compito (numero ${senzaCompito.join(', ')})` });
 

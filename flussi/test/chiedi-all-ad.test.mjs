@@ -85,7 +85,12 @@ test('MODALITA = prova: la routine non parte e non si conta', async () => {
   assert.equal(fine.json.prova, true);
 });
 
-test('lavori sbagliati o troppo grandi non partono', async () => {
+test('lavori sbagliati, troppo grandi o da non mandare non partono e non si contano', async () => {
+  const statico = {};
+  const [fermo] = await prepara([lavoro({ non_mandare: 'servono le foto' }), lavoro()], { statico });
+  assert.equal(fermo.json.azione, 'errore');
+  assert.equal(fermo.json.errore, 'servono le foto');
+  assert.equal(statico.corse_oggi || 0, 0);
   const [senza] = await prepara([lavoro({ compito: '  ' })]);
   assert.equal(senza.json.azione, 'errore');
   const [grande] = await prepara([lavoro({ dati: { foto: 'x'.repeat(70000) } })]);

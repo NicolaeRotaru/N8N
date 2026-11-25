@@ -37,7 +37,7 @@ export const ASPETTA = 'Aspetta la risposta';
 const QUI = dirname(fileURLToPath(import.meta.url));
 const codice = (nome) => readFileSync(join(QUI, 'codice', nome), 'utf8');
 
-export function costruisci({ routine, chiave, vero = false, webhookId } = {}) {
+export function costruisci({ routine, chiave, vero = false, webhookId, errori } = {}) {
   const pos = (i, riga = 0) => [i * 240, riga * 200];
   const nodi = [];
   const collega = {};
@@ -115,7 +115,7 @@ export function costruisci({ routine, chiave, vero = false, webhookId } = {}) {
   return {
     name: NOME_CHIEDI, nodes: nodi, connections: collega,
     settings: { executionOrder: 'v1', timezone: 'Europe/Rome', saveManualExecutions: true, saveDataErrorExecution: 'all',
-      saveDataSuccessExecution: 'all', callerPolicy: 'workflowsFromSameOwner' },
+      saveDataSuccessExecution: 'all', callerPolicy: 'workflowsFromSameOwner', ...(errori ? { errorWorkflow: errori } : {}) },
   };
 }
 
@@ -154,7 +154,8 @@ async function principale(argv) {
   let api = null;
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
-    const gia = (await api.elencoFlussi()).find((w) => w.name === NOME_CHIEDI);
+    const tutti = await api.elencoFlussi();
+    const gia = tutti.find((w) => w.name === NOME_CHIEDI);
     const vecchio = gia ? await api.leggiFlusso(gia.id) : null;
     const nodo = (nome) => vecchio?.nodes?.find((n) => n.name === nome);
     const vecchiaRoutine = nodo('Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'ROUTINE_ID')?.value;
@@ -166,7 +167,9 @@ async function principale(argv) {
       console.log(`Creata la credenziale «${NOME_CHIAVE}» (id ${chiave}): ci va incollata la chiave della routine.`);
     }
     pezzi = { ...pezzi, chiave, routine: pezzi.routine || (vecchiaRoutine !== 'DA_IMPOSTARE' ? vecchiaRoutine : undefined),
-      webhookId: nodo(ASPETTA)?.webhookId };
+      webhookId: nodo(ASPETTA)?.webhookId,
+      // Se il sotto-flusso si guasta, l'avviso parte dal 99 come per gli altri flussi.
+      errori: tutti.find((w) => w.name === '99 · Avvisi errori')?.id };
   }
   const w = costruisci(pezzi);
   if (valore('--scrivi')) writeFileSync(valore('--scrivi'), JSON.stringify(w, null, 2));
