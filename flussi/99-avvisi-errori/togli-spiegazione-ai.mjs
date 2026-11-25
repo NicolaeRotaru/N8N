@@ -15,6 +15,7 @@
 
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { trovaFlusso } from '../nomi.mjs';
 
 export const NOME_99 = '99 · Avvisi errori';
 const DA_TOGLIERE = ['Spiegazione AI accesa?', 'Prepara spiegazione AI', "Spiega l'errore con Claude"];
@@ -70,7 +71,7 @@ export function togli(originale) {
 
 async function principale(argv) {
   const api = await import('../n8n-api.mjs');
-  const trovato = (await api.elencoFlussi()).find((w) => w.name === NOME_99);
+  const trovato = trovaFlusso(await api.elencoFlussi(), NOME_99);
   if (!trovato) throw new Error(`Non trovo «${NOME_99}» su n8n.`);
   const originale = await api.leggiFlusso(trovato.id);
   const i = argv.indexOf('--salva');

@@ -221,10 +221,10 @@ async function principale(argv) {
     const tutti = await api.elencoFlussi();
     const m12 = trovaFlusso(tutti, NOMI.nuovoCliente);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
-    const gia = tutti.find((w) => w.name === NOME_18);
+    const gia = trovaFlusso(tutti, NOME_18);
     pezzi = { ...pezzi,
       telegram: m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi,
-      chiedi: tutti.find((w) => w.name === NOME_CHIEDI)?.id,
+      chiedi: trovaFlusso(tutti, NOME_CHIEDI)?.id,
       chatId: String(m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value || ''),
       webhookId: gia?.nodes?.find((n) => n.name === 'Su richiesta')?.webhookId,
       // Il 19 si trova per nome; n8n lo vuole acceso prima di accettare il 18 che lo chiama.

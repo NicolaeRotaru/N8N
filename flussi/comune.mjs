@@ -4,10 +4,12 @@
 // stanno qui. Si prendono da n8n quando si carica il flusso (--manda).
 
 import { randomUUID } from 'node:crypto';
+import { NOMI, trovaFlusso } from './nomi.mjs';
 
-export const NOME_AVVISI_ERRORI = '99 · Avvisi errori';
-export const NOME_MODULO_12 = '12 · Nuovo cliente (automatico)';
-export const NOME_CHIEDI = "Chiedi all'AD";
+// I nomi dei flussi stanno in nomi.mjs: trovaFlusso trova anche il nome di prima della numerazione nuova.
+export const NOME_AVVISI_ERRORI = NOMI.avvisiErrori;
+export const NOME_MODULO_12 = NOMI.nuovoCliente;
+export const NOME_CHIEDI = NOMI.chiediAllAd;
 export const CREDENZIALE_MARKETPLACE = { id: 'SEGNAPOSTO_SUPABASE_MARKETPLACE', name: 'Supabase MyCity - Marketplace (lettura)' };
 
 /** Una voce del nodo Config. */
@@ -102,13 +104,13 @@ export function controllaBase(w, { scrittureAmmesse = [] } = {}) {
 /** Da n8n: chat e credenziale Telegram (dal modulo 12) e l'id del 99. Mai scritti nel repository. */
 export async function pezziDaN8n(api) {
   const elenco = await api.elencoFlussi();
-  const m12 = elenco.find((w) => w.name === NOME_MODULO_12);
+  const m12 = trovaFlusso(elenco, NOME_MODULO_12);
   if (!m12) throw new Error(`Non trovo «${NOME_MODULO_12}» su n8n: da lì prendo chat e credenziale Telegram.`);
-  const avvisi = elenco.find((w) => w.name === NOME_AVVISI_ERRORI);
+  const avvisi = trovaFlusso(elenco, NOME_AVVISI_ERRORI);
   if (!avvisi) throw new Error(`Non trovo «${NOME_AVVISI_ERRORI}» su n8n.`);
   const telegram = m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi;
   const chat = m12.nodes.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments?.find((a) => a.name === 'TELEGRAM_CHAT_ID')?.value;
-  const chiedi = elenco.find((w) => w.name === NOME_CHIEDI)?.id;
+  const chiedi = trovaFlusso(elenco, NOME_CHIEDI)?.id;
   return { telegram, chatId: chat ? String(chat) : undefined, errorWorkflow: avvisi.id, chiedi, elenco };
 }
 
@@ -121,7 +123,7 @@ export async function principaleComune(argv, { nome, costruisci, controlla, conM
   if (manda) {
     api = await import('./n8n-api.mjs');
     pezzi = await pezziDaN8n(api);
-    if (conMarketplace) pezzi.marketplace = valore('--marketplace') || pezzi.elenco.find((w) => w.name === '17 · Analisi del marketplace')
+    if (conMarketplace) pezzi.marketplace = valore('--marketplace') || trovaFlusso(pezzi.elenco, NOMI.analisiMarketplace)
       ?.nodes?.find((n) => n.credentials?.supabaseApi?.name === CREDENZIALE_MARKETPLACE.name)?.credentials?.supabaseApi?.id;
   }
   const w = costruisci({ ...pezzi, vero: argv.includes('--vero') });
