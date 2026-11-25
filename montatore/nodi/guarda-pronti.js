@@ -1,5 +1,5 @@
 // (guardiano delle cartelle) Un servizio è pronto quando ha del materiale e nessun file nuovo da QUIETE_MINUTI
-// (la copia dalla scheda SD è finita). Allora parte il montaggio del mese prossimo, una volta sola per cartella.
+// (la copia dalla scheda SD è finita). Allora parte il montaggio, una volta sola per cartella (il mese lo decide «Prepara il lavoro»).
 const J = $('Config').first().json;
 const S = $getWorkflowStaticData('global');
 S.servizi = S.servizi || {};

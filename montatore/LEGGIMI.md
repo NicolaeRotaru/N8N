@@ -119,7 +119,7 @@ Un'esecuzione per file e una per contenuto: n8n tiene in memoria un file alla vo
 | `TRASCRIVI` / `LINGUA` | `si` / `it` | parlato trascritto (sottotitoli e frasi nel catalogo) |
 | `PROVINI_PER_DOMANDA` | `6` | immagini per richiesta a Claude (al massimo ~20 MB) |
 | `MAX_MB_FILE` / `MAX_FILE` | `500` / `400` | file più grandi o in più si saltano, con l'avviso |
-| `REEL` / `POST` / `STORIE` | `10` / `8` / `16` | quantità di serie se il modulo le lascia vuote (e per il guardiano) |
+| `REEL` / `POST` / `STORIE` | `10` / `8` / `16` | quantità di serie, solo se il modulo le lascia vuote **e** il cliente non ha il pacchetto nel foglio Clienti |
 | `STILE_VIDEO` | `sdg` | stile della regia dei reel (`sdg` = moodboard di Scatti di G, `virale`, `pulito`) |
 | `SDG_COLORE_FONDO` / `SDG_COLORE_TESTO` / `SDG_COLORE_ACCENTO` | `#2C2A27` / `#F4F1EC` / `#E0A95C` | i colori di Scatti di G (segnaposti fumo, avorio, oro): si cambiano qui, senza ripubblicare l'officina |
 | `SDG_FONT_TITOLI` / `SDG_FONT_TESTO` | `Poppins` / `Poppins` | i font di Scatti di G (un font diverso da Poppins si scarica da Google Fonts) |

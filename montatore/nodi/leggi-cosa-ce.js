@@ -22,10 +22,15 @@ const arricchito = testo(cat.testo).split('\n').map((r) => {
 const mese = J.mese;
 const oggi = partiRoma();
 // Le idee del workflow 03 (piano pensato prima del servizio, righe «PI-…» in stato «idea» nel Calendario) per questo
-// cliente e questo mese: entrano nel piano come traccia. A piano pronto (in attivo) il giro le segna «sostituito».
+// cliente e questo mese: entrano nel piano come traccia. A fine giro (in attivo, con almeno un contenuto montato) le segna «sostituito».
 const cal = $('Leggi il Calendario').isExecuted ? $('Leggi il Calendario').first().json : {};
 const idee = (cal && Array.isArray(cal.values) ? righeFoglio(cal) : [])
-  .filter((r) => testo(r.id).startsWith('PI-') && norm(r.stato) === 'idea' && testo(r.cliente) === testo(J.cliente.cliente) && testo(r.data_ora).startsWith(mese.chiave))
+  // il mese si legge dall'id (PI-<cliente>-AAAAMMGG-hhmm): la cella data_ora può essere formattata dal foglio («04/12/2026»)
+  .filter((r) => {
+    const m = testo(r.id).match(/-(\d{4})(\d{2})\d{2}-\d{4}$/);
+    const meseRiga = m ? m[1] + '-' + m[2] : testo(r.data_ora).slice(0, 7);
+    return testo(r.id).startsWith('PI-') && norm(r.stato) === 'idea' && testo(r.cliente) === testo(J.cliente.cliente) && meseRiga === mese.chiave;
+  })
   .slice(0, 80);
 const fest = festivita(mese.anno, mese.mese);
 const scheda = J.cliente.scheda || {};

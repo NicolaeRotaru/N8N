@@ -52,7 +52,6 @@ function leggibileData(data, ora) {
   const [a, me, g] = [Number(m[1]), Number(m[2]), Number(m[3])];
   return GIORNI_BREVI[giornoSettimana(a, me, g)] + ' ' + g + '/' + me + (ora ? ' ore ' + ora : '');
 }
-// Il mese del piano: «AAAA-MM» scritto nel modulo, altrimenti il mese prossimo.
 // Il mese del piano: quello scritto, altrimenti il mese in corso fino al giorno «giornoLimite» compreso (servizio fatto a
 // inizio mese per quel mese), poi il mese dopo (servizio fatto a fine mese per il mese che viene).
 function meseDelPiano(v, giornoLimite) {

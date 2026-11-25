@@ -130,12 +130,17 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.match(pacchetto.messaggio, /12 reel, 6 post e caroselli, 20 storie \(dal pacchetto del cliente\)/);
   assert.deepEqual(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '3', post: '', storie: '' }, { reel: 12, post: 6, storie: null }), input: [files] })[0].json.lavoro.richiesta, { reel: 3, post: 6, storie: 16 });
   assert.deepEqual(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ reel: '', post: '', storie: '' }, undefined), input: [files] })[0].json.lavoro.richiesta, { reel: 10, post: 8, storie: 16 });
-  // il mese vuoto: quello in corso fino al giorno 10, poi il successivo
-  const ora = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).reduce((o, x) => ({ ...o, [x.type]: Number(x.value) }), {});
-  const atteso = ora.day <= 10 ? `${ora.year}-${String(ora.month).padStart(2, '0')}` : (ora.month === 12 ? `${ora.year + 1}-01` : `${ora.year}-${String(ora.month + 1).padStart(2, '0')}`);
-  assert.equal(esegui('prepara-il-lavoro.js', { nodi: nodiQ({ mese: '' }, undefined), input: [files] })[0].json.lavoro.mese.chiave, atteso);
-  const sempreQuesto = esegui('prepara-il-lavoro.js', { nodi: nodiQ({ mese: '', GIORNO_LIMITE_MESE: 31 }, undefined), input: [files] })[0].json.lavoro.mese.chiave;
-  assert.equal(sempreQuesto, `${ora.year}-${String(ora.month).padStart(2, '0')}`);
+  // il mese vuoto: quello in corso fino al giorno 10 compreso (ora di Roma), poi il successivo — con un orologio finto
+  const meseAlle = (iso, cfg = {}) => {
+    const Vero = globalThis.Date;
+    globalThis.Date = class extends Vero { constructor(...a) { super(...(a.length ? a : [iso])); } static now() { return new Vero(iso).getTime(); } };
+    try { return esegui('prepara-il-lavoro.js', { nodi: nodiQ({ mese: '', ...cfg }, undefined), input: [files] })[0].json.lavoro.mese.chiave; } finally { globalThis.Date = Vero; }
+  };
+  assert.equal(meseAlle('2026-12-10T22:50:00Z'), '2026-12', '10 dicembre alle 23:50 di Roma: dicembre');
+  assert.equal(meseAlle('2026-12-10T23:10:00Z'), '2027-01', '11 dicembre alle 00:10 di Roma (in UTC è ancora il 10): gennaio');
+  assert.equal(meseAlle('2026-12-31T22:59:00Z'), '2027-01', 'fine anno: gennaio dell\'anno dopo');
+  assert.equal(meseAlle('2027-01-03T10:00:00Z'), '2027-01', 'il 3 gennaio: gennaio');
+  assert.equal(meseAlle('2026-11-25T10:00:00Z', { GIORNO_LIMITE_MESE: 31 }), '2026-11');
   // lo stesso servizio non parte due volte: il segno è la cartella «Pronti (montatore)» dentro il servizio (su Drive,
   // uguale per tutte le esecuzioni e senza scadenza). Il modulo la fa creare subito; se c'è già si ferma; «rifai» riparte.
   const nodiP = (cfg, figli) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC, 'Elenca il servizio': { files: figli } });
@@ -194,6 +199,9 @@ test('Leggi cosa c\'è: descrizioni nel catalogo, domanda del piano con mese, fe
     ['MO-el-tropico-20261205-1830-abcd1', 'el-tropico', 'reel', '2026-12-05 18:30', 'montatore', 'idea']] };
   const conIdee = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL }, input: [risposta({ scene: [] })] })[0].json;
   assert.deepEqual(conIdee.idee_03, ['PI-el-tropico-20261204-1830']);
+  // la cella della data formattata dal foglio («04/12/2026 18:30»): il mese si legge dall'id
+  const CAL2 = { values: [CAL.values[0], ['PI-el-tropico-20261204-1830', 'el-tropico', 'reel', '04/12/2026 18:30', 'Idea: mojito', 'Idea'], ['PI-el-tropico-2-20261204-1830', 'el-tropico-2', 'reel', '04/12/2026 18:30', 'Idea: altro locale', 'idea']] };
+  assert.deepEqual(esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL2 }, input: [risposta({ scene: [] })] })[0].json.idee_03, ['PI-el-tropico-20261204-1830'], 'data formattata, «Idea» maiuscolo, cliente dal nome simile escluso');
   assert.match(conIdee.testo_utente, /<idee_del_piano>\n- 2026-12-04 18:30 · reel · Idea: il mojito al bancone/);
   const t = r.testo_utente;
   assert.match(t, /V01\.1 {2}0,0–4,0 s \(4,0 s\) · fermo · buona · vede: «mani che preparano un mojito» · drink · valore 5\/5 · aggancio/);
@@ -393,9 +401,16 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
     assert.equal(corpo.oggi, '2026-11-24');
     assert.equal(corpo.mese, '2026-12');
   }
+  // i campi quantità del modulo sono di testo: un campo «number» vuoto n8n lo manda come 0 (piano da zero contenuti)
+  const campi = NODO('Modulo montatore').parameters.formFields.values;
+  for (const k of ['reel', 'post', 'storie']) assert.equal(campi.find((c) => c.fieldName === k).fieldType, 'text', k);
   // le idee del 03: il Calendario si legge all'inizio del giro; a piano pronto, in attivo, le idee diventano «sostituito»
   assert.deepEqual(workflow.connections['Telegram: si parte'].main[0].map((x) => x.node), ['Leggi il Calendario']);
-  assert.ok(workflow.connections['Piano pronto?'].main[0].some((x) => x.node === 'Idee da sostituire?'));
+  assert.ok(workflow.connections['Esito dei montaggi'].main[0].some((x) => x.node === 'Idee da sostituire?'), 'si segnano a fine giro');
+  // solo in attivo, solo con almeno un contenuto montato, solo se ci sono idee (D6)
+  const cond = NODO('Idee da sostituire?').parameters.conditions.conditions[0].leftValue;
+  const vale = (modalita, riusciti, idee) => valuta(cond, { config: { MODALITA: modalita }, json: { riusciti }, nodi: { "Leggi cosa c'è": { idee_03: idee } } });
+  assert.deepEqual([vale('attivo', 3, ['PI-x']), vale('prova', 3, ['PI-x']), vale('attivo', 0, ['PI-x']), vale('attivo', 3, [])], [true, false, false, false]);
   const segna = NODO('Segna le idee sostituite').parameters;
   assert.deepEqual([segna.operation, segna.columns.matchingColumns, Object.keys(segna.columns.value)], ['update', ['id'], ['id', 'stato', 'note']]);
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo

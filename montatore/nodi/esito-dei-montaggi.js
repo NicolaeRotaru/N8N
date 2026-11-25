@@ -26,4 +26,4 @@ if (avvisi.length) m.push('Da sapere: ' + h(accorcia(avvisi.join(' '), 1200)));
 // con la revisione su Telegram il Calendario lo scrive «Approva», contenuto per contenuto; il progetto resta aperto
 // nell'officina per le correzioni (scade da solo dopo PROGETTO_DURATA_ORE)
 const scrivi = attivo && !revisione && righe.length > 0;
-return [{ json: { righe: scrivi ? righe : [], scrivi, chiudi: ko.length === 0 && !revisione, schede: revisione ? ok : [], progetto, messaggi: aPezzi(m) } }];
+return [{ json: { righe: scrivi ? righe : [], scrivi, chiudi: ko.length === 0 && !revisione, schede: revisione ? ok : [], riusciti: ok.length, progetto, messaggi: aPezzi(m) } }];
