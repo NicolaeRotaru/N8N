@@ -5,8 +5,8 @@ const LT = (() => {
   const taglia = (v, n) => { if (!(n > 0)) return ''; const c = Array.from(testo(v)); return c.length > n ? c.slice(0, n - 1).join('') + '…' : c.join(''); };
   /** Chiave per i doppioni: senza schema, www, frammento e barra finale. */
   const chiave = (u) => testo(u).toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').replace(/#.*$/, '').replace(/\/+$/, '');
-  // L'host vero: dopo un eventuale «utente:password@», come lo legge il nodo HTTP (bar.it:@officina.internal → officina.internal).
-  const hostDi = (u) => { const m = testo(u).toLowerCase().match(/^[a-z]+:\/\/(?:[^/?#@]*@)?([^/?#:]+)/); return m ? m[1].replace(/^www\./, '') : ''; };
+  // L'host vero: dopo l'ULTIMA @ prima del percorso, tolti tab e a capo, come lo legge il nodo HTTP (bar.it:@officina.internal → officina.internal).
+  const hostDi = (u) => { const m = testo(u).replace(/[\t\n\r]/g, '').toLowerCase().match(/^[a-z]+:\/\/(?:[^/?#\\]*@)?([^/?#\\:@]+)/); return m ? m[1].replace(/^www\./, '') : ''; };
   // Entità HTML più comuni nei siti italiani; le numeriche si leggono tutte.
   const ENTITA = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', euro: '€', rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”',
     ndash: '–', mdash: '—', hellip: '…', middot: '·', deg: '°', laquo: '«', raquo: '»', copy: '©', reg: '®', trade: '™', bull: '•',
@@ -36,7 +36,12 @@ const LT = (() => {
       if (i < 0) { fuori += h.slice(da); break; }
       fuori += h.slice(da, i) + alPosto;
       const fine = basso.indexOf(chiude, i + apre.length);
-      if (fine < 0) break;
+      if (fine < 0) {
+        // Un commento senza chiusura (anche la scritta «<!--» dentro uno script) non cancella il resto della pagina:
+        // si toglie solo l'apertura, e le altre aperture che seguono, senza più cercare chiusure.
+        if (chiude === '-->') fuori += h.slice(i + apre.length).split(apre).join(alPosto);
+        break;
+      }
       const chiusa = basso.indexOf('>', fine);
       da = chiusa < 0 ? h.length : chiusa + 1;
       if (chiude === '-->') da = fine + 3;
@@ -84,14 +89,14 @@ const LT = (() => {
     // Titolo e descrizione stanno in cima: si cercano nei primi 200.000 caratteri, con una sola espressione per tipo.
     const cima = h.slice(0, 200000);
     const titolo = decodifica((cima.match(/<title[^>]{0,200}>([^<]{0,500})/i) || ['', ''])[1]).replace(/\s+/g, ' ').trim();
-    const desc = decodifica((cima.match(/<meta[^>]{0,300}name=["']description["'][^>]{0,300}?content=["']([^"']{0,2000})["']/i)
+    const desc = decodifica((cima.match(/<meta[^>]{0,300}name=["']description["'][^>]{0,300}?content=["']([^"']{0,2000})/i)
       || cima.match(/<meta[^>]{0,300}content=["']([^"']{0,2000})["'][^>]{0,300}name=["']description["']/i) || ['', ''])[1]).replace(/\s+/g, ' ').trim();
     const strutturati = datiStrutturati(h);
     h = togli(h, '<!--', '-->');
     for (const tag of ['script', 'style', 'noscript', 'svg', 'template', 'iframe', 'object']) h = togli(h, `<${tag}`, `</${tag}`);
     h = h.replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/(p|div|section|article|header|footer|li|ul|ol|h[1-6]|tr|table|address|blockquote|nav|main|aside|dd|dt|figcaption)\s*>/gi, '\n')
-      .replace(/<(li)\b[^>]{0,2000}>/gi, '\n')
+      .replace(/<li(?=[\s>\/])/gi, '\n<li')
       .replace(/<\/t[dh]\s*>/gi, ' ');
     h = senzaTag(h);
     const corpo = decodifica(h).replace(/[ \t\u00a0\u202f]+/g, ' ').split('\n').map((r) => r.trim()).filter(Boolean)
@@ -143,8 +148,9 @@ const LT = (() => {
       if (!href) continue;
       const url = assoluto(href, base);
       if (!url || hostDi(url) !== casa) continue;
-      const chiude = basso.indexOf('</a', f);
-      const dentro = h.slice(f + 1, chiude < 0 ? f + 201 : Math.min(chiude, f + 501));
+      // La chiusura si cerca solo nei 500 caratteri dopo: cercarla fino in fondo, per 2.000 collegamenti, era quadratico.
+      const k = basso.slice(f + 1, f + 502).indexOf('</a');
+      const dentro = h.slice(f + 1, k < 0 ? f + 201 : f + 1 + k);
       const scritta = decodifica(senzaTag(dentro)).replace(/\s+/g, ' ').trim();
       if (!utile.test(url.replace(/^[a-z]+:\/\/[^/]+/i, '')) && !utile.test(scritta)) continue;
       out.push(url);

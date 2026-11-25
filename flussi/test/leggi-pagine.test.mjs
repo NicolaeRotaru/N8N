@@ -176,6 +176,41 @@ test('collaudo B: se gli appunti dell\'AD riempiono già la richiesta, n8n non a
   assert.ok(m.json.body.avvisi.some((x) => /^n8n: una pagina non si è aperta/.test(x)), "l'avviso sulla pagina persa arriva lo stesso");
 });
 
+// ── dal ricollaudo (lente A, 25/11 22:50) ───────────────────────────────────────────────────────────
+test("ricollaudo: l'host è quello dopo l'ULTIMA @, anche con tab e a capo in mezzo", () => {
+  for (const u of ['https://u@bar-esempio.it:@officina.internal:8080/menu', 'https://a.it:@b.it@officina.internal/', 'https://bar-esempio.it\t@bar-esempio.it:@officina.internal/menu']) {
+    assert.equal(LP.hostDi(u), 'officina.internal', u);
+  }
+  assert.equal(LP.hostDi('https://www.bar.it/menu'), 'bar.it');
+  assert.equal(LP.indirizzoSicuro('https://bar.it/menu-1?<<<<').motivo, 'caratteri non validi');
+  assert.equal(LP.indirizzoSicuro('https://bar.it/a"b').motivo, 'caratteri non validi');
+});
+
+test('ricollaudo: ogni barriera delle sottopagine regge da sola, e esce sempre l\'indirizzo ricostruito', async () => {
+  const pagina = '<p>Benvenuti al bar di prova di Piacenza</p>'
+    + '<a href="https://bar-esempio.it:8080/menu">Menu</a>'          // stesso sito per hostDi, porta vietata per indirizzoSicuro
+    + '<a href="/menu&#9;x">Menu</a>'                               // con un tab dentro: deve uscire ricostruito, senza tab
+    + '<a href="https://u@bar-esempio.it:@officina.internal:8080/menu">Menu</a>';
+  const fuori = await eseguiCodice(codiceNodo('sottopagine-da-leggere.js'), { input: [html(pagina)],
+    nodi: { Config: [CONFIG], 'Pagine da leggere': voci(['https://bar-esempio.it/']) } });
+  assert.deepEqual(fuori.map((x) => x.json.url), ['https://bar-esempio.it/menu']);
+});
+
+test('ricollaudo: le pagine scritte per rallentare i collegamenti e gli elenchi restano veloci', () => {
+  let t0 = Date.now();
+  LP.sottopagine('<a href="/x">'.repeat(2000) + '<'.repeat(1000000), 'https://bar-esempio.it/');
+  assert.ok(Date.now() - t0 < 1500, `collegamenti senza chiusura: ${Date.now() - t0} ms`);
+  t0 = Date.now();
+  LP.htmlInTesto('<li'.repeat(333000));
+  assert.ok(Date.now() - t0 < 1000, `<li senza >: ${Date.now() - t0} ms`);
+});
+
+test('ricollaudo: uno script con «<!--» senza chiusura non cancella la pagina, e una descrizione lunga resta', () => {
+  const t = LP.htmlInTesto('<p>Benvenuti</p><script>var a = "<!--";</script><p>Viale Roma 1, orari 7-19</p>');
+  assert.match(t, /Viale Roma 1, orari 7-19/);
+  assert.match(LP.htmlInTesto(`<meta name="description" content="${'Caffè e colazioni. '.repeat(120)}"><p>corpo della pagina</p>`), /Descrizione della pagina: Caffè e colazioni/);
+});
+
 // ── i nodi, uno per uno ───────────────────────────────────────────────────────────────────────────
 test('Pagine da leggere: dalla risposta vera di Ora del Gusto escono i due siti del locale', async () => {
   const fuori = await eseguiCodice(codiceNodo('pagine-da-leggere.js'), { input: [await dallAD()], nodi: { Config: [CONFIG], 'Prepara la ricerca': [PREPARA()] } });
@@ -462,6 +497,20 @@ test('sul 12 vero: con la catena vecchia ogni dato del web è «non trovato», c
   const lettaFoto = (await eseguiCodice(js('Leggi la ricerca'), { input: [messaFoto], nodi: nodiFoto }))[0];
   const byteFoto = await misura(lettaFoto);
   assert.ok(byteFoto < 65536 - 512, `richiesta della scheda con 8 foto: ${byteFoto} byte`);
+  // Ricollaudo: 10 indirizzi lunghi (390 caratteri) e pagine in cinese con «<» ripetuti: i byte si contano dopo la pulizia.
+  const lunghi = Array.from({ length: 10 }, (_, i) => `https://bar-esempio.it/${String(i).padEnd(366, 'p')}`);
+  const [messaLunghi] = await eseguiCodice(codiceNodo('metti-le-pagine.js'), { nodi: { ...nodiFoto, "Dall'AD: la ricerca": [dall], 'Pagine da leggere': voci(lunghi),
+    'Scarica le pagine': lunghi.map(() => html(`<p>${'欢迎光临我们的餐厅 «‹›» '.repeat(3000)}</p>`)) } });
+  const lettaLunghi = (await eseguiCodice(js('Leggi la ricerca'), { input: [messaLunghi], nodi: nodiFoto }))[0];
+  const byteLunghi = await misura(lettaLunghi);
+  assert.ok(byteLunghi < 65536 - 512, `richiesta della scheda con indirizzi lunghi e pagine in cinese: ${byteLunghi} byte`);
+  // E con indirizzi lunghi in caratteri da 3 byte (l'elenco <pagine_lette> pesa 11 KB), senza foto: l'elenco va contato.
+  const pesanti = Array.from({ length: 10 }, (_, i) => `https://bar-esempio.it/${i}${'菜'.repeat(370)}`);
+  const [messaPesanti] = await eseguiCodice(codiceNodo('metti-le-pagine.js'), { nodi: { ...nodiBase, "Dall'AD: la ricerca": [dall], 'Pagine da leggere': voci(pesanti),
+    'Scarica le pagine': pesanti.map(() => html(`<p>${'欢迎光临我们的餐厅，我们提供最好的意大利菜。'.repeat(3000)}</p>`)) } });
+  const lettaPesanti = (await eseguiCodice(js('Leggi la ricerca'), { input: [messaPesanti], nodi: nodiBase }))[0];
+  const bytePesanti = await misura(lettaPesanti);
+  assert.ok(bytePesanti < 65536 - 512, `richiesta della scheda con indirizzi da 3 byte: ${bytePesanti} byte`);
 
   // L'anteprima finale.
   const [r] = await eseguiCodice(codiceNodo('ritocca-anteprima.js'), { input: [{ json: nuova }], nodi: { ...nodi, 'Metti le pagine nella risposta': [messa], "Dall'AD: la scheda": [dallScheda] } });

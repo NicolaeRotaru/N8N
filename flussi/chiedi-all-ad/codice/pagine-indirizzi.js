@@ -8,8 +8,8 @@ const LI = (() => {
   const taglia = (v, n) => { if (!(n > 0)) return ''; const c = Array.from(testo(v)); return c.length > n ? c.slice(0, n - 1).join('') + '…' : c.join(''); };
   /** Chiave per i doppioni: senza schema, www, frammento e barra finale. */
   const chiave = (u) => testo(u).toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').replace(/#.*$/, '').replace(/\/+$/, '');
-  // L'host vero: dopo un eventuale «utente:password@», come lo legge il nodo HTTP (bar.it:@officina.internal → officina.internal).
-  const hostDi = (u) => { const m = testo(u).toLowerCase().match(/^[a-z]+:\/\/(?:[^/?#@]*@)?([^/?#:]+)/); return m ? m[1].replace(/^www\./, '') : ''; };
+  // L'host vero: dopo l'ULTIMA @ prima del percorso, tolti tab e a capo, come lo legge il nodo HTTP (bar.it:@officina.internal → officina.internal).
+  const hostDi = (u) => { const m = testo(u).replace(/[\t\n\r]/g, '').toLowerCase().match(/^[a-z]+:\/\/(?:[^/?#\\]*@)?([^/?#\\:@]+)/); return m ? m[1].replace(/^www\./, '') : ''; };
   // Meta: mai letti (Termini di Meta). Mappe e portali: mai letti in automatico. Le stesse regole del 12.
   const META = /(^|\.)(facebook\.com|facebook\.net|fb\.com|fb\.me|fb\.watch|instagram\.com|instagr\.am|cdninstagram\.com|fbcdn\.net|ig\.me|threads\.com|threads\.net|messenger\.com|whatsapp\.com|wa\.me)$/;
   const ePortale = (h, p) => /(^|\.)(tripadvisor|thefork|lafourchette|glovoapp|glovo)\.[a-z.]{2,}$/.test(h)
@@ -50,6 +50,8 @@ const LI = (() => {
     if (host === 'localhost' || SUFFISSI_INTERNI.test(host)) return { ok: false, url: t, motivo: 'rete interna' };
     if (DOMINI_VIETATI.test(host)) return { ok: false, url: t, motivo: 'servizio della macchina' };
     const percorso = m[3] || '';
+    // Caratteri che un indirizzo web non ha mai (RFC 3986): li mette solo chi vuole gonfiare la richiesta o confondere il nodo HTTP.
+    if (/[<>"{}|\\^`]/.test(percorso)) return { ok: false, url: t, motivo: 'caratteri non validi' };
     if (META.test(host)) return { ok: false, url: t, motivo: 'Facebook/Instagram: non si legge' };
     if (ePortale(host, (percorso.match(/^[^?]*/) || [''])[0].toLowerCase())) return { ok: false, url: t, motivo: 'mappe o portale: solo frammento' };
     if (/\.(jpe?g|png|gif|webp|svg|ico|css|js|mp4|mov|mp3|zip|docx?|xlsx?)(\?|$)/i.test(percorso)) return { ok: false, url: t, motivo: 'non è una pagina' };

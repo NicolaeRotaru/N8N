@@ -49,10 +49,12 @@ const coda = nonLette.length ? LP.taglia(`\n\nPagine che n8n non è riuscito a l
 // Lo spazio si divide fra le pagine: chi è corta lascia il suo avanzo a quelle dopo. Si conta in caratteri (gli appunti
 // li taglia «Leggi la ricerca» a 30.000) e in byte: la richiesta della scheda all'AD sta in 65.024 byte (prepara-lavoro.js)
 // e porta anche il testo delle foto e quello incollato. 9.000 byte restano per compito, schema e indirizzo di risposta.
-const byte = (t) => { const j = JSON.stringify(String(t ?? '')); return typeof Buffer !== 'undefined' ? Buffer.byteLength(j, 'utf8') : unescape(encodeURIComponent(j)).length; };
+// I byte si contano DOPO la pulizia di «Leggi la ricerca» (datoPulito: < e > diventano ‹ ›, 3 byte invece di 1).
+const byte = (t) => { const j = JSON.stringify(String(t ?? '').replace(/[<>]/g, '‹')); return typeof Buffer !== 'undefined' ? Buffer.byteLength(j, 'utf8') : unescape(encodeURIComponent(j)).length; };
 const ricerca = eseguito('Prepara la ricerca') ? ($('Prepara la ricerca').first().json || {}) : {};
 const giaNellaRichiesta = byte((ricerca.foto || []).map((f) => (f && f.testo) || '').join('')) + byte(Object.values(ricerca.incollati || {}).join(''));
-const BYTE_MAX = 65024 - 9000;
+// Nella stessa richiesta va anche l'elenco degli indirizzi letti (<pagine_lette>): si toglie anche quello.
+const BYTE_MAX = 65024 - 9000 - byte(lette.map((p) => p.url).join('\n'));
 let resta = Math.max(0, APPUNTI_MAX - Array.from(appuntiAD).length - Array.from(intestazione).length - Array.from(coda).length - 200);
 let restaByte = Math.max(0, BYTE_MAX - giaNellaRichiesta - byte(appuntiAD) - byte(intestazione) - byte(coda));
 // L'intestazione di ogni pagina si conta per quello che è (un indirizzo può essere lungo): se per una pagina resta
