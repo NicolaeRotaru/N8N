@@ -82,7 +82,7 @@ export function costruisciAllegati({ officina, errori, webhookId, tabellaId } = 
         options: { timeout: 60000, response: { response: { responseFormat: 'file', outputPropertyName: 'file' } } } },
       credentials: { httpHeaderAuth: { id: officina || 'DA_IMPOSTARE', name: NOME_CHIAVE_OFFICINA } } },
     { id: randomUUID(), name: 'Il file è arrivato?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(9, -1),
-      parameters: vero("={{ !!($binary && $binary.file) && !$json.error && ['image/jpeg', 'image/png', 'image/webp'].includes(String($binary.file.mimeType).split(';')[0].trim()) }}") },
+      parameters: vero("={{ !!($binary && $binary.file) && !$json.error && ['image/jpeg', 'image/png', 'image/webp'].includes(String($binary.file.mimeType).split(';')[0].trim().toLowerCase()) }}") },
     rispondi('Rispondi 404', pos(10, 1), { respondWith: 'noData', options: { responseCode: 404, responseHeaders: { entries: [senzaCache] } } }),
     { id: randomUUID(), name: 'Ogni ora', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: pos(0, 3),
       parameters: { rule: { interval: [{ field: 'hours', hoursInterval: 1 }] } } },

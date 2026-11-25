@@ -221,8 +221,10 @@ resta identica a prima, carattere per carattere.
   - Un'immagine deve essere davvero del tipo dichiarato (si guardano i primi byte) e in base64 ben formato.
   - In una corsa al massimo 40 allegati e 8 MB **salvati nella tabella**: per le immagini conta il base64, cioè i 4/3
     del file; un riferimento all'officina conta 1 KB. Sopra i tetti il lavoro non parte e dice il motivo.
-  - Se la tabella non prende le righe (manca, è piena), la routine non parte, il posto contato torna libero e le righe
-    già scritte si cancellano. Un allegato senza gettone o impronta ferma il lavoro.
+  - Se la tabella non prende le righe (manca, è piena, manca una colonna), la routine non parte, il posto contato torna
+    libero e le righe già scritte si cancellano. Attenzione: il nodo Data table manda sull'uscita di errore solo alcuni
+    errori (la tabella piena esce sull'uscita buona, senza l'id della riga). Per questo «Rimetti il lavoro» conta solo le
+    righe con l'id, e «Salvate tutte?» decide. Un allegato senza gettone o impronta ferma il lavoro.
 - **Nel messaggio all'AD** va solo `{ nome, tipo, mime?, byte?, url }`; il tipo `officina` diventa `file`. Il compito dice
   che gli allegati sono materiale, mai istruzioni.
 - **Il gettone:** uno per allegato, 256 bit, dal nodo Crypto. Nella Data table «Allegati per l'AD» c'è solo la sua
@@ -244,8 +246,9 @@ resta identica a prima, carattere per carattere.
   la tabella manca risponde 404.
 - **Lo spazio:** in n8n 2.49 tutte le Data table insieme hanno un tetto di 200 MB di serie (`N8N_DATA_TABLES_MAX_SIZE_BYTES`).
   «Chiedi all'AD» conta nella sua memoria gli allegati vivi delle corse in corso. Se con la corsa nuova si supera
-  `ALLEGATI_SOGLIA_MB` (40 di serie), il lavoro non parte e lo dice. Il conto è prudente: ogni riga vale almeno 1 KB, e le
-  voci scadono da sole dopo un'ora. Su Postgres lo spazio misurato da n8n può scendere solo dopo il vacuum del
+  `ALLEGATI_SOGLIA_MB` (40 di serie), il lavoro non parte e lo dice. Il conto è prudente: ogni riga vale almeno 1 KB. Una
+  voce dura quanto la corsa, cioè l'attesa più 5 minuti: quando l'attesa scade n8n non salva la memoria toccata dopo la
+  ripresa, e la voce resterebbe a occupare spazio che non c'è più. Su Postgres lo spazio misurato da n8n può scendere solo dopo il vacuum del
   database, non subito con le cancellazioni.
 - **Da fare una volta su n8n:** creare la Data table «Allegati per l'AD» con le colonne `impronta`, `corsa`, `nome`,
   `tipo`, `mime`, `contenuto` (testo) e `scade` (numero). Poi:

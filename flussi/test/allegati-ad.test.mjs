@@ -34,6 +34,8 @@ const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex').toString('bas
 // Un'immagine png finta di n byte (comincia come un png vero).
 const png = (n) => Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(n - 8, 7)]).toString('base64');
 const JPG = Buffer.concat([Buffer.from('ffd8ffe0', 'hex'), Buffer.alloc(20, 1)]).toString('base64');
+// Valuta l'espressione di un nodo IF ({{ … }}) con un $json dato.
+const valuta = (espr, $json) => new Function('$json', `return (${String(espr).replace(/^=\{\{\s*/, '').replace(/\s*\}\}$/, '')});`)($json);
 const PRIMA = readFileSync(new URL('./fixture/prepara-lavoro-prima-degli-allegati.js', import.meta.url), 'utf8');
 
 test('allegati: si controllano e si mettono in fila; senza allegati esce un elemento «nessuno»', async () => {
@@ -60,6 +62,9 @@ test('allegati: tetti e forme sbagliate fermano il lavoro col motivo, niente si 
   assert.match(await errore([{ nome: 'finta', tipo: 'immagine', base64: Buffer.from('<html><script>x</script></html>').toString('base64'), mime: 'image/png' }]), /non è un'immagine image\/png/);
   assert.match(await errore([{ nome: 'scambiata', tipo: 'immagine', base64: JPG, mime: 'image/png' }]), /non è un'immagine image\/png/);
   assert.equal(await errore([{ nome: 'jpeg', tipo: 'immagine', base64: JPG, mime: 'image/jpeg' }]), '');
+  const riff = (formato) => Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from(formato), Buffer.alloc(12, 1)]).toString('base64');
+  assert.equal(await errore([{ nome: 'webp', tipo: 'immagine', base64: riff('WEBP'), mime: 'image/webp' }]), '');
+  assert.match(await errore([{ nome: 'wav', tipo: 'immagine', base64: riff('WAVE'), mime: 'image/webp' }]), /non è un'immagine image\/webp/, 'un RIFF qualunque non è un webp');
   assert.match(await errore([{ nome: 'gif', tipo: 'immagine', base64: PNG, mime: 'image/gif' }]), /non ammesso/);
   for (const percorso of ['/file/x/../segreto', '/salute', 'http://officina.internal:8080/file/a/b.jpg', '/file/a/b/c.jpg', '/file//b.jpg', '/progetto/1/catalogo', '/file/a/.nascosto.jpg']) {
     assert.match(await errore([{ nome: 'p', tipo: 'officina', percorso }]), /percorso dell'officina/, percorso);
@@ -201,6 +206,19 @@ test('lo spazio: oltre la soglia di allegati vivi il lavoro non parte; la rispos
   assert.deepEqual(statico.allegati.map((x) => x.corsa), ['78']);
   const [d] = await eseguiCodice(PREPARA, { nodi: { Config: [{ json: cfg }], 'Da un altro flusso': [testo(3)], Impronte: imp3 }, statico, execution: esec3 });
   assert.equal(d.json.azione, 'parti', 'adesso c\'è spazio');
+  // il bordo: esattamente la soglia passa, un byte in più no
+  const due = (extra) => lavoro({ dati: { b: extra }, allegati: [{ nome: 'a', tipo: 'testo', contenuto: 'a'.repeat(512 * 1024) }, { nome: 'b', tipo: 'testo', contenuto: 'b'.repeat(512 * 1024 - extra) }] });
+  assert.equal((await prepara([due(0)], { cfg, statico: {} }))[0].json.azione, 'parti', '1 MB esatto');
+  const sopra = await prepara([lavoro({ allegati: [{ nome: 'a', tipo: 'testo', contenuto: 'a'.repeat(512 * 1024) }, { nome: 'b', tipo: 'testo', contenuto: 'b'.repeat(512 * 1024) }, { nome: 'c', tipo: 'testo', contenuto: 'c'.repeat(2000) }] })], { cfg, statico: {} });
+  assert.match(sopra[0].json.errore, /0 KB vivi più 1026 KB di questa corsa superano 1024 KB/, 'misure in KB sotto i 10 MB');
+  // la voce dura quanto la corsa (attesa + 5 minuti), non un'ora: se l'attesa scade, n8n non salva la memoria di «Componi»
+  const st1 = {};
+  const t0 = Date.now();
+  await prepara([testo(9)], { cfg, statico: st1 });
+  assert.ok(Math.abs(st1.allegati[0].scade - (t0 + 20 * 60000)) < 5000, `vero: 15 + 5 minuti (${st1.allegati[0].scade - t0} ms)`);
+  const st2 = {};
+  await prepara([testo(9)], { cfg: { ...cfg, MODALITA: 'prova' }, statico: st2 });
+  assert.ok(Math.abs(st2.allegati[0].scade - (t0 + 7 * 60000)) < 5000, `prova: 2 + 5 minuti (${st2.allegati[0].scade - t0} ms)`);
   // le voci scadute non contano; un lavoro fermato dal tetto di corse non si segna
   const pieno = { allegati: [{ corsa: 'vecchia', byte: 5 * 1024 * 1024, scade: Date.now() - 1 }], giorno: new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' }), corse_oggi: 40, partenze: [] };
   const [e] = await prepara([testo(4)], { cfg, statico: pieno });
@@ -211,7 +229,7 @@ test('lo spazio: oltre la soglia di allegati vivi il lavoro non parte; la rispos
 test('gettoni o impronte che mancano o sono storti: il lavoro si ferma, gli allegati non spariscono in silenzio', async () => {
   const lav = lavoro({ allegati: [{ nome: 'catalogo', tipo: 'testo', contenuto: 'x' }] });
   const fila = await allegatiDi([lav]);
-  for (const guasto of [{ gettone: undefined }, { impronta: undefined }, { gettone: 'abc' }, { impronta: 'Z'.repeat(64) }, { data: 'f'.repeat(64), gettone: undefined }]) {
+  for (const guasto of [{ gettone: undefined }, { impronta: undefined }, { gettone: 'abc' }, { impronta: 'Z'.repeat(64) }, { data: 'f'.repeat(64), gettone: undefined }, { gettone: 'A'.repeat(64) }, { gettone: 'a'.repeat(63) }, { impronta: `${'a'.repeat(64)}\n` }]) {
     const imp = conGettoni(fila).map((x) => ({ json: { ...x.json, ...guasto } }));
     const statico = {};
     const [r] = await prepara([lav], { statico, impronte: imp });
@@ -227,16 +245,33 @@ test('la tabella non prende le righe: la routine non parte, il posto torna, le r
   const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
   assert.equal(nodo('Salva gli allegati').onError, 'continueErrorOutput');
   assert.deepEqual([dopo('Salva gli allegati'), dopo('Salva gli allegati', 1), dopo('Allegati non salvati')], [['Rimetti il lavoro'], ['Allegati non salvati'], ['Cancella gli allegati']]);
+  assert.deepEqual([dopo('Rimetti il lavoro'), dopo('Salvate tutte?'), dopo('Salvate tutte?', 1)], [['Salvate tutte?'], ['Parte davvero?'], ['Allegati non salvati']]);
   const prep = { json: { azione: 'parti', corsa: '77', righe: [{ impronta: 'a' }, { impronta: 'b' }] } };
-  // «Rimetti il lavoro»: parte solo se tutte le righe sono entrate
-  const rimettiLavoro = nodo('Rimetti il lavoro').parameters.jsCode;
-  assert.deepEqual(await eseguiCodice(rimettiLavoro, { input: [{ json: { id: 1 } }, { json: { id: 2 } }], nodi: { 'Prepara il lavoro': [prep] } }), [prep]);
-  assert.deepEqual(await eseguiCodice(rimettiLavoro, { input: [{ json: { id: 1 } }], nodi: { 'Prepara il lavoro': [prep] } }), [], 'una riga mancante: niente partenza');
+  // «Rimetti il lavoro»: contano solo le righe con l'id (la tabella piena rimanda indietro gli elementi senza id)
+  const RIMETTI = leggi('rimetti-lavoro.js');
+  assert.equal(nodo('Rimetti il lavoro').parameters.jsCode, RIMETTI);
+  const rimetti = async (input) => (await eseguiCodice(RIMETTI, { input, nodi: { 'Prepara il lavoro': [prep] } }))[0].json;
+  const tutte = await rimetti([{ json: { id: 1, createdAt: 'x' } }, { json: { id: 2 } }]);
+  assert.deepEqual([tutte.salvate_tutte, tutte.azione, tutte.righe.length, tutte.motivo_salvataggio], [true, 'parti', 2, undefined]);
+  const piena = await rimetti([{ json: prep.json.righe[0] }, { json: prep.json.righe[1] }]);
+  assert.deepEqual([piena.salvate_tutte, piena.motivo_salvataggio], [false, 'la tabella ha preso 0 righe su 2'], 'tabella piena: escono gli elementi di prima, senza id');
+  assert.equal((await rimetti([{ json: { id: 1 } }])).salvate_tutte, false, 'una riga mancante');
+  assert.equal((await rimetti([{ json: { id: 1 } }, { json: { id: 2, error: 'x' } }])).salvate_tutte, false, 'una riga con errore');
+  // «Salvate tutte?» e «Parte davvero?»: con allegati la routine parte solo se le righe sono tutte nella tabella
+  const salvate = nodo('Salvate tutte?').parameters.conditions.conditions[0].leftValue;
+  assert.deepEqual([valuta(salvate, tutte), valuta(salvate, piena)], [true, false]);
+  const parte = nodo('Parte davvero?').parameters.conditions.conditions[0].leftValue;
+  assert.deepEqual([valuta(parte, tutte), valuta(parte, piena), valuta(parte, prep.json), valuta(parte, { azione: 'parti' }), valuta(parte, { azione: 'parti', righe: [] }), valuta(parte, { ...tutte, azione: 'prova' })],
+    [true, false, false, true, true, false], 'senza «Salvate tutte?» un lavoro con righe non parte');
+  const salva = nodo('Salva gli allegati?').parameters.conditions.conditions[0].leftValue;
+  assert.deepEqual([valuta(salva, prep.json), valuta(salva, { azione: 'parti' }), valuta(salva, { azione: 'parti', righe: [] })], [true, false, false]);
   // «Allegati non salvati»: restituisce il posto e lo spazio, e dice il motivo
   const NONSALVATI = leggi('allegati-non-salvati.js');
   const statico = { corse_oggi: 3, partenze: [1, 2, 3], allegati: [{ corsa: '77', byte: 5, scade: Date.now() + 1000 }, { corsa: '12', byte: 5, scade: Date.now() + 1000 }] };
   const [e] = await eseguiCodice(NONSALVATI, { input: [{ json: { error: { message: 'Data table size limit exceeded' } } }], nodi: { 'Prepara il lavoro': [prep] }, statico });
   assert.match(e.json.errore, /non si sono salvati nella tabella: Data table size limit exceeded/);
+  const [e2] = await eseguiCodice(NONSALVATI, { input: [{ json: piena }], nodi: { 'Prepara il lavoro': [prep] }, statico: { corse_oggi: 1, partenze: [1] } });
+  assert.match(e2.json.errore, /la tabella ha preso 0 righe su 2/);
   assert.deepEqual([statico.corse_oggi, statico.partenze, statico.allegati.map((x) => x.corsa)], [2, [1, 2], ['12']]);
   const inProva = { corse_oggi: 3, partenze: [1, 2, 3] };
   await eseguiCodice(NONSALVATI, { input: [{ json: { error: 'x' } }], nodi: { 'Prepara il lavoro': [{ json: { ...prep.json, azione: 'prova' } }] }, statico: inProva });
@@ -293,7 +328,7 @@ test('il flusso «Chiedi all\'AD»: gettoni e impronte prima di prepararsi, alle
   assert.deepEqual([nodo('Gettoni').parameters.dataPropertyName, nodo('Impronte').parameters.dataPropertyName, nodo('Impronte').parameters.value, nodo('Impronte').parameters.encoding],
     ['gettone', 'impronta', '={{ $json.gettone }}', 'hex']);
   assert.ok(!nodo('Gettoni').disabled && !nodo('Impronte').disabled);
-  assert.deepEqual([dopo('Deve aspettare?'), dopo('Salva gli allegati?'), dopo('Salva gli allegati?', 1), dopo('Rimetti il lavoro')], [['Salva gli allegati?'], ['Righe degli allegati'], ['Parte davvero?'], ['Parte davvero?']]);
+  assert.deepEqual([dopo('Deve aspettare?'), dopo('Salva gli allegati?'), dopo('Salva gli allegati?', 1), dopo('Rimetti il lavoro')], [['Salva gli allegati?'], ['Righe degli allegati'], ['Parte davvero?'], ['Salvate tutte?']]);
   assert.deepEqual([dopo(ASPETTA), dopo('Partita?', 1), dopo('Cancella gli allegati?'), dopo('Cancella gli allegati?', 1)], [['Cancella gli allegati?'], ['Cancella gli allegati?'], ['Cancella gli allegati'], ['Componi la risposta']]);
   const salva = nodo('Salva gli allegati').parameters;
   assert.deepEqual([salva.operation, salva.dataTableId.value, Object.keys(salva.columns.value).sort()], ['insert', TABELLA_ALLEGATI, COLONNE_ALLEGATI.map(([c]) => c).sort()]);
@@ -310,6 +345,7 @@ test('il flusso «Chiedi all\'AD»: gettoni e impronte prima di prepararsi, alle
   assert.deepEqual([cancella.parameters.operation, cancella.parameters.filters.conditions[0].keyName, cancella.executeOnce, cancella.onError], ['deleteRows', 'corsa', true, 'continueRegularOutput']);
   assert.deepEqual(cancella.parameters.filters.conditions, [{ keyName: 'corsa', condition: 'eq', keyValue: '={{ String($execution.id) }}' }], 'solo le righe di questa corsa');
   assert.equal(cancella.parameters.matchType, 'allConditions');
+  assert.deepEqual(cancella.parameters.options, {}, 'niente prova a vuoto (dryRun): le righe si cancellano davvero');
   assert.ok(!cancella.disabled);
   assert.equal(nodo('Cancella gli allegati?').parameters.conditions.conditions[0].leftValue.includes("$('Prepara il lavoro').first().json.righe"), true);
   // «Rimetti la risposta» ridà a «Componi la risposta» quello che gli arrivava prima

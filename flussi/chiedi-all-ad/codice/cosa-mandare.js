@@ -14,8 +14,9 @@ const MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 if (!viva) return [{ json: { azione: '404' } }];
 if (r.tipo === 'testo') return [{ json: { azione: 'testo', contenuto: String(r.contenuto || '') } }];
 if (r.tipo === 'immagine') {
-  if (!MIME[r.mime]) return [{ json: { azione: '404' } }];
-  return [{ json: { azione: 'file' }, binary: { file: { data: String(r.contenuto || ''), mimeType: r.mime, fileName: `allegato.${MIME[r.mime]}` } } }];
+  const mime = String(r.mime || '').toLowerCase();
+  if (!MIME[mime]) return [{ json: { azione: '404' } }];
+  return [{ json: { azione: 'file' }, binary: { file: { data: String(r.contenuto || ''), mimeType: mime, fileName: `allegato.${MIME[mime]}` } } }];
 }
 if (r.tipo === 'officina' && /^\/file\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,120}\.(jpe?g|png|webp)$/i.test(String(r.contenuto)) && !String(r.contenuto).includes('..')) {
   return [{ json: { azione: 'officina', percorso: String(r.contenuto) } }];

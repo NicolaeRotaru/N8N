@@ -95,7 +95,9 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori, t
     { id: randomUUID(), name: 'Allegati non salvati', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, -4),
       parameters: { jsCode: codice('allegati-non-salvati.js') } },
     { id: randomUUID(), name: 'Rimetti il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, -3),
-      parameters: { jsCode: "// Dopo il salvataggio si riprende il lavoro preparato, ma solo se TUTTE le righe sono entrate: se ne manca\n// qualcuna la routine non parte, e ci pensa «Allegati non salvati».\nconst prep = $('Prepara il lavoro').first();\nconst attese = (prep.json.righe || []).length;\nreturn $input.all().length >= attese ? [prep] : [];" } },
+      parameters: { jsCode: codice('rimetti-lavoro.js') } },
+    { id: randomUUID(), name: 'Salvate tutte?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(6, -3),
+      parameters: se('={{ $json.salvate_tutte === true }}') },
     { id: randomUUID(), name: 'Cancella gli allegati?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(7, 1),
       parameters: se("={{ Array.isArray($('Prepara il lavoro').first().json.righe) && $('Prepara il lavoro').first().json.righe.length > 0 }}") },
     { id: randomUUID(), name: 'Cancella gli allegati', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(7, 3),
@@ -107,7 +109,8 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori, t
     { id: randomUUID(), name: 'Deve aspettare?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(3),
       parameters: se("={{ ['parti', 'prova'].includes($json.azione) }}") },
     { id: randomUUID(), name: 'Parte davvero?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(4, -1),
-      parameters: se("={{ $json.azione === 'parti' }}") },
+      // Con allegati, parte solo un lavoro passato da «Salvate tutte?»: righe nella tabella prima della routine.
+      parameters: se("={{ $json.azione === 'parti' && (!(Array.isArray($json.righe) && $json.righe.length) || $json.salvate_tutte === true) }}") },
     { id: randomUUID(), name: PARTI, type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: pos(5, -2),
       onError: 'continueRegularOutput',
       parameters: { method: 'POST', url: `=${URL_ROUTINE}{{ $('Config').first().json.ROUTINE_ID }}/fire`,
@@ -139,7 +142,8 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori, t
   vai('Righe degli allegati', 'Salva gli allegati');
   vai('Salva gli allegati', 'Rimetti il lavoro', 'Allegati non salvati');
   vai('Allegati non salvati', 'Cancella gli allegati');
-  vai('Rimetti il lavoro', 'Parte davvero?');
+  vai('Rimetti il lavoro', 'Salvate tutte?');
+  vai('Salvate tutte?', 'Parte davvero?', 'Allegati non salvati');
   vai('Prepara il lavoro', 'Deve aspettare?');
   vai('Parte davvero?', PARTI, ASPETTA);
   vai(PARTI, 'Partita?');
@@ -204,7 +208,7 @@ export function controlla(w) {
   if (w.connections[PARTI]?.main?.[0]?.[0]?.node !== 'Partita?') problemi.push('dopo la partenza manca il controllo «Partita?»');
   // Gli allegati: salvati prima della partenza, cancellati dopo la risposta o se la routine non parte.
   const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
-  if (!dopo('Salva gli allegati?').includes('Righe degli allegati') || !dopo('Rimetti il lavoro').includes('Parte davvero?')) problemi.push('gli allegati non si salvano prima della partenza');
+  if (!dopo('Salva gli allegati?').includes('Righe degli allegati') || !dopo('Rimetti il lavoro').includes('Salvate tutte?') || !dopo('Salvate tutte?').includes('Parte davvero?') || !dopo('Salvate tutte?', 1).includes('Allegati non salvati')) problemi.push('gli allegati non si salvano prima della partenza');
   if (!dopo(ASPETTA).includes('Cancella gli allegati?') || !dopo('Partita?', 1).includes('Cancella gli allegati?')) problemi.push('gli allegati non si cancellano dopo la risposta');
   if (!dopo('Salva gli allegati', 1).includes('Allegati non salvati') || !dopo('Allegati non salvati').includes('Cancella gli allegati')) problemi.push('se il salvataggio fallisce, il posto non torna e le righe restano');
   if (w.settings?.saveDataSuccessExecution !== 'none') problemi.push('le corse riuscite non devono salvarsi: con gli allegati terrebbero le foto dei clienti');

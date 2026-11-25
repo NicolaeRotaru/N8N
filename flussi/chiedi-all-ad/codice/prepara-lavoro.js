@@ -111,7 +111,9 @@ const righe = allegati.map((a) => ({ impronta: a.impronta, corsa, scade: ora + D
 let conRighe = righe.length ? { righe, corsa } : {};
 // Lo spazio: le tabelle di n8n hanno un tetto comune (200 MB di serie in n8n 2.49, per tutti i flussi). Gli allegati
 // vivi delle corse in corso si contano nella memoria; oltre ALLEGATI_SOGLIA_MB il lavoro non parte, così le tabelle
-// degli altri flussi non si riempiono. Il conto è prudente: ogni riga vale almeno 1 KB, le voci scadono da sole.
+// degli altri flussi non si riempiono. Il conto è prudente: ogni riga vale almeno 1 KB.
+// Una voce dura quanto può durare la corsa (l'attesa più 5 minuti), non un'ora: se la corsa finisce per tempo scaduto,
+// n8n non salva la memoria toccata da «Componi la risposta», e la voce resterebbe a occupare spazio che non c'è più.
 if (righe.length) {
   const soglia = Math.max(1, numero(cfg.ALLEGATI_SOGLIA_MB, 40)) * 1024 * 1024;
   const vivi = (Array.isArray(memoria.allegati) ? memoria.allegati : []).filter((x) => x && x.scade > ora && x.corsa !== corsa);
@@ -119,11 +121,13 @@ if (righe.length) {
   const giaVivi = vivi.reduce((t, x) => t + (Number(x.byte) || 0), 0);
   if (giaVivi + nuovi > soglia) {
     memoria.allegati = vivi;
-    return esci({ azione: 'errore', flusso, chiave, errore: `spazio degli allegati quasi pieno: ${Math.round(giaVivi / 1048576)} MB vivi più ${Math.round(nuovi / 1048576)} MB di questa corsa superano ${Math.round(soglia / 1048576)} MB; riprova fra poco` });
+    const misura = (b) => (b < 10 * 1048576 ? `${Math.ceil(b / 1024)} KB` : `${(b / 1048576).toFixed(1).replace('.', ',')} MB`);
+    return esci({ azione: 'errore', flusso, chiave, errore: `spazio degli allegati quasi pieno: ${misura(giaVivi)} vivi più ${misura(nuovi)} di questa corsa superano ${misura(soglia)}; riprova fra poco` });
   }
   memoria.allegati = vivi;
   // si conta solo se la corsa parte davvero (o è una prova): un lavoro fermato dai tetti non salva niente
-  conRighe.segna = { corsa, byte: nuovi, scade: ora + DURATA_ALLEGATI };
+  const attesaMinuti = vero ? numero(cfg.ATTESA_MINUTI, 15) : numero(cfg.PROVA_ATTESA_MINUTI, 2);
+  conRighe.segna = { corsa, byte: nuovi, scade: ora + (Math.max(1, attesaMinuti) + 5) * 60000 };
 }
 const segnaSpazio = () => { if (conRighe.segna) { memoria.allegati = [...(memoria.allegati || []), conRighe.segna]; delete conRighe.segna; } };
 

@@ -10,6 +10,7 @@ if (prep.azione === 'parti') {
   if (Array.isArray(memoria.partenze)) memoria.partenze.pop();
 }
 if (Array.isArray(memoria.allegati)) memoria.allegati = memoria.allegati.filter((x) => x && x.corsa !== prep.corsa);
+// Ci si arriva dall'uscita di errore della tabella, oppure da «Salvate tutte?» quando mancano righe.
 const e = ($input.first() && $input.first().json) || {};
-const motivo = String((e.error && (e.error.message || e.error)) || e.message || 'errore sconosciuto').slice(0, 200);
+const motivo = String((e.error && (e.error.message || e.error)) || e.motivo_salvataggio || e.message || 'errore sconosciuto').slice(0, 200);
 return [{ json: { errore: `gli allegati non si sono salvati nella tabella: ${motivo}` } }];
