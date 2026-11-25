@@ -25,8 +25,9 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 
-export const NOME_97 = "97 · Scrivi nell'argomento dell'attività";
+export const NOME_97 = NOMI.argomentoAttivita;
 export const NOME_TABELLA = 'Argomenti delle attività';
 export const COLONNE_TABELLA = [['id_attivita', 'string'], ['nome', 'string'], ['thread_id', 'number'], ['chat_id', 'string']];
 const QUI = dirname(fileURLToPath(import.meta.url));
@@ -162,9 +163,9 @@ async function principale(argv) {
   if (argv.includes('--manda')) {
     api = await import('../n8n-api.mjs');
     const tutti = await api.elencoFlussi();
-    const m12 = tutti.find((w) => w.name === '12 · Nuovo cliente (automatico)');
+    const m12 = trovaFlusso(tutti, NOMI.nuovoCliente);
     if (!m12) throw new Error('Non trovo il modulo 12 su n8n: da lì prendo chat e credenziali.');
-    const gia = tutti.find((w) => w.name === NOME_97);
+    const gia = trovaFlusso(tutti, NOME_97);
     const cfgGia = gia?.nodes?.find((n) => n.name === 'Config')?.parameters?.assignments?.assignments || [];
     pezzi = { ...pezzi,
       telegram: m12.nodes.find((n) => n.type === 'n8n-nodes-base.telegram')?.credentials?.telegramApi,

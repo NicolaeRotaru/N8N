@@ -350,3 +350,24 @@ test('il briefing va nel gruppo «Marketplace» se c è, se no nella chat privat
   assert.equal(costruisci().nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.find((a) => a.name === 'CHAT_MARKETPLACE').value, '');
   assert.equal(w.nodes.find((n) => n.name === 'Manda a Nicola').parameters.chatId, "={{ $('Config').first().json.CHAT_MARKETPLACE || $('Config').first().json.TELEGRAM_CHAT_ID }}");
 });
+
+test('la salute di n8n (flusso 98) finisce in fondo al messaggio; se il 98 non risponde lo dice', async () => {
+  const a = await calcola(datiNormali());
+  const base = { Config: [{ json: config() }], 'Calcola i numeri': [{ json: a }], 'Chiedi il commento a Claude': claudeRisponde(COMMENTO) };
+  const [{ json: con }] = await eseguiCodice(COMPONI, { nodi: { ...base, 'Chiedi la salute di n8n': [{ json: { testo: '<b>⚙️ Salute di n8n</b> · 9 flussi accesi su 40\n✅ Nessun flusso fallito nelle ultime 24 ore.' } }] } });
+  assert.match(con.messaggio, /⚙️ Salute di n8n<\/b> · 9 flussi accesi/);
+  const [{ json: guasto }] = await eseguiCodice(COMPONI, { nodi: { ...base, 'Chiedi la salute di n8n': [{ json: { error: { message: 'boom' } } }] } });
+  assert.match(guasto.messaggio, /salute di n8n: il flusso 98 non ha risposto/);
+  const [{ json: senza }] = await eseguiCodice(COMPONI, { nodi: base });
+  assert.doesNotMatch(senza.messaggio, /Salute di n8n/);
+});
+
+test('il 17 col 98: lo chiama prima dei numeri e lo aspetta; senza 98 il flusso resta valido', () => {
+  const pezzi = { telegram: { id: 't', name: 'T' }, anthropic: { id: 'a', name: 'A' }, chatId: '1', marketplace: 'm' };
+  const con = costruisci({ ...pezzi, salute: 'id98' });
+  assert.deepEqual(controlla(con), []);
+  const nodo = con.nodes.find((n) => n.name === 'Chiedi la salute di n8n');
+  assert.equal(nodo.parameters.options.waitForSubWorkflow, true);
+  assert.equal(con.connections['Chiedi la salute di n8n'].main[0][0].node, 'Calcola i numeri');
+  assert.deepEqual(controlla(costruisci(pezzi)), []);
+});

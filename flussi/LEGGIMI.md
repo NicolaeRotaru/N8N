@@ -23,10 +23,9 @@ copia dove:
 - la pagina 4 conferma da sola, **tranne** sul possibile doppione: lì non scrive e avvisa;
 - se la ricerca di Claude si ferma, non scrive una scheda vuota: avvisa;
 - la stessa attività una volta sola in 7 giorni, al massimo 10 attività al giorno (il credito di Claude);
-- **la ricerca con Claude è sempre spenta** (`RICERCA_CON_CLAUDE = no` nel Config, imposto dal
-  generatore): nessuna API di IA a pagamento, decisione di Nicola del 24/11. Senza ricerca la riga non
-  si scrive e arriva l'avviso su Telegram; l'analisi del 18 e la scheda al sito partono lo stesso. La
-  ricerca tornerà quando la fa l'AD col piano Max («Chiedi all'AD»);
+- **la ricerca la fa l'AD col piano Max** («Chiedi all'AD»), come nel 12: nessuna API di IA a pagamento
+  (Nicola, 24/11). Se nel 12 tornasse un nodo verso l'API di Claude, il generatore spegne la ricerca
+  (`RICERCA_CON_CLAUDE = no`): senza ricerca la riga non si scrive e arriva l'avviso su Telegram;
 - i due nodi con cui il 12 iscrive un cliente nuovo in MyCity («Prepara l'iscrizione in MyCity» e
   «Iscrivi in MyCity», che chiamano il flusso 20) restano fuori: chi arriva al 16 su MyCity c'è già.
 
@@ -132,9 +131,8 @@ N8N_API_KEY=… node flussi/97-argomento-attivita/costruisci.mjs --manda --offic
 Dopo il 97, l'analisi e le bozze si ricostruiscono con `--argomento <id del 97>` (con `--manda` lo trovano per nome).
 Senza `--argomento` restano come prima, col Telegram diretto.
 
-**I numeri dei flussi su n8n sono cambiati il 25/11** (un'altra sessione li ha rimessi in ordine per gruppi:
-l'analisi di un'attività è il 28, le bozze sono il 15, l'analisi del marketplace il 27). Le cartelle qui
-tengono i numeri di prima; i nomi che i programmi cercano su n8n vanno allineati.
+**Nomi su n8n.** Il 97 è nel gruppo «9x sistema» (il 20 era già preso). I programmi lo trovano con
+`nomi.mjs` (`NOMI.argomentoAttivita`), come gli altri flussi.
 
 ## 17 · Analisi del marketplace
 
@@ -160,6 +158,107 @@ N8N_API_KEY=… node flussi/17-analisi-marketplace/costruisci.mjs --manda --mark
 **Per accenderlo:** in n8n apri la credenziale «Supabase MyCity - Marketplace (lettura)», incolla la
 chiave del database di MyCity (la stessa che l'AD usa come `MARKETPLACE_SUPABASE_KEY`), poi accendi il flusso.
 
+## Chiedi all'AD · niente più API di Claude a pagamento
+
+**Perché.** Decisione di Nicola del 24/11/2026: nessun flusso n8n acceso chiama più l'API di Claude a
+pagamento. Il lavoro con l'IA lo fa l'AD col piano Max, attraverso la routine «Chiedi all'AD».
+
+**Il sotto-flusso «Chiedi all'AD»** (`chiedi-all-ad/costruisci.mjs`). Lo chiamano gli altri flussi con
+«Esegui un flusso», una volta per tutti gli elementi. Riceve uno o più lavori `{ flusso, compito, dati,
+schema }` e restituisce un elemento per lavoro `{ ok, flusso, risultato, avvisi, errore, dalla_memoria, prova }`.
+Dentro:
+
+- tanti lavori diventano **una corsa sola** della routine (es. tutti i testi del giro);
+- **memoria**: se compito e dati sono uguali all'ultima volta per quel flusso, ridà la risposta di allora
+  senza far partire la routine;
+- **tetti**: al massimo 40 corse al giorno e 25 in un'ora (la routine ne accetta 30: il resto è riserva),
+  contati nella memoria del flusso; una corsa che non parte non si conta;
+- fa partire la routine (`POST /v1/claude_code/routines/<id>/fire`) con dentro l'indirizzo di ritorno
+  (`$execution.resumeUrl`), poi **aspetta** col nodo Wait al massimo 15 minuti la risposta dell'AD;
+- se un lavoro ha `non_mandare` (per esempio servono foto che non possono arrivare), non parte niente;
+- **MODALITA = prova** (di serie): la routine non parte e non si conta; il flusso aspetta 2 minuti e torna
+  con `prova = true`. In prova, mentre aspetta, si può rispondere a mano all'indirizzo `rispondi_a` che
+  «Prepara il lavoro» mostra.
+
+```bash
+N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs --manda --routine <id della routine>   # prova
+N8N_API_KEY=… node flussi/chiedi-all-ad/costruisci.mjs --manda --vero                         # vero
+```
+
+La prima volta crea la credenziale **«Chiedi all'AD - chiave della routine»** (Header Auth) con un valore
+finto. **Nicola** crea la chiave dalla pagina web della routine e la incolla lì: nome `Authorization`,
+valore `Bearer <chiave>`. Mai nel repository, mai in chat.
+
+**Collegare un flusso** (`chiedi-all-ad/collega.mjs 01|04|08|12`). Ogni nodo HTTP verso
+`api.anthropic.com/v1/messages` diventa tre nodi: «Per l'AD: …» (la richiesta di prima diventa un
+lavoro), «Chiedi all'AD: …» (chiama il sotto-flusso e lo aspetta) e «Dall'AD: …» (rimette la risposta
+nella forma che il nodo dopo leggeva da Claude). Il resto del flusso non cambia: se l'AD non risponde, il
+flusso segue la strada che seguiva quando Claude non rispondeva. Le foto mandate dentro il messaggio
+(base64) non arrivano all'AD; quelle con un indirizzo web sì, se la rete della routine lo apre.
+
+```bash
+N8N_API_KEY=… node flussi/chiedi-all-ad/collega.mjs 04 --manda --salva /tmp/04-prima.json
+```
+
+Collegati il 25/11/2026: **01** (controllo finale: se non riesce, pubblica lo stesso con la nota), **04**
+(i testi, senza la foto), **08** (le foto non possono arrivare: il lavoro non parte e il 08 va avanti senza
+IA, finché Nicola non apre gli indirizzi delle foto nella rete della routine), **18** (dal suo
+`costruisci.mjs`; il commento resta spento). Il **99** non chiede più spiegazioni:
+`99-avvisi-errori/togli-spiegazione-ai.mjs --manda`, l'avviso parte uguale. Il **12** è collegato dalle 14:05
+circa (col via della sessione che lo segue): RICERCA_CON_CLAUDE = si, perché il ramo ora va all'AD; la lettura
+delle foto non parte finché le foto non arrivano come indirizzi web. Il **16** si è rigenerato dal 12 e tiene la
+ricerca accesa: `genera.mjs` la spegne solo se nel 12 resta un nodo a pagamento. **Il contatore dà 0.**
+
+**Il contatore** (`conta-api-claude.mjs`). Conta i nodi verso l'API di Claude a pagamento nei flussi
+accesi e in quelli che possono far partire (sotto-flussi e flusso degli errori). Il risultato giusto è
+zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.
+
+```bash
+N8N_API_KEY=… node flussi/conta-api-claude.mjs
+
+## Il lavoro meccanico del server dell'AD (21-25, 98)
+
+Dal 25/11/2026. Il server dell'AD è spento per sempre (Nicola, 24/11): i lavori a orario che un
+programma fa sempre uguale girano qui, **senza IA e senza token**. Tutti nascono **spenti** e in
+**MODALITA prova** (calcolano e ricordano, non mandano niente): si passa a «vero» nel Config o
+ricostruendo con `--vero`. Ogni errore va al «99 · Avvisi errori». I pezzi comuni stanno in `comune.mjs`.
+
+- **21 · Sentinella dei dati** — ogni 15 minuti, sola lettura sul database di MyCity: payout fermi,
+  ordini oltre lo slot promesso, carrelli da recuperare, recensioni basse nuove, negozi fermi, calo
+  ordini, marketplace fermo. Le soglie sono quelle di `ad-mycity/cervello/sentinella-dati.mjs`.
+  Avvisa solo quando qualcosa cambia. Ripara due controlli che nel cervello non vedevano niente: i
+  carrelli (chiedeva la colonna `id`, che `abandoned_carts` non ha: risposta 400) e gli ordini in
+  ritardo (cercava `expected_delivery`, che non esiste: lo slot è un testo, «Oggi · 11:00–13:00»).
+  Il 25/11 i due numeri veri erano 4 e 4.
+- **22 · Sito che risponde** — ogni 5 minuti, la pagina iniziale e `/api/health/ready`. Stati: su ·
+  degradato (lavori automatici del sito fermi) · giù (due controlli falliti di fila). Avvisa al cambio.
+- **98 · Salute di n8n** — chiamato dal 17 alle 8:10: flussi accesi, ultimo giro buono, falliti in
+  24 ore; il testo finisce in fondo al messaggio del 17. Vuole la credenziale «n8n - API (lettura)»
+  (Header Auth `X-N8N-API-KEY`, chiave da Settings → n8n API).
+- **23 · Mani del Pannello** — webhook `mycity-mani`: le azioni approvate nel Pannello dell'AD
+  (`pannello/src/lib/mani-n8n.ts`) arrivano qui. **Un'azione 🔴 parte solo se firmata da Nicola**,
+  controllato nel Pannello e di nuovo qui; la stessa azione una volta sola; oggi l'unico canale
+  collegato è `telegram`, gli altri tornano «in coda» col motivo. Vuole la credenziale «MyCity -
+  Segreto mani del Pannello» (Header Auth `x-mycity-segreto`), con lo stesso valore di
+  `N8N_WEBHOOK_SEGRETO` nel Pannello, e `N8N_WEBHOOK_URL` = l'indirizzo di produzione del webhook.
+- **24 · Radar del web** — alle 6:30 scarica le fonti del radar dell'AD (`24-radar-web/codice/fonti.json`,
+  copia di `ad-mycity/cervello/radar-fonti.json` senza la ricerca Google; le settimanali il lunedì),
+  tiene solo i titoli nuovi e chiede all'AD, tramite «Chiedi all'AD», quali contano per MyCity. Se l'AD
+  non risponde arrivano i titoli per fonte; senza novità nessun messaggio.
+- **25 · Numeri del mattino e della sera** — alle 6 il piano del mattino, alle 18 il report della sera.
+  I numeri li calcola lo stesso codice del 17 (`17-analisi-marketplace/codice/calcola-numeri.js`), il
+  testo lo scrive l'AD tramite «Chiedi all'AD». Se l'AD non risponde arrivano i soli numeri, detto.
+  In prova i lavori partono con `non_mandare`: la routine dell'AD non si accende e non si conta.
+
+```bash
+N8N_API_KEY=… node flussi/21-sentinella-dati/costruisci.mjs --manda   # la chiave del database la prende dal 17
+N8N_API_KEY=… node flussi/22-sito-risponde/costruisci.mjs --manda
+N8N_API_KEY=… node flussi/24-radar-web/costruisci.mjs --manda               # trova «Chiedi all'AD» per nome
+N8N_API_KEY=… node flussi/25-numeri-mattino-sera/costruisci.mjs --manda
+N8N_API_KEY=… node flussi/98-salute-n8n/costruisci.mjs --manda        # poi rilancia il 17: trova il 98 per nome
+N8N_API_KEY=… node flussi/23-mani-pannello/costruisci.mjs --manda --segreto <id credenziale>
+```
+
 ## Le prove
 
 ```bash
@@ -167,10 +266,20 @@ node --test "flussi/test/*.test.mjs"
 ```
 
 Girano senza n8n e senza database: il codice dei nodi si esegue su dati finti (`test/esegui-codice.mjs`
-imita `$('Nodo')`, `$input` e la memoria del flusso). Il modulo 12 vero non sta qui: le prove del 16
+imita `$('Nodo')`, `$input`, la memoria del flusso e `$execution.resumeUrl`). Il modulo 12 vero non sta qui: le prove del 16
 usano un modulo 12 in miniatura con gli stessi nomi di nodo.
 
 ## Il client dell'API
 
 `n8n-api.mjs` parla con l'API pubblica di n8n. Vuole `N8N_API_KEY` (n8n → Settings → n8n API) e
 facoltativamente `N8N_URL`. Dietro un proxy, con Node 22: `NODE_USE_ENV_PROXY=1`.
+
+## Strumenti per mettere in ordine n8n
+
+Il piano intero è in `PIANO-ORDINE.md`.
+
+- **`copia-di-sicurezza.mjs`** salva tutti i flussi (vivi e archiviati, senza pinData) e l'elenco delle
+  credenziali (solo id, nome e tipo). Si rifiuta di scrivere dentro un repository pubblico.
+  `node flussi/copia-di-sicurezza.mjs <cartella>`, poi `--verifica <cartella>`.
+- **`snellisci-aiuti.mjs`** toglie da ogni nodo Code gli aiuti comuni che quel nodo non usa. Lavora su un
+  file esportato e non parla con n8n: `node flussi/snellisci-aiuti.mjs <flusso.json> --scrivi <uscita.json>`.

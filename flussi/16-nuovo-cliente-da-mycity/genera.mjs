@@ -33,12 +33,14 @@
 //     --scrivi <path> salva il flusso generato in un file (fuori dal repository: contiene gli ID
 //                     del foglio, della cartella e della chat Telegram)
 
+import { aPagamento } from '../conta-api-claude.mjs';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { NOMI, trovaFlusso } from '../nomi.mjs';
 
-export const NOME_MODULO_12 = '12 · Nuovo cliente (automatico)';
-export const NOME_16 = '16 · Nuovo cliente da MyCity';
+export const NOME_MODULO_12 = NOMI.nuovoCliente;
+export const NOME_16 = NOMI.nuovoClienteDaMyCity;
 export const PERCORSO_WEBHOOK = 'mycity-nuovo-cliente';
 export const NOME_CREDENZIALE = 'MyCity - Segreto nuovo cliente';
 const TRIGGER = 'Modulo nuovo cliente';
@@ -254,7 +256,9 @@ export function trasforma(modulo12, opzioni = {}) {
   voce.value = modalita;
   const ricerca = assegnazioni.find((a) => a.name === RICERCA_CON_CLAUDE);
   if (!ricerca) throw new Error(`Nel Config del 12 non trovo ${RICERCA_CON_CLAUDE}: senza, il 16 chiamerebbe l'API di Claude a pagamento.`);
-  ricerca.value = 'no';
+  // Finché il 12 chiama l'API di Claude a pagamento, il 16 tiene la ricerca spenta. Quando il 12 la fa fare
+  // all'AD col piano Max («Chiedi all'AD»: nessun nodo a pagamento), il 16 tiene la scelta del 12.
+  if (w.nodes.some((n) => aPagamento(n))) ricerca.value = 'no';
 
   // Via i nodi che servono solo al 12, con i collegamenti che entrano ed escono.
   const via = new Set(SOLO_NEL_12);
@@ -334,7 +338,7 @@ export function trasforma(modulo12, opzioni = {}) {
       '',
       `**MODALITA** nel Config: «${modalita}» al momento della generazione.`,
       '',
-      "**RICERCA_CON_CLAUDE = no**, sempre: nessuna API di IA a pagamento. Senza ricerca la riga non si scrive (avviso su Telegram), l'analisi del 18 e la scheda al sito partono lo stesso.",
+      `**${RICERCA_CON_CLAUDE} = ${ricerca.value}**: ${w.nodes.some((n) => aPagamento(n)) ? "spenta perché il 12 chiama ancora l'API di Claude a pagamento" : "la ricerca la fa l'AD col piano Max («Chiedi all'AD»), come nel 12"}. Senza ricerca la riga non si scrive (avviso su Telegram), l'analisi del 18 e la scheda al sito partono lo stesso.`,
     ].join('\n') },
   };
   w.nodes.push(webhook, valida, daAvvisare, scartata, nota);
@@ -494,7 +498,7 @@ export function controlla(w) {
   const mod = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === 'MODALITA')?.value;
   if (!['prova', 'vero'].includes(mod)) problemi.push(`MODALITA nel Config è «${mod}»`);
   const ric = cfg?.parameters?.assignments?.assignments?.find((a) => a.name === RICERCA_CON_CLAUDE)?.value;
-  if (ric !== 'no') problemi.push(`${RICERCA_CON_CLAUDE} nel Config è «${ric}»: il 16 chiamerebbe l'API di Claude a pagamento`);
+  if (ric !== 'no' && w.nodes.some((n) => aPagamento(n))) problemi.push(`${RICERCA_CON_CLAUDE} nel Config è «${ric}»: il 16 chiamerebbe l'API di Claude a pagamento`);
   for (const nome of SOLO_NEL_12) {
     if (nomi.has(nome)) problemi.push(`c'è «${nome}»: il 16 iscriverebbe di nuovo in MyCity chi si è appena iscritto`);
   }
@@ -511,7 +515,7 @@ async function principale(argv) {
   let modulo12;
   if (valore('--file')) modulo12 = JSON.parse(readFileSync(valore('--file'), 'utf8'));
   else {
-    const trovato = (await api.elencoFlussi()).find((w) => w.name === NOME_MODULO_12);
+    const trovato = trovaFlusso(await api.elencoFlussi(), NOME_MODULO_12);
     if (!trovato) throw new Error(`Su n8n non trovo «${NOME_MODULO_12}».`);
     modulo12 = await api.leggiFlusso(trovato.id);
   }
@@ -519,12 +523,12 @@ async function principale(argv) {
   // Se il 16 esiste già, si tiene lo stesso webhookId: l'indirizzo non cambia.
   let webhookId;
   try {
-    const gia = (await api.elencoFlussi()).find((w) => w.name === NOME_16);
+    const gia = trovaFlusso(await api.elencoFlussi(), NOME_16);
     webhookId = gia?.nodes?.find((n) => n.name === WEBHOOK)?.webhookId;
   } catch { /* senza API: un id nuovo */ }
   let idAnalisi = valore('--analisi');
   if (!idAnalisi && !valore('--file')) {
-    idAnalisi = (await api.elencoFlussi()).find((x) => x.name === "18 · Analisi di un'attività")?.id;
+    idAnalisi = trovaFlusso(await api.elencoFlussi(), NOMI.analisiAttivita)?.id;
   }
   const w = trasforma(modulo12, {
     modalita: argv.includes('--vero') ? 'vero' : 'prova',

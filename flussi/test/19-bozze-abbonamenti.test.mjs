@@ -207,7 +207,7 @@ test('la traduzione in codice SDK porta ogni nodo e ogni collegamento', () => {
 
 // --- Le bozze nell'argomento del negozio (flusso 97) e gli scarti in Tecnica ---------------------
 
-test("col 20 le bozze vanno nell'argomento del negozio, col suo nome; gli scarti vanno in Tecnica", async () => {
+test("col 97 le bozze vanno nell'argomento del negozio, col suo nome; gli scarti vanno in Tecnica", async () => {
   const w = costruisci({ ...PEZZI, argomento: 'id20' });
   assert.deepEqual(controlla(w), []);
   assert.equal(w.nodes.find((n) => n.name === 'Manda a Nicola'), undefined);
