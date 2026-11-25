@@ -21,6 +21,8 @@ export const SCENE = {
   pezzo: 4.5, // lunghezza indicativa dei pezzi di una scena lunga
   maxPerVideo: 40, // oltre, i pezzi si allungano (una clip da 10 minuti non diventa 130 miniature)
 };
+// Il rilevamento dei cambi d'inquadratura (anche per la prova dei filtri all'avvio, autoprova.js).
+export const filtroScene = () => `scdet=threshold=${SCENE.sogliaTaglio}`;
 
 const LATO_MISURE = 192;
 const LATO_MINIATURA = 480;
@@ -193,7 +195,7 @@ export async function analizzaVideo({ file, codice, dirProgetto, dirTmp, dati, c
   const latoMini = info.larghezza >= info.altezza ? `${LATO_MINIATURA}:-2` : `-2:${LATO_MINIATURA}`;
   const dirMini = path.join(dirTmp, `mini-${codice}`);
   await fs.mkdir(dirMini, { recursive: true });
-  const grafo = `[0:v]fps=${SCENE.fpsMisure},scale=${mis.w}:${mis.h}:flags=area,scdet=threshold=${SCENE.sogliaTaglio},format=gray[m];`
+  const grafo = `[0:v]fps=${SCENE.fpsMisure},scale=${mis.w}:${mis.h}:flags=area,${filtroScene()},format=gray[m];`
     + `[0:v]fps=1,scale=${latoMini}:flags=bilinear,format=yuvj420p[t]`;
   const args = ['-hide_banner', '-nostdin', '-nostats', '-v', 'info', '-threads', String(cfg.threadFfmpeg), '-i', file.percorso,
     '-filter_threads', String(cfg.threadFfmpeg), '-filter_complex', grafo,

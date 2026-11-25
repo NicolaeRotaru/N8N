@@ -13,7 +13,7 @@ import { controllaRegia, regoleDelloStile } from '../src/regia.js';
 import { controllaPiano } from '../src/piano.js';
 import { STILI, stileDa, filtroVoce, misuraRitardoVoce, VOCE_STUDIO, VOCE_STUDIO_SENZA_RITARDO, grafoInquadratura, modoInquadratura, FORMATI } from '../src/regia-render.js';
 import { leggiConfig } from '../src/config.js';
-import { provaFiltri } from '../src/autoprova.js';
+import { provaFiltri, FILTRI_RICHIESTI } from '../src/autoprova.js';
 
 const H = { 'x-officina-chiave': CHIAVE, 'content-type': 'application/json' };
 const R = regoleDelloStile(STILI.sdg);
@@ -200,8 +200,13 @@ test('conservazione: i progetti restano 14 giorni di serie; serve spazio libero 
 // ------------------------------------------------------------------ con il server vero
 let s;
 let pieno;
+// FFmpeg con il registro: ogni chiamata del server finisce in REGISTRO (argomenti separati da \x1f, chiamate da \x1e)
+const REGISTRO = path.join(TMP, `ffmpeg-chiamate-${process.pid}.log`);
+const REGISTRATORE = path.join(TMP, `ffmpeg-registratore-${process.pid}.sh`);
+fs.writeFileSync(REGISTRATORE, `#!/bin/sh\nprintf '%s\\037' "$@" >> '${REGISTRO}'\nprintf '\\036' >> '${REGISTRO}'\nexec ffmpeg "$@"\n`, { mode: 0o755 });
+fs.rmSync(REGISTRO, { force: true });
 before(async () => {
-  s = await avviaServer();
+  s = await avviaServer({ FFMPEG_BIN: REGISTRATORE });
   pieno = await avviaServer({ MIN_DISCO_LIBERO_MB: '999999999' });
 });
 after(async () => {
@@ -227,49 +232,63 @@ test('disco quasi pieno: il materiale non entra (507) e il messaggio dice cosa f
   assert.match(r.json.messaggio, /MB liberi/);
 });
 
-test('prova dei filtri: sull\'FFmpeg del server girano tutti; se ne manca uno o il grafo si rompe, /salute lo dice', async () => {
+test('prova dei filtri: girano con le stesse funzioni del montaggio; se ne manca uno, o uno si rompe, /salute lo dice', async () => {
   const dati = fs.mkdtempSync(path.join(TMP, 'autoprova-'));
   const FF = 'ffmpeg'; // il programma vero (nelle prove «ffmpeg» importato è una funzione)
   const vera = await provaFiltri({ ffmpeg: FF, datiDir: dati });
   assert.equal(vera.ok, true, JSON.stringify(vera));
   assert.deepEqual(vera.mancanti, []);
   assert.match(String(vera.ffmpeg), /^\d/);
-  assert.ok(vera.ritardo_voce >= 0, 'il ritardo della voce si misura');
-  // un FFmpeg finto davanti a quello vero: nasconde un filtro, oppure rompe il grafo come farebbe un'opzione sconosciuta
+  assert.ok(Number.isInteger(vera.ritardo_voce) && vera.ritardo_voce > 0, `ritardo della voce: ${vera.ritardo_voce}`);
+  assert.match(await filtroVoce(STILI.sdg, { ffmpeg: FF }), new RegExp(`atrim=start_sample=${vera.ritardo_voce},`), 'è lo stesso ritardo che usano i montaggi');
   const finto = (nome, corpo) => {
     const f = path.join(dati, nome);
     fs.writeFileSync(f, `#!/bin/sh\n${corpo}\n`, { mode: 0o755 });
     return f;
   };
+  // un filtro che manca nell'elenco di FFmpeg
   const senzaDeesser = finto('senza-deesser', `if [ "$2" = "-filters" ]; then "${FF}" "$@" | grep -v ' deesser '; exit 0; fi\nexec "${FF}" "$@"`);
   const manca = await provaFiltri({ ffmpeg: senzaDeesser, datiDir: dati });
-  assert.equal(manca.ok, false);
-  assert.deepEqual(manca.mancanti, ['deesser']);
+  assert.deepEqual([manca.ok, manca.mancanti], [false, ['deesser']]);
   assert.match(manca.errore, /mancano: deesser/);
-  const grafoRotto = finto('grafo-rotto', `for a in "$@"; do if [ "$a" = "-filter_complex" ]; then echo "Option 'tn' not found" >&2; exit 1; fi; done\nexec "${FF}" "$@"`);
-  const rotto = await provaFiltri({ ffmpeg: grafoRotto, datiDir: dati });
-  assert.equal(rotto.ok, false);
-  assert.match(rotto.errore, /non girano: .*Option 'tn' not found/);
-  const voceMuta = finto('voce-muta', `for a in "$@"; do if [ "$a" = "s16le" ]; then exit 1; fi; done\nexec "${FF}" "$@"`);
-  const muta = await provaFiltri({ ffmpeg: voceMuta, datiDir: dati });
-  assert.equal(muta.ok, false);
-  assert.equal(muta.ritardo_voce, null);
-  assert.match(muta.errore, /voce da studio/);
+  // un filtro o un'opzione che questo FFmpeg non accetta: la prova deve passarci, con le stesse stringhe del montaggio
+  const rifiuta = (pezzo) => finto(`rifiuta-${pezzo.replace(/\W/g, '_')}`, `dopo=0\nfor a in "$@"; do\n  if [ "$dopo" = 1 ]; then case "$a" in *'${pezzo}'*) echo "No option name near '${pezzo}'" >&2; exit 1;; esac; fi\n  if [ "$a" = "-filter_complex" ]; then dopo=1; else dopo=0; fi\ndone\nexec "${FF}" "$@"`);
+  for (const pezzo of ['lut3d=', 'curves=', 'zoompan=', 'tpad=', 'boxblur=', 'overlay=', 'afftdn=', 'deesser=', 'acompressor=', 'highpass=', 'start_sample=', 'apad=pad_len', 'sidechaincompress=', 'normalize=0', 'scdet=', 'freezedetect=', 'blackdetect=']) {
+    const r = await provaFiltri({ ffmpeg: rifiuta(pezzo), datiDir: dati });
+    assert.equal(r.ok, false, `«${pezzo}» rifiutato, ma la prova dice ok`);
+    assert.match(r.errore, new RegExp(`i filtri del montaggio non girano: .*${pezzo.replace(/[=]/g, '.')}`), pezzo);
+  }
   const assente = await provaFiltri({ ffmpeg: path.join(dati, 'non-esiste'), datiDir: dati });
-  assert.equal(assente.ok, false);
-  assert.match(assente.errore, /FFmpeg non risponde/);
+  assert.deepEqual([assente.ok, /FFmpeg non risponde/.test(assente.errore)], [false, true]);
+  // la cartella dei dati non si scrive: l'errore lo dice (non «FFmpeg non risponde»)
+  const unFile = path.join(dati, 'un-file');
+  fs.writeFileSync(unFile, 'x');
+  const disco = await provaFiltri({ ffmpeg: FF, datiDir: unFile });
+  assert.deepEqual([disco.ok, /cartella dei dati/.test(disco.errore)], [false, true]);
   // /salute con la chiave porta l'esito; senza chiave resta {ok:true}
   const conChiave = await (await fetch(`${s.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json();
   assert.equal(conChiave.filtri.ok, true, JSON.stringify(conChiave.filtri));
-  assert.deepEqual(conChiave.filtri.mancanti, []);
   assert.deepEqual(await (await fetch(`${s.base}/salute`)).json(), { ok: true });
-  const sbagliato = await avviaServer({ FFMPEG_BIN: grafoRotto });
+  // un server con un FFmpeg che rifiuta la voce da studio (misura fallita) e lento sul grafo: /salute senza chiave
+  // non aspetta la prova; con la chiave dice cosa non va
+  const lento = finto('lento-e-senza-voce', `for a in "$@"; do\n  case "$a" in s16le) exit 1;; -filter_complex) sleep 2;; esac\ndone\nexec "${FF}" "$@"`);
+  const srv = await avviaServer({ FFMPEG_BIN: lento });
   try {
-    const f = (await (await fetch(`${sbagliato.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json()).filtri;
+    const t0 = Date.now();
+    assert.deepEqual(await (await fetch(`${srv.base}/salute`)).json(), { ok: true });
+    assert.ok(Date.now() - t0 < 1500, `senza chiave /salute ha aspettato ${Date.now() - t0} ms`);
+    const f = (await (await fetch(`${srv.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json()).filtri;
     assert.equal(f.ok, false);
-    assert.match(f.errore, /non girano/);
+    assert.match(f.errore, /voce da studio non si misura/);
   } finally {
-    await sbagliato.ferma();
+    await srv.ferma();
+  }
+  const senzaFfmpeg = await avviaServer({ FFMPEG_BIN: path.join(dati, 'non-esiste') });
+  try {
+    const f = (await (await fetch(`${senzaFfmpeg.base}/salute`, { headers: { 'x-officina-chiave': CHIAVE } })).json()).filtri;
+    assert.deepEqual([f.ok, /FFmpeg non risponde/.test(f.errore)], [false, true]);
+  } finally {
+    await senzaFfmpeg.ferma();
   }
 });
 
@@ -450,4 +469,28 @@ test('montatore: un reel del piano con la regia passa da /piano e da /monta ed e
   ffmpeg(['-ss', '7', '-i', pv, '-frames:v', '1', '-y', fgm]);
   const { data: dm, info: inm } = await sharp(fgm).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   assert.ok(dm[(900 * inm.width + 540) * 3] < 60, `la clip bianca dovrebbe essere nera con la LUT: ${dm[(900 * inm.width + 540) * 3]}`);
+});
+
+test('l\'elenco dei filtri della prova contiene ogni filtro che il server ha chiesto a FFmpeg in queste prove', () => {
+  const registro = fs.readFileSync(REGISTRO, 'utf8');
+  fs.rmSync(REGISTRO, { force: true });
+  fs.rmSync(REGISTRATORE, { force: true });
+  const chiamate = registro.split('\x1e').filter(Boolean).map((c) => c.split('\x1f').filter((x, i, a) => i < a.length - 1 || x !== ''));
+  const nomi = new Set();
+  const leggiGrafo = (g) => {
+    const pulito = g.replace(/\\,/g, ' ').replace(/'[^']*'/g, "''");
+    for (const pezzo of pulito.split(/[;,]/)) {
+      const nome = pezzo.trim().replace(/^(\[[^\]]*\])+/, '').split('=')[0].replace(/(\[[^\]]*\])+$/, '').trim();
+      if (/^[a-z][a-z0-9_]*$/.test(nome)) nomi.add(nome);
+    }
+  };
+  for (const a of chiamate) {
+    a.forEach((x, i) => {
+      if (['-filter_complex', '-vf', '-af', '-lavfi'].includes(x)) leggiGrafo(a[i + 1] || '');
+      if (x === '-i' && a[i - 2] === '-f' && a[i - 1] === 'lavfi') leggiGrafo(a[i + 1] || '');
+    });
+  }
+  assert.ok(chiamate.length > 50 && nomi.size > 25, `il registro è troppo povero: ${chiamate.length} chiamate, ${nomi.size} filtri`);
+  const fuori = [...nomi].filter((n) => !FILTRI_RICHIESTI.includes(n)).sort();
+  assert.deepEqual(fuori, [], 'filtri usati dal montaggio ma non provati all\'avvio: aggiungili a FILTRI_RICHIESTI in src/autoprova.js');
 });

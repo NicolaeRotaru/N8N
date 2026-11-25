@@ -387,6 +387,15 @@ export function modoInquadratura(q, info, fmt, stile) {
   return q.tipo === 'volto' ? stile.volto : stile.coperture;
 }
 
+// Lo zoom lento sulle foto e il riempimento di un pezzo che finisce prima: funzioni a parte perché la prova dei filtri
+// all'avvio (autoprova.js) usi le stesse stringhe del montaggio.
+export function filtroZoomFoto(stile, fmt, fotogrammi) {
+  return `zoompan=z='1+${stile.zoom_foto ?? 0.12}*on/${Math.max(1, fotogrammi)}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${fmt.w}x${fmt.h}:fps=${stile.fps || FPS_BASE}`;
+}
+export function filtroRiempi(fotogrammi, fps) {
+  return `tpad=stop_mode=clone:stop_duration=${f3(fotogrammi / fps + 1)}`;
+}
+
 async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null) {
   const t = String(cfg.threadFfmpeg);
   const FPS = stile.fps || FPS_BASE;
@@ -396,8 +405,7 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
     const H2 = Math.round(fmt.h * 1.2 / 2) * 2;
     const jpg = path.join(dirTmp, `${path.basename(uscita)}.jpg`);
     await apri(sorgente).flatten({ background: '#000000' }).resize(W2, H2, { fit: 'cover', position: 'attention' }).jpeg({ quality: 92 }).toFile(jpg);
-    const zoom = `zoompan=z='1+${stile.zoom_foto ?? 0.12}*on/${Math.max(1, fotogrammi)}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${fmt.w}x${fmt.h}:fps=${FPS}`;
-    await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-loop', '1', '-framerate', String(FPS), '-i', jpg, '-filter_complex', `[0:v]${zoom},${FINE}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
+    await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-loop', '1', '-framerate', String(FPS), '-i', jpg, '-filter_complex', `[0:v]${filtroZoomFoto(stile, fmt, fotogrammi)},${FINE}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
     return;
   }
   const modo = modoInquadratura(q, info, fmt, stile);
@@ -405,7 +413,7 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
   // tpad: se la clip finisce prima (la regia non lo permette, ma un file può dichiarare una durata sbagliata), l'ultimo
   // fotogramma resta fino a riempire il pezzo: mai un pezzo più corto, quindi mai le immagini dopo che scivolano
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-ss', f3(q.inizio), '-t', f3(fotogrammi / FPS + 0.5), '-i', sorgente,
-    '-filter_threads', t, '-filter_complex', `${grafo};[g]tpad=stop_mode=clone:stop_duration=${f3(fotogrammi / FPS + 1)}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
+    '-filter_threads', t, '-filter_complex', `${grafo};[g]${filtroRiempi(fotogrammi, FPS)}[v]`, '-map', '[v]', '-frames:v', String(fotogrammi), ...CODIFICA_PEZZO(t, FPS), uscita], { segnale, timeoutMs: cfg.timeoutProcessoMs });
 }
 
 // Voce continua: i pezzi audio della timeline in fila (sample per sample), con dissolvenze brevissime ai tagli.
@@ -436,7 +444,7 @@ async function voceContinua(tl, sorgenti, uscita, cfg, segnale) {
 }
 
 // Audio finale: la voce, più la musica che si abbassa da sola quando qualcuno parla (sidechain).
-function catenaAudio(iVoce, iMusica, durata, volume, voce = '') {
+export function catenaAudio(iVoce, iMusica, durata, volume, voce = '') {
   let c = `[${iVoce}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,${voce}asplit=2[vm][vk]`;
   if (iMusica === null) return `${c};[vk]anullsink;[vm]anull[mix]`;
   c += `;[${iMusica}:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,atrim=0:${f3(durata)},volume=${volume},afade=t=in:st=0:d=0.6,afade=t=out:st=${f3(Math.max(0, durata - 1.5))}:d=1.5[mus]`;
@@ -445,6 +453,7 @@ function catenaAudio(iVoce, iMusica, durata, volume, voce = '') {
 }
 
 // Neri e immagini ferme nel file finito (i «bolli» che si vedono solo guardando).
+export const FILTRO_DIFETTI = 'blackdetect=d=0.12:pix_th=0.10,freezedetect=n=0.003:d=2.5';
 export function leggiDifetti(stderr) {
   const neri = [...stderr.matchAll(/black_start:([\d.]+)\s+black_end:([\d.]+)/g)].map((m) => ({ da: Number(m[1]), a: Number(m[2]) }));
   const inizi = [...stderr.matchAll(/freeze_start:\s*([\d.]+)/g)].map((m) => Number(m[1]));
@@ -552,7 +561,7 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   const fotogrammi = await creaFotogrammi(finale, durata, dirTmp, dirOut, cfg, segnale);
   // neri e immagini ferme si cercano sulle immagini montate PRIMA della grana e dei testi: la grana cambia ogni fotogramma
   // e un'immagine ferma con la grana sopra non risulterebbe mai ferma
-  const { stderr } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-nostats', '-v', 'info', '-i', path.join(dirTmp, 'video.mkv'), '-vf', 'blackdetect=d=0.12:pix_th=0.10,freezedetect=n=0.003:d=2.5', '-an', '-f', 'null', '-'], { segnale, timeoutMs: cfg.timeoutProcessoMs });
+  const { stderr } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-nostats', '-v', 'info', '-i', path.join(dirTmp, 'video.mkv'), '-vf', FILTRO_DIFETTI, '-an', '-f', 'null', '-'], { segnale, timeoutMs: cfg.timeoutProcessoMs });
   const difetti = leggiDifetti(stderr);
   for (const n of difetti.neri) avvisi.push({ codice: 'nero', messaggio: `Da ${n.da.toFixed(1).replace('.', ',')} a ${n.a.toFixed(1).replace('.', ',')} s il video è nero.` });
   for (const f of difetti.fermi) avvisi.push({ codice: 'immagine_ferma', messaggio: `Da ${f.da.toFixed(1).replace('.', ',')} s l'immagine resta ferma per più di 2,5 s.` });
