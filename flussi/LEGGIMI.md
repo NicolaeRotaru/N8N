@@ -224,7 +224,7 @@ resta identica a prima, carattere per carattere.
 - **Il gettone:** uno per allegato, 256 bit, dal nodo Crypto. Nella Data table «Allegati per l'AD» c'è solo la sua
   impronta SHA-256, con la corsa e la scadenza (un'ora).
 - **L'indirizzo fisso:** `https://n8n-shdy.sliplane.app/webhook/allegati-ad?g=<gettone>`, solo GET. Lo serve il flusso
-  «Allegati per l'AD» (numero da dare). Un gettone sbagliato o scaduto riceve 404 senza dettagli. Quel flusso non salva
+  «89 · Allegati per l'AD». Un gettone sbagliato o scaduto riceve 404 senza dettagli. Quel flusso non salva
   le esecuzioni, né riuscite né fallite.
 - **Quanto restano:** «Chiedi all'AD» cancella le righe della corsa appena l'AD risponde, o se la routine non parte. Il
   giro «Ogni ora» toglie gli avanzi scaduti.

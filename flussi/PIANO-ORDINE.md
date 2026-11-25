@@ -50,7 +50,8 @@ Un numero per flusso. MyCity e i negozi sono righe della scheda Clienti, non cop
 
 **I numeri già presi dalla sessione D** (25/11): 21 · Sentinella dei dati, 22 · Sito che risponde, 23 · Mani del
 Pannello, 24 · Radar del web, 25 · Numeri del mattino e della sera, 98 · Salute di n8n. I pezzi riusabili
-prendono 91-95; restano liberi 96 e 97.
+prendono 91-95. Poi il 96 è andato a «Pubblica su una coppia», il 97 all'argomento dell'attività e l'89 agli
+allegati di «Chiedi all'AD» (25/11): fra 89 e 99 non resta niente di libero.
 
 **Prima di rinominare.** Dentro n8n i flussi si chiamano per ID, quindi il nome si può cambiare. Fuori, i
 generatori cercano per nome esatto: `16-…/genera.mjs` (12, 16, 18), `17-…`, `18-…` e `19-…/costruisci.mjs`

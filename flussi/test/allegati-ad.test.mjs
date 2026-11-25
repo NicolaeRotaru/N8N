@@ -189,6 +189,8 @@ test('consegna: testo, immagine dal base64, file dell\'officina; scaduto, sconos
 test('il flusso «Chiedi all\'AD»: gettoni e impronte prima di prepararsi, allegati salvati prima della partenza e cancellati dopo', async () => {
   const w = costruisci({ routine: 'trig_abc', chiave: 'cred1', vero: true });
   assert.deepEqual(controlla(w), []);
+  assert.equal(w.settings.saveDataSuccessExecution, 'none', 'le corse riuscite non si salvano');
+  assert.ok(controlla({ ...w, settings: { ...w.settings, saveDataSuccessExecution: 'all' } }).some((p) => /non devono salvarsi/.test(p)));
   const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
   assert.deepEqual([dopo('Config'), dopo('Allegati del lavoro'), dopo('Gettoni'), dopo('Impronte')], [['Allegati del lavoro'], ['Gettoni'], ['Impronte'], ['Prepara il lavoro']]);
   const nodo = (nome) => w.nodes.find((n) => n.name === nome);

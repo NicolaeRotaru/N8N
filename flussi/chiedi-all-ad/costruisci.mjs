@@ -161,8 +161,10 @@ export function costruisci({ routine, chiave, vero = false, webhookId, errori } 
 
   return {
     name: NOME_CHIEDI, nodes: nodi, connections: collega,
+    // Le corse riuscite non si salvano (regia, 25/11): con gli allegati, nei dati del trigger arrivano cataloghi e foto
+    // dei clienti, che resterebbero nello storico di n8n. Le corse fallite restano, per capire cosa si è rotto.
     settings: { executionOrder: 'v1', timezone: 'Europe/Rome', saveManualExecutions: true, saveDataErrorExecution: 'all',
-      saveDataSuccessExecution: 'all', callerPolicy: 'workflowsFromSameOwner', ...(errori ? { errorWorkflow: errori } : {}) },
+      saveDataSuccessExecution: 'none', callerPolicy: 'workflowsFromSameOwner', ...(errori ? { errorWorkflow: errori } : {}) },
   };
 }
 
@@ -196,6 +198,7 @@ export function controlla(w) {
   const dopo = (da, i = 0) => (w.connections[da]?.main?.[i] || []).map((c) => c.node);
   if (!dopo('Salva gli allegati?').includes('Righe degli allegati') || !dopo('Rimetti il lavoro').includes('Parte davvero?')) problemi.push('gli allegati non si salvano prima della partenza');
   if (!dopo(ASPETTA).includes('Cancella gli allegati?') || !dopo('Partita?', 1).includes('Cancella gli allegati?')) problemi.push('gli allegati non si cancellano dopo la risposta');
+  if (w.settings?.saveDataSuccessExecution !== 'none') problemi.push('le corse riuscite non devono salvarsi: con gli allegati terrebbero le foto dei clienti');
   if (!/^https:\/\/[^/?#]+\/webhook\/[a-z0-9-]+$/.test(String(cfg.ALLEGATI_URL))) problemi.push('ALLEGATI_URL deve essere l\'indirizzo fisso del webhook degli allegati');
   return problemi;
 }
