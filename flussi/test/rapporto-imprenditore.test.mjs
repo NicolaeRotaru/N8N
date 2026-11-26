@@ -476,3 +476,29 @@ test("piano dei 30 giorni: la proposta (cosa facciamo noi) c'è solo con un serv
     { settimana: 3, azione: 'Sito nuovo con prenotazioni', servizio: 'sito_web', proposta: 'Sito nuovo a 990 euro', fonte: 'https://www.barroma.it/' }] });
   assert.deepEqual(j.scheda.analisi.business.piano_30_giorni.map((x) => x.proposta), ['Un servizio fotografico della colazione per il menu e i social', null, null]);
 });
+
+test('dalla generazione a secco sul 12 vero: i nodi Google Sheets e Drive del 12 non sono chiamate a pagamento di Google Places', () => {
+  const { nodi, collegamenti } = nodiFatti([0, 0]);
+  const w = { nodes: [{ name: 'Config', parameters: { assignments: { assignments: vociConfig().map(([name, value]) => ({ name, value })) } } }, ...nodi,
+    { name: 'Leggi il foglio Clienti', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://sheets.googleapis.com/v4/spreadsheets/x/values/A1' } },
+    { name: 'Cerca la cartella del cliente', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://www.googleapis.com/drive/v3/files' } }], connections: collegamenti };
+  assert.deepEqual(controllaFatti(w), []);
+  // Dal collaudo della #25: tutto Google a pagamento resta segnalato (al contrario: esenti solo Sheets e Drive), con le maiuscole,
+  // con l'URL in un'espressione o nei parametri, e anche nei nodi HTTP degli strumenti.
+  const furbi = [
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://places.googleapis.com/v1/places:searchText' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://maps.googleapis.com/maps/api/geocode/json' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://www.googleapis.com/geolocation/v1/geolocate' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://solar.googleapis.com/v1/buildingInsights:findClosest' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://PLACES.GOOGLEAPIS.COM/v1/places' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: "={{ 'https://places.googleapis.com/v1/' + $json.id }}" } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: '={{ $json.base }}', queryParameters: { parameters: [{ name: 'u', value: 'https://maps.googleapis.com/maps/api/place/details/json' }] } } },
+    { type: 'n8n-nodes-base.httpRequestTool', parameters: { url: 'https://routes.googleapis.com/directions/v2:computeRoutes' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://www.googleapis.com/drive/../geolocation/v1/geolocate' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://fakesheets.googleapis.com/v1/x' } },
+  ];
+  for (const f of furbi) {
+    const prova = { ...w, nodes: [...w.nodes, { name: 'Furbo', ...f }] };
+    assert.ok(controllaFatti(prova).some((p) => /fuori dal loro IF/.test(p)), JSON.stringify(f.parameters));
+  }
+});

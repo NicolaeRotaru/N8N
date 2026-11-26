@@ -266,8 +266,20 @@ export function controllaFatti(w) {
 }
 
 /** I nodi HTTP che vanno verso l'host di una fonte a pagamento senza essere fra i suoi nodi (quindi senza freno). */
-const HOST = { google: /googleapis\.com/, tripadvisor: /tripadvisor\.com/, dataforseo: /dataforseo\.com/, instagram: /graph\.facebook\.com|graph\.instagram\.com/ };
+// Dal collaudo della #25 (26/11): al contrario. Tutto googleapis.com (e le API di maps.google.com) conta come Google a pagamento,
+// TRANNE i servizi gratuiti che il modulo 12 usa davvero: Sheets e Drive. Maiuscole non contano; si guarda tutto il nodo (URL,
+// parametri, corpo, intestazioni), non solo il campo url; e anche i nodi HTTP degli strumenti (httpRequestTool, toolHttpRequest).
+// Ancorata all'inizio del nome (fakesheets.googleapis.com non è esente).
+const GRATIS_GOOGLE = /(?<![\w.-])(?:sheets\.googleapis\.com|drive\.googleapis\.com|www\.googleapis\.com\/(?:upload\/)?drive\/)/gi;
+const HOST = { google: /googleapis\.com|maps\.google\.com\/maps\/api/i, tripadvisor: /tripadvisor\.com/i, dataforseo: /dataforseo\.com/i, instagram: /graph\.facebook\.com|graph\.instagram\.com/i };
+const TIPI_HTTP = new Set(['n8n-nodes-base.httpRequest', 'n8n-nodes-base.httpRequestTool', '@n8n/n8n-nodes-langchain.toolHttpRequest']);
 function nodiSenzaFreno(w, f) {
   const nome = Object.keys(FONTI_A_PAGAMENTO).find((k) => FONTI_A_PAGAMENTO[k] === f);
-  return w.nodes.filter((n) => n.type === 'n8n-nodes-base.httpRequest' && HOST[nome].test(JSON.stringify(n.parameters?.url || '')) && !f.nodi.includes(n.name)).map((n) => n.name);
+  return w.nodes.filter((n) => {
+    if (!TIPI_HTTP.has(n.type) || f.nodi.includes(n.name)) return false;
+    let testo = JSON.stringify(n.parameters || {});
+    // Con «..» nell'indirizzo (drive/../geolocation) nessuna esenzione.
+    if (nome === 'google' && !testo.includes('..')) testo = testo.replace(GRATIS_GOOGLE, '');
+    return HOST[nome].test(testo);
+  }).map((n) => n.name);
 }
