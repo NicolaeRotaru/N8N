@@ -517,3 +517,27 @@ test('sul 12 vero: con la catena vecchia ogni dato del web è «non trovato», c
   assert.match(r.json.messaggio_anteprima, /Ricerca sul web: fatta dall'AD · pagine lette da n8n: 2/);
   assert.match(r.json.messaggio_anteprima, /telefono<\/b>: 0523 337635 — ✅/);
 });
+
+test('collaudo 3: uno script con «<!--» e un commento vero più in basso non cancellano il corpo della pagina', () => {
+  const vecchio = `<html><head><title>Trattoria Da Mario</title>
+<script language="JavaScript"><!--
+function MM_preloadImages() { var d=document; }
+</script></head>
+<body><p>Via Roma 12, Piacenza</p><p>Tel. 0523 123456</p><p>Chiuso il lunedì</p>
+<!-- fine tabella -->
+<p>Copyright 2006</p></body></html>`;
+  const t = LP.htmlInTesto(vecchio);
+  for (const atteso of [/Via Roma 12/, /0523 123456/, /Chiuso il lunedì/, /Copyright 2006/]) assert.match(t, atteso);
+  assert.doesNotMatch(t, /MM_preloadImages|fine tabella/);
+  const moderno = LP.htmlInTesto('<script>var a="<!--";</script><p>Telefono 0523 337635</p><!-- fine --><footer>Orari 8-20</footer>');
+  assert.match(moderno, /0523 337635/);
+  assert.match(moderno, /Orari 8-20/);
+  assert.doesNotMatch(moderno, /var a|fine/);
+  // Il contrario: uno script dentro un commento sparisce col commento, e non si mangia la pagina.
+  const dentro = LP.htmlInTesto('<!-- <script> --><p>Via Emilia 3</p><style>p{}</style><p>Aperto</p>');
+  assert.match(dentro, /Via Emilia 3/);
+  assert.match(dentro, /Aperto/);
+  assert.doesNotMatch(dentro, /p\{\}/);
+  // Un commento senza chiusura dopo uno script chiuso: resta tutto il testo, sparisce solo l'apertura.
+  assert.match(LP.htmlInTesto('<script>x()</script><p>uno</p><!-- <p>due</p>'), /uno[\s\S]*due/);
+});

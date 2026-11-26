@@ -24,29 +24,49 @@ const LT = (() => {
   // chiusura) con le espressioni regolari pigre teneva fermo il nodo per minuti. Si scorre con indexOf, e la pagina
   // si legge al massimo per il primo milione di caratteri.
   const MASSIMO_HTML = 1000000;
-  /** Toglie i pezzi da «apre» a «chiude» (senza maiuscole/minuscole). Senza chiusura, si taglia fino in fondo. */
-  function togli(h, apre, chiude, alPosto = ' ') {
+  // Commenti e blocchi di codice si tolgono in UN passaggio solo, come fa il browser: vince quello che comincia prima.
+  // Toglierli uno dopo l'altro sbagliava: il «<!--» scritto dentro uno script si accoppiava al primo «-->» vero più in
+  // basso, cancellava anche «</script>», e poi lo script senza chiusura tagliava la pagina fino in fondo (collaudo 3).
+  const BLOCCHI = ['script', 'style', 'noscript', 'svg', 'template', 'iframe', 'object'];
+  function togliBlocchi(h) {
     const basso = h.toLowerCase();
-    let fuori = '';
-    let da = 0;
-    for (;;) {
+    const aperture = ['<!--', ...BLOCCHI.map((t) => `<${t}`)];
+    // La prossima posizione di ogni apertura si ricorda e si ricerca solo quando resta indietro: tempo lineare.
+    const prossima = aperture.map(() => -2);
+    const trova = (k, da) => {
+      const apre = aperture[k];
       let i = basso.indexOf(apre, da);
       // «<script» deve essere il tag, non «<scripts»: dopo il nome viene uno spazio, «>» o «/».
-      while (i >= 0 && /^[a-z]$/.test(apre.slice(-1)) && /[a-z0-9-]/.test(basso[i + apre.length] || '')) i = basso.indexOf(apre, i + 1);
-      if (i < 0) { fuori += h.slice(da); break; }
-      fuori += h.slice(da, i) + alPosto;
-      const fine = basso.indexOf(chiude, i + apre.length);
-      if (fine < 0) {
-        // Un commento senza chiusura (anche la scritta «<!--» dentro uno script) non cancella il resto della pagina:
-        // si toglie solo l'apertura, e le altre aperture che seguono, senza più cercare chiusure.
-        if (chiude === '-->') fuori += h.slice(i + apre.length).split(apre).join(alPosto);
-        break;
+      while (k > 0 && i >= 0 && /[a-z0-9-]/.test(basso[i + apre.length] || '')) i = basso.indexOf(apre, i + 1);
+      return i;
+    };
+    let fuori = '';
+    let da = 0;
+    let commentiAperti = false;
+    for (;;) {
+      let k = -1;
+      let i = -1;
+      for (let j = 0; j < aperture.length; j++) {
+        if (j === 0 && commentiAperti) continue;
+        if (prossima[j] !== -1 && prossima[j] < da) prossima[j] = trova(j, da);
+        if (prossima[j] >= 0 && (i < 0 || prossima[j] < i)) { i = prossima[j]; k = j; }
       }
-      const chiusa = basso.indexOf('>', fine);
-      da = chiusa < 0 ? h.length : chiusa + 1;
-      if (chiude === '-->') da = fine + 3;
+      if (k < 0) { fuori += h.slice(da); break; }
+      fuori += h.slice(da, i) + ' ';
+      if (k === 0) {
+        const fine = basso.indexOf('-->', i + 4);
+        // Un commento senza chiusura non cancella il resto della pagina: si toglie solo la sua apertura,
+        // e da lì in avanti le altre aperture di commento, senza più cercare chiusure.
+        if (fine < 0) { commentiAperti = true; da = i + 4; continue; }
+        da = fine + 3;
+      } else {
+        const fine = basso.indexOf(`</${BLOCCHI[k - 1]}`, i + aperture[k].length);
+        if (fine < 0) break; // un blocco di codice senza chiusura arriva fino in fondo, come nel browser
+        const chiusa = basso.indexOf('>', fine);
+        da = chiusa < 0 ? h.length : chiusa + 1;
+      }
     }
-    return fuori;
+    return commentiAperti ? fuori.split('<!--').join(' ') : fuori;
   }
   /** Toglie i tag rimasti: «<…>» diventa uno spazio; un «<» senza «>» dopo resta com'è. */
   function senzaTag(h) {
@@ -92,8 +112,7 @@ const LT = (() => {
     const desc = decodifica((cima.match(/<meta[^>]{0,300}name=["']description["'][^>]{0,300}?content=["']([^"']{0,2000})/i)
       || cima.match(/<meta[^>]{0,300}content=["']([^"']{0,2000})["'][^>]{0,300}name=["']description["']/i) || ['', ''])[1]).replace(/\s+/g, ' ').trim();
     const strutturati = datiStrutturati(h);
-    h = togli(h, '<!--', '-->');
-    for (const tag of ['script', 'style', 'noscript', 'svg', 'template', 'iframe', 'object']) h = togli(h, `<${tag}`, `</${tag}`);
+    h = togliBlocchi(h);
     h = h.replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/(p|div|section|article|header|footer|li|ul|ol|h[1-6]|tr|table|address|blockquote|nav|main|aside|dd|dt|figcaption)\s*>/gi, '\n')
       .replace(/<li(?=[\s>\/])/gi, '\n<li')
