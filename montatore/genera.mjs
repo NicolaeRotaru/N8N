@@ -420,37 +420,15 @@ collega('Serve la cartella Pronti?', 'Segna il giro sulla cartella Pronti', 1);
 collega('Crea subito la cartella Pronti', 'Segno sulla cartella');
 collega('Segna il giro sulla cartella Pronti', 'Segno sulla cartella');
 catena('Segno sulla cartella', 'Segno messo?');
-giriInCorso('Ricontrolla i giri', [COL(18) + 180, RIGA.modulo - 430]);
-codice('Primo ad arrivare?', 'primo-ad-arrivare.js', [COL(18) + 240, RIGA.modulo - 430]);
-se('Arrivato primo?', "$json.lavoro === 'giro'", [COL(18) + 300, RIGA.modulo - 430]);
-nodo('Togli il mio segno', 'n8n-nodes-base.httpRequest', 4.5, {
-  method: 'PATCH',
-  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($json.togli) }}",
-  authentication: 'predefinedCredentialType',
-  nodeCredentialType: 'googleDriveOAuth2Api',
-  sendQuery: true,
-  specifyQuery: 'keypair',
-  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
-  sendBody: true,
-  contentType: 'json',
-  specifyBody: 'json',
-  jsonBody: '={{ JSON.stringify({ appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }) }}',
-  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
-}, [COL(18) + 360, RIGA.modulo - 330], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
-nodo('Arrivato secondo', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// Il messaggio per il modulo (o per Telegram, dal guardiano): perché questo giro non parte.\nreturn [{ json: $('Primo ad arrivare?').first().json }];\n" }, [COL(18) + 420, RIGA.modulo - 330]);
-collega('Segno messo?', 'Ricontrolla i giri', 0);
+collega('Segno messo?', 'Avvia il montaggio', 0);
 collega('Segno messo?', 'Dal modulo?', 1);
-catena('Ricontrolla i giri', 'Primo ad arrivare?', 'Arrivato primo?');
-collega('Arrivato primo?', 'Avvia il montaggio', 0);
-collega('Arrivato primo?', 'Togli il mio segno', 1);
-catena('Togli il mio segno', 'Arrivato secondo', 'Dal modulo?');
 catena('Avvia il montaggio', 'Dal modulo (partito)?');
 collega('Dal modulo (partito)?', 'Fine: partito', 0);
 
 // ---------------------------------------------------------------- GIRO (esecuzione lunga, lanciata dal modulo)
 const G = RIGA.giro;
 codice('Inizio del giro', 'inizio-del-giro.js', [COL(3), G]);
-collega('Quale lavoro?', 'Inizio del giro', USCITA.giro);
+
 telegram('Telegram: si parte', [COL(4), G]);
 officinaJson('Officina: nuovo progetto', "'/progetto'", "{ nome: $('Config').first().json.cliente.nome_locale + ' · ' + $('Config').first().json.servizio.nome }", [COL(5), G]);
 codice('Un file alla volta', 'un-file-alla-volta.js', [COL(6), G]);
@@ -542,6 +520,36 @@ telegram('Telegram: giro fermo', [COL(14), G + 250]);
 
 // le idee del workflow 03 per questo mese (righe «PI-…» in stato «idea»): le legge «Leggi cosa c'è»
 nodo('Leggi il Calendario', 'n8n-nodes-base.httpRequest', 4.5, LEGGI_CALENDARIO, [COL(4) + 120, G + 150], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
+// prima di cominciare: un solo giro alla volta anche quando due partenze arrivano nello stesso momento (vedi il nodo)
+nodo('Aspetta i segni', 'n8n-nodes-base.wait', 1.1, { amount: 45, unit: 'seconds' }, [COL(2) + 60, G - 200], { webhookId: uuid('Aspetta i segni:webhook') });
+giriInCorso('Ricontrolla i giri', [COL(2) + 120, G - 200]);
+codice('Primo ad arrivare?', 'primo-ad-arrivare.js', [COL(2) + 180, G - 200]);
+se('Parto?', '$json.parti === true', [COL(2) + 240, G - 200]);
+se('Tocco la cartella?', '$json.tocca === true', [COL(3), G - 350]);
+nodo('Togli il mio segno', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($json.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  // la cartella creata da questa partenza si cestina (così il servizio si può rifare dal modulo); quella di un «rifai» resta
+  jsonBody: '={{ JSON.stringify($json.cestina ? { trashed: true } : { appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }) }}',
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(4), G - 350], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+codice('Non parto', 'non-parto.js', [COL(5), G - 300]);
+telegram('Telegram: non parto (insieme)', [COL(6), G - 300]);
+collega('Quale lavoro?', 'Aspetta i segni', USCITA.giro);
+catena('Aspetta i segni', 'Ricontrolla i giri', 'Primo ad arrivare?', 'Parto?');
+collega('Parto?', 'Inizio del giro', 0);
+collega('Parto?', 'Tocco la cartella?', 1);
+collega('Tocco la cartella?', 'Togli il mio segno', 0);
+collega('Tocco la cartella?', 'Non parto', 1);
+catena('Togli il mio segno', 'Non parto', 'Telegram: non parto (insieme)');
 catena('Inizio del giro', 'Telegram: si parte', 'Leggi il Calendario', 'Officina: nuovo progetto', 'Un file alla volta', 'Progetto creato?');
 collega('Progetto creato?', 'Carica il file', 0);
 collega('Progetto creato?', 'Messaggio di stop', 1);

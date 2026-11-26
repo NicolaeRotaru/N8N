@@ -35,13 +35,6 @@ function dato(v) { return testo(v).replace(/</g, '‹').replace(/>/g, '›'); }
 function virgola(n, cifre) { return Number(n).toFixed(cifre === undefined ? 1 : cifre).replace('.', ','); }
 
 // Data e ora di Roma (anche col cambio dell'ora legale) senza librerie.
-// «rifai» e «subito» valgono solo all'inizio delle note: le note portano anche le promozioni del cliente («prenota subito»)
-function comandiNote(v) {
-  const t = testo(v);
-  const m = t.match(/^\s*(?:(?:rifai|subito)\b[\s,;:.\-]*)+/i);
-  const testa = m ? m[0] : '';
-  return { rifai: /rifai/i.test(testa), subito: /subito/i.test(testa), note: t.slice(testa.length).trim() };
-}
 function partiRoma(d) {
   const f = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   const p = {};
@@ -51,6 +44,15 @@ function partiRoma(d) {
 function giorniNelMese(anno, mese) { return new Date(Date.UTC(anno, mese, 0)).getUTCDate(); }
 function giornoSettimana(anno, mese, giorno) { return new Date(Date.UTC(anno, mese - 1, giorno)).getUTCDay(); }
 const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+// «rifai» e «subito» valgono solo all'inizio delle note e da soli: seguiti da una virgola, dai due punti, da un trattino,
+// da un a capo o dalla fine. Le note portano anche le promozioni del cliente: «prenota subito» o «Subito dopo l'Epifania:
+// saldi» non sono comandi, e arrivano all'AD intere.
+function comandiNote(v) {
+  const t = testo(v);
+  const m = t.match(/^\s*((?:rifai|subito)(?:[\s,]+(?:rifai|subito))*)\s*(?:[,;:.\-–—]+|\r?\n|$)/i);
+  if (!m) return { rifai: false, subito: false, note: t.trim() };
+  return { rifai: /rifai/i.test(m[1]), subito: /subito/i.test(m[1]), note: t.slice(m[0].length).trim() };
+}
 const GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 function leggibileData(data, ora) {

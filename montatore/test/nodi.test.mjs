@@ -637,8 +637,11 @@ test('quarto collaudo: il modulo si ferma se un giro è in corso (Nicola: dice l
   assert.deepEqual([dopo('Nessun giro in corso?'), dopo('Nessun giro in corso?', 1)], [['Prepara la partenza'], ['Dal modulo?']]);
   assert.deepEqual(dopo('Prepara la partenza'), ['Serve la cartella Pronti?'], 'il giro non parte prima del segno');
   assert.deepEqual([dopo('Crea subito la cartella Pronti'), dopo('Segna il giro sulla cartella Pronti')], [['Segno sulla cartella'], ['Segno sulla cartella']]);
-  assert.deepEqual([dopo('Segno messo?'), dopo('Segno messo?', 1)], [['Ricontrolla i giri'], ['Dal modulo?']]);
-  assert.deepEqual([dopo('Arrivato primo?'), dopo('Arrivato primo?', 1), dopo('Togli il mio segno'), dopo('Arrivato secondo')], [['Avvia il montaggio'], ['Togli il mio segno'], ['Arrivato secondo'], ['Dal modulo?']]);
+  assert.deepEqual([dopo('Segno messo?'), dopo('Segno messo?', 1)], [['Avvia il montaggio'], ['Dal modulo?']]);
+  // il giro, prima di cominciare: aspetta i segni, rilegge, parte solo il primo
+  assert.deepEqual([dopo('Aspetta i segni'), dopo('Ricontrolla i giri'), dopo('Primo ad arrivare?'), dopo('Parto?'), dopo('Parto?', 1)], [['Ricontrolla i giri'], ['Primo ad arrivare?'], ['Parto?'], ['Inizio del giro'], ['Tocco la cartella?']]);
+  assert.deepEqual([dopo('Tocco la cartella?'), dopo('Tocco la cartella?', 1), dopo('Togli il mio segno'), dopo('Non parto')], [['Togli il mio segno'], ['Non parto'], ['Non parto'], ['Telegram: non parto (insieme)']]);
+  assert.deepEqual([workflow.nodes.find((n) => n.name === 'Aspetta i segni').parameters.amount, workflow.nodes.find((n) => n.name === 'Aspetta i segni').parameters.unit], [45, 'seconds']);
   assert.ok(dopo('Esito dei montaggi').includes("C'è un posto da liberare?") && dopo('Messaggio di stop').includes("C'è un posto da liberare?"));
   const libera = workflow.nodes.find((n) => n.name === 'Libera il posto');
   assert.deepEqual([libera.parameters.method, JSON.parse(libera.parameters.jsonBody.replace(/^=\{\{ JSON\.stringify\(|\) \}\}$/g, '').replace(/(\w+):/g, '"$1":'))], ['PATCH', { appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }]);
@@ -678,16 +681,37 @@ test('quinto collaudo: un giro toglie solo il suo segno; il posto si libera anch
   const enorme = { files: Array.from({ length: 400 }, (_, i) => ({ id: `v${i}`, name: `c${i}.mp4`, mimeType: 'video/mp4', size: '400000000', parents: ['idVert'], videoMediaMetadata: { durationMillis: '600000' } })) };
   const ore = (Date.parse(prep('', enorme).pronti.fine) - Date.now()) / 3600000;
   assert.ok(ore <= 24.01 && ore > 23, `fine a ${ore.toFixed(1)} ore`);
-  // due partenze nello stesso istante: chi ha messo il segno dopo toglie il suo e si ferma; il primo parte
-  const L = { lavoro: 'giro', pronti: { id: 'pB', inizio: '2026-11-26T10:00:05.000Z', fine: 'x' } };
-  const altri = (inizio) => ({ files: [{ id: 'pB', appProperties: {} }, { id: 'pA', appProperties: { montatore_giro: 'si', montatore_fine: new Date(Date.now() + 3600000).toISOString(), montatore_inizio: inizio } }] });
-  const primo = (el, note = '') => esegui('primo-ad-arrivare.js', { nodi: { Config: { ...CONFIG, note }, 'Segno sulla cartella': L }, input: [el] })[0].json;
-  const secondo = primo(altri('2026-11-26T10:00:03.000Z'));
-  assert.deepEqual([secondo.ok, secondo.togli], [false, 'pB']);
-  assert.match(secondo.messaggio, /partito pochi istanti prima/);
-  assert.deepEqual(primo(altri('2026-11-26T10:00:09.000Z')), L, 'l\'altro è arrivato dopo: questo parte');
-  assert.deepEqual(primo(altri('2026-11-26T10:00:03.000Z'), 'subito'), L);
-  assert.deepEqual(primo({ error: { message: 'Drive 500' } }), L, 'senza elenco si parte: il controllo prima c\'è stato');
+  // due partenze nello stesso momento: dopo 45 s ogni giro rilegge; parte solo il primo (vedi il sesto collaudo)
+  const ora = Date.now();
+  const iso = (ms) => new Date(ora + ms).toISOString();
+  const fineAttiva = iso(3600000);
+  const Jg = (pronti, note = '') => ({ ...CONFIG, note, servizio: { nome: 'Servizio B' }, cliente: { nome_locale: 'El Tropico Latino' }, pronti });
+  const segno = (id, inizio) => ({ id, appProperties: { montatore_giro: 'si', montatore_fine: fineAttiva, ...(inizio === undefined ? {} : { montatore_inizio: inizio }) } });
+  const primo = (pronti, files, note) => esegui('primo-ad-arrivare.js', { nodi: { Config: Jg(pronti, note) }, input: [{ files }] })[0].json;
+  const B = { id: 'pB', inizio: iso(-46000), fine: fineAttiva, crea: true };
+  // l'altro è partito prima: mi fermo, e cestino la cartella che ho creato io
+  const secondo = primo(B, [segno('pB', B.inizio), segno('pA', iso(-46300))]);
+  assert.deepEqual([secondo.parti, secondo.tocca, secondo.cestina, secondo.id], [false, true, true, 'pB']);
+  assert.match(secondo.messaggio, /partito insieme.*«rifai» all'inizio delle note/s);
+  // l'altro è partito dopo di me, da poco: parto io
+  assert.deepEqual(primo(B, [segno('pB', B.inizio), segno('pA', iso(-45700))]), { parti: true });
+  // D1: io sono arrivato in ritardo (Drive lento) e l'altro è partito dopo di me ma da oltre 135 s: è già al lavoro, mi fermo io
+  const lento = { ...B, inizio: iso(-200000) };
+  assert.equal(primo(lento, [segno('pB', lento.inizio), segno('pA', iso(-150000))]).parti, false);
+  // D2: due «rifai» sullo stesso servizio: la mia cartella porta l'inizio di un altro → mi fermo senza toccarla
+  const due = primo({ ...B, crea: false }, [segno('pB', iso(-45000))]);
+  assert.deepEqual([due.parti, due.tocca], [false, false]);
+  // un segno senza inizio (versione di prima) vale come partito prima; «subito» salta; elenco illeggibile: si parte
+  assert.equal(primo(B, [segno('pB', B.inizio), segno('pA')]).parti, false);
+  assert.deepEqual(primo(B, [segno('pB', B.inizio), segno('pA', iso(-46300))], 'subito'), { parti: true });
+  assert.deepEqual(esegui('primo-ad-arrivare.js', { nodi: { Config: Jg(B) }, input: [{ error: { message: 'Drive 500' } }] })[0].json, { parti: true });
+  // il messaggio di chi si ferma, anche quando il segno non si toglie
+  const np = (toglie) => esegui('non-parto.js', { nodi: { 'Primo ad arrivare?': secondo, Config: Jg(B), 'Togli il mio segno': toglie } })[0].json.messaggio;
+  assert.doesNotMatch(np({ id: 'pB' }), /non sono riuscito/);
+  assert.match(np({ error: { message: 'Drive 500' } }), /non sono riuscito a togliere il segno.*fino alle \d\d:\d\d/s);
+  // «Subito dopo l'Epifania: saldi» non è un comando
+  assert.equal(parti('Subito dopo l\'Epifania: saldi del 30%').ok, false);
+  assert.equal(prep('Subito dopo l\'Epifania: saldi').lavoro.note, 'Subito dopo l\'Epifania: saldi');
 });
 
 test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {
@@ -829,7 +853,7 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
   assert.deepEqual(aggiornaFoglio, [], 'nessun nodo modifica righe che esistono già nel foglio');
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo
   const uscite = workflow.connections['Quale lavoro?'].main.map((u) => u.map((x) => x.node));
-  assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: giri in corso'], ['Leggi Clienti'], ['Leggi Clienti']]);
+  assert.deepEqual(uscite, [['Aspetta i segni'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: giri in corso'], ['Leggi Clienti'], ['Leggi Clienti']]);
   // i giri in corso si leggono una volta, prima dei clienti; e anche con Drive giù esce un elemento (il guardiano non parte)
   assert.deepEqual([dopoN('Guarda: giri in corso'), workflow.nodes.find((n) => n.name === 'Guarda: giri in corso').alwaysOutputData], [['Guarda: leggi Clienti'], true]);
   assert.match(workflow.nodes.find((n) => n.name === 'Guarda: giri in corso').parameters.queryParameters.parameters[0].value, /appProperties has \{ key='montatore_giro' and value='si' \}/);
