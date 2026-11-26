@@ -476,3 +476,13 @@ test("piano dei 30 giorni: la proposta (cosa facciamo noi) c'è solo con un serv
     { settimana: 3, azione: 'Sito nuovo con prenotazioni', servizio: 'sito_web', proposta: 'Sito nuovo a 990 euro', fonte: 'https://www.barroma.it/' }] });
   assert.deepEqual(j.scheda.analisi.business.piano_30_giorni.map((x) => x.proposta), ['Un servizio fotografico della colazione per il menu e i social', null, null]);
 });
+
+test('dalla generazione a secco sul 12 vero: i nodi Google Sheets e Drive del 12 non sono chiamate a pagamento di Google Places', () => {
+  const { nodi, collegamenti } = nodiFatti([0, 0]);
+  const w = { nodes: [{ name: 'Config', parameters: { assignments: { assignments: vociConfig().map(([name, value]) => ({ name, value })) } } }, ...nodi,
+    { name: 'Leggi il foglio Clienti', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://sheets.googleapis.com/v4/spreadsheets/x/values/A1' } },
+    { name: 'Cerca la cartella del cliente', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://www.googleapis.com/drive/v3/files' } }], connections: collegamenti };
+  assert.deepEqual(controllaFatti(w), []);
+  w.nodes.push({ name: 'Furbo', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://places.googleapis.com/v1/places:searchText' } });
+  assert.ok(controllaFatti(w).some((p) => /fuori dal loro IF/.test(p)));
+});
