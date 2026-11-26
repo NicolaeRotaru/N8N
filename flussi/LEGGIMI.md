@@ -68,6 +68,28 @@ Senza `--vero` il 16 resta in «prova»: cerca (e costa) ma non scrive. Senza `-
 (`https://n8n-shdy.sliplane.app/webhook/mycity-nuovo-cliente`) e `N8N_NUOVO_CLIENTE_SEGRETO` (lo stesso
 valore della credenziale «MyCity - Segreto nuovo cliente» in n8n). Senza tutte e due il sito non manda niente.
 
+**Il rapporto dell'imprenditore** (26/11/2026, firma di Nicola; contratto col sito in
+`16-nuovo-cliente-da-mycity/CONTRATTO-RAPPORTO.md`, versione 1.2). Fra la ricerca e la domanda all'AD, il 26 raccoglie i
+**fatti** (`fatti.mjs` e `codice/fatti-*.js`): numeri con fonte e data, un dato che manca è `null` col motivo.
+- **Gratis, accese:** OpenStreetMap (Nominatim per l'indirizzo, se il sito non manda `lat`/`lon`; Overpass per concorrenti
+  e servizi entro `RAGGIO_VICINI_M` = 400 m; una richiesta al secondo, nome di programma `rapporto-attivita/1.0`), MET Norway
+  (meteo 7 giorni, CC BY 4.0, mai Open-Meteo), le pagine di eventi e bandi del radar (`24-radar-web/codice/fonti.json`), i
+  controlli del sito sulle pagine già scaricate (https, viewport, titolo, descrizione, dati strutturati), e i siti dei 3-5
+  concorrenti più vicini, solo se OpenStreetMap li indica, col controllo del lettore di pagine (mai Meta, mappe, portali).
+- **A pagamento, spente:** Google Places (solo `place_id`, parere legale), TripAdvisor (solo `location_id`, spento finché
+  non c'è un sì scritto), DataForSEO (recensioni, volumi a Piacenza, posizione), Instagram Business Discovery (lei e i
+  concorrenti; serve l'account professionale di MyCity). **Tre freni, ne basta uno:** `FONTE_…` = `no` nel Config;
+  `CREDENZIALE_…` = `finta` (e il nodo HTTP spento) finché Nicola non dà al generatore l'id della credenziale con la chiave
+  vera; `TETTO_…_GIORNO`. Lo stesso controllo sta nel nodo IF davanti a ogni chiamata, e `controlla()` lo verifica.
+- **L'AD** riceve i fatti ridotti (i testi delle recensioni solo a lui, mai al sito) e scrive anche `reputazione_temi`,
+  `confronto_concorrenti`, `idee_dal_confronto`, `occasioni`, `soldi_pubblici`, `piano_30_giorni`; n8n le ricontrolla sui
+  fatti. Il lavoro resta sotto i 64 KB (le pagine si accorciano finché ci sta). I fatti vanno al sito in `analisi.fatti`.
+
+```bash
+N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs … --crea-credenziali          # una volta: 4 credenziali finte
+N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs … --credenziale-dataforseo <id> --fonti-accese dataforseo
+```
+
 ## 18 · Analisi di un'attività
 
 **A cosa serve.** La stessa analisi del 17, fatta su una sola attività di MyCity: a che punto è per

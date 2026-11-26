@@ -453,7 +453,9 @@ test("con «Chiedi all'AD» il 16 chiede l'analisi del business fra la ricerca e
   assert.equal(nomi.includes('Analizza il business con Claude'), false);
   assert.equal(w.nodes.filter((n) => /business/.test(n.name)).some((n) => JSON.stringify(n.parameters).includes('api.anthropic.com')), false);
   assert.equal(w.nodes.find((n) => n.name === "Chiedi all'AD: analisi del business").parameters.workflowId.value, 'id-chiedi');
-  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
+  // 26/11/2026 — Fra la ricerca e la domanda all'AD ci sono i fatti del rapporto dell'imprenditore.
+  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ['Fatti · Prepara']);
+  assert.deepEqual(w.connections['Fatti · Componi'].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
   assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito', "Prepara l'analisi dei social per il sito"]);
   assert.deepEqual(controlla(w), []);
   // Senza «Chiedi all'AD» il 16 resta com'era: dalla ricerca alle bozze.
@@ -468,7 +470,8 @@ test("la domanda all'AD tiene i dati fra i tag e chiede una fonte per ogni frase
   assert.equal(json.id, 'x');
   assert.match(json.richiesta.system, /Ogni frase ha la sua fonte/);
   assert.match(json.richiesta.system, /non il marketplace/);
-  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social']);
+  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social',
+    'reputazione_temi', 'confronto_concorrenti', 'idee_dal_confronto', 'occasioni', 'soldi_pubblici', 'piano_30_giorni']);
   assert.equal(json.richiesta.messages[0].content.includes('<istruzione>'), false);
 });
 
@@ -894,18 +897,18 @@ test("le pagine del sito si tagliano: il lavoro per l'AD resta sotto i 64 KB anc
 
 test("l'analisi del business riceve anche le altre pagine scaricate (portali, elenchi, giornali), dopo quelle del sito", async () => {
   const json = await preparaConPagine(CORPUS([
-    { url: 'https://www.sluurpy.it/piacenza/ora-del-gusto', testo: 'Ora del Gusto, Piacenza: bar caffetteria, 4,5 su 5.' },
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'Bar Roma, Piacenza: bar caffetteria, 4,5 su 5.' },
     { url: 'https://www.barroma.it/', testo: 'Bar Roma. Colazioni dal 1980.' },
-    { url: 'https://www.ilpiacenza.it/articolo', testo: 'Articolo di giornale sul bar.' },
+    { url: 'https://www.ilpiacenza.it/articolo', testo: 'Articolo di giornale sul Bar Roma di via Roma a Piacenza.' },
   ]));
   const dati = datiDi(json);
   assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.barroma.it/']);
-  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/ora-del-gusto', 'https://www.ilpiacenza.it/articolo']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/bar-roma', 'https://www.ilpiacenza.it/articolo']);
   assert.match(dati.altre_pagine[0].testo, /bar caffetteria/);
   assert.match(json.richiesta.system, /altre_pagine/);
   assert.match(json.richiesta.system, /omonim/);
   // Senza sito del locale conosciuto, tutte le pagine scaricate vanno fra le altre.
-  const senzaSito = datiDi(await preparaConPagine(CORPUS([{ url: 'https://www.sluurpy.it/x', testo: 'Scheda del locale.' }]), { nome_locale: 'Ora del Gusto' }));
+  const senzaSito = datiDi(await preparaConPagine(CORPUS([{ url: 'https://www.sluurpy.it/x', testo: 'Scheda di Ora del Gusto a Piacenza.' }]), { nome_locale: 'Ora del Gusto' }));
   assert.deepEqual(senzaSito.pagine_del_sito, []);
   assert.deepEqual(senzaSito.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
 });
@@ -913,7 +916,7 @@ test("l'analisi del business riceve anche le altre pagine scaricate (portali, el
 test("con tante pagine lunghe il sito del locale ha la precedenza, e il lavoro resta sotto i 64 KB", async () => {
   const lunga = 'Qualità è perché più caffè '.repeat(2000);
   const json = await preparaConPagine(CORPUS([
-    ...Array.from({ length: 8 }, (_, i) => ({ url: `https://portale${i}.it/scheda`, testo: lunga })),
+    ...Array.from({ length: 8 }, (_, i) => ({ url: `https://portale${i}.it/scheda`, testo: 'Bar Roma, Piacenza. ' + lunga })),
     ...Array.from({ length: 3 }, (_, i) => ({ url: `https://www.barroma.it/p${i}`, testo: lunga })),
   ]));
   const lavoro = JSON.stringify({ compito: json.richiesta.system, dati: { messaggio: json.richiesta.messages[0].content }, schema: json.richiesta.output_config.format.schema });
@@ -922,4 +925,58 @@ test("con tante pagine lunghe il sito del locale ha la precedenza, e il lavoro r
   assert.equal(dati.pagine_del_sito.length, 3, 'le pagine del sito ci sono tutte');
   assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
   assert.ok(dati.altre_pagine.length >= 1);
+});
+
+// --- 26/11/2026 · Il rapporto dell'imprenditore: le fonti a pagamento nascono spente, e con DataForSEO collegato lo storico non si salva ----
+test("rapporto: di serie le fonti a pagamento sono spente e finte; con DataForSEO collegato il 26 non salva le esecuzioni", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi' });
+  const cfg = Object.fromEntries(w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.map((a) => [a.name, a.value]));
+  for (const k of ['GOOGLE', 'TRIPADVISOR', 'DATAFORSEO', 'INSTAGRAM']) { assert.equal(cfg[`FONTE_${k}`], 'no'); assert.equal(cfg[`CREDENZIALE_${k}`], 'finta'); }
+  assert.deepEqual(controlla(w), []);
+  assert.equal(w.nodes.filter((n) => /googleapis|tripadvisor|dataforseo|graph\.facebook/.test(JSON.stringify(n.parameters?.url || ''))).every((n) => n.disabled === true), true);
+  const conDfs = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi', credenzialiFonti: { dataforseo: 'cred-d' } });
+  assert.equal(conDfs.settings.saveDataSuccessExecution, 'none');
+  assert.equal(conDfs.settings.saveDataErrorExecution, 'none');
+  assert.deepEqual(controlla(conDfs), []);
+  conDfs.settings.saveDataSuccessExecution = 'all';
+  assert.ok(controlla(conDfs).some((p) => /24 ore/.test(p)));
+});
+
+// --- 26/11/2026 (Nicola: «fai anche le altre cose»): gli omonimi si fermano nel codice, non solo nel prompt -----------
+// Una pagina di portale passa all'AD solo se nel suo testo ci sono le parole distintive del nome (non «bar», «ristorante»…)
+// e la città dell'attività. Le pagine del sito del locale non hanno bisogno del controllo.
+
+test("omonimi: una pagina di portale senza il nome o senza la città dell'attività non arriva all'AD", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'BAR ROMA – Piacenza (PC). Caffetteria in centro.' },
+    { url: 'https://www.sluurpy.it/milano/bar-roma', testo: 'Bar Roma, Milano: aperitivi sui Navigli.' },
+    { url: 'https://www.tripadvisor.it/bar-piacenza', testo: 'I migliori bar di Piacenza: Bar Centrale, Caffè Grande.' },
+    { url: 'https://www.paginegialle.it/caffe-milano', testo: 'Caffè Milano a Piacenza.' },
+  ]), { nome_locale: 'Bar Roma', citta: 'Piacenza' });
+  const dati = datiDi(json);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/bar-roma']);
+  assert.equal(dati.pagine_scartate_omonimi, 3);
+});
+
+test("omonimi: accenti, maiuscole e parole generiche del nome non contano; il sito del locale passa sempre", async () => {
+  const dati = datiDi(await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/x', testo: "ORA DEL GUSTO di Sant'Ambrogio, piacenza: bar e gelateria." },
+    { url: 'https://www.oradelgusto.it/', testo: 'Benvenuti! Il nostro bar.' },
+  ]), { nome_locale: 'Bar Ora del Gusto', citta: 'Piacenza', sito: 'https://www.oradelgusto.it' }));
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.oradelgusto.it/']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
+  const accenti = datiDi(await preparaConPagine(CORPUS([{ url: 'https://p.it/a', testo: 'Caffe Citta di Piacenza, Piacenza.' }]),
+    { nome_locale: 'Caffè Città', citta: 'Piacenza' }));
+  assert.deepEqual(accenti.altre_pagine.map((p) => p.url), ['https://p.it/a']);
+});
+
+// --- Dal collaudo indipendente della #22 (26/11): parole vicine, città nell'indirizzo, dominio col nome ----------------------
+test("omonimi, dal collaudo: le parole del nome vanno vicine; la città vale anche nell'indirizzo; il dominio col nome è del locale", async () => {
+  const dati = datiDi(await preparaConPagine(CORPUS([
+    { url: 'https://www.tripadvisor.it/bar-piacenza', testo: 'I migliori bar di Piacenza: Bar Centrale in via Roma 12, aperitivi.' },
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'Bar Roma. Via Garibaldi 3. Caffetteria.' },
+    { url: 'https://www.barroma.it/menu', testo: 'Il nostro menu: Bar Roma, colazioni.' },
+  ]), { nome_locale: 'Bar Roma', citta: 'Piacenza', sito: '' }));
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url).sort(), ['https://www.barroma.it/menu', 'https://www.sluurpy.it/piacenza/bar-roma']);
+  assert.equal(dati.pagine_scartate_omonimi, 1);
 });
