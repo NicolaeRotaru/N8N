@@ -17,10 +17,15 @@ if (!mio.id || !Number.isFinite(mioInizio)) return [{ json: { parti: true } }];
 const servizio = 'Il giro di «' + h(J.servizio && J.servizio.nome) + '» (' + h(J.cliente && J.cliente.nome_locale) + ') non parte: ';
 const rifare = ' Per rifarlo: modulo con «rifai» all\'inizio delle note' + (J.origine === 'cartella' ? ' (il guardiano non lo rifà da solo).' : '.');
 const fermati = (perche, tocca = true) => [{ json: { parti: false, tocca, cestina: tocca && mio.crea === true, id: mio.id, messaggio: '⚠️ ' + servizio + perche + rifare } }];
-const el = $input.first().json || {};
-if (el.error || !Array.isArray(el.files) || el.nextPageToken || el.incompleteSearch) return fermati('non riesco a controllare su Drive se un altro giro è partito insieme.');
+// con «rifai» la cartella non si tocca: potrebbe esserci sopra un altro giro al lavoro. Il segno resta fino alla fine
+// stimata, e il messaggio dice fino a che ora e come partire prima
+const fineMia = Date.parse(mio.fine || '');
+const restaFino = Number.isFinite(fineMia) ? ' Il segno sulla cartella resta fino alle ' + partiRoma(new Date(fineMia)).ora + ': per rifarlo prima, «rifai subito» all\'inizio delle note.' : '';
+const fermatiSenzaToccare = (perche) => (mio.crea === true ? fermati(perche) : [{ json: { ...fermati(perche, false)[0].json, messaggio: fermati(perche, false)[0].json.messaggio + restaFino } }]);
 const segnato = Date.parse(mio.segnato || '');
-if (Number.isFinite(segnato) && segnato - mioInizio > RITARDO_MAX) return fermati('Drive ha risposto lentamente, e non posso essere sicuro che un altro giro partito insieme abbia visto il mio segno.', mio.crea === true);
+if (Number.isFinite(segnato) && segnato - mioInizio > RITARDO_MAX) return fermatiSenzaToccare('Drive ha risposto lentamente, e non posso essere sicuro che un altro giro partito insieme abbia visto il mio segno.');
+const el = $input.first().json || {};
+if (el.error || !Array.isArray(el.files) || el.nextPageToken || el.incompleteSearch) return fermatiSenzaToccare('non riesco a controllare su Drive se un altro giro è partito insieme.');
 const ora = Date.now();
 const attivi = el.files.filter((f) => f && Date.parse(((f.appProperties) || {}).montatore_fine || '') > ora);
 const quando = (f) => Date.parse(((f.appProperties) || {}).montatore_inizio || '');

@@ -67,6 +67,8 @@ const lavoro = {
   note: accorcia(comandiNote(CFG.note).note, 2000),
   // «subito» scritto nel modulo: le note qui sopra sono già ripulite, e il controllo all'inizio del giro lo legge da qui
   subito: comandiNote(CFG.note).subito,
+  // da dove parte (il giro lo dice nei messaggi: dal guardiano un giro fermato non riparte da solo)
+  origine: CFG.origine === 'cartella' ? 'cartella' : 'modulo',
   file,
   musica,
   scartati,
