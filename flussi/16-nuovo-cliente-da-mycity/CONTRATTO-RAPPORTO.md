@@ -163,6 +163,7 @@ Al massimo 8 eventi e 6 bandi. Sono titoli letti sulla pagina, non verificati un
 }
 ```
 Se il sito non c'è o non è stato scaricato: `stato: "vuoto"` con il motivo.
+**1.5 (AD, 26/11): solo https.** n8n apre i siti solo in https. Un sito dichiarato in http che in https non si apre esce `stato: "letto"` con `dati.https: false`, gli altri controlli `null` e il motivo «non è protetto»: è un dato vero, e un consiglio nel rapporto. Si dice solo se https è stato provato e rifiutato (connessione rifiutata o certificato non valido). È prudente: una porta 443 che non risponde (timeout) o una pagina di parcheggio del provider in https NON vengono segnalate come «non protetto».
 
 ### ConcorrentiCanali (parte 12)
 

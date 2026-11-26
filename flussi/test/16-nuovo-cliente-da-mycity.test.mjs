@@ -518,13 +518,15 @@ test("un'attività del modulo 12 trova la sua riga Clienti: non si riscrive e l'
   assert.throws(() => trasforma(modulo12Mini(), { credenziale, sito: 'https://mycity.example' }), /serve anche --bozze/);
 });
 
-test('dal sito arrivano il sito del locale (solo https) e se l attività l ha iscritta il modulo 12', async () => {
+test('dal sito arrivano il sito del locale (http o https: il lettore apre solo https, AD 26/11) e se l attività l ha iscritta il modulo 12', async () => {
   const [{ json }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'https://barroma.it' }, { provenienza: 'modulo-12' }), statico: {} });
   assert.equal(json.sito, 'https://barroma.it');
   assert.equal(json.dal_modulo_12, true);
   const [{ json: altro }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'http://x.it', id: 'c0b240c0-2a86-4218-9d0f-5154f08ff930' }), statico: {} });
-  assert.equal(altro.sito, '');
+  assert.equal(altro.sito, 'http://x.it');
   assert.equal(altro.dal_modulo_12, false);
+  const [{ json: ftp }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'ftp://x.it', id: 'c0b240c0-2a86-4218-9d0f-5154f08ff931' }), statico: {} });
+  assert.equal(ftp.sito, '');
 });
 
 test("dal secondo collaudo: l'AD può cercare sul web, i voti non sono prezzi, con la ricerca fermata l'analisi del business va al sito", async () => {
