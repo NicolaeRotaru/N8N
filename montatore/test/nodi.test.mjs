@@ -179,7 +179,8 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   const nodiP = (cfg, figli) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC, 'Elenca il servizio': { files: figli } });
   const senzaPronti = FIGLI.files.filter((f) => !/pronti/i.test(f.name));
   const nuovo = esegui('prepara-il-lavoro.js', { nodi: nodiP({}, senzaPronti), input: [files] })[0].json;
-  const { fine, ...pronti } = nuovo.pronti;
+  const { fine, inizio, ...pronti } = nuovo.pronti;
+  assert.ok(Math.abs(Date.parse(inizio) - Date.now()) < 60000, 'l\'inizio del giro, per dire chi arriva prima');
   assert.deepEqual(pronti, { nome: 'Pronti (montatore) - prova', dentro: SERVIZIO.servizio.id, crea: true, id: '' });
   const minutiFine = (Date.parse(fine) - Date.now()) / 60000;
   assert.ok(Math.abs(minutiFine - Math.max(120, Math.round(nuovo.lavoro.stima_minuti * 1.3) + 30)) < 2, `la fine stimata del giro: ${Math.round(minutiFine)} minuti (stima ${nuovo.lavoro.stima_minuti})`);
@@ -525,7 +526,13 @@ test('secondo collaudo del 26/11: «ok» senza scene ferma il giro; copertura pe
   assert.ok(minuti > 200, `il prossimo dopo la stima del giro (circa 4 ore), non dopo 2: ${Math.round(minuti)} minuti`);
   const pronto = [{ files: [{ id: 'b', name: 'b.mp4', mimeType: 'video/mp4', createdTime: new Date(Date.now() - 60 * 60000).toISOString() }] }];
   const doveB = [{ ...dove[0], servizio_id: 'sB', servizio_nome: 'B' }];
-  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB }, input: pronto, statico: { ...S, ultimo_avvio: new Date(Date.now() - 121 * 60000).toISOString() } }), [], 'dopo 121 minuti il giro lungo è ancora in corso');
+  // dopo la partenza è la cartella del giro a tenere il posto (qui con la stima del guardiano): dopo 121 minuti è ancora suo
+  const cartellaA = { files: [{ id: 'pA', appProperties: { montatore_giro: 'si', montatore_fine: S.libero_dopo } }] };
+  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB, 'Guarda: giri in corso': cartellaA }, input: pronto, statico: { ...S, ultimo_avvio: new Date(Date.now() - 121 * 60000).toISOString() } }), [], 'dopo 121 minuti il giro lungo è ancora in corso');
+  // il giro ha finito e ha tolto il segno: il guardiano non aspetta la sua vecchia stima
+  assert.equal(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB, 'Guarda: giri in corso': { files: [] } }, input: pronto, statico: { ...S, ultimo_avvio: new Date(Date.now() - 121 * 60000).toISOString() } }).length, 1);
+  // nei primi 30 minuti dopo la partenza (la cartella non ha ancora il segno) vale la memoria del guardiano
+  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB, 'Guarda: giri in corso': { files: [] } }, input: pronto, statico: { ...S, ultimo_avvio: new Date(Date.now() - 5 * 60000).toISOString() } }), []);
   // un giro partito dal modulo: la sua cartella «Pronti» ferma il guardiano per GIRI_DISTANZA_MINUTI
   const S2 = { servizi: {} };
   const sv = [{ cliente: 'el-tropico', nome_locale: 'El Tropico Latino', servizio_id: 'sM', servizio_nome: 'M' }];
@@ -630,14 +637,57 @@ test('quarto collaudo: il modulo si ferma se un giro è in corso (Nicola: dice l
   assert.deepEqual([dopo('Nessun giro in corso?'), dopo('Nessun giro in corso?', 1)], [['Prepara la partenza'], ['Dal modulo?']]);
   assert.deepEqual(dopo('Prepara la partenza'), ['Serve la cartella Pronti?'], 'il giro non parte prima del segno');
   assert.deepEqual([dopo('Crea subito la cartella Pronti'), dopo('Segna il giro sulla cartella Pronti')], [['Segno sulla cartella'], ['Segno sulla cartella']]);
-  assert.deepEqual([dopo('Segno messo?'), dopo('Segno messo?', 1)], [['Avvia il montaggio'], ['Dal modulo?']]);
+  assert.deepEqual([dopo('Segno messo?'), dopo('Segno messo?', 1)], [['Ricontrolla i giri'], ['Dal modulo?']]);
+  assert.deepEqual([dopo('Arrivato primo?'), dopo('Arrivato primo?', 1), dopo('Togli il mio segno'), dopo('Arrivato secondo')], [['Avvia il montaggio'], ['Togli il mio segno'], ['Arrivato secondo'], ['Dal modulo?']]);
   assert.ok(dopo('Esito dei montaggi').includes("C'è un posto da liberare?") && dopo('Messaggio di stop').includes("C'è un posto da liberare?"));
   const libera = workflow.nodes.find((n) => n.name === 'Libera il posto');
-  assert.deepEqual([libera.parameters.method, JSON.parse(libera.parameters.jsonBody.replace(/^=\{\{ JSON\.stringify\(|\) \}\}$/g, '').replace(/(\w+):/g, '"$1":'))], ['PATCH', { appProperties: { montatore_giro: null, montatore_fine: null } }]);
+  assert.deepEqual([libera.parameters.method, JSON.parse(libera.parameters.jsonBody.replace(/^=\{\{ JSON\.stringify\(|\) \}\}$/g, '').replace(/(\w+):/g, '"$1":'))], ['PATCH', { appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }]);
   for (const nome of ['Guarda: giri in corso', 'Partenza: giri in corso']) {
     const q = Object.fromEntries(workflow.nodes.find((n) => n.name === nome).parameters.queryParameters.parameters.map((x) => [x.name, x.value]));
     assert.deepEqual([q.corpora, /incompleteSearch/.test(q.fields)], ['allDrives', true], nome);
   }
+});
+
+test('quinto collaudo: un giro toglie solo il suo segno; il posto si libera anche senza file; tetto di 24 ore alla scrittura; «subito» solo in testa; chi arriva secondo si ferma', () => {
+  const dopo = (da, i = 0) => (workflow.connections[da]?.main?.[i] || []).map((x) => x.node);
+  const fine = '2026-11-27T10:00:00.000Z';
+  const J = { ...CONFIG, cliente: { nome_locale: 'El Tropico Latino' }, pronti: { id: 'pA', fine } };
+  const mio = (r) => esegui('il-segno-e-mio.js', { nodi: { Config: J }, input: [r] })[0].json;
+  // la cartella ha ancora la fine di questo giro: si libera; un «rifai» l'ha riscritta: si lascia al giro nuovo
+  assert.deepEqual(mio({ id: 'pA', appProperties: { montatore_giro: 'si', montatore_fine: fine } }), { libera: true });
+  assert.deepEqual(mio({ id: 'pA', appProperties: { montatore_giro: 'si', montatore_fine: '2026-11-27T13:00:00.000Z' } }), { libera: false });
+  const illeggibile = mio({ error: { message: 'Drive 500' } });
+  assert.equal(illeggibile.libera, false);
+  const avviso = esegui('avviso-sul-posto.js', { nodi: { Config: J }, input: [illeggibile] })[0].json.messaggio;
+  assert.match(avviso, /il giro è finito, ma non riesco a leggere la cartella «Pronti» \(Drive 500\)\.\nFino alle \d\d:\d\d.* il modulo dirà che un giro è in corso: per partire prima, scrivete «subito» all'inizio delle note/);
+  // il grafo della fine: leggi → è mio? → libera → liberato? (no → avviso); niente caricato → si libera lo stesso
+  assert.deepEqual(dopo("C'è un posto da liberare?"), ['Leggi la cartella Pronti']);
+  assert.deepEqual([dopo('Libero io?'), dopo('Libero io?', 1), dopo('Posto liberato?', 1), dopo("C'è da avvisare?")], [['Libera il posto'], ["C'è da avvisare?"], ['Avviso sul posto'], ['Avviso sul posto']]);
+  assert.deepEqual(dopo('Qualcosa caricato?', 1), ["C'è un posto da liberare?"]);
+  // «rifai» e «subito» valgono solo in testa alle note; le promozioni del cliente restano intatte
+  const P = { ok: true, lavoro: { lavoro: 'giro' } };
+  const giro = { files: [{ id: 'pX', appProperties: { montatore_giro: 'si', montatore_fine: new Date(Date.now() + 50 * 60000).toISOString() } }] };
+  const parti = (note) => esegui('si-puo-partire.js', { nodi: { Config: { ...CONFIG, origine: 'modulo', note }, 'Prepara il lavoro': P }, input: [giro] })[0].json;
+  assert.equal(parti('menu di Natale: prenota subito al 0523').ok, false, '«prenota subito» nelle note non scavalca il controllo');
+  assert.deepEqual([parti('subito').ok, parti('Rifai, subito: menu di Natale').ok], [true, true]);
+  const SC = { ok: true, ruoli: { idVert: { ruolo: 'verticale', nome: 'Video Verticali' } }, q: '' };
+  const files = { files: [{ id: 'v1', name: 'clip.mp4', mimeType: 'video/mp4', size: '50000000', parents: ['idVert'], videoMediaMetadata: { durationMillis: '600000' } }] };
+  const prep = (note, f = files) => esegui('prepara-il-lavoro.js', { nodi: { Config: { ...CONFIG, cliente: 'el tropico', cartella: 'A', mese: '2026-12', reel: 6, post: 5, storie: 10, note }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': { ok: true, servizio: { id: 'sA', nome: 'A' } }, 'Trova le sottocartelle': SC }, input: [f] })[0].json;
+  assert.equal(prep('rifai subito, menu di Natale: prenota subito').lavoro.note, 'menu di Natale: prenota subito');
+  // un servizio enorme: la fine scritta sulla cartella non va oltre 24 ore
+  const enorme = { files: Array.from({ length: 400 }, (_, i) => ({ id: `v${i}`, name: `c${i}.mp4`, mimeType: 'video/mp4', size: '400000000', parents: ['idVert'], videoMediaMetadata: { durationMillis: '600000' } })) };
+  const ore = (Date.parse(prep('', enorme).pronti.fine) - Date.now()) / 3600000;
+  assert.ok(ore <= 24.01 && ore > 23, `fine a ${ore.toFixed(1)} ore`);
+  // due partenze nello stesso istante: chi ha messo il segno dopo toglie il suo e si ferma; il primo parte
+  const L = { lavoro: 'giro', pronti: { id: 'pB', inizio: '2026-11-26T10:00:05.000Z', fine: 'x' } };
+  const altri = (inizio) => ({ files: [{ id: 'pB', appProperties: {} }, { id: 'pA', appProperties: { montatore_giro: 'si', montatore_fine: new Date(Date.now() + 3600000).toISOString(), montatore_inizio: inizio } }] });
+  const primo = (el, note = '') => esegui('primo-ad-arrivare.js', { nodi: { Config: { ...CONFIG, note }, 'Segno sulla cartella': L }, input: [el] })[0].json;
+  const secondo = primo(altri('2026-11-26T10:00:03.000Z'));
+  assert.deepEqual([secondo.ok, secondo.togli], [false, 'pB']);
+  assert.match(secondo.messaggio, /partito pochi istanti prima/);
+  assert.deepEqual(primo(altri('2026-11-26T10:00:09.000Z')), L, 'l\'altro è arrivato dopo: questo parte');
+  assert.deepEqual(primo(altri('2026-11-26T10:00:03.000Z'), 'subito'), L);
+  assert.deepEqual(primo({ error: { message: 'Drive 500' } }), L, 'senza elenco si parte: il controllo prima c\'è stato');
 });
 
 test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {

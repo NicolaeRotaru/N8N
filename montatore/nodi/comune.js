@@ -35,6 +35,13 @@ function dato(v) { return testo(v).replace(/</g, '‹').replace(/>/g, '›'); }
 function virgola(n, cifre) { return Number(n).toFixed(cifre === undefined ? 1 : cifre).replace('.', ','); }
 
 // Data e ora di Roma (anche col cambio dell'ora legale) senza librerie.
+// «rifai» e «subito» valgono solo all'inizio delle note: le note portano anche le promozioni del cliente («prenota subito»)
+function comandiNote(v) {
+  const t = testo(v);
+  const m = t.match(/^\s*(?:(?:rifai|subito)\b[\s,;:.\-]*)+/i);
+  const testa = m ? m[0] : '';
+  return { rifai: /rifai/i.test(testa), subito: /subito/i.test(testa), note: t.slice(testa.length).trim() };
+}
 function partiRoma(d) {
   const f = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   const p = {};

@@ -394,7 +394,7 @@ nodo('Crea subito la cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
   sendBody: true,
   contentType: 'json',
   specifyBody: 'json',
-  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro], appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine } }) }}",
+  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro], appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine, montatore_inizio: $('Prepara il lavoro').first().json.pronti.inizio } }) }}",
   options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
 }, [COL(17), RIGA.modulo - 350], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
 // con «rifai» la cartella c'è già: le si scrive la fine stimata del giro nuovo (la legge il guardiano delle cartelle)
@@ -409,7 +409,7 @@ nodo('Segna il giro sulla cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
   sendBody: true,
   contentType: 'json',
   specifyBody: 'json',
-  jsonBody: "={{ JSON.stringify({ appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine } }) }}",
+  jsonBody: "={{ JSON.stringify({ appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine, montatore_inizio: $('Prepara il lavoro').first().json.pronti.inizio } }) }}",
   options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
 }, [COL(17), RIGA.modulo - 200], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
 codice('Segno sulla cartella', 'segno-sulla-cartella.js', [COL(18), RIGA.modulo - 280]);
@@ -420,8 +420,30 @@ collega('Serve la cartella Pronti?', 'Segna il giro sulla cartella Pronti', 1);
 collega('Crea subito la cartella Pronti', 'Segno sulla cartella');
 collega('Segna il giro sulla cartella Pronti', 'Segno sulla cartella');
 catena('Segno sulla cartella', 'Segno messo?');
-collega('Segno messo?', 'Avvia il montaggio', 0);
+giriInCorso('Ricontrolla i giri', [COL(18) + 180, RIGA.modulo - 430]);
+codice('Primo ad arrivare?', 'primo-ad-arrivare.js', [COL(18) + 240, RIGA.modulo - 430]);
+se('Arrivato primo?', "$json.lavoro === 'giro'", [COL(18) + 300, RIGA.modulo - 430]);
+nodo('Togli il mio segno', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($json.togli) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  jsonBody: '={{ JSON.stringify({ appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }) }}',
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(18) + 360, RIGA.modulo - 330], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+nodo('Arrivato secondo', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// Il messaggio per il modulo (o per Telegram, dal guardiano): perché questo giro non parte.\nreturn [{ json: $('Primo ad arrivare?').first().json }];\n" }, [COL(18) + 420, RIGA.modulo - 330]);
+collega('Segno messo?', 'Ricontrolla i giri', 0);
 collega('Segno messo?', 'Dal modulo?', 1);
+catena('Ricontrolla i giri', 'Primo ad arrivare?', 'Arrivato primo?');
+collega('Arrivato primo?', 'Avvia il montaggio', 0);
+collega('Arrivato primo?', 'Togli il mio segno', 1);
+catena('Togli il mio segno', 'Arrivato secondo', 'Dal modulo?');
 catena('Avvia il montaggio', 'Dal modulo (partito)?');
 collega('Dal modulo (partito)?', 'Fine: partito', 0);
 
@@ -573,12 +595,37 @@ nodo('Libera il posto', 'n8n-nodes-base.httpRequest', 4.5, {
   sendBody: true,
   contentType: 'json',
   specifyBody: 'json',
-  jsonBody: '={{ JSON.stringify({ appProperties: { montatore_giro: null, montatore_fine: null } }) }}',
+  jsonBody: '={{ JSON.stringify({ appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }) }}',
   options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
 }, [COL(41), G + 400], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', executeOnce: true });
+nodo('Leggi la cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'GET',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($('Config').first().json.pronti.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id,appProperties' }] },
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(40) + 60, G + 400], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', executeOnce: true });
+codice('Il segno è mio?', 'il-segno-e-mio.js', [COL(40) + 120, G + 400]);
+se('Libero io?', '$json.libera', [COL(40) + 180, G + 400]);
+se('Posto liberato?', '!!$json.id', [COL(41) + 120, G + 400]);
+se('C\'è da avvisare?', '!!$json.avviso', [COL(40) + 240, G + 520]);
+codice('Avviso sul posto', 'avviso-sul-posto.js', [COL(41) + 240, G + 520]);
+telegram('Telegram: posto non liberato', [COL(41) + 300, G + 520]);
 collega('Esito dei montaggi', 'C\'è un posto da liberare?');
 collega('Messaggio di stop', 'C\'è un posto da liberare?');
-collega('C\'è un posto da liberare?', 'Libera il posto', 0);
+// niente caricato (officina giù): il messaggio parte da «Telegram: materiale guardato», e il posto si libera lo stesso
+collega('Qualcosa caricato?', 'C\'è un posto da liberare?', 1);
+collega('C\'è un posto da liberare?', 'Leggi la cartella Pronti', 0);
+catena('Leggi la cartella Pronti', 'Il segno è mio?', 'Libero io?');
+collega('Libero io?', 'Libera il posto', 0);
+collega('Libero io?', 'C\'è da avvisare?', 1);
+catena('Libera il posto', 'Posto liberato?');
+collega('Posto liberato?', 'Avviso sul posto', 1);
+collega('C\'è da avvisare?', 'Avviso sul posto', 0);
+catena('Avviso sul posto', 'Telegram: posto non liberato');
 collega('Ci sono schede?', 'Schede da rivedere', 0);
 catena('Schede da rivedere', 'Manda le schede');
 

@@ -64,7 +64,7 @@ const lavoro = {
   servizio: S,
   mese,
   richiesta,
-  note: accorcia(testo(CFG.note).replace(/\b(rifai|subito)\b/gi, '').replace(/^[\s,;:.\-]+/, '').trim(), 2000),
+  note: accorcia(comandiNote(CFG.note).note, 2000),
   file,
   musica,
   scartati,
@@ -80,19 +80,22 @@ const messaggio = 'Ho trovato ' + nv + ' video' + (secondi ? ' (' + durataTesto 
   + (norm(CFG.MODALITA) === 'attivo' ? '' : ' Modalità PROVA: i contenuti finiscono su Drive, nel Calendario non scrivo niente.');
 // Lo stesso servizio non parte due volte. Il segno è la cartella «Pronti (montatore)» dentro il servizio: si crea
 // appena il montaggio parte (dal modulo o dal guardiano), sta su Drive (uno solo per tutte le esecuzioni, non scade, lo
-// vede anche il team). Se c'è già, il montaggio si ferma e lo dice; «rifai» nelle note lo fa ripartire.
+// vede anche il team). Se c'è già, il montaggio si ferma e lo dice; «rifai» all'inizio delle note lo fa ripartire.
 const nomePronti = testo(CFG.NOME_CARTELLA_PRONTI || 'Pronti (montatore)') + (norm(CFG.MODALITA) === 'attivo' ? '' : ' - prova');
 const radicePronti = chiaveNome(testo(CFG.NOME_CARTELLA_PRONTI || 'Pronti (montatore)'));
 const figli = ($('Elenca il servizio').isExecuted ? $('Elenca il servizio').first().json || {} : {}).files || [];
 const gia = figli.find((f) => eCartella(f) && chiaveNome(f.name).startsWith(radicePronti));
-if (gia && !/\brifai\b/i.test(testo(CFG.note))) {
-  return [{ json: { ok: false, messaggio: 'In «' + S.nome + '» c\'è già la cartella «' + testo(gia.name) + '»: questo servizio è già partito (o è già montato). Se vuoi rifarlo davvero, scrivi «rifai» nelle note.' } }];
+if (gia && !comandiNote(CFG.note).rifai) {
+  return [{ json: { ok: false, messaggio: 'In «' + S.nome + '» c\'è già la cartella «' + testo(gia.name) + '»: questo servizio è già partito (o è già montato). Se vuoi rifarlo davvero, scrivi «rifai» all\'inizio delle note.' } }];
 }
 // la fine stimata del giro si scrive sulla cartella «Pronti» (proprietà di Drive): il guardiano delle cartelle la legge e
 // non fa partire un altro servizio finché il giro non ha finito, anche se è partito dal modulo o con «rifai». ×1,3 e 30
 // minuti in più per le attese dell'AD (fino a 15 minuti a corsa).
 const stessa = figli.find((f) => eCartella(f) && testo(f.name) === nomePronti);
-// mai meno di GIRI_DISTANZA_MINUTI: anche un servizio piccolo fa 3-4 corse dell'AD, fino a 15 minuti l'una
-const fine = new Date(Date.now() + Math.max(Math.max(30, intero(CFG.GIRI_DISTANZA_MINUTI, 120)), Math.round(minuti * 1.3) + 30) * 60000).toISOString();
-lavoro.pronti = { nome: nomePronti, dentro: S.id, crea: !stessa, id: stessa ? testo(stessa.id) : '', fine };
+// mai meno di GIRI_DISTANZA_MINUTI: anche un servizio piccolo fa 3-4 corse dell'AD, fino a 15 minuti l'una. Mai più di
+// 24 ore: un giro che cade a metà non tiene fermo il montatore per giorni (un giro vero si libera da solo quando finisce).
+// L'inizio serve a dire chi è arrivato prima, se due giri partono nello stesso istante («Primo ad arrivare?»).
+const fine = new Date(Date.now() + Math.min(24 * 60, Math.max(Math.max(30, intero(CFG.GIRI_DISTANZA_MINUTI, 120)), Math.round(minuti * 1.3) + 30)) * 60000).toISOString();
+const inizio = new Date().toISOString();
+lavoro.pronti = { nome: nomePronti, dentro: S.id, crea: !stessa, id: stessa ? testo(stessa.id) : '', fine, inizio };
 return [{ json: { ok: true, lavoro, messaggio, pronti: lavoro.pronti } }];

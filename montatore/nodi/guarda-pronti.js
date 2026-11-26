@@ -41,8 +41,12 @@ const fineGiri = Math.max(0, ...elenco.files.map((f) => Date.parse(((f && f.appP
 // un'ora scritta male, o nel futuro (orologio tornato indietro), non blocca il guardiano per sempre
 const passato = (v) => { const t = Date.parse(v || ''); return Number.isFinite(t) && t <= ora ? t : 0; };
 const liberoDopo = Date.parse(S.libero_dopo || '');
-const libero = Math.max(fineGiri, Number.isFinite(liberoDopo) && liberoDopo <= ora + 24 * 3600000 ? liberoDopo : 0,
-  passato(S.ultimo_avvio) && passato(S.ultimo_avvio) + distanza, passato(S.giro_visto) && passato(S.giro_visto) + distanza);
+// la memoria del guardiano copre solo i primi 30 minuti dopo una sua partenza, finché la cartella del giro non porta il
+// segno: dopo comanda l'elenco (un giro finito ha già liberato il posto, e non si aspetta la stima)
+const avviato = passato(S.ultimo_avvio);
+const recente = avviato && ora - avviato < 30 * 60000;
+const libero = Math.max(fineGiri, recente && Number.isFinite(liberoDopo) && liberoDopo <= ora + 24 * 3600000 ? liberoDopo : 0,
+  recente ? avviato + distanza : 0, passato(S.giro_visto) && passato(S.giro_visto) + distanza);
 if (!pronti.length || ora < libero) return [];
 pronti.sort((a, b) => a.ultimo - b.ultimo);
 // quanto dura il giro di questo servizio (stima di «Prepara il lavoro» con le quantità di serie)
