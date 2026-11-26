@@ -266,7 +266,8 @@ export function controllaFatti(w) {
 }
 
 /** I nodi HTTP che vanno verso l'host di una fonte a pagamento senza essere fra i suoi nodi (quindi senza freno). */
-const HOST = { google: /places\.googleapis\.com/, tripadvisor: /tripadvisor\.com/, dataforseo: /dataforseo\.com/, instagram: /graph\.facebook\.com|graph\.instagram\.com/ };
+// Google a pagamento (Places, Maps, Routes, Geocoding…), non i servizi del 12 come Sheets e Drive.
+const HOST = { google: /(places|maps|routes|roads|addressvalidation|geocoding-backend|places-backend)\.googleapis\.com|maps\.google\.com\/maps\/api/, tripadvisor: /tripadvisor\.com/, dataforseo: /dataforseo\.com/, instagram: /graph\.facebook\.com|graph\.instagram\.com/ };
 function nodiSenzaFreno(w, f) {
   const nome = Object.keys(FONTI_A_PAGAMENTO).find((k) => FONTI_A_PAGAMENTO[k] === f);
   return w.nodes.filter((n) => n.type === 'n8n-nodes-base.httpRequest' && HOST[nome].test(JSON.stringify(n.parameters?.url || '')) && !f.nodi.includes(n.name)).map((n) => n.name);

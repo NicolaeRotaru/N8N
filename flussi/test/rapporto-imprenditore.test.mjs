@@ -483,6 +483,8 @@ test('dalla generazione a secco sul 12 vero: i nodi Google Sheets e Drive del 12
     { name: 'Leggi il foglio Clienti', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://sheets.googleapis.com/v4/spreadsheets/x/values/A1' } },
     { name: 'Cerca la cartella del cliente', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://www.googleapis.com/drive/v3/files' } }], connections: collegamenti };
   assert.deepEqual(controllaFatti(w), []);
-  w.nodes.push({ name: 'Furbo', type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://places.googleapis.com/v1/places:searchText' } });
-  assert.ok(controllaFatti(w).some((p) => /fuori dal loro IF/.test(p)));
+  for (const url of ['https://places.googleapis.com/v1/places:searchText', 'https://maps.googleapis.com/maps/api/geocode/json', 'https://routes.googleapis.com/directions/v2:computeRoutes']) {
+    const prova = { ...w, nodes: [...w.nodes, { name: 'Furbo', type: 'n8n-nodes-base.httpRequest', parameters: { url } }] };
+    assert.ok(controllaFatti(prova).some((p) => /fuori dal loro IF/.test(p)), url);
+  }
 });
