@@ -1,6 +1,6 @@
 # Contratto del rapporto dell'imprenditore · n8n (flusso 26) → sito
 
-Versione **1.2** · 26/11/2026 (1.1: il parere legale su Google, TripAdvisor e DataForSEO · 1.2: le parti per abbonamento e i concorrenti sui social e sul web, decisioni di Nicola delle 14:35 e 14:54) · sessione «rapporto imprenditore — parte n8n».
+Versione **1.3** · 26/11/2026 (1.1: il parere legale su Google, TripAdvisor e DataForSEO · 1.2: le parti per abbonamento e i concorrenti sui social e sul web, decisioni di Nicola delle 14:35 e 14:54 · 1.3: le parti allineate al PIANO, `proposta` nel piano dei 30 giorni, la regola delle 15:00 «non si cancella mai, si archivia») · sessione «rapporto imprenditore — parte n8n».
 Chi lo cambia lo dice all'altra parte prima. Si possono **aggiungere** campi; quelli scritti qui non si rinominano.
 
 Dove viaggia: dentro la scheda che il 26 manda già al sito (`POST /api/agenzia/scheda-cliente`, stessa
@@ -34,10 +34,17 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
 5. **DataForSEO è una filiera separata** da Google Places: i suoi numeri non si mescolano con quelli di
    Places. I testi delle recensioni restano solo in memoria durante la lettura (all'AD per i temi) e non
    arrivano mai al sito; al sito vanno solo temi con quante recensioni li citano (almeno 3). I blocchi
-   DataForSEO portano `conserva_fino_al` = `letto_il` + 30 giorni: dopo, il sito cancella `dati`.
+   DataForSEO portano `conserva_fino_al` = `letto_il` + 30 giorni: dopo, il sito non li mostra più.
 6. **I concorrenti si contano solo da OpenStreetMap.**
 7. **Fonte spenta ≠ dato assente.** Una fonte a pagamento spenta dà `stato: "spento"`, e il sito non la
    mostra come «non trovato».
+8. **Una scheda «parziale» aggiunge, non sostituisce** (1.3). Quando la ricerca si è fermata il 26 manda
+   `parziale: true`, `campi: {}` e solo le parti dell'analisi che ha davvero (mai sezioni vuote). Il sito
+   aggiunge quello che arriva e non scrive mai un vuoto sopra un pieno.
+9. **Non si cancella mai, si archivia** (Nicola, 26/11 ore 15:00). I testi delle recensioni di DataForSEO e i
+   dati di Google Places (oltre al `place_id`) **non si salvano mai**, per il parere legale: restano solo in
+   memoria durante la lettura, quindi non c'è niente da cancellare né da archiviare. Nessuno li salvi «per
+   poterli archiviare».
 
 ## 1. `analisi.fatti`
 
@@ -76,30 +83,31 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
 }
 ```
 
-### Le parti (1.2)
+### Le parti (1.2, allineate al PIANO nella 1.3)
 
 Ogni blocco di `fatti` e ogni sezione dell'AD porta il numero della sua `parte`. Quali parti entrano in
 quale fascia lo decide Nicola e lo mostra il sito: n8n raccoglie sempre tutto.
 
-| parte | cosa | blocchi di `fatti` | sezioni dell'AD (`analisi.business`) |
+| parte | cosa (titoli del PIANO) | blocchi di `fatti` | sezioni dell'AD (`analisi.business`) |
 |---|---|---|---|
-| 1 | Com'è messa oggi | `posizione` | `situazione` |
-| 2 | Il quartiere | `vicini` (servizi) | — |
-| 3 | I concorrenti vicini | `vicini` (concorrenti) | `mercato`, `confronto_concorrenti` |
-| 4 | Clienti e reputazione | `recensioni` | `clienti`, `reputazione_temi` |
-| 5 | Il sito | `sito` | `giudizio_sito` |
-| 6 | I social | `instagram` | (social, porta analisi-canali) |
-| 7 | Farsi trovare su Google | `google`, `tripadvisor`, `ricerche` | — |
-| 8 | Occasioni: eventi e meteo | `eventi`, `meteo` | `occasioni` |
+| 1 | La tua carta d'identità online | `google` (solo `place_id`, per il riquadro ufficiale) | `situazione` |
+| 2 | La tua reputazione | `recensioni`, `tripadvisor` | `clienti`, `reputazione_temi` |
+| 3 | I concorrenti vicini | `vicini` (`dati.concorrenti`) | `mercato`, `confronto_concorrenti` |
+| 4 | La tua zona | `vicini` (`dati.servizi`: scuole, uffici, fermate, parcheggi…), `posizione` | — |
+| 5 | Cosa cerca la gente | `ricerche` | — |
+| 6 | Il tuo sito | `sito` | `giudizio_sito` (in `analisi`, non in `business`) |
+| 7 | I tuoi social | `instagram` | (social, porta analisi-canali) |
+| 8 | Il calendario della città | `eventi`, `meteo` | `occasioni` |
 | 9 | Soldi pubblici | `bandi` | `soldi_pubblici` |
-| 10 | Opportunità e rischi | — | `opportunita`, `rischi` |
-| 11 | Il piano | — | `prime_mosse`, `piano_30_giorni` |
-| 12 | Concorrenti sui social e sul web | `concorrenti_canali` | `confronto_concorrenti[].meglio/peggio`, `idee_dal_confronto` |
+| 10 | Su MyCity | — (la pagella del flusso 18, dopo l'abbonamento) | — |
+| 11 | Il piano dei 30 giorni | — | `piano_30_giorni`, `prime_mosse`, `opportunita`, `rischi` |
+| 12 | I concorrenti sui social e sul web | `concorrenti_canali` | `confronto_concorrenti[].meglio/peggio`, `idee_dal_confronto` |
 
-`vicini` porta `parte: 3` (i servizi del quartiere sono parte 2: `dati.servizi_parte = 2`). Nelle
-sezioni dell'AD la parte non sta in ogni frase: sta nella mappa `analisi.business.parti`, es.
-`{ "situazione": 1, "reputazione_temi": 4, … }`. **Numeri provvisori** finché non li allineo all'elenco
-delle 11 parti del PIANO: se cambiano, cambia solo questa tabella.
+**La zona e i concorrenti del PIANO stanno in `vicini`:** `vicini.dati.servizi` è la zona (parte 4,
+`dati.servizi_parte = 4`), `vicini.dati.concorrenti` sono i concorrenti (quanti = `numero`, `elenco` di 10).
+Il loro `voto_medio` e i voti non ci sono: per il parere legale si contano solo da OpenStreetMap, e un voto
+potrebbe venire solo da DataForSEO, oggi non letto. Nelle sezioni dell'AD la parte sta nella mappa
+`analisi.business.parti`. Il sito può anche ignorare `parte` e mettere ogni blocco al suo posto dalla chiave.
 
 - `letto` = la fonte ha risposto e c'è qualcosa; `vuoto` = ha risposto ma non c'è niente (es. nessun
   concorrente nel raggio: allora `dati` c'è e i contatori sono 0 veri); `spento` = voce del Config a `no`,
@@ -231,8 +239,8 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
 "idee_dal_confronto": [      // 1.2, parte 12: esattamente da 0 a 3 idee di contenuti nate dal confronto
   { "idea": "≤200", "perche": "≤200: cosa abbiamo visto nei concorrenti", "servizio": "foto_video" | "social" | "sito_web" | null, "fonte": "https://…" }
 ],
-"parti": { "situazione": 1, "mercato": 3, "clienti": 4, "opportunita": 10, "rischi": 10, "prime_mosse": 11,
-           "reputazione_temi": 4, "confronto_concorrenti": 3, "occasioni": 8, "soldi_pubblici": 9, "piano_30_giorni": 11, "idee_dal_confronto": 12 },
+"parti": { "situazione": 1, "mercato": 3, "clienti": 2, "opportunita": 11, "rischi": 11, "prime_mosse": 11,
+           "reputazione_temi": 2, "confronto_concorrenti": 3, "occasioni": 8, "soldi_pubblici": 9, "piano_30_giorni": 11, "idee_dal_confronto": 12 },
 "occasioni": [               // al massimo 5: eventi, meteo, stagione nei prossimi 30 giorni
   { "quando": "2026-12-08" | null, "cosa": "≤160", "perche_conta": "≤200", "fonte": "https://…" }
 ],
@@ -240,7 +248,8 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
   { "bando": "≤160", "ente": "Camera di Commercio dell'Emilia", "scadenza": "2026-12-31" | null, "per_chi": "≤200", "fonte": "https://…" }
 ],
 "piano_30_giorni": [         // da 0 a 8 passi, in ordine
-  { "settimana": 1 | 2 | 3 | 4, "azione": "≤200", "servizio": "foto_video" | "sito_web" | "social" | "analisi" | null, "fonte": "https://…" }
+  { "settimana": 1 | 2 | 3 | 4, "azione": "≤200", "servizio": "foto_video" | "sito_web" | "social" | "analisi" | null, "fonte": "https://…",
+    "proposta": "10-160 caratteri: cosa facciamo NOI, senza prezzi né contatti | null (null se servizio è null)" }   // 1.3
 ]
 ```
 
@@ -252,7 +261,8 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
 ## 3. Cosa fa il sito con un dato spento o vecchio
 
 - `stato: "spento"` → la riga non si mostra (o «in arrivo»), mai «0».
-- `conserva_fino_al` passata (DataForSEO) → si cancella `dati`, si mostra «da rileggere». Il `place_id` di Google non scade.
+- `conserva_fino_al` passata (DataForSEO) → il sito non mostra più `dati` e scrive «da rileggere» (1.3: non li cancella, regola 9; se l'AD decide diversamente lo dirà). Il `place_id` di Google non scade.
+- `recensioni.dati.voto_medio` e `per_stelle`: il sito (26/11) ha scelto di non salvarli né mostrarli, per il parere legale («niente voto medio coi dati Google»). n8n li manda lo stesso: decide l'AD.
 - Ogni numero mostrato porta accanto `fonte_nome` e la data di `letto_il`; dove c'è `licenza`, anche quella.
 
 ## 4. Il lavoro per «Chiedi all'AD»

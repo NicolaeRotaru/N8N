@@ -369,8 +369,10 @@ else {
 }
 
 // ── le parti per abbonamento (contratto 1.2; numeri provvisori) ──
-const PARTI = { posizione: 1, vicini: 3, sito: 5, instagram: 6, google: 7, tripadvisor: 7, ricerche: 7, recensioni: 4, eventi: 8, meteo: 8, bandi: 9, concorrenti_canali: 12 };
+// Le 12 parti del PIANO (AD, 26/11): 1 carta d'identità · 2 reputazione · 3 concorrenti · 4 zona · 5 ricerche · 6 sito · 7 social ·
+// 8 calendario · 9 soldi pubblici · 10 su MyCity · 11 piano · 12 concorrenti sui social e sul web.
+const PARTI = { google: 1, posizione: 4, vicini: 3, recensioni: 2, tripadvisor: 2, ricerche: 5, sito: 6, instagram: 7, eventi: 8, meteo: 8, bandi: 9, concorrenti_canali: 12 };
 for (const [k, v] of Object.entries(PARTI)) if (fatti[k]) fatti[k].parte = v;
-if (fatti.vicini && fatti.vicini.dati) fatti.vicini.dati.servizi_parte = 2;
+if (fatti.vicini && fatti.vicini.dati) fatti.vicini.dati.servizi_parte = 4;
 
 return [{ json: { ...prima, fatti, fatti_per_ad: { testi_recensioni: testiRecensioni, siti_dei_concorrenti: estrattiConc } } }];

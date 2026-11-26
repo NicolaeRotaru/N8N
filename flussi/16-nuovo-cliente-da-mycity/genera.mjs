@@ -285,7 +285,8 @@ const NUOVE = {
       per_chi: testoCorto(200, 'Per chi è e perché questa attività potrebbe chiederlo.'), fonte: fonteHttps }) },
   piano_30_giorni: { type: 'array', maxItems: 8, description: 'Il piano dei primi 30 giorni, in ordine, una o due azioni per settimana.',
     items: oggetto({ settimana: { type: 'integer', enum: [1, 2, 3, 4] }, azione: testoCorto(200, "L'azione concreta."),
-      servizio: { type: ['string', 'null'], enum: ['foto_video', 'sito_web', 'social', 'analisi', null] }, fonte: fonteHttps }) },
+      servizio: { type: ['string', 'null'], enum: ['foto_video', 'sito_web', 'social', 'analisi', null] }, fonte: fonteHttps,
+      proposta: { type: ['string', 'null'], description: 'Cosa facciamo NOI, in una frase di al massimo 160 caratteri, senza prezzi né contatti. null se nessun servizio la copre.' } }) },
 };
 const SCHEMA = { type: 'object', additionalProperties: false,
   required: ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social', ...Object.keys(NUOVE)],
@@ -554,13 +555,14 @@ const nuove = {
     .filter((v) => v.cosa && v.perche_conta && v.fonte).slice(0, 5),
   soldi_pubblici: voci('soldi_pubblici').map((v) => ({ bando: fraseMin(v.bando, 160), ente: fraseMin(v.ente, 120), scadenza: data(v.scadenza, 0, 730), per_chi: fraseMin(v.per_chi, 200), fonte: https(v.fonte) }))
     .filter((v) => v.bando && v.ente && v.per_chi && v.fonte).slice(0, 4),
-  piano_30_giorni: voci('piano_30_giorni').map((v) => ({ settimana: [1, 2, 3, 4].includes(v.settimana) ? v.settimana : null, azione: fraseMin(v.azione, 200), servizio: tra(v.servizio, SERVIZI), fonte: https(v.fonte) }))
+  piano_30_giorni: voci('piano_30_giorni').map((v) => ({ settimana: [1, 2, 3, 4].includes(v.settimana) ? v.settimana : null, azione: fraseMin(v.azione, 200), servizio: tra(v.servizio, SERVIZI),
+    proposta: SERVIZI.includes(v.servizio) ? proposta(v.proposta) : null, fonte: https(v.fonte) }))
     .filter((v) => v.settimana && v.azione && v.fonte).sort((a, z) => a.settimana - z.settimana).slice(0, 8),
 };
 if (Object.values(nuove).some((x) => x.length)) business = { ...(business || Object.fromEntries(SEZIONI.map((k) => [k, []]))), ...nuove };
 else if (business) business = { ...business, ...nuove };
 // Le parti per abbonamento (contratto 1.2, numeri provvisori): il sito filtra le sezioni per fascia.
-if (business) business.parti = { situazione: 1, mercato: 3, clienti: 4, opportunita: 10, rischi: 10, prime_mosse: 11, reputazione_temi: 4, confronto_concorrenti: 3, occasioni: 8, soldi_pubblici: 9, piano_30_giorni: 11, idee_dal_confronto: 12 };
+if (business) business.parti = { situazione: 1, mercato: 3, clienti: 2, opportunita: 11, rischi: 11, prime_mosse: 11, reputazione_temi: 2, confronto_concorrenti: 3, occasioni: 8, soldi_pubblici: 9, piano_30_giorni: 11, idee_dal_confronto: 12 };
 
 const fatta = letta && typeof letta === 'object' && !Array.isArray(letta);
 const avvisi = fatta ? [...new Set((Array.isArray(r.avvisi) ? r.avvisi : []).map((v) => frase(v, 240)).filter(Boolean))].slice(0, 6) : [];
@@ -596,7 +598,10 @@ const dellAd = { ...segno, ...(business ? { business } : {}), ...(giudizioSito ?
 if (!p || !p.ok) {
   // La ricerca non è arrivata in fondo: niente campi. Ma se l'AD ha fatto l'analisi del business o guardato il sito, quella va al sito.
   if (!Object.keys(dellAd).length) return [{ json: { mandare: false, motivo: 'nessuna scheda: la ricerca non è arrivata in fondo' } }];
-  return [{ json: { mandare: true, corpo: { tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(),
+  // 26/11/2026 (regola di Nicola delle 15:00, «non si cancella mai»; il 25/11 alle 22:40 un'analisi vuota era finita sopra la
+  // scheda ricca di Ora del Gusto): questa scheda è PARZIALE (niente campi, la ricerca si è fermata). Lo dice, e non porta
+  // sezioni vuote: il sito aggiunge quello che c'è e non sostituisce niente (contratto, regola 8).
+  return [{ json: { mandare: true, corpo: { tipo: 'scheda-cliente', origine: 'n8n-16', inviato_il: new Date().toISOString(), parziale: true,
     id_attivita: f.id_mycity, campi: {}, analisi: dellAd, da_confermare: [] } } }];
 }
 const STATI = { confermato: 'confermato', da_confermare: 'da_confermare', foto: 'foto', frammento: 'frammento', proposta: 'proposta',

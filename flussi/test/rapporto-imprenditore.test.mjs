@@ -225,7 +225,7 @@ test('fatti: ogni blocco ha stato, fonte, fonte_nome, letto_il e parte; i dati v
   assert.equal(f.vicini.dati.concorrenti.elenco[0].fonte, 'https://www.openstreetmap.org/node/2');
   assert.equal(f.vicini.dati.servizi.fermate_bus, 2);
   assert.equal(f.vicini.dati.servizi.scuole, 0, 'contate, nessuna: zero vero');
-  assert.equal(f.vicini.dati.servizi_parte, 2);
+  assert.equal(f.vicini.dati.servizi_parte, 4);
   // meteo: MET Norway, citato.
   assert.equal(f.meteo.fonte_nome, 'MET Norway (api.met.no)');
   assert.equal(f.meteo.licenza, 'CC BY 4.0');
@@ -448,4 +448,26 @@ test('collaudo: senza dati di pioggia la pioggia è null, non zero; Overpass tro
   const j = await componi({ extra: { 'Fatti · Meteo MET Norway': [{ json: senzaPioggia }] } });
   assert.equal(j.fatti.meteo.dati.giorni[0].pioggia_mm, null);
   assert.equal(j.fatti.vicini.dati.troncato, false);
+});
+
+test("regola delle 15:00 («non si cancella mai»): una scheda senza campi è «parziale» e non porta sezioni vuote da scrivere sopra quelle piene", async () => {
+  const nodi = { Config: [{ json: { MODALITA: 'vero' } }], 'Modulo nuovo cliente': [{ json: { id_mycity: 'c0b240c0-2a86-4218-9d0f-5154f08ff929' } }], 'Controlla la proposta': [{ json: { ok: false } }] };
+  const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: { scheda: { analisi: { business_fatta_il: '2026-11-26T15:00:00Z', business_avvisi: [] } } } }], nodi });
+  assert.equal(json.mandare, true);
+  assert.equal(json.corpo.parziale, true);
+  assert.deepEqual(json.corpo.campi, {});
+  assert.equal('business' in json.corpo.analisi, false, 'nessuna sezione vuota');
+  assert.equal('giudizio_sito' in json.corpo.analisi, false);
+  // Senza niente da dire, niente parte.
+  const [{ json: niente }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: { scheda: null } }], nodi });
+  assert.equal(niente.mandare, false);
+});
+
+test("piano dei 30 giorni: la proposta (cosa facciamo noi) c'è solo con un servizio, senza prezzi", async () => {
+  const { fatti } = await componi();
+  const j = await unisci(fatti, { piano_30_giorni: [
+    { settimana: 1, azione: 'Foto nuove della colazione', servizio: 'foto_video', proposta: 'Un servizio fotografico della colazione per il menu e i social', fonte: 'https://www.barroma.it/' },
+    { settimana: 2, azione: 'Rispondere alle recensioni', servizio: null, proposta: 'Lo facciamo noi', fonte: 'https://www.barroma.it/' },
+    { settimana: 3, azione: 'Sito nuovo con prenotazioni', servizio: 'sito_web', proposta: 'Sito nuovo a 990 euro', fonte: 'https://www.barroma.it/' }] });
+  assert.deepEqual(j.scheda.analisi.business.piano_30_giorni.map((x) => x.proposta), ['Un servizio fotografico della colazione per il menu e i social', null, null]);
 });
