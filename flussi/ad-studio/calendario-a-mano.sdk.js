@@ -2,14 +2,15 @@
 //
 // A cosa serve: lo strumento con cui l'AD (sessione Claude sul piano Max) legge e corregge le righe del
 // Calendario «Social Clienti» e fa chiamate puntuali all'API di Meta (leggere i post di un account,
-// cancellarne uno). Spento, senza indirizzo pubblico: si avvia solo con lo strumento MCP execute_workflow.
+// nasconderne uno su Facebook). Spento, senza indirizzo pubblico: si avvia solo con lo strumento MCP execute_workflow.
 // Nessuna IA a pagamento.
 //
 // Ingresso (corpo JSON del webhook):
 //   { modo: 'leggi',    cliente: 'tropico-latino', ids?: [...], campi?: [...] }
 //   { modo: 'aggiorna', righe: [{ id, ...colonne }] }            // per id: aggiorna, o aggiunge se manca
-//   { modo: 'meta',     metodo: 'GET'|'DELETE'|'POST', percorso: '<id>/<edge>', query?: {}, pagina?: '<page id>' }
-//     con «pagina» la chiamata usa il token della pagina (serve per cancellare i post Facebook).
+//   { modo: 'meta',     metodo: 'GET'|'POST', percorso: '<id>/<edge>', query?: {}, pagina?: '<page id>' }
+//     con «pagina» la chiamata usa il token della pagina (serve per nascondere i post Facebook: POST <post-id>, query is_hidden=true).
+//     Non si elimina mai nulla (regola di Nicola, 26/11/2026): DELETE non è ammesso.
 //
 // Attenzione: con «pagina» il token della pagina finisce nei dati dell'esecuzione salvata in n8n.
 // Questo repository è pubblico: l'ID del foglio NON va scritto qui. Prima di caricare il flusso
@@ -48,8 +49,10 @@ if (modo === 'aggiorna') {
     return { json: { modo, riga: out } };
   });
 }
+// Regola di Nicola, 26/11/2026 15:00: «quando si tratta di eliminare, anche nei social, si archivia, non si elimina mai nulla».
+// Per questo DELETE non è ammesso: per togliere un post Facebook si usa POST <post-id> con query is_hidden=true (nascondi).
 const metodo = String(b.metodo || 'GET').toUpperCase();
-if (!['GET', 'DELETE', 'POST'].includes(metodo)) throw new Error('metodo non ammesso');
+if (!['GET', 'POST'].includes(metodo)) throw new Error('metodo non ammesso: solo GET e POST. Non si elimina mai nulla, si nasconde (is_hidden=true) o si archivia a mano.');
 const percorso = String(b.percorso || '').replace(/^\\/+/, '');
 if (!/^[A-Za-z0-9_\\/]+$/.test(percorso)) throw new Error('percorso non valido');
 return [{ json: { modo, metodo, percorso, query: b.query || {}, pagina: String(b.pagina || '') } }];`,
