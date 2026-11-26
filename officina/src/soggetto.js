@@ -21,6 +21,11 @@ export async function centroInImmagine(png, fmt) {
   if (!m.width || !m.height) return null;
   const larghezza = Math.round(m.height * (fmt.w / fmt.h));
   if (larghezza >= m.width) return 0.5; // niente da ritagliare
+  // un fotogramma quasi uniforme (nero, grigio, una dissolvenza) non ha un soggetto: sharp metterebbe il ritaglio sul
+  // bordo sinistro, e quel voto tirerebbe la media fuori dal soggetto vero degli altri fotogrammi. Si astiene.
+  const st = await sharp(png).stats();
+  const dettaglio = st.channels.slice(0, 3).reduce((a, c) => a + c.stdev, 0) / Math.min(3, st.channels.length);
+  if (!(dettaglio >= 6)) return null;
   const r = await sharp(png).resize(larghezza, m.height, { fit: 'cover', position: sharp.strategy.attention }).toBuffer({ resolveWithObject: true });
   // sharp dà la posizione dell'immagine rispetto al ritaglio (negativa): il ritaglio comincia a |cropOffsetLeft|
   const sinistra = Math.abs(Number(r.info.cropOffsetLeft) || 0);

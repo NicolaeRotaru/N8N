@@ -337,3 +337,104 @@ test('riferimento: un reel vero, coi tagli sul battito; col rumore il battito è
   assert.equal(foto.stato, 415, JSON.stringify(foto.json));
   assert.equal(foto.json.errore, 'video_non_leggibile');
 });
+
+// ------------------------------------------------------------------ collaudo del 26/11 (i difetti trovati, ora prove)
+import { tagliDelVideo } from '../src/riferimento.js';
+import { provaFiltri, FILTRI_FACOLTATIVI } from '../src/autoprova.js';
+import { filtroStabile } from '../src/ritocco-clip.js';
+const luceMedia = (video, t, durata = null) => {
+  const args = ['-hide_banner', '-v', 'error', '-ss', String(t), ...(durata ? ['-t', String(durata)] : []), '-i', video, ...(durata ? [] : ['-frames:v', '1']), '-vf', 'scale=36:64,format=gray', '-f', 'rawvideo', '-'];
+  const { stdout } = spawnSync('ffmpeg', args, { maxBuffer: 1e8 });
+  const luci = [];
+  for (let i = 0; i + 36 * 64 <= stdout.length; i += 36 * 64) { let x = 0; for (let k = i; k < i + 36 * 64; k++) x += stdout[k]; luci.push(Math.round(x / (36 * 64))); }
+  return luci;
+};
+import { spawnSync } from 'node:child_process';
+
+test('collaudo: i tagli di un reel di riferimento lungo (90 s, un taglio ogni 3 s) si trovano tutti, anche i primi', async () => {
+  const bw = clip('c26-bw6.mp4', ['-f', 'lavfi', '-i', 'color=c=white:s=360x640:r=30:d=3', '-f', 'lavfi', '-i', 'color=c=black:s=360x640:r=30:d=3', '-filter_complex', '[0:v][1:v]concat=n=2:v=1[v]', '-map', '[v]']);
+  const lungo = path.join(MATERIALE, 'c26-lungo90.mp4');
+  if (!fs.existsSync(lungo)) ffmpeg(['-stream_loop', '14', '-i', bw, '-c', 'copy', lungo]);
+  const tagli = await tagliDelVideo(lungo, CFG);
+  assert.ok(tagli.length >= 28, `trovati ${tagli.length} tagli su 29`);
+  assert.ok(Math.abs(tagli[0] - 3) < 0.1, `il primo taglio a ${tagli[0]} s`);
+});
+
+test('collaudo: un fotogramma senza soggetto si astiene; una clip che parte dal nero tiene il soggetto dentro; vicino al centro resta il centro', async () => {
+  for (const bg of ['#6a6a6a', '#000000']) assert.equal(await centroInImmagine(await sharp({ create: { width: 480, height: 270, channels: 3, background: bg } }).png().toBuffer(), VERTICALE), null, bg);
+  const neroPoi = clip('c26-nero-poi-centro.mp4', ['-f', 'lavfi', '-i', 'color=c=black:s=1920x1080:d=6:r=25', '-f', 'lavfi', '-i', 'testsrc2=s=360x360:d=6:r=25', '-filter_complex', "[0:v][1:v]overlay=x=780:y=360:enable='gte(t,2.5)'", '-t', '6']);
+  const c = await centroSoggetto(neroPoi, 0, 6, VERTICALE, CFG);
+  assert.ok(c - 0.158 <= 0.406 && c + 0.158 >= 0.594, `centro ${c}: la striscia taglia il soggetto`);
+  // il soggetto a 0,53 (poco a destra del centro): la striscia non si sposta di pochi pixel
+  assert.equal(await centroSoggetto(conSoggetto('c26-quasi-centro.mp4', 838), 0, 6, VERTICALE, CFG), 0.5);
+});
+
+test('collaudo: tagli a tempo dentro la scena; la stessa ripresa di fila non si tocca; battito preciso anche su un brano lungo', async () => {
+  const cop = (fonte, etichetta, da, a, inizio) => ({ fonte, etichetta, tipo: 'copertura', inizio, fine: inizio + (a - da), da, a });
+  // V01 ha la scena 0-3 s: il pezzo che la usa tutta non si allunga oltre (si vedrebbe la scena dopo)
+  const fineDi = (q) => (q.fonte === 'V01' ? 3 : 20);
+  assert.equal(tagliATempo([cop('V01', 'V01.1', 0, 3, 0), cop('V02', 'V02.1', 3, 6, 0)], [3.12], { fps: 25, minima: 1, fineDi }).spostati, 0);
+  assert.equal(tagliATempo([cop('V01', 'V01.1', 0, 3, 0), cop('V02', 'V02.1', 3, 6, 0)], [2.88], { fps: 25, minima: 1, fineDi }).spostati, 1, 'accorciare va bene');
+  // due pezzi di fila della stessa ripresa (la destra riparte dove finisce la sinistra): taglio invisibile, non si sposta
+  assert.equal(tagliATempo([cop('V01', 'V01.1', 0, 4.5, 0), cop('V01', 'V01.2', 4.5, 9, 4.5)], [4.76], { fps: 25, minima: 2.5, durataClip: () => 20 }).spostati, 0);
+  // un clic a 120 bpm per 200 s: periodo e fase sul tratto letto, entro 0,02 s; la musica riparte alla sua fine vera
+  const lungo = suono('c26-click200.wav', '0.8*exp(-60*mod(t-0.13\\,0.5))*sin(2*PI*120*t)*gte(t\\,0.13)', 200);
+  for (const finestra of [32, 182]) {
+    const m = await battitiMusica(lungo, CFG, null, finestra);
+    const peggiore = Math.max(...m.battiti.map((b) => Math.abs(b - (0.13 + Math.round((b - 0.13) / 0.5) * 0.5))));
+    assert.ok(peggiore <= 0.02, `finestra ${finestra} s: il battito sbaglia di ${peggiore} s (bpm ${m.bpm})`);
+    assert.deepEqual([m.durata, m.letti], [200, finestra], 'la durata vera del brano e il tratto letto');
+  }
+  const m = await battitiMusica(lungo, CFG, null, 182);
+  const griglia = battitiSulVideo(m, 250);
+  assert.ok(!griglia.some((t) => t > 182 && t < 200), 'fra il tratto letto e la fine del brano nessun battito inventato');
+  assert.ok(griglia.some((t) => Math.abs(t - 200.13) < 0.02), 'dopo la fine il brano riparte da capo');
+});
+
+test('collaudo: niente NaN nei colori; stabilizza legge 0/1 come le altre scelte; vidstab che manca è facoltativo', async () => {
+  for (const [, f] of bilanciamento(new Map([['a', { r: 0, g: 200, b: 40 }], ['b', { r: 0, g: 180, b: 90 }], ['c', { r: 30, g: 150, b: 60 }]]))) assert.doesNotMatch(f, /NaN|Infinity/);
+  const sdg = stileDa('sdg');
+  assert.deepEqual([0, 1, '0', 'true', 'auto', 'boh'].map((v) => conScelte(sdg, { stabilizza: v }).stabilizza), ['no', 'si', 'no', 'si', 'auto', sdg.stabilizza]);
+  // un FFmpeg senza vidstab (lo stesso, con l'elenco dei filtri senza le due righe): la prova all'avvio resta ok e lo dice,
+  // la stabilizzazione usa deshake
+  const finto = path.join(TMP, 'ffmpeg-senza-vidstab.sh');
+  fs.writeFileSync(finto, '#!/bin/sh\nif [ "$2" = "-filters" ]; then ffmpeg "$@" | grep -v vidstab; else exec ffmpeg "$@"; fi\n', { mode: 0o755 });
+  const dati = fs.mkdtempSync(path.join(TMP, 'c26-dati-'));
+  const p = await provaFiltri({ ffmpeg: finto, datiDir: dati, ffprobe: 'ffprobe' });
+  assert.equal(p.ok, true, JSON.stringify(p));
+  assert.deepEqual(p.facoltativi_mancanti, FILTRI_FACOLTATIVI);
+  assert.equal(await filtroStabile({ sorgente: 'x', inizio: 0, durata: 1, pre: '', fps: 25, dirTmp: TMP, nome: 'x', cfg: { ffmpeg: finto }, segnale: null }), DESHAKE);
+});
+
+test('collaudo: nel montaggio vero il taglio a tempo non fa vedere la scena dopo; la clip con la LUT non si allontana dalle altre', async () => {
+  const dueScene = clip('c26-bianco-nero.mp4', ['-f', 'lavfi', '-i', 'color=c=white:s=1080x1920:d=3:r=25', '-f', 'lavfi', '-i', 'color=c=black:s=1080x1920:d=5:r=25',
+    '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono', '-filter_complex', '[0:v][1:v]concat=n=2:v=1[v]', '-map', '[v]', '-map', '2:a', '-t', '8', '-shortest']);
+  const grigio = clip('c26-grigio.mp4', ['-f', 'lavfi', '-i', 'color=c=gray:s=1080x1920:d=8:r=25', '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono', '-t', '8', '-shortest']);
+  const pid = await progettoNuovo('c26-scena');
+  const m1 = await carica(pid, dueScene);
+  assert.deepEqual(m1.json.materiale.scene.map((x) => [x.inizio, x.fine]), [[0, 3], [3, 8]]);
+  assert.equal((await carica(pid, grigio)).stato, 200);
+  const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 6, coperture: ['V01.1', 'V02.1'] }], musica: true }, stile: 'sdg', formato: 'verticale', colori_uguali: false, stabilizza: 'no' }, file: { musica: CLICK120() } });
+  assert.equal(r.stato, 200, JSON.stringify(r.json));
+  const out = path.join(TMP, 'c26-scena.mp4');
+  fs.writeFileSync(out, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);
+  const luci = luceMedia(out, 2.8, 0.6);
+  assert.equal(luci.filter((y) => y < 40).length, 0, `fotogrammi neri fra il bianco e il grigio: ${luci.join(' ')}`);
+  // la LUT che inverte: la clip chiara esce scura; i colori uguali non devono scurirla ancora
+  const cubo = path.join(MATERIALE, 'c26-inversa.cube');
+  fs.writeFileSync(cubo, `LUT_3D_SIZE 2\n${[0, 1].flatMap((b) => [0, 1].flatMap((g) => [0, 1].map((x) => `${1 - x} ${1 - g} ${1 - b}`))).join('\n')}\n`);
+  assert.equal((await chiama(s.base, '/lut', { dati: { nome: 'c26-inversa' }, file: { file: cubo } })).stato, 200);
+  const tinta = (nome, c) => clip(nome, ['-f', 'lavfi', '-i', `color=c=${c}:s=1080x1920:d=6:r=25`, '-vf', 'noise=alls=12:allf=t', '-t', '6']);
+  const pid2 = await progettoNuovo('c26-lut');
+  for (const f of [tinta('c26-chiara.mp4', '0xb4b4b4'), tinta('c26-media1.mp4', '0x808080'), tinta('c26-media2.mp4', '0x7a7a7a')]) assert.equal((await carica(pid2, f)).stato, 200);
+  const distanza = async (uguali) => {
+    const x = await chiama(s.base, `/progetto/${pid2}/regia/monta`, { dati: { piano: { battute: [{ immagini: 9, coperture: ['V01.1', 'V02.1', 'V03.1'] }] }, stile: 'sdg', formato: 'verticale', colori_uguali: uguali, tagli_a_tempo: false, stabilizza: 'no', lut_materiali: { V01: 'c26-inversa' } }, file: {} });
+    assert.equal(x.stato, 200, JSON.stringify(x.json));
+    const p = path.join(TMP, `c26-lut-${uguali}.mp4`);
+    fs.writeFileSync(p, (await scarica(x.json.file.find((f) => f.tipo === 'video').url)).buf);
+    return Math.abs(luceMedia(p, 1.5)[0] - luceMedia(p, 4.5)[0]);
+  };
+  const prima = await distanza(false);
+  const dopo = await distanza(true);
+  assert.ok(dopo <= prima + 1, `la clip con la LUT si è allontanata dalle altre: distanza ${prima} → ${dopo}`);
+});

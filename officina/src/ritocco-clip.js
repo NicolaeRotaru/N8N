@@ -27,7 +27,9 @@ export async function haFiltro(cfg, nome) {
   if (!elenchi.has(cfg.ffmpeg)) {
     elenchi.set(cfg.ffmpeg, esegui(cfg.ffmpeg, ['-hide_banner', '-filters'], { timeoutMs: 15_000 })
       .then(({ stdout }) => new Set(String(stdout).split('\n').map((r) => r.trim().split(/\s+/)[1]).filter(Boolean)))
-      .catch(() => new Set()));
+      // un errore passeggero non si ricorda: alla prossima domanda si riprova (altrimenti la stabilizzazione resterebbe
+      // spenta fino al riavvio)
+      .catch(() => { elenchi.delete(cfg.ffmpeg); return new Set(); }));
   }
   return (await elenchi.get(cfg.ffmpeg)).has(nome);
 }
@@ -91,9 +93,10 @@ export function bilanciamento(misure, { forza = 0.5, maxCanale = 0.12, maxLuce =
   const rif = { r: mediana(voci.map(([, m]) => m.r / luce(m))), g: mediana(voci.map(([, m]) => m.g / luce(m))), b: mediana(voci.map(([, m]) => m.b / luce(m))), y: mediana(voci.map(([, m]) => luce(m))) };
   for (const [k, m] of voci) {
     const y = luce(m);
-    const guadagno = (c) => r3(1 + taglia(forza * (rif[c] / (m[c] / y) - 1), maxCanale));
+    // un canale a zero (o una luce a zero) darebbe un numero infinito: FFmpeg rifiuterebbe tutto il montaggio
+    const guadagno = (c) => { const g = r3(1 + taglia(forza * (rif[c] / (m[c] / y) - 1), maxCanale)); return Number.isFinite(g) ? g : 1; };
     const gr = guadagno('r'); const gg = guadagno('g'); const gb = guadagno('b');
-    const dLuce = r3(taglia(forza * ((rif.y - y) / 255), maxLuce));
+    const dLuce = Number.isFinite(rif.y - y) ? r3(taglia(forza * ((rif.y - y) / 255), maxLuce)) : 0;
     const pezzi = [];
     if ([gr, gg, gb].some((x) => Math.abs(x - 1) >= 0.01)) pezzi.push(`colorchannelmixer=rr=${gr}:gg=${gg}:bb=${gb}`);
     if (Math.abs(dLuce) >= 0.005) pezzi.push(`eq=brightness=${dLuce}`);

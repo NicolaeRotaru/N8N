@@ -12,6 +12,7 @@ import { esegui } from './processi.js';
 import { sonda } from './video.js';
 import { battitiMusica } from './battiti.js';
 import { errore } from './errori.js';
+import { leggiTagliScdet } from './analisi.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 export const MAX_SECONDI = 300;
@@ -25,11 +26,13 @@ const quantile = (v, q) => {
 };
 
 // I tagli di un video montato: scdet su fotogrammi piccoli (tutti: il tempo del taglio resta preciso al fotogramma).
-// Fra due tagli almeno 0,25 s (un lampo o un movimento veloce non fanno due tagli).
+// Si legge la riga che scdet scrive da solo per ogni taglio (come analisi.js), non metadata=print: quella scrive tre
+// righe per ogni fotogramma, e su un reel di un minuto i messaggi di FFmpeg superano quello che se ne tiene (processi.js
+// conserva la coda): i primi tagli sparirebbero. Fra due tagli almeno 0,25 s (un lampo non fa due tagli).
 export async function tagliDelVideo(file, cfg, segnale, soglia = 10) {
-  const { stderr } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-v', 'info', '-t', String(MAX_SECONDI), '-i', file, '-an', '-vf', `scale=320:-2,scdet=threshold=${soglia},metadata=print`, '-f', 'null', '-'],
+  const { stderr } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-nostats', '-v', 'info', '-t', String(MAX_SECONDI), '-i', file, '-an', '-vf', `scale=320:-2,scdet=threshold=${soglia}`, '-f', 'null', '-'],
     { segnale, timeoutMs: cfg.timeoutProcessoMs || 600_000 });
-  const tempi = [...String(stderr).matchAll(/lavfi\.scd\.time=([\d.]+)/g)].map((m) => Number(m[1])).filter((t) => t > 0.1);
+  const tempi = leggiTagliScdet(String(stderr)).map((t) => t.tempo).filter((t) => t > 0.1);
   const fuori = [];
   for (const t of tempi) if (!fuori.length || t - fuori[fuori.length - 1] >= 0.25) fuori.push(r2(t));
   return fuori;
@@ -76,9 +79,9 @@ export async function misuraRiferimento(file, cfg, segnale, { sogliaBattito = 2.
   let musica = null;
   if (info.audio) {
     try {
-      const m = await battitiMusica(file.percorso, cfg, segnale);
+      const m = await battitiMusica(file.percorso, cfg, segnale, durata + 2);
       const affidabile = m.affidabilita >= sogliaBattito;
-      musica = { bpm: affidabile ? m.bpm : null, affidabile, durata: m.durata, battiti: affidabile ? m.battiti : [] };
+      musica = { bpm: affidabile ? m.bpm : null, affidabile, durata: m.letti, battiti: affidabile ? m.battiti : [] };
       if (!musica.affidabile) avvisi.push({ codice: 'battito_incerto', messaggio: 'La musica di questo video non ha un battito chiaro: non posso dire se i tagli sono a tempo.' });
     } catch (e) {
       if (segnale?.aborted || e.annullato) throw e;

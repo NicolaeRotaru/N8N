@@ -167,7 +167,13 @@ export function luminanza(hex) {
 export function conScelte(stile, dati = {}) {
   const fuori = { ...stile };
   const sino = (v) => (typeof v === 'boolean' ? v : !['no', 'false', '0', 'off'].includes(String(v).trim().toLowerCase()));
-  if (dati.stabilizza !== undefined && dati.stabilizza !== null && dati.stabilizza !== '') fuori.stabilizza = String(dati.stabilizza).trim().toLowerCase();
+  // stabilizza: come le altre scelte, anche 0/1 e vero/falso; un valore sconosciuto non cambia niente
+  if (dati.stabilizza !== undefined && dati.stabilizza !== null && dati.stabilizza !== '') {
+    const v = String(dati.stabilizza).trim().toLowerCase();
+    if (['no', 'false', '0', 'off', 'mai'].includes(v)) fuori.stabilizza = 'no';
+    else if (['si', 'sì', 'true', '1', 'on', 'sempre'].includes(v)) fuori.stabilizza = 'si';
+    else if (v === 'auto') fuori.stabilizza = 'auto';
+  }
   for (const k of ['colori_uguali', 'tagli_a_tempo', 'segui_soggetto']) if (dati[k] !== undefined && dati[k] !== null && dati[k] !== '') fuori[k] = sino(dati[k]);
   return fuori;
 }
@@ -437,7 +443,10 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
   const modo = modoInquadratura(q, info, fmt, stile);
   // senza una posizione scritta dalla regia, la striscia di una clip più larga del formato segue il soggetto
   let posizione = q.posizione || 'centro';
-  if (!q.posizione && stile.segui_soggetto !== false && modo !== 'intera' && info && info.larghezza / info.altezza > (fmt.w / fmt.h) * 1.05) {
+  // (solo se il pezzo si ritaglia davvero: con «auto» una clip troppo diversa dal formato esce intera, e lì il soggetto non serve)
+  const tenuto = info ? Math.min(info.larghezza / info.altezza, fmt.w / fmt.h) / Math.max(info.larghezza / info.altezza, fmt.w / fmt.h) : 0;
+  const ritaglia = modo === 'riempi' || (modo === 'auto' && tenuto >= 0.8);
+  if (!q.posizione && stile.segui_soggetto !== false && ritaglia && info && info.larghezza / info.altezza > (fmt.w / fmt.h) * 1.05) {
     const chiave = `${sorgente}@${f3(q.inizio)}@${f3(fotogrammi / FPS)}@${fmt.w}x${fmt.h}`;
     if (soggetti.size > 500) soggetti.clear();
     if (!soggetti.has(chiave)) soggetti.set(chiave, await centroSoggetto(sorgente, q.inizio, fotogrammi / FPS, fmt, cfg, segnale));
@@ -525,9 +534,18 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   const musicaScelta = tl.musica?.usa ? (musicaFile || (tl.musica.fonte && sorgenti.get(tl.musica.fonte)) || null) : null;
   if (musicaScelta && stile.tagli_a_tempo !== false) {
     try {
-      const m = await battitiMusica(musicaScelta, cfg, segnale);
+      const m = await battitiMusica(musicaScelta, cfg, segnale, Math.min(180, tl.durata + 2));
       if (m.affidabilita >= SOGLIA_BATTITO) {
-        const r = tagliATempo(tl.video, battitiSulVideo(m, tl.durata), { fps: FPS, minima: stile.ritmo?.coperturaMin ?? 1, durataClip: (fonte) => materiali.get(fonte)?.durata ?? null });
+        // un pezzo si allunga solo dentro la scena in cui finisce: la scena dopo è un'altra inquadratura della clip
+        const fineDi = (q) => {
+          if (q.tipo === 'foto') return null;
+          const mat = materiali.get(q.fonte);
+          const scene = mat && Array.isArray(mat.scene) ? mat.scene : [];
+          const t = Number(q.fine) - 0.5 / FPS;
+          const sc = scene.find((x) => t >= x.inizio && t < x.fine);
+          return sc ? sc.fine : (mat?.durata ?? null);
+        };
+        const r = tagliATempo(tl.video, battitiSulVideo(m, tl.durata), { fps: FPS, minima: stile.ritmo?.coperturaMin ?? 1, fineDi });
         if (r.spostati) {
           tl = { ...tl, video: r.video };
           avvisi.push({ codice: 'tagli_a_tempo', messaggio: `${r.spostati} tagli spostati sul battito della musica (${String(m.bpm).replace('.', ',')} battiti al minuto).` });
@@ -545,6 +563,9 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
     const lette = new Map();
     for (const [k, q] of tl.video.entries()) {
       if (q.tipo === 'foto') continue;
+      // le clip con la LUT o in HDR escono con colori diversi dalla miniatura (che è grezza): misurate lì, la correzione
+      // andrebbe nella direzione sbagliata. Restano fuori dal conto e non si correggono.
+      if (lut.get(q.fonte) || HDR.includes(info.get(q.fonte)?.trasferimento)) continue;
       const scena = scenaDi(materiali.get(q.fonte), q);
       if (!scena?.miniatura) continue;
       const file = path.join(dirProgetto, scena.miniatura);

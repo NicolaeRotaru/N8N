@@ -61,26 +61,67 @@ export function trovaBattiti(pcm, sr = SR) {
     for (let t = f; t < n; t += periodo) tot += colpi[Math.round(t)] || 0;
     if (tot > meglio) { meglio = tot; fase = f; }
   }
+  // la rifinitura: il periodo trovato a passi interi sbaglia di poco (119,9 invece di 120), ma su un minuto l'errore si
+  // somma fino a 0,05 s. Per ogni battito previsto si cerca il colpo più forte vicino (2 passi prima o dopo, con la
+  // parabola sui tre valori intorno per scendere sotto il passo); poi la retta dei minimi quadrati tempo = fase + k·periodo
+  // su tutti quei colpi dà periodo e fase precisi. Se la retta non torna (pochi colpi, periodo troppo diverso) resta la stima.
+  const punti = [];
+  for (let k = 0, t = fase; t < n; t += periodo, k++) {
+    const c = Math.round(t);
+    let forte = 0; let dove = -1;
+    for (let i = Math.max(1, c - 2); i <= Math.min(n - 2, c + 2); i++) if (colpi[i] > forte) { forte = colpi[i]; dove = i; }
+    if (dove < 0) continue;
+    const a = colpi[dove - 1]; const b = colpi[dove]; const d = colpi[dove + 1];
+    const curva = a - 2 * b + d;
+    punti.push([k, dove + (curva < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (a - d)) / curva)) : 0)]);
+  }
+  let p0 = periodo; let f0 = fase;
+  if (punti.length >= 8) {
+    const mk = punti.reduce((x, [k]) => x + k, 0) / punti.length;
+    const mt = punti.reduce((x, [, t]) => x + t, 0) / punti.length;
+    let sxy = 0; let sxx = 0;
+    for (const [k, t] of punti) { sxy += (k - mk) * (t - mt); sxx += (k - mk) * (k - mk); }
+    const p1 = sxx > 0 ? sxy / sxx : 0;
+    if (Math.abs(p1 - periodo) < periodo * 0.03) { p0 = p1; f0 = mt - p1 * mk; }
+  }
+  while (f0 < 0) f0 += p0;
+  while (f0 >= p0) f0 -= p0;
   const battiti = [];
-  // il colpo entra in fondo alla finestra di 2 passi: il battito vero è ~2 passi dopo l'inizio della finestra
-  for (let t = fase; t < n; t += periodo) battiti.push(r3(((t + 2) * PASSO) / sr));
-  return { bpm: Math.round((600 * passiAlSecondo) / periodo) / 10, battiti, affidabilita: Math.round(affidabilita * 100) / 100 };
+  // il colpo entra in fondo alla finestra di 2 passi: il picco rifinito cade ~1,2 passi prima del battito vero (misurato su
+  // un clic secco e su una cassa morbida: scarto rimasto entro 5 ms)
+  for (let t = f0; t < n; t += p0) battiti.push(r3(((t + 1.2) * PASSO) / sr));
+  return { bpm: Math.round((600 * passiAlSecondo) / p0) / 10, battiti, affidabilita: Math.round(affidabilita * 100) / 100 };
 }
 
-// I battiti di un file musicale (i primi `maxSecondi`), e quanto dura: nel montaggio la musica riparte da capo se il
-// video è più lungo, quindi i battiti si ripetono ogni `durata` secondi.
+// I battiti di un file musicale, nei primi `maxSecondi` (chi chiama passa la durata del video più 2 s: si legge solo il
+// tratto che serve). `durata` è quanto dura il brano davvero: nel montaggio la musica riparte da capo alla sua fine, e i
+// battiti si ripetono da lì (battitiSulVideo). `letti` è il tratto analizzato: oltre, in ogni giro, nessun battito.
 export async function battitiMusica(file, cfg, segnale, maxSecondi = 180) {
-  const { stdout } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-v', 'error', '-t', String(maxSecondi), '-i', file, '-ac', '1', '-ar', String(SR), '-f', 's16le', '-'], { segnale, timeoutMs: 120_000 });
+  const limite = Math.max(5, Math.min(600, Number(maxSecondi) || 180));
+  const { stdout } = await esegui(cfg.ffmpeg, ['-hide_banner', '-nostdin', '-v', 'error', '-t', String(limite), '-i', file, '-ac', '1', '-ar', String(SR), '-f', 's16le', '-'], { segnale, timeoutMs: 120_000 });
   const pcm = new Int16Array(stdout.buffer, stdout.byteOffset, Math.floor(stdout.length / 2));
   const r = trovaBattiti(Float32Array.from(pcm, (x) => x / 32768));
-  return { ...r, durata: r3(pcm.length / SR) };
+  const letti = r3(pcm.length / SR);
+  let durata = letti;
+  if (pcm.length >= (limite - 0.05) * SR) {
+    // il brano continua oltre il tratto letto: quanto dura lo dice ffprobe (se non risponde, niente ripetizioni)
+    try {
+      const { stdout: j } = await esegui(cfg.ffprobe || 'ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { segnale, timeoutMs: 30_000 });
+      const d = Number(String(j).trim());
+      durata = d > letti ? r3(d) : Infinity;
+    } catch (e) {
+      if (segnale?.aborted) throw e;
+      durata = Infinity;
+    }
+  }
+  return { ...r, durata, letti };
 }
 
 // La griglia dei battiti sul tempo del video (con la musica che riparte da capo ogni `durata` secondi).
 export function battitiSulVideo(musica, durataVideo) {
   if (!musica || !musica.battiti || !musica.battiti.length || !(musica.durata > 0)) return [];
   const fuori = [];
-  for (let giro = 0; giro * musica.durata < durataVideo + 1; giro++) {
+  for (let giro = 0; giro === 0 || giro * musica.durata < durataVideo + 1; giro++) {
     for (const b of musica.battiti) {
       const t = b + giro * musica.durata;
       if (t <= durataVideo + 1) fuori.push(r3(t));
@@ -89,9 +130,11 @@ export function battitiSulVideo(musica, durataVideo) {
   return fuori;
 }
 
-// Sposta sul battito i tagli fra due inquadrature che non sono volti. `durataClip(fonte)` dice quanto girato c'è (null =
-// senza limite, per le foto). Restituisce le inquadrature nuove e quanti tagli si sono spostati.
-export function tagliATempo(video, battiti, { fps = 25, minima = 0.6, durataClip = () => null, tolleranza = 0.35 } = {}) {
+// Sposta sul battito i tagli fra due inquadrature che non sono volti. Quanto un pezzo può allungarsi nella sua clip lo dice
+// `fineDi(pezzo)`: la fine della SCENA in cui il pezzo finisce (oltre c'è un'altra inquadratura della stessa clip, e se ne
+// vedrebbe un lampo), null = senza limite (foto). Senza `fineDi` vale `durataClip(fonte)`, quanto girato c'è.
+// Restituisce le inquadrature nuove e quanti tagli si sono spostati.
+export function tagliATempo(video, battiti, { fps = 25, minima = 0.6, durataClip = () => null, fineDi = null, tolleranza = 0.35 } = {}) {
   const fuori = video.map((q) => ({ ...q }));
   if (!battiti.length || fuori.length < 2) return { video: fuori, spostati: 0 };
   const alFotogramma = (t) => Math.round(t * fps) / fps;
@@ -100,6 +143,9 @@ export function tagliATempo(video, battiti, { fps = 25, minima = 0.6, durataClip
     const sx = fuori[k];
     const dx = fuori[k + 1];
     if (sx.tipo === 'volto' || dx.tipo === 'volto') continue;
+    // due pezzi di fila della stessa ripresa (la destra riparte dove finisce la sinistra): il taglio non si vede, e
+    // spostarlo ripeterebbe o salterebbe dei fotogrammi
+    if (sx.fonte === dx.fonte && sx.tipo !== 'foto' && Math.abs(sx.fine - dx.inizio) < 1.5 / fps) continue;
     const taglio = sx.a;
     const corto = Math.min(sx.a - sx.da, dx.a - dx.da);
     const limite = Math.min(tolleranza, corto / 3);
@@ -112,8 +158,8 @@ export function tagliATempo(video, battiti, { fps = 25, minima = 0.6, durataClip
     const durDx = r3(dx.a - nuovo);
     if (durSx < minima || durDx < minima) continue;
     // la clip di sinistra deve avere il girato per allungarsi; quella di destra, se il taglio va prima, anche
-    const limiteSx = durataClip(sx.fonte);
-    const limiteDx = durataClip(dx.fonte);
+    const limiteSx = fineDi ? fineDi(sx) : durataClip(sx.fonte);
+    const limiteDx = fineDi ? fineDi(dx) : durataClip(dx.fonte);
     if (limiteSx !== null && sx.tipo !== 'foto' && sx.inizio + durSx > limiteSx) continue;
     if (limiteDx !== null && dx.tipo !== 'foto' && dx.inizio + durDx > limiteDx) continue;
     sx.a = nuovo; sx.fine = r3(sx.inizio + durSx);
