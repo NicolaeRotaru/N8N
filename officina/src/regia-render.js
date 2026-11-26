@@ -14,6 +14,10 @@ import { caricaFont, nomeFamigliaLibass } from './font.js';
 import { apri, preparaLogo } from './immagini.js';
 import { filtroLut } from './lut.js';
 import { centroSoggetto } from './soggetto.js';
+import { battitiMusica, battitiSulVideo, tagliATempo } from './battiti.js';
+
+// sotto questa affidabilità il battito non è chiaro (rumore, pad, pianoforte libero): i tagli restano dove sono
+export const SOGLIA_BATTITO = 2.5;
 
 // Fotogrammi al secondo: li decide lo stile (Scatti di G gira e consegna a 25). Senza stile, 30.
 export const FPS_BASE = 30;
@@ -498,6 +502,24 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   const info = new Map();
   for (const q of tl.video) {
     if (q.tipo !== 'foto' && !info.has(q.fonte)) info.set(q.fonte, await sonda(sorgenti.get(q.fonte), q.fonte, cfg, segnale));
+  }
+
+  // i tagli a tempo di musica (battiti.js): solo con la musica, solo se il battito è chiaro, solo fra due coperture (o
+  // foto). Le battute con le voci e i volti non si toccano, e la durata del video resta quella.
+  const musicaScelta = tl.musica?.usa ? (musicaFile || (tl.musica.fonte && sorgenti.get(tl.musica.fonte)) || null) : null;
+  if (musicaScelta && stile.tagli_a_tempo !== false) {
+    try {
+      const m = await battitiMusica(musicaScelta, cfg, segnale);
+      if (m.affidabilita >= SOGLIA_BATTITO) {
+        const r = tagliATempo(tl.video, battitiSulVideo(m, tl.durata), { fps: FPS, minima: stile.ritmo?.coperturaMin ?? 1, durataClip: (fonte) => materiali.get(fonte)?.durata ?? null });
+        if (r.spostati) {
+          tl = { ...tl, video: r.video };
+          avvisi.push({ codice: 'tagli_a_tempo', messaggio: `${r.spostati} tagli spostati sul battito della musica (${String(m.bpm).replace('.', ',')} battiti al minuto).` });
+        }
+      }
+    } catch (e) {
+      if (segnale?.aborted) throw e;
+    }
   }
 
   // 1-2) inquadrature → pezzi, poi in fila. I confini si arrotondano al fotogramma sulla timeline assoluta: niente deriva.

@@ -75,3 +75,90 @@ test('soggetto: nel reel verticale la copertura senza posizione segue il soggett
   assert.ok(auto > 0.5, `il soggetto dovrebbe stare al centro del reel: ${auto.toFixed(2)}`);
   assert.ok(fermo < 0.05, `con «centro» scritto dalla regia la striscia resta al centro della clip (soggetto fuori): ${fermo.toFixed(2)}`);
 });
+
+// ------------------------------------------------------------------ tagli a tempo di musica
+import { trovaBattiti, battitiMusica, battitiSulVideo, tagliATempo } from '../src/battiti.js';
+import { SOGLIA_BATTITO } from '../src/regia-render.js';
+
+const suono = (nome, espr, durata = 30) => {
+  const p = path.join(MATERIALE, nome);
+  if (!fs.existsSync(p)) ffmpeg(['-f', 'lavfi', '-i', `aevalsrc='${espr}':s=44100:d=${durata}`, p]);
+  return p;
+};
+// colpi ogni 0,5 s a partire da 0,13 s (120 battiti al minuto), e un ritmo «vero» a 100: cassa, charleston, un suono lungo
+const CLICK120 = () => suono('bt-click120.wav', '0.8*exp(-60*mod(t-0.13\\,0.5))*sin(2*PI*120*t)*gte(t\\,0.13)');
+const BEAT100 = () => suono('bt-beat100.wav', '0.9*exp(-25*mod(t-0.2\\,0.6))*sin(2*PI*55*t)*gte(t\\,0.2) + 0.25*exp(-120*mod(t-0.5\\,0.6))*sin(2*PI*7000*t)*gte(t\\,0.5) + 0.15*sin(2*PI*220*t)*(0.6+0.4*sin(2*PI*0.25*t))', 40);
+const RUMORE = () => { const p = path.join(MATERIALE, 'bt-rumore.wav'); if (!fs.existsSync(p)) ffmpeg(['-f', 'lavfi', '-i', 'anoisesrc=d=30:a=0.2:r=44100:c=pink', p]); return p; };
+
+test('battiti: il tempo e la fase di una base; il rumore non ha un battito affidabile', async () => {
+  const c = await battitiMusica(CLICK120(), CFG);
+  assert.ok(Math.abs(c.bpm - 120) <= 1, `120 bpm: ${c.bpm}`);
+  assert.ok(c.affidabilita >= SOGLIA_BATTITO);
+  assert.ok(Math.abs(c.battiti[0] - 0.13) <= 0.02, `il primo battito a 0,13 s: ${c.battiti[0]}`);
+  assert.ok(c.battiti.every((b, i) => i === 0 || Math.abs(b - c.battiti[i - 1] - 0.5) <= 0.02), 'uno ogni mezzo secondo');
+  assert.equal(c.durata, 30);
+  const b = await battitiMusica(BEAT100(), CFG);
+  assert.ok(Math.abs(b.bpm - 100) <= 1, `100 bpm: ${b.bpm}`);
+  assert.ok(Math.abs(b.battiti[0] - 0.2) <= 0.02, `sulla cassa (0,2 s), non sul charleston: ${b.battiti[0]}`);
+  const r = await battitiMusica(RUMORE(), CFG);
+  assert.ok(r.affidabilita < SOGLIA_BATTITO, `il rumore non ha battito: ${r.affidabilita}`);
+  assert.deepEqual(trovaBattiti(new Float32Array(100)), { bpm: 0, battiti: [], affidabilita: 0 }, 'troppo corto');
+  // la musica che riparte da capo: i battiti si ripetono ogni «durata» secondi
+  assert.deepEqual(battitiSulVideo({ battiti: [0.5, 1.5], durata: 2 }, 5), [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]);
+  assert.deepEqual(battitiSulVideo({ battiti: [], durata: 2 }, 5), []);
+});
+
+test('tagli a tempo: si spostano solo i tagli fra coperture, sul battito vicino, senza pezzi troppo corti né girato che manca', () => {
+  const cop = (fonte, da, a, inizio = 0) => ({ fonte, tipo: 'copertura', inizio, fine: inizio + (a - da), da, a });
+  const volto = (da, a) => ({ fonte: 'A01', tipo: 'volto', inizio: da, fine: a, da, a });
+  const clip = (fonte) => ({ V01: 20, V02: 20, V03: 3.2 })[fonte] ?? null;
+  const video = [cop('V01', 0, 3), cop('V02', 3, 6), volto(6, 9), cop('V01', 9, 12, 5), cop('V03', 12, 15)];
+  const battiti = [0.12, 3.12, 6.12, 9.12, 11.72, 15.12];
+  const { video: v, spostati } = tagliATempo(video, battiti, { fps: 25, minima: 2.5, durataClip: clip });
+  assert.equal(v[0].a, 3.12, 'copertura → copertura: sul battito');
+  assert.equal(v[1].da, 3.12);
+  assert.deepEqual([v[0].fine, v[1].inizio, v[1].fine], [3.12, 0, 2.88], 'ogni pezzo tiene il suo inizio nella clip, cambia la durata');
+  assert.deepEqual([v[1].a, v[2].da, v[2].a, v[3].da], [6, 6, 9, 9], 'i tagli col volto restano dove sono');
+  assert.equal(v[3].a, 12, 'col taglio a 11,72 V03 dovrebbe durare 3,28 s, oltre i suoi 3,2 s di girato: resta');
+  assert.equal(spostati, 1);
+  assert.deepEqual(tagliATempo(video, [], { fps: 25 }).video, video, 'senza battiti niente cambia');
+  // continuità: nessun buco, la durata totale è la stessa
+  for (let k = 1; k < v.length; k++) assert.equal(v[k].da, v[k - 1].a);
+  assert.equal(v.at(-1).a, 15);
+  // la tolleranza: un battito oltre 0,35 s (o oltre un terzo del pezzo più corto) non tira il taglio
+  assert.equal(tagliATempo([cop('V01', 0, 3), cop('V02', 3, 6)], [3.5], { fps: 25, minima: 1, durataClip: clip }).spostati, 0);
+  assert.equal(tagliATempo([cop('V01', 0, 0.9), cop('V02', 0.9, 6)], [1.25], { fps: 25, minima: 0.5, durataClip: clip }).spostati, 0, 'un terzo del pezzo più corto (0,3 s): 0,35 è troppo');
+  assert.equal(tagliATempo([cop('V01', 0, 0.9), cop('V02', 0.9, 6)], [1.1], { fps: 25, minima: 0.5, durataClip: clip }).spostati, 1, '0,2 s va bene');
+  // la durata minima e il girato della clip di sinistra
+  assert.equal(tagliATempo([cop('V01', 0, 3), cop('V02', 3, 6)], [3.3], { fps: 25, minima: 2.8, durataClip: clip }).spostati, 0, 'V02 scenderebbe a 2,7 s, sotto la minima');
+  assert.equal(tagliATempo([cop('V03', 0, 3), cop('V02', 3, 6)], [3.3], { fps: 25, minima: 1, durataClip: clip }).spostati, 0, 'V03 ha 3,2 s di girato: non arriva a 3,3');
+  // il taglio va al fotogramma; le foto non hanno limite di girato
+  const f = tagliATempo([{ fonte: 'F01', tipo: 'foto', inizio: 0, fine: 3, da: 0, a: 3 }, cop('V02', 3, 6)], [3.137], { fps: 25, minima: 1, durataClip: clip }).video;
+  assert.equal(f[0].a, 3.12, 'arrotondato al fotogramma (25 al secondo)');
+});
+
+test('tagli a tempo nel montaggio vero: i cambi di colore cadono sul battito; col rumore restano dove li mette la regia', async () => {
+  const colore = (c) => clip(`bt-${c}.mp4`, ['-f', 'lavfi', '-i', `color=c=${c}:s=1080x1920:d=8:r=25`, '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono', '-t', '8', '-shortest']);
+  const pid = await progettoNuovo('battiti');
+  // colori con la luce molto diversa: il rilevatore di scene guarda la luminosità
+  for (const c of ['white', 'gray', 'black']) assert.equal((await carica(pid, colore(c))).stato, 200);
+  const piano = { battute: [{ immagini: 9, coperture: ['V01.1', 'V02.1', 'V03.1'] }], musica: true };
+  const tagli = async (musica) => {
+    const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, stile: 'sdg', formato: 'verticale' }, file: { musica } });
+    assert.equal(r.stato, 200, JSON.stringify(r.json));
+    const p = path.join(TMP, `bt-${path.basename(musica)}.mp4`);
+    fs.writeFileSync(p, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);
+    const { stderr } = await import('node:child_process').then((m) => m.spawnSync('ffmpeg', ['-hide_banner', '-i', p, '-vf', 'scdet=threshold=5,metadata=print', '-an', '-f', 'null', '-'], { encoding: 'utf8' }));
+    return { cambi: [...stderr.matchAll(/lavfi\.scd\.time=([\d.]+)/g)].map((m) => Number(m[1])), avvisi: r.json.avvisi };
+  };
+  const conBase = await tagli(CLICK120());
+  assert.ok(conBase.avvisi.some((a) => a.codice === 'tagli_a_tempo' && /2 tagli spostati/.test(a.messaggio)), JSON.stringify(conBase.avvisi));
+  assert.equal(conBase.cambi.length, 2, `due cambi di luce: ${conBase.cambi}`);
+  for (const t of conBase.cambi) {
+    const battito = 0.13 + Math.round((t - 0.13) / 0.5) * 0.5;
+    assert.ok(Math.abs(t - battito) <= 0.05, `il cambio a ${t} s dovrebbe stare sul battito (${battito.toFixed(2)} s)`);
+  }
+  const conRumore = await tagli(RUMORE());
+  assert.ok(!conRumore.avvisi.some((a) => a.codice === 'tagli_a_tempo'), 'senza battito chiaro non si sposta niente');
+  assert.deepEqual(conRumore.cambi.map((t) => Math.round(t * 25)), [75, 150], 'i tagli della regia: 3 e 6 secondi');
+});
