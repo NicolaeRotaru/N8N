@@ -61,7 +61,10 @@ const LI = (() => {
       return { ok: false, url: t, motivo: 'imita Google, le mappe o Meta: non si legge' };
     }
     if (/\.(jpe?g|png|gif|webp|svg|ico|css|js|mp4|mov|mp3|zip|docx?|xlsx?)(\?|$)/i.test(percorso)) return { ok: false, url: t, motivo: 'non è una pagina' };
-    const url = `${schema}://${host}${percorso || '/'}`;
+    // 26/11/2026 (AD, decisione 🟡): si legge SOLO in https, anche il sito del titolare. Un indirizzo http si prova in https
+    // (porta 443, certificato verificato: un nome che punta dentro il server non ha il certificato giusto). Se il sito non ha
+    // https non si apre, e nei fatti diventa «sito non protetto».
+    const url = `https://${host}${percorso || '/'}`;
     return { ok: true, url, chiave: chiave(url) };
   }
 

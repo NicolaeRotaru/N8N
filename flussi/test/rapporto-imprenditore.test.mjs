@@ -502,3 +502,12 @@ test('dalla generazione a secco sul 12 vero: i nodi Google Sheets e Drive del 12
     assert.ok(controllaFatti(prova).some((p) => /fuori dal loro IF/.test(p)), JSON.stringify(f.parameters));
   }
 });
+
+test("AD, 26/11: solo https. Un sito dichiarato in http che non si apre in https diventa «sito non protetto» nei fatti, e l'AD lo sa", async () => {
+  const j = await componi({ f: { sito: 'http://www.barvecchio.it' }, extra: { 'Pagine da leggere': [{ json: { url: 'https://www.barvecchio.it/' } }], 'Scarica le pagine': [{ json: { error: { message: 'ECONNREFUSED' } }, pairedItem: { item: 0 } }] } });
+  assert.equal(j.fatti.sito.stato, 'letto');
+  assert.equal(j.fatti.sito.dati.https, false);
+  assert.match(j.fatti.sito.motivo, /non è protetto/);
+  const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: j }], nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Vecchio', sito: 'http://www.barvecchio.it' } }] } });
+  assert.match(json.richiesta.system, /https è false/);
+});

@@ -182,6 +182,10 @@ for (const [richieste, uscite] of [['Pagine da leggere', 'Scarica le pagine'], [
   if (candidati[0]) { htmlSito = candidati[0].corpo.slice(0, 1000000); urlSito = candidati[0].url; }
 }
 if (!hostSito) fatti.sito = assente('vuoto', "l'attività non ha un sito noto", 'Controlli di n8n');
+// AD, 26/11: si legge solo in https. Un sito dichiarato in http che in https non si apre è «non protetto»: è un dato, e un consiglio.
+else if (!htmlSito && /^http:\/\//i.test(sitoNoto)) fatti.sito = blocco('letto', { fonte: null, fonte_nome: 'Controlli di n8n', letto_il: ora,
+  motivo: 'il sito risponde solo senza https: non è protetto e n8n non lo apre', dati: { indirizzo: unaRiga(sitoNoto, 500), https: false, viewport_mobile: null, titolo: null,
+    descrizione: null, descrizione_caratteri: null, dati_strutturati: [] } });
 else if (!htmlSito) fatti.sito = assente('vuoto', 'le pagine del sito non sono state scaricate nella ricerca', 'Controlli di n8n', { fonte: /^https:\/\//i.test(sitoNoto) ? sitoNoto : null });
 else {
   const cima = htmlSito.slice(0, 200000);
