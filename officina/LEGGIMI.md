@@ -19,6 +19,15 @@ Non inventa niente. Ritaglia, corregge luce e colore su tutta la foto, mette scr
 Non allarga mai una foto e non crea sfondi finti. Le scritte sono solo quelle che le passa n8n.
 
 ## Cosa cambia per te
+**Versione 1.6.0 (26/11/2026): il montaggio da professionisti.** Quattro cose che un montatore fa a mano, adesso le fa l'officina da sola, in ogni montaggio con la regia:
+- **Taglia sul battito.** Se c'è una musica con un battito chiaro, il cambio fra due coperture si sposta sul colpo più vicino (al massimo 0,35 s). I tagli dove entra o esce un volto restano dove sono: lì comanda la voce.
+- **Il verticale segue il soggetto.** Da una clip orizzontale la striscia 9:16 non si taglia più sempre al centro: va dove c'è la cosa che conta (una persona, un piatto). Se la regia scrive «sinistra» o «destra», vale quello.
+- **Le clip mosse si stabilizzano.** Una clip girata a mano che trema (l'etichetta «mossa» del catalogo) esce più ferma.
+- **I colori diventano uguali fra le clip.** Una clip calda sotto la finestra e una fredda sotto il neon si avvicinano a metà strada, senza appiattirsi.
+- Esempio dalla prova: tre coperture e una base a 120 battiti al minuto. La regia metteva i tagli a 3 e 6 secondi, fuori tempo; l'officina li ha spostati tutti e due sul colpo (a meno di 0,05 s), e l'avviso «tagli_a_tempo» dice quanti ne ha spostati.
+
+E una cosa nuova: **la misura dei reel di riferimento** (`POST /riferimento`). Gli mandi un reel che per voi è perfetto, e lei risponde quanto dura ogni inquadratura, quanti tagli al minuto, se i tagli cadono sul battito, e un ritmo proposto da mettere nello stile. Il testo sullo schermo non lo misura.
+
 **Versione 1.5.0 (25/11/2026): la 1.4.0 qui sotto, più la porta Telegram della 1.2.0 (le due strade unite) e la prova dei filtri all'avvio (`filtri` in `/salute`).**
 
 **Versione 1.4.0 (24/11/2026, notte): la moodboard di Scatti di G.** Lo stile `sdg` adesso segue la moodboard. Il video è calmo: inquadrature da 2,5 a 6 secondi, mai sotto 1. Il nero è morbido, senza grana. I testi sono in Poppins avorio, con un filo d'oro sul cartello del nome. Esce a 25 fotogrammi al secondo.
@@ -59,7 +68,7 @@ Dopo che l'AD ha caricato la cartella `officina/` nel repository, su Sliplane se
    - nella credenziale n8n **'Officina - Chiave'**: tipo Header Auth, Name `X-Officina-Chiave`, Value = la chiave.
 5. Nel nodo Config di ogni workflow (06, 07, 08) scrivi `OFFICINA_URL` = `http://<nome interno>:8080`, per esempio `http://officina.internal:8080`. Poi premi Publish.
 
-Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.5.0", ffmpeg:true, whisper:true, telegram:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], ritardo_voce:…}, coda:0, memoria_mb:…}`.
+Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_URL}/salute` con la credenziale 'Officina - Chiave'. Deve rispondere `{ok:true, versione:"1.6.0", ffmpeg:true, whisper:true, telegram:true, filtri:{ok:true, ffmpeg:"5.1…", mancanti:[], facoltativi_mancanti:[…], ritardo_voce:…}, coda:0, memoria_mb:…}`. `facoltativi_mancanti` può non essere vuoto: se dice `vidstabdetect`, la stabilizzazione usa il metodo più semplice e va bene lo stesso.
 
 **`filtri`** è la prova che l'officina fa da sola all'avvio, in meno di un secondo, con l'FFmpeg di quel server:
 - controlla che ci siano **tutti** i filtri che usa (l'elenco è in `src/autoprova.js`; due prove lo confrontano con i filtri scritti nel codice e con le chiamate vere a FFmpeg durante i montaggi delle prove: se il codice ne usa uno nuovo, diventano rosse finché non lo si aggiunge);
@@ -68,6 +77,9 @@ Per controllare che funzioni basta un nodo HTTP Request in n8n: GET `{OFFICINA_U
 Sottotitoli (ass), volume finale (loudnorm) e conversione HDR li controlla solo per nome. Se `filtri.ok` è `false`, `errore` dice cosa non va **prima** di montare un video vero. È il primo controllo da fare dopo ogni pubblicazione; la prova completa resta il primo montaggio vero.
 
 ## Cosa non ho verificato
+- **1.6.0 con materiale vero.** Taglio sul battito, soggetto, stabilizzazione e colori li ho provati su clip e musiche sintetiche: una base a 120 battiti, un quadrato colorato che si sposta, un video che trema apposta, una clip tinta d'arancio. Su una canzone vera il battito può sbagliare la fase di mezzo colpo; su una scena con due persone il soggetto può scegliere quella sbagliata. Va guardato sul primo servizio vero.
+  - La stabilizzazione migliore (vidstab) sull'FFmpeg di Debian 12 non l'ho vista: se manca, l'officina usa quella semplice (deshake) e `/salute` lo dice in `facoltativi_mancanti`.
+  - La misura dei reel di riferimento non vede le dissolvenze lente come tagli, e non legge il testo sullo schermo.
 - **1.4.0 con materiale vero.** Rallenty, LUT e doppio formato li ho provati con clip sintetiche: una clip a 50 fotogrammi, una LUT che inverte i colori, una clip orizzontale. Con una LUT vera di una camera (S-Log3, V-Log…) non li ho visti.
   - Il rallenty esce a 8 bit: con un girato log a 10 bit rallentato e poi corretto con la LUT può comparire qualche sfumatura a scalini nel cielo. Va guardato sul primo servizio vero.
 - **I colori della triade** (fumo `#2C2A27`, avorio `#F4F1EC`, oro `#E0A95C`) sono segnaposti: la moodboard dice i nomi, non i codici esatti.
@@ -455,6 +467,31 @@ Monta UN video da una sceneggiatura, usando il materiale di un progetto (stesse 
 
 **Errori nuovi:** 415 `lut_non_valida`, 422 `lut_mancante`, 507 `disco_pieno`, 400 `dati_non_validi` per i formati sbagliati.
 
+### Il montaggio da professionisti (1.6.0)
+Tutto vale in `/progetto/:pid/regia/monta` (e nel montaggio del piano con la regia). Di serie è tutto acceso; ogni scelta si spegne nel `dati` della richiesta: `stabilizza` (`"auto"` di serie, `"si"`, `"no"`), `colori_uguali`, `tagli_a_tempo`, `segui_soggetto` (vero/falso, anche `"si"`/`"no"`). Lo stesso nello stile (`stile.stabilizza`…), per chi lo vuole fisso.
+
+**Tagli a tempo** (`src/battiti.js`). Si misurano i battiti della musica scelta (i primi 180 s; il tempo fra 70 e 180 battiti al minuto, l'affidabilità come picco dell'autocorrelazione sulla media). Sotto un'affidabilità di 2,5 non si sposta niente. Si sposta solo il taglio fra due coperture o foto, sul battito più vicino entro `min(0,35 s, un terzo del pezzo più corto)`, arrotondato al fotogramma, se nessun pezzo scende sotto `ritmo.coperturaMin` e la clip ha il girato per allungarsi. Avviso `tagli_a_tempo` con il numero dei tagli spostati e i bpm.
+
+**Soggetto** (`src/soggetto.js`). Per una copertura senza posizione, da una clip più larga del formato: due fotogrammi del pezzo (a un terzo e a due terzi), sharp con `position: attention` (dove c'è più contrasto, saturazione e pelle), la media dei due centri. Se il soggetto è vicino al centro (meno del 6% di scarto) resta il centro. Il centro trovato passa al ritaglio come numero da 0 a 1 (0 = tutto a sinistra); la regia continua a scrivere le parole (`sinistra`, `centro`, `destra`), che vincono sempre.
+
+**Stabilizzazione** (`src/ritocco-clip.js`). Per le scene con movimento sopra 30 (l'etichetta «mossa»): con vidstab due passate (misura del tremolio sugli stessi fotogrammi del pezzo, poi `vidstabtransform` con un leggero ingrandimento e `unsharp`); senza vidstab `deshake`. Se la prima passata fallisce il pezzo esce com'era.
+
+**Colori uguali** (`src/ritocco-clip.js`). Il colore medio di ogni pezzo sulla miniatura della sua scena (senza i pixel quasi neri e quasi bianchi); il riferimento è la mediana delle tinte e della luce dei pezzi del video. Ogni pezzo va a metà strada (`colorchannelmixer` + `eq`), mai oltre il 12% per canale e 0,05 di luce. Con meno di due misure niente.
+
+**Reel di riferimento** (`src/riferimento.js`). `POST /riferimento`, multipart con un campo `video`. Risposta:
+```
+{ id, durata, formato, larghezza, altezza, fps, tagli:[s…],
+  inquadrature:{quante, media, mediana, p10, p90}, tagli_al_minuto,
+  musica:{bpm, affidabile, tagli_sul_battito_percento, a_caso_sarebbe_percento} | null,
+  ritmo_proposto:{minima, coperturaMin, coperturaMax, tagli_a_tempo}, avvisi:[…] }
+```
+- I tagli: `scdet` (soglia 10) sui fotogrammi rimpiccioliti, almeno 0,25 s fra due tagli; i primi 300 s.
+- Un taglio «cade sul battito» se è entro 0,1 s. `a_caso_sarebbe_percento` è quanti ci cadrebbero a caso a quel tempo (a 120 bpm il 40%): `tagli_a_tempo` è vero solo con almeno il 60% e almeno 25 punti sopra il caso.
+- Il ritmo proposto: `coperturaMin` = 10° percentile delle inquadrature (fra 0,6 e 6 s), `coperturaMax` = 90° percentile (fra 1 e 10 s), `minima` = 80% del 10° percentile (fra 0,4 e 2 s). Lo stile non cambia da solo: i numeri li legge una persona.
+- Avvisi: `senza_audio`, `battito_incerto`, `musica_non_letta`, `pochi_tagli`, `troppo_lungo`. Un file che non è un video: 415 `video_non_leggibile`. Il video si cancella a fine lavoro.
+
+**Prova all'avvio.** `colorchannelmixer`, `deshake` e `unsharp` sono fra i filtri richiesti; `vidstabdetect` e `vidstabtransform` fra i facoltativi (`filtri.facoltativi_mancanti`, il controllo resta `ok`). Il grafo di prova usa la stabilizzazione semplice e un bilanciamento calcolato.
+
 ### Telegram: aprire l'argomento di un negozio (dalla 1.2.0)
 
 Nicola, 25/11/2026: ogni negozio ha il suo argomento nel gruppo Telegram «Attività». Per aprirne uno serve la
@@ -530,6 +567,10 @@ officina/
   src/sceneggiatura.js regia: lettore della sceneggiatura in testo semplice
   src/regia.js        regia: dal piano di Claude alla timeline piatta, con le regole contro i «bolli»
   src/regia-render.js regia: render della timeline (stile SDG), controllo neri e immagini ferme
+  src/battiti.js      battiti della musica e tagli spostati sul battito (1.6.0)
+  src/soggetto.js     dove sta il soggetto, per il ritaglio verticale (1.6.0)
+  src/ritocco-clip.js stabilizzazione e colori uguali fra le clip (1.6.0)
+  src/riferimento.js  misura di un reel di riferimento (1.6.0)
   src/trascrizione.js whisper.cpp senza --vad, con i tempi per parola (-dtw) + zone di parlato (silero o silenzi di FFmpeg); segmenti divisi sui silenzi
   font/               Inter, Playfair Display, Archivo, Bricolage Grotesque (licenza OFL) e Roboto Slab (licenza Apache 2.0)
   strumenti/          prepara-whisper-locale.sh, voce_it.py (voce italiana per le prove)

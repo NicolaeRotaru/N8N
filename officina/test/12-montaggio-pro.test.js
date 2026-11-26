@@ -249,3 +249,91 @@ test('stabilizzazione e colori nel montaggio vero: la clip mossa trema meno; la 
   assert.ok(dopo < prima - 0.08, `la clip calda dovrebbe essere meno calda: rosso/blu ${dopo.toFixed(2)} contro ${prima.toFixed(2)}`);
   assert.ok(dopo > 1.05, `ma resta un po' calda (metà strada): ${dopo.toFixed(2)}`);
 });
+
+// ------------------------------------------------------------------ reel di riferimento
+import { numeriDelRitmo } from '../src/riferimento.js';
+
+test('riferimento: i numeri del ritmo dai tagli; sul battito solo se sono molti più che a caso', () => {
+  const pari = numeriDelRitmo({ durata: 10, tagli: [2, 4, 6, 8] });
+  assert.deepEqual(pari.inquadrature, { quante: 5, media: 2, mediana: 2, p10: 2, p90: 2 });
+  assert.equal(pari.tagli_al_minuto, 24);
+  assert.deepEqual(pari.ritmo_proposto, { minima: 1.6, coperturaMin: 2, coperturaMax: 2, tagli_a_tempo: false });
+  assert.equal(pari.musica, null);
+  // durate diverse: 1, 0,5, 2,5, 5, 1 → 10° percentile 0,7, 90° percentile 4 (interpolati)
+  const vari = numeriDelRitmo({ durata: 10, tagli: [1, 1.5, 4, 9] });
+  assert.deepEqual([vari.inquadrature.p10, vari.inquadrature.p90, vari.inquadrature.mediana], [0.7, 4, 1]);
+  assert.deepEqual(vari.ritmo_proposto, { minima: 0.56, coperturaMin: 0.7, coperturaMax: 4, tagli_a_tempo: false });
+  // un piano sequenza: una sola inquadratura lunga quanto il video; i limiti del ritmo tengono
+  const uno = numeriDelRitmo({ durata: 40, tagli: [] });
+  assert.deepEqual(uno.inquadrature, { quante: 1, media: 40, mediana: 40, p10: 40, p90: 40 });
+  assert.deepEqual(uno.ritmo_proposto, { minima: 2, coperturaMin: 6, coperturaMax: 10, tagli_a_tempo: false });
+  // la musica a 120 bpm (un battito ogni 0,5 s, il primo a 0,13): a caso il 40% dei tagli cade entro 0,1 s da un battito
+  const musica = { bpm: 120, affidabile: true, durata: 30, battiti: Array.from({ length: 60 }, (_, k) => Math.round((0.13 + k * 0.5) * 1000) / 1000) };
+  const aTempo = numeriDelRitmo({ durata: 10, tagli: [2.13, 4.15, 6.1, 8.13], musica });
+  assert.deepEqual(aTempo.musica, { bpm: 120, affidabile: true, tagli_sul_battito_percento: 100, a_caso_sarebbe_percento: 40 });
+  assert.equal(aTempo.ritmo_proposto.tagli_a_tempo, true);
+  const fuori = numeriDelRitmo({ durata: 10, tagli: [2.38, 4.38, 6.38, 8.13], musica });
+  assert.equal(fuori.musica.tagli_sul_battito_percento, 25);
+  assert.equal(fuori.ritmo_proposto.tagli_a_tempo, false, '25% è meno di quanto farebbe il caso');
+  // 3 tagli su 4 sul battito (75%) contro il 40% del caso: a tempo
+  assert.equal(numeriDelRitmo({ durata: 10, tagli: [2.13, 4.13, 6.13, 8.38], musica }).ritmo_proposto.tagli_a_tempo, true);
+  // a 180 bpm (un battito ogni 0,33 s) il caso fa già il 60%: lo stesso 75% non basta
+  const veloce = { bpm: 180, affidabile: true, durata: 30, battiti: Array.from({ length: 90 }, (_, k) => Math.round(k * 1000 / 3) / 1000) };
+  const r180 = numeriDelRitmo({ durata: 10, tagli: [2, 4, 6, 8.17], musica: veloce });
+  assert.deepEqual([r180.musica.tagli_sul_battito_percento, r180.musica.a_caso_sarebbe_percento, r180.ritmo_proposto.tagli_a_tempo], [75, 60, false]);
+  // i tagli oltre la musica analizzata non contano (né a favore né contro)
+  const corta = numeriDelRitmo({ durata: 10, tagli: [2.13, 4.13, 6.38, 8.38], musica: { ...musica, durata: 5 } });
+  assert.equal(corta.musica.tagli_sul_battito_percento, 100);
+  // musica senza battito chiaro: niente percentuale, niente tagli a tempo
+  const incerta = numeriDelRitmo({ durata: 10, tagli: [2, 4], musica: { bpm: null, affidabile: false, durata: 30, battiti: [] } });
+  assert.deepEqual(incerta.musica, { bpm: null, affidabile: false, tagli_sul_battito_percento: null, a_caso_sarebbe_percento: null });
+  assert.equal(incerta.ritmo_proposto.tagli_a_tempo, false);
+});
+
+test('riferimento: un reel vero, coi tagli sul battito; col rumore il battito è incerto; senza audio solo i tagli; un\'immagine no', async () => {
+  // cinque inquadrature (bianco, grigio, nero, grigio, bianco) coi cambi ai fotogrammi 41, 78, 116, 153: 1,64 3,12 4,64 6,12 s,
+  // tutti a meno di 0,02 s da un battito della base a 120 (0,13 + mezzo secondo)
+  const fotogrammi = [41, 37, 38, 37, 47];
+  const colori = ['white', 'gray', 'black', 'gray', 'white'];
+  const reel = (nome, audio) => clip(nome, [
+    ...colori.flatMap((c, i) => ['-f', 'lavfi', '-i', `color=c=${c}:s=360x640:r=25:d=${(fotogrammi[i] / 25).toFixed(2)}`]),
+    ...(audio ? ['-i', audio] : []),
+    '-filter_complex', `${colori.map((_, i) => `[${i}:v]`).join('')}concat=n=5:v=1:a=0[v]`, '-map', '[v]',
+    ...(audio ? ['-map', '5:a', '-c:a', 'aac', '-t', '8'] : []),
+  ]);
+  const misura = async (f) => chiama(s.base, '/riferimento', { file: { video: f } });
+  const conBase = await misura(reel('rif-base.mp4', CLICK120()));
+  assert.equal(conBase.stato, 200, JSON.stringify(conBase.json));
+  const m = conBase.json;
+  assert.deepEqual([m.formato, m.larghezza, m.altezza, m.fps], ['verticale', 360, 640, 25]);
+  assert.ok(Math.abs(m.durata - 8) <= 0.1, `dura 8 s: ${m.durata}`);
+  assert.equal(m.tagli.length, 4, `quattro tagli: ${m.tagli}`);
+  [1.64, 3.12, 4.64, 6.12].forEach((t, i) => assert.ok(Math.abs(m.tagli[i] - t) <= 0.05, `taglio ${i + 1} a ${t} s: ${m.tagli[i]}`));
+  assert.equal(m.inquadrature.quante, 5);
+  assert.ok(Math.abs(m.musica.bpm - 120) <= 1, `120 bpm: ${m.musica.bpm}`);
+  assert.equal(m.musica.affidabile, true);
+  assert.equal(m.musica.tagli_sul_battito_percento, 100);
+  assert.equal(m.musica.a_caso_sarebbe_percento, 40);
+  assert.equal(m.ritmo_proposto.tagli_a_tempo, true);
+  assert.ok(m.ritmo_proposto.coperturaMin >= 1.4 && m.ritmo_proposto.coperturaMax <= 1.9, JSON.stringify(m.ritmo_proposto));
+  assert.deepEqual(m.avvisi, []);
+  assert.ok(!('battiti' in m.musica), 'i battiti non escono: servono solo al conto');
+
+  const conRumore = (await misura(reel('rif-rumore.mp4', RUMORE()))).json;
+  assert.equal(conRumore.musica.affidabile, false);
+  assert.equal(conRumore.musica.bpm, null);
+  assert.equal(conRumore.ritmo_proposto.tagli_a_tempo, false);
+  assert.ok(conRumore.avvisi.some((a) => a.codice === 'battito_incerto'));
+  assert.equal(conRumore.tagli.length, 4, 'i tagli si misurano lo stesso');
+
+  const muto = (await misura(reel('rif-muto.mp4', null))).json;
+  assert.equal(muto.musica, null);
+  assert.ok(muto.avvisi.some((a) => a.codice === 'senza_audio'));
+  assert.equal(muto.tagli.length, 4);
+
+  const png = path.join(TMP, 'rif-foto.png');
+  await sharp({ create: { width: 64, height: 64, channels: 3, background: '#808080' } }).png().toFile(png);
+  const foto = await misura(png);
+  assert.equal(foto.stato, 415, JSON.stringify(foto.json));
+  assert.equal(foto.json.errore, 'video_non_leggibile');
+});

@@ -27,6 +27,7 @@ import { leggiSceneggiatura } from './sceneggiatura.js';
 import { controllaRegia, regoleDelloStile } from './regia.js';
 import { montaRegia, stileDa, conScelte, FORMATI } from './regia-render.js';
 import { provaFiltri } from './autoprova.js';
+import { misuraRiferimento } from './riferimento.js';
 import { forseRallenta, modoRallenty } from './rallenty.js';
 import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
 
@@ -402,6 +403,9 @@ export async function creaServer(cfg = leggiConfig()) {
     return { lut: r.nome, punti: r.punti, elenco: await elencoLut(cfg) };
   });
   app.get('/lut', async () => ({ elenco: await elencoLut(cfg) }));
+  // Un reel di riferimento (uno che per il team è perfetto): quanto dura ogni inquadratura, dove cadono i tagli, la
+  // musica, e un ritmo proposto con le chiavi di stile.ritmo. Il video si butta a fine lavoro.
+  rotta('/riferimento', { video: { min: 1, max: 1 } }, ({ file, segnale }) => misuraRiferimento(file.video[0], cfg, segnale));
 
   // Telegram: apre l'argomento di un gruppo (un'attività = un argomento). Lavoro leggero: niente coda.
   app.post('/telegram/argomento', async (req) => apriArgomento(req.body, cfg));
