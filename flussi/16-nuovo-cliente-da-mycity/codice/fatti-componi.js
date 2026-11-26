@@ -67,6 +67,8 @@ else {
       motivo: elementi.length ? null : 'OpenStreetMap non ha niente segnato nel raggio', fonte: 'https://www.openstreetmap.org/', ...OSM, letto_il: ora,
       dati: {
         raggio_m: piano.raggio_m,
+        // Overpass dà al massimo 600 voci: arrivate tutte, i conteggi possono essere più bassi del vero.
+        troncato: b.elements.length >= 600,
         concorrenti: tipo ? {
           numero: concorrenti.length, tipo_osm: `${tipo.chiave}=${tipo.valori}`,
           elenco: concorrenti.filter((x) => testo(x.t.name)).sort((a, z) => a.d - z.d).slice(0, 10)
@@ -101,18 +103,18 @@ else {
       const g = giornoDi(x.time);
       const d = x.data || {};
       const temp = d.instant && d.instant.details ? Number(d.instant.details.air_temperature) : NaN;
-      const v = giorni.get(g) || { data: g, min_c: null, max_c: null, pioggia_mm: 0, ore_pioggia: 0, simboli: {} };
+      const v = giorni.get(g) || { data: g, min_c: null, max_c: null, pioggia_mm: 0, letta_pioggia: false, simboli: {} };
       if (Number.isFinite(temp)) { v.min_c = v.min_c === null ? temp : Math.min(v.min_c, temp); v.max_c = v.max_c === null ? temp : Math.max(v.max_c, temp); }
       // La pioggia: l'ora dopo quando c'è, se no le sei ore dopo (solo sulle ore 0, 6, 12, 18 per non contarla due volte).
       const h1 = d.next_1_hours; const h6 = d.next_6_hours;
-      if (h1 && h1.details && Number.isFinite(Number(h1.details.precipitation_amount))) v.pioggia_mm += Number(h1.details.precipitation_amount);
-      else if (h6 && h6.details && Number.isFinite(Number(h6.details.precipitation_amount)) && new Date(x.time).getUTCHours() % 6 === 0) v.pioggia_mm += Number(h6.details.precipitation_amount);
+      if (h1 && h1.details && Number.isFinite(Number(h1.details.precipitation_amount))) { v.pioggia_mm += Number(h1.details.precipitation_amount); v.letta_pioggia = true; }
+      else if (h6 && h6.details && Number.isFinite(Number(h6.details.precipitation_amount)) && new Date(x.time).getUTCHours() % 6 === 0) { v.pioggia_mm += Number(h6.details.precipitation_amount); v.letta_pioggia = true; }
       const s = (h1 && h1.summary && h1.summary.symbol_code) || (h6 && h6.summary && h6.summary.symbol_code) || '';
       if (s) { const k = tempoDi(s); v.simboli[k] = (v.simboli[k] || 0) + 1; }
       giorni.set(g, v);
     }
     const elenco = [...giorni.values()].slice(0, 7).map((v) => ({ data: v.data, min_c: v.min_c === null ? null : Math.round(v.min_c * 10) / 10,
-      max_c: v.max_c === null ? null : Math.round(v.max_c * 10) / 10, pioggia_mm: Math.round(v.pioggia_mm * 10) / 10,
+      max_c: v.max_c === null ? null : Math.round(v.max_c * 10) / 10, pioggia_mm: v.letta_pioggia ? Math.round(v.pioggia_mm * 10) / 10 : null,
       tempo: Object.entries(v.simboli).sort((a, z) => z[1] - a[1])[0]?.[0] || null }));
     fatti.meteo = blocco(elenco.length ? 'letto' : 'vuoto', { ...MET, motivo: elenco.length ? null : 'MET Norway non ha dato previsioni', letto_il: ora, dati: { giorni: elenco } });
   }

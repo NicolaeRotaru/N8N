@@ -413,3 +413,39 @@ test("il lavoro per l'AD con i fatti pieni, i testi delle recensioni e pagine lu
   // Le pagine del sito ci sono ancora, accorciate.
   assert.match(messaggio, /barroma\.it\/p0/);
 });
+
+// --- Dal collaudo del 26/11/2026 --------------------------------------------------------------------------------------------
+
+test('collaudo: i siti dei concorrenti solo in https, mai portali, elenchi o pagine di Google (un nome scritto su OSM può puntare dentro)', async () => {
+  const con = (website) => ({ ...OVERPASS, body: { elements: [elemento(1, { amenity: 'bar', name: 'Bar Roma' }, 0.00001), elemento(2, { amenity: 'bar', name: 'Altro Bar', website }, 0.001)] } });
+  for (const [website, letto] of [['http://fuf.me/', true], ['https://www.paginegialle.it/bar', false], ['https://bar.business.site/', false], ['https://www.google.com/search?q=bar', false],
+    ['https://www.booking.com/x', false], ['http://metadata.attaccante.it:8080/', false], ['https://www.altrobar.it/', true]]) {
+    const nodi = await nodiFattiFinti({ extra: {} });
+    nodi['Fatti · OSM: intorno'] = [{ json: con(website) }];
+    const uscita = (await eseguiCodice(CODICE_FATTI_CONCORRENTI, { nodi })).map((x) => x.json);
+    const url = uscita[0].salta ? null : uscita[0].url;
+    if (letto) assert.match(url, /^https:\/\//, `${website} si legge solo in https`);
+    else assert.equal(url, null, `${website} non si legge`);
+  }
+});
+
+test('collaudo: nel confronto coi concorrenti niente voti di Google e fonti solo dai fatti di quel concorrente', async () => {
+  const { fatti } = await componi();
+  const j = await unisci(fatti, { confronto_concorrenti: [
+    { nome: 'Caffè Duomo', distanza_m: 1, voto: null, recensioni: null, differenza: 'Su Google Maps ha 4,7 su 5 con tante recensioni', fonte: 'https://www.google.com/maps/place/x',
+      meglio: 'Ha il menu online sul suo sito', peggio: null, fonte_canali: 'https://www.facebook.com/caffeduomo' },
+    { nome: 'Caffè Duomo', distanza_m: 1, voto: null, recensioni: null, differenza: 'Ha un sito con le prenotazioni', fonte: 'https://www.google.com/maps/place/x', meglio: 'Molto amato, 812 recensioni', peggio: null, fonte_canali: null }] });
+  const c = j.scheda.analisi.business.confronto_concorrenti;
+  assert.equal(c.length, 1, 'la frase sui voti di Google non esce');
+  assert.equal(c[0].fonte, 'https://www.openstreetmap.org/node/2', 'la fonte di Google diventa quella dei fatti');
+  assert.equal(c[0].meglio, null);
+  assert.equal(JSON.stringify(c).includes('google'), false);
+  assert.equal(JSON.stringify(c).includes('facebook'), false);
+});
+
+test('collaudo: senza dati di pioggia la pioggia è null, non zero; Overpass troncato si dice', async () => {
+  const senzaPioggia = { statusCode: 200, body: { properties: { timeseries: [{ time: ora(0, 1), data: { instant: { details: { air_temperature: 4 } } } }] } } };
+  const j = await componi({ extra: { 'Fatti · Meteo MET Norway': [{ json: senzaPioggia }] } });
+  assert.equal(j.fatti.meteo.dati.giorni[0].pioggia_mm, null);
+  assert.equal(j.fatti.vicini.dati.troncato, false);
+});

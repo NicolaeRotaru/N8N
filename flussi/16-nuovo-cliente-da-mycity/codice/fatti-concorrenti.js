@@ -10,6 +10,18 @@ const pos = $('Fatti · Posizione').first().json.fatti_posizione;
 const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();
 const eseguito = (nome) => { try { return $(nome).isExecuted; } catch (e) { return false; } };
 const MAX_CONCORRENTI = 5;
+// Dal collaudo (26/11): chiunque può scrivere il sito di un bar su OpenStreetMap, anche un nome che punta a un indirizzo interno.
+// Per questo qui solo https (porta 443, certificato verificato: un servizio interno non ha il certificato di quel nome),
+// rinvii non seguiti, e fuori anche portali, elenchi e pagine di Google che il controllo del 12 lascia passare.
+const ALTRI_PORTALI = /(^|\.)(paginegialle\.it|paginebianche\.it|booking\.com|justeat\.it|just-eat\.it|deliveroo\.it|yelp\.[a-z.]+|business\.site|maps\.apple\.com|bing\.com|google\.[a-z.]+|goo\.gl|g\.co|ubereats\.com|foursquare\.com|restaurantguru\.[a-z.]+|sluurpy\.[a-z.]+|linktr\.ee|wikipedia\.org)$/;
+const sitoSicuro = (grezzo) => {
+  const t = testo(grezzo).replace(/^http:\/\//i, 'https://');
+  const s = LI.indirizzoSicuro(t);
+  if (!s.ok) return s;
+  if (!/^https:\/\//i.test(s.url)) return { ok: false, url: s.url, motivo: 'solo siti https' };
+  if (ALTRI_PORTALI.test(LI.hostDi(s.url))) return { ok: false, url: s.url, motivo: 'portale o elenco, non il suo sito' };
+  return s;
+};
 const salta = (motivo) => [{ json: { salta: true, motivo, concorrenti: [] } }];
 if (!pos.buona || !piano.tipo_osm) return salta(!pos.buona ? 'senza posizione' : 'tipo di attività non riconosciuto');
 const r = eseguito('Fatti · OSM: intorno') ? $('Fatti · OSM: intorno').first().json || {} : null;
@@ -29,7 +41,7 @@ const concorrenti = b.elements.map((e) => {
   .sort((a, z) => a.d - z.d).slice(0, MAX_CONCORRENTI)
   .map((x) => {
     const grezzo = testo(x.t.website || x.t['contact:website'] || x.t.url);
-    const sicuro = grezzo ? LI.indirizzoSicuro(grezzo) : null;
+    const sicuro = grezzo ? sitoSicuro(grezzo) : null;
     const ig = testo(x.t['contact:instagram'] || x.t.instagram).replace(/^@/, '');
     const profilo = (ig.match(/instagram\.com\/([A-Za-z0-9._]{2,30})/) || [null, /^[A-Za-z0-9._]{2,30}$/.test(ig) ? ig : null])[1];
     return { nome: Array.from(testo(x.t.name)).slice(0, 80).join(''), distanza_m: x.d, fonte: `https://www.openstreetmap.org/${x.e.type}/${x.e.id}`,
