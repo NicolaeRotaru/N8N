@@ -1,4 +1,4 @@
-// (esecuzione «monta») L'officina ha montato: che cosa scaricare, e se serve il controllo di Claude.
+// (esecuzione «monta») L'officina ha montato: che cosa scaricare, e il provino dei fotogrammi per il controllo dell'AD.
 const J = $('Config').first().json;
 const r = $input.first().json || {};
 if (r.error || !Array.isArray(r.file)) {

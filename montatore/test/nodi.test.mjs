@@ -7,10 +7,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sorgenteCodice, workflow, CONFIG } from '../genera.mjs';
+import { eseguiCodice } from '../../flussi/test/esegui-codice.mjs';
+import { createHash } from 'node:crypto';
 
 const QUI = path.dirname(fileURLToPath(import.meta.url));
 
 // Esegue un nodo Code come farebbe n8n. nodi = { 'Nome nodo': json | [json…] | {json, binary} }.
+// Il codice vero di «90 · Chiedi all'AD» (flussi/chiedi-all-ad): «Allegati del lavoro» e «Prepara il lavoro» dicono se
+// una corsa con questi elementi partirebbe (sotto i 64 KB e i tetti degli allegati) o si fermerebbe con un errore.
+const CHIEDI = (f) => fs.readFileSync(new URL(`../../flussi/chiedi-all-ad/codice/${f}`, import.meta.url), 'utf8');
+export async function stannoNellAD(elementi) {
+  const lavori = esegui('per-l-ad.js', { input: elementi }).map((x) => ({ json: x.json }));
+  const allegati = await eseguiCodice(CHIEDI('allegati-lavoro.js'), { nodi: { 'Da un altro flusso': lavori } });
+  const impronte = allegati.map((x, i) => { const g = createHash('sha256').update(`g${i}`).digest('hex'); return { json: { ...x.json, gettone: g, impronta: createHash('sha256').update(g).digest('hex') } }; });
+  const cfg = { MODALITA: 'vero', ROUTINE_ID: 'trig_x', TETTO_GIORNO: 40, TETTO_ORA: 25, ATTESA_MINUTI: 15, PROVA_ATTESA_MINUTI: 2, ALLEGATI_URL: 'https://n8n-shdy.sliplane.app/webhook/allegati-ad', ALLEGATI_SOGLIA_MB: 40 };
+  const [r] = await eseguiCodice(CHIEDI('prepara-lavoro.js'), { nodi: { Config: [{ json: cfg }], 'Da un altro flusso': lavori, Impronte: impronte }, statico: {}, execution: { resumeUrl: 'https://n8n-shdy.sliplane.app/webhook-waiting/1', id: '1' } });
+  return r.json.azione === 'parti' ? 'parti' : `${r.json.azione}: ${r.json.errore}`;
+}
+
 export function esegui(file, { nodi = {}, input = [], statico = {} } = {}) {
   const avvolgi = (x) => (x && typeof x === 'object' && ('json' in x || 'binary' in x) ? x : { json: x });
   const $ = (nome) => {
@@ -340,19 +354,85 @@ test('File da caricare ed Esito del contenuto: nomi leggibili, link Drive, uploa
   assert.deepEqual(vid, ['2026-12-04 1830 · reel · Mojito.mp4', '2026-12-04 1830 · reel · Mojito (copertina).jpg']);
 });
 
-test('Leggi il controllo: un punto segnato da solo non boccia; voto 1-2 sì, e il motivo dice cosa non va', () => {
-  const risp = (d) => ({ content: [{ type: 'text', text: JSON.stringify(d) }], stop_reason: 'end_turn' });
+test('controllo dei reel a fine giro: una corsa sola, solo i reel con i fotogrammi; il giudizio torna al suo posto', () => {
+  const risp = (d) => ({ type: 'message', content: [{ type: 'text', text: JSON.stringify(d) }], stop_reason: 'end_turn' });
   const punti = [{ punto: 'immagini', ok: true, nota: 'bella apertura' }, { punto: 'luce', ok: false, nota: 'a 0:12 un po\' scuro' }];
-  const ok = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 4, esito: 'ok', motivo: 'Il punto più forte: le mani nell\'impasto' })] })[0].json;
-  assert.deepEqual([ok.esito, ok.voto], ['ok', 4]);
-  const basso = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 2, esito: 'ok', motivo: 'Il punto più forte: le mani' })] })[0].json;
-  assert.equal(basso.esito, 'da_rivedere');
-  assert.match(basso.motivo, /luce: a 0:12 un po' scuro/);
-  assert.doesNotMatch(basso.motivo, /punto più forte/);
-  const no = esegui('leggi-il-controllo.js', { input: [risp({ punti, voto: 3, esito: 'da_rivedere', motivo: 'al secondo 0:08 la scritta copre il viso' })] })[0].json;
-  assert.match(no.motivo, /^al secondo 0:08 la scritta copre il viso · luce:/);
-  assert.equal(esegui('leggi-il-controllo.js', { input: [risp({ punti: [], voto: 2, esito: 'ok', motivo: 'Il punto più forte: le mani' })] })[0].json.motivo, 'voto basso (2/5)');
-  assert.equal(esegui('leggi-il-controllo.js', { input: [{ error: { message: 'x' } }] })[0].json.esito, 'non_controllato');
+  const reel = (n, extra = {}) => ({ ok: true, n, contenuto: { ...CONT[0], titolo: `Reel ${n}` }, fotogrammi: `/file/lav${n}/fotogrammi.jpg`, file: [], controllo: { esito: 'non_controllato', motivo: '' }, ...extra });
+  const esiti = [reel(1), { ok: true, n: 2, contenuto: CONT[1], fotogrammi: '', controllo: { esito: 'non_controllato' } }, reel(3, { ok: false }), reel(4), { error: { message: 'sub-workflow fallito' } }];
+  const dom = esegui('domande-di-controllo.js', { nodi: { Config: GIRO }, input: esiti }).map((x) => x.json);
+  assert.deepEqual(dom.map((d) => [d.indice, d.percorsi]), [[0, ['/file/lav1/fotogrammi.jpg']], [3, ['/file/lav4/fotogrammi.jpg']]], 'solo i reel montati, con il provino dei fotogrammi');
+  assert.match(dom[0].corpo.system, /moodboard|Scatti di G/i);
+  assert.match(dom[0].corpo.messages[0].content.at(-1).text, /titolo per il team: Reel 1/);
+  assert.equal(dom[0].corpo.messages[0].content.filter((b) => b.type === 'image').length, 1, 'un posto per l\'immagine, che arriva come allegato');
+  assert.deepEqual(esegui('domande-di-controllo.js', { nodi: { Config: { ...GIRO, USA_CONTROLLO: 'no' } }, input: esiti }).map((x) => x.json), [{ nessuno: true }]);
+  const tanti = Array.from({ length: 15 }, (_, k) => reel(k + 1));
+  assert.equal(esegui('domande-di-controllo.js', { nodi: { Config: GIRO }, input: tanti }).length, 12, 'al massimo 12 reel in una corsa');
+  // i giudizi tornano negli esiti, al loro posto; gli altri restano com'erano
+  const risposte = [risp({ punti, voto: 2, esito: 'ok', motivo: 'Il punto più forte: le mani' }), risp({ punti, voto: 4, esito: 'ok', motivo: 'Il punto più forte: le mani nell\'impasto' })];
+  const uniti = esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': esiti, 'Domande di controllo': dom, "Dall'AD: controlla i reel": risposte } }).map((x) => x.json);
+  assert.equal(uniti.length, esiti.length);
+  assert.deepEqual([uniti[0].controllo.esito, uniti[0].controllo.voto], ['da_rivedere', 2], 'voto 1-2 = da rivedere');
+  assert.match(uniti[0].controllo.motivo, /luce: a 0:12 un po' scuro/);
+  assert.doesNotMatch(uniti[0].controllo.motivo, /punto più forte/);
+  assert.deepEqual([uniti[3].controllo.esito, uniti[3].controllo.voto], ['ok', 4]);
+  assert.deepEqual([uniti[1].controllo.esito, uniti[2].controllo.esito, uniti[4].error.message], ['non_controllato', 'non_controllato', 'sub-workflow fallito']);
+  const daRivedere = esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': [reel(1)], 'Domande di controllo': [dom[0]], "Dall'AD: controlla i reel": [risp({ punti, voto: 3, esito: 'da_rivedere', motivo: 'al secondo 0:08 la scritta copre il viso' })] } })[0].json;
+  assert.match(daRivedere.controllo.motivo, /^al secondo 0:08 la scritta copre il viso · luce:/);
+  const vuoto = esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': [reel(1)], 'Domande di controllo': [dom[0]], "Dall'AD: controlla i reel": [risp({ punti: [], voto: 2, esito: 'ok', motivo: 'x' })] } })[0].json;
+  assert.equal(vuoto.controllo.motivo, 'voto basso (2/5)');
+  const senzaAD = esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': [reel(1)], 'Domande di controllo': [dom[0]], "Dall'AD: controlla i reel": [{ error: { message: 'AD: l\'AD non ha risposto in tempo' } }] } })[0].json;
+  assert.deepEqual([senzaAD.controllo.esito, /non ha risposto/.test(senzaAD.controllo.motivo)], ['non_controllato', true]);
+  // senza controlli (nessun reel o USA_CONTROLLO = no) gli esiti passano tali e quali
+  assert.deepEqual(esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': esiti } }).map((x) => x.json), esiti);
+});
+
+test('i casi grandi stanno nei limiti dell\'AD: 30 provini da 20 scene in 3 domande, 12 reel da controllare', async () => {
+  // 600 scene (il massimo dei provini dell'officina) con righe di catalogo lunghe, come un servizio di 2 ore
+  const codici = Array.from({ length: 600 }, (_, k) => `V${String(Math.floor(k / 40) + 1).padStart(2, '0')}.${(k % 40) + 1}`);
+  const testoCat = codici.map((k) => `${k} · 4,5 s · nitida, luce buona, movimento medio · «Allora, questa è la nostra serata salsa del venerdì, venite a ballare»`).join('\n');
+  const cat = { testo: testoCat, provini: [] };
+  const prov = Array.from({ length: 30 }, (_, i) => ({ i, percorso: `lav${i}/provino-${i + 1}.jpg`, codici: codici.slice(i * 20, i * 20 + 20) }));
+  const dom = esegui('domande-sul-materiale.js', { nodi: { Config: GIRO, 'Officina: catalogo': cat, 'Provini da scaricare': prov }, input: prov });
+  assert.equal(dom.length, 3, '10 provini per domanda');
+  assert.equal(await stannoNellAD(dom.map((x) => x.json)), 'parti');
+  // 12 reel con titoli e idee lunghe
+  const reel = (n) => ({ ok: true, n, contenuto: { ...CONT[0], titolo: `Reel ${n} `.padEnd(120, 'x'), idea: 'idea '.repeat(60), intro: 'Venerdì salsa', outro: 'Vi aspettiamo', durata: 42 }, fotogrammi: `lav${n}/fotogrammi.jpg` });
+  const ctl = esegui('domande-di-controllo.js', { nodi: { Config: GIRO }, input: Array.from({ length: 12 }, (_, k) => reel(k + 1)) });
+  assert.equal(ctl.length, 12);
+  assert.equal(await stannoNellAD(ctl.map((x) => x.json)), 'parti');
+});
+
+test('Per l\'AD e Dall\'AD: la richiesta diventa un lavoro con gli allegati; la risposta torna nella forma di Claude', () => {
+  const corpo = (testo, immagini = 0) => ({ model: 'x', system: 'Sei il montatore.', output_config: { format: { type: 'json_schema', schema: { type: 'object', properties: { a: { type: 'string' } } } } },
+    messages: [{ role: 'user', content: [...Array.from({ length: immagini }, () => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: '' } })), { type: 'text', text: testo }] }] });
+  const per = (items) => esegui('per-l-ad.js', { input: items }).map((x) => x.json);
+  const [corto] = per([{ corpo: corpo('Descrivi il mojito') }]);
+  assert.deepEqual([corto.flusso, corto.dati, corto.schema.type, corto.allegati], ['31 · Montatore', { messaggio: 'Descrivi il mojito' }, 'object', undefined]);
+  assert.match(corto.compito, /^Sei il montatore\.\n\n---\n\nIl messaggio su cui lavorare è in «dati\.messaggio»/);
+  assert.match(corto.compito, /In «risultato» metti l'oggetto che rispetta lo schema/);
+  const lungo = 'x'.repeat(130000);
+  const [grande] = per([{ corpo: corpo(lungo, 2), percorsi: ['/file/a/p1.jpg', '/file/a/p2.jpg'] }]);
+  assert.deepEqual(grande.allegati.map((a) => [a.nome, a.tipo, a.contenuto?.length ?? a.percorso]), [['messaggio 1', 'testo', 120000], ['messaggio 2', 'testo', 10000], ['immagine 1', 'officina', '/file/a/p1.jpg'], ['immagine 2', 'officina', '/file/a/p2.jpg']]);
+  const [relativo] = per([{ corpo: corpo('foto', 1), percorsi: ['ab12/provino-1.jpg'] }]);
+  assert.equal(relativo.allegati[0].percorso, '/file/ab12/provino-1.jpg', 'il percorso del montatore diventa quello dell\'officina');
+  assert.match(grande.dati.messaggio, /allegati «messaggio 1»…«messaggio 2»/);
+  assert.match(grande.compito, /«immagine 1»…«immagine 2», nello stesso ordine/);
+  assert.equal(grande.non_mandare, undefined);
+  const [medio] = per([{ corpo: corpo('y'.repeat(6001)) }]);
+  assert.deepEqual(medio.allegati.map((a) => a.nome), ['messaggio'], 'sopra 6000 caratteri il messaggio va in allegato');
+  const [senzaVie] = per([{ corpo: corpo('foto', 1) }]);
+  assert.match(senzaVie.non_mandare, /senza il percorso dell'officina/, 'un\'immagine senza percorso non parte in silenzio');
+  const [niente] = per([{ vuoto: true }]);
+  assert.match(niente.non_mandare, /niente da chiedere/);
+  // la risposta
+  const dall = (items) => esegui('dall-ad.js', { input: items }).map((x) => x.json);
+  const [oggetto, testo, no, rotto] = dall([{ ok: true, risultato: { scene: [1] }, avvisi: ['a'] }, { ok: true, risultato: '{"scene":[2]}' }, { ok: false, errore: 'tetto di 40 corse al giorno raggiunto' }, { error: { message: 'boom' } }]);
+  assert.deepEqual(JSON.parse(oggetto.content[0].text), { scene: [1] });
+  assert.equal(testo.content[0].text, '{"scene":[2]}');
+  assert.match(no.error.message, /^AD: tetto di 40 corse/);
+  assert.match(rotto.error.message, /^AD: boom/);
+  const letto = esegui('leggi-il-piano.js', { nodi: { Config: GIRO }, input: [no] })[0].json;
+  assert.equal(letto.ok, false, 'un no dell\'AD si legge come un errore, come prima un errore di Claude');
 });
 
 test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi una volta sola; parte dopo la quiete', () => {
@@ -437,6 +517,32 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
   // le idee del 03: il Calendario si legge all'inizio del giro; diventano «sostituito» solo quando una riga del 16 entra
   // davvero nel Calendario: a fine giro senza revisione (dopo la scrittura) o alla prima Approva (corsia «rivedi»)
   assert.deepEqual(workflow.connections['Telegram: si parte'].main[0].map((x) => x.node), ['Leggi il Calendario']);
+  // l'IA la fa l'AD (Nicola, 24/11): nessun nodo chiama l'API di Claude; ogni passo è «Per l'AD» → «Chiedi all'AD» → «Dall'AD»
+  assert.equal(workflow.name, '31 · Montatore');
+  assert.ok(!JSON.stringify(workflow).includes('api.anthropic.com'), 'nessun nodo verso l\'API di Claude a pagamento');
+  assert.ok(!workflow.nodes.some((n) => /^Claude: /.test(n.name)), 'niente più nodi «Claude: …»');
+  const passi = ['guarda il materiale', 'piano del mese', 'correggi il piano', 'ritocca la regia', 'controlla i reel'];
+  const chiamate = workflow.nodes.filter((n) => n.type === 'n8n-nodes-base.executeWorkflow' && n.name.startsWith("Chiedi all'AD: ")).map((n) => n.name.slice(15)).sort();
+  assert.deepEqual(chiamate, [...passi].sort());
+  for (const cosa of passi) {
+    const chiedi = NODO(`Chiedi all'AD: ${cosa}`);
+    assert.deepEqual([chiedi.parameters.mode, chiedi.parameters.options.waitForSubWorkflow, chiedi.onError, chiedi.parameters.workflowId.cachedResultName, chiedi.parameters.workflowId.value],
+      ['once', true, 'continueRegularOutput', "90 · Chiedi all'AD", process.env.CHIEDI_ID || 'DA_IMPOSTARE'], cosa);
+    assert.deepEqual([workflow.connections[`Per l'AD: ${cosa}`].main[0].map((x) => x.node), workflow.connections[`Chiedi all'AD: ${cosa}`].main[0].map((x) => x.node)], [[`Chiedi all'AD: ${cosa}`], [`Dall'AD: ${cosa}`]], cosa);
+    assert.equal(NODO(`Per l'AD: ${cosa}`).parameters.jsCode, sorgenteCodice('per-l-ad.js'));
+    assert.equal(NODO(`Dall'AD: ${cosa}`).parameters.jsCode, sorgenteCodice('dall-ad.js'));
+  }
+  const dopoN = (da, i = 0) => (workflow.connections[da]?.main?.[i] || []).map((x) => x.node);
+  assert.deepEqual([dopoN('Catalogo pronto?'), dopoN('Domande sul materiale'), dopoN("Dall'AD: guarda il materiale"), dopoN("Leggi cosa c'è"), dopoN("Dall'AD: piano del mese")],
+    [['Domande sul materiale'], ["Per l'AD: guarda il materiale"], ["Leggi cosa c'è"], ["Per l'AD: piano del mese"], ['Leggi il piano']]);
+  assert.deepEqual([dopoN('Domanda di correzione'), dopoN("Dall'AD: correggi il piano"), dopoN('Ritocco possibile?'), dopoN("Dall'AD: ritocca la regia")],
+    [["Per l'AD: correggi il piano"], ['Leggi la correzione'], ["Per l'AD: ritocca la regia"], ['Leggi il ritocco']]);
+  // il controllo dei reel: una corsa sola a fine giro, poi gli esiti vanno avanti come prima; fuori dalla corsia del montaggio
+  assert.deepEqual([dopoN('Monta il contenuto'), dopoN('Domande di controllo'), dopoN('Ci sono controlli?'), dopoN('Ci sono controlli?', 1), dopoN("Dall'AD: controlla i reel"), dopoN('Unisci i controlli')],
+    [['Domande di controllo'], ['Ci sono controlli?'], ["Per l'AD: controlla i reel"], ['Unisci i controlli'], ['Unisci i controlli'], ['Esito dei montaggi']]);
+  assert.deepEqual(dopoN('Esito del montaggio'), ['File da caricare'], 'nella corsia del montaggio niente controllo: lo fa il giro, tutto insieme');
+  for (const via of ['Scarica il provino', 'Provino in base64', 'Controllo con Claude?', 'Scarica i fotogrammi', 'Fotogrammi in base64', 'Domanda di controllo', 'Leggi il controllo']) assert.equal(workflow.nodes.find((n) => n.name === via), undefined, via);
+  assert.equal(CONFIG.PROVINI_PER_DOMANDA, 10, '30 provini al massimo = 3 domande = 33 allegati, sotto i 40 di una corsa');
   // strada A (Nicola, 25/11): il 16 non scrive mai sulle righe del 03; legge solo il Calendario all'inizio del giro
   for (const via of ['Idee da sostituire?', 'Idee da sostituire? (approvato)', 'Rileggi il Calendario', 'Righe da sostituire', 'Segna le idee sostituite']) assert.equal(workflow.nodes.find((n) => n.name === via), undefined, via);
   const aggiornaFoglio = workflow.nodes.filter((n) => n.type === 'n8n-nodes-base.googleSheets' && ['update', 'appendOrUpdate', 'delete'].includes(n.parameters.operation)).map((n) => n.name);
@@ -538,12 +644,15 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
     assert.equal(prov.length, 1);
     const img = await A.scarica(`${s.base}/file/${prov[0].percorso}`);
     assert.equal(img.stato, 200, 'il percorso relativo dei provini funziona dietro OFFICINA_URL');
-    const dom = esegui('domande-sul-materiale.js', { nodi: { Config: giro, 'Officina: catalogo': cat, 'Provini da scaricare': prov }, input: [{ base64: img.buf.toString('base64') }] });
+    const dom = esegui('domande-sul-materiale.js', { nodi: { Config: giro, 'Officina: catalogo': cat, 'Provini da scaricare': prov }, input: prov });
     assert.equal(dom.length, 1);
+    assert.deepEqual(dom[0].json.percorsi, [prov[0].percorso], 'il provino arriva all\'AD come percorso dell\'officina');
+    assert.equal(await stannoNellAD(dom.map((x) => x.json)), 'parti', 'la domanda sul materiale passa i controlli di «Chiedi all\'AD»');
     // Claude finto: descrive e pianifica con i codici VERI del catalogo
     const codici = cat.provini.flatMap((p) => p.codici);
     const leggi = esegui('leggi-cosa-ce.js', { nodi: { Config: giro, 'Officina: catalogo': cat }, input: [risposta({ scene: codici.map((k) => ({ codice: k, cosa_si_vede: 'prova', soggetto: 'altro', valore: 3, aggancio: false, problemi: [] })) })] })[0].json;
     assert.equal(leggi.descritte, codici.length);
+    assert.equal(await stannoNellAD([leggi]), 'parti', 'la richiesta del piano passa i controlli di «Chiedi all\'AD»');
     const pianoClaude = { contenuti: [
       // il reel con la regia di Scatti di G (schema di Claude: tutti i campi, quelli che non servono vuoti)
       { tipo: 'reel', data: '2026-12-04', ora: '18:30', titolo: 'Reel di prova', idea: 'prova', perche: 'prova', pezzi: [], foto: [], intro: '', outro: '', righe: [], musica: false, didascalia: 'Ci vediamo!',

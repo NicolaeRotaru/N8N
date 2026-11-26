@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 const QUI = path.dirname(fileURLToPath(import.meta.url));
 const leggi = (...p) => fs.readFileSync(path.join(QUI, ...p), 'utf8');
 const COMUNE = leggi('nodi', 'comune.js');
+import { snellisciCodice } from '../flussi/snellisci-aiuti.mjs';
 // La moodboard di Scatti di G (moodboard/sdg.md) entra nel prompt del piano e in quello della correzione della regia:
 // è il linguaggio del marchio, vale per ogni video.
 const MOODBOARD = `<moodboard>\n${leggi('moodboard', 'sdg.md').trim()}\n</moodboard>`;
@@ -66,7 +67,6 @@ export const CRED = {
   drive: { googleDriveOAuth2Api: { id: 'FCSps1wTGjDI2YUg', name: 'Google Drive - Agenzia' } },
   telegram: { telegramApi: { id: 'OSR2Mp2IrY68ShiL', name: 'Telegram - Bot agenzia' } },
   officina: { httpHeaderAuth: { id: 'EHAwE00jwfTG54AP', name: 'Officina - Chiave' } },
-  anthropic: { httpHeaderAuth: { id: 'CSy3VQGj4dTxcjEj', name: 'Anthropic API' } },
   moduli: { httpBasicAuth: { id: 'HgjV31e82sq3vEoP', name: 'n8n - Accesso moduli' } },
 };
 
@@ -88,11 +88,13 @@ function catena(...nomi) {
 }
 
 // Nodo Code: aiuti comuni + i prompt che il corpo usa + il corpo.
+// Ogni nodo porta solo gli aiuti comuni che usa (snellimento della sessione «n8n in ordine», flussi/snellisci-aiuti.mjs):
+// il blocco intero è 15 mila caratteri, copiato in 40 nodi. Se il taglio non è sicuro, il nodo resta col blocco intero.
 export function sorgenteCodice(file) {
   const corpo = leggi('nodi', file);
   let costanti = '';
   for (const [k, v] of Object.entries(COSTANTI)) if (corpo.includes(k)) costanti += `const ${k} = ${JSON.stringify(v)};\n`;
-  return `${COMUNE}\n${costanti}// ===== ${file} =====\n${corpo}`;
+  return snellisciCodice(`${COMUNE}\n${costanti}// ===== ${file} =====\n${corpo}`).codice;
 }
 function codice(nome, file, pos, extra = {}) {
   return nodo(nome, 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: sorgenteCodice(file) }, pos, extra);
@@ -178,25 +180,23 @@ function officinaScarica(nome, percorso, campo, pos) {
     options: { timeout: 300000, response: { response: { responseFormat: 'file', outputPropertyName: campo } } },
   }, pos, { credentials: CRED.officina, ...RIPROVA(3, 10000), onError: 'continueRegularOutput' });
 }
-function claude(nome, pos, timeout) {
-  return nodo(nome, 'n8n-nodes-base.httpRequest', 4.5, {
-    method: 'POST',
-    url: 'https://api.anthropic.com/v1/messages',
-    authentication: 'genericCredentialType',
-    genericAuthType: 'httpHeaderAuth',
-    sendHeaders: true,
-    specifyHeaders: 'keypair',
-    headerParameters: { parameters: [
-      { name: 'anthropic-version', value: '2026-10-21' },
-      { name: 'anthropic-beta', value: 'server-side-fallback-2026-07-01' },
-      { name: 'content-type', value: 'application/json' },
-    ] },
-    sendBody: true,
-    contentType: 'json',
-    specifyBody: 'json',
-    jsonBody: '={{ JSON.stringify($json.corpo) }}',
-    options: { timeout },
-  }, pos, { credentials: CRED.anthropic, ...RIPROVA(3, 20000), onError: 'continueRegularOutput' });
+// Il lavoro con l'IA lo fa l'AD col piano Max attraverso «90 · Chiedi all'AD» (Nicola, 24/11: nessun flusso chiama
+// più l'API di Claude a pagamento). Ogni passo diventa tre nodi: «Per l'AD» (la richiesta diventa un lavoro, con gli
+// allegati), «Chiedi all'AD» (una corsa sola per tutti gli elementi) e «Dall'AD» (la risposta nella forma di prima).
+// L'id del sotto-flusso su n8n lo mette chi carica (variabile CHIEDI_ID): mai nel repository.
+const CHIEDI_ID = process.env.CHIEDI_ID || 'DA_IMPOSTARE';
+function chiediAD(cosa, [x, y]) {
+  const nomi = [`Per l'AD: ${cosa}`, `Chiedi all'AD: ${cosa}`, `Dall'AD: ${cosa}`];
+  nodo(nomi[0], 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: sorgenteCodice('per-l-ad.js') }, [x - 120, y + 160]);
+  nodo(nomi[1], 'n8n-nodes-base.executeWorkflow', 1.3, {
+    source: 'database',
+    workflowId: { __rl: true, mode: 'id', value: CHIEDI_ID, cachedResultName: "90 · Chiedi all'AD" },
+    workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+    mode: 'once',
+    options: { waitForSubWorkflow: true },
+  }, [x, y], { onError: 'continueRegularOutput' });
+  nodo(nomi[2], 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: sorgenteCodice('dall-ad.js') }, [x + 120, y + 160]);
+  return nomi;
 }
 function base64(nome, campo, pos) {
   return nodo(nome, 'n8n-nodes-base.extractFromFile', 1.1, { operation: 'binaryToPropery', binaryPropertyName: campo, destinationKey: 'base64', options: {} }, pos, { onError: 'continueRegularOutput' });
@@ -251,7 +251,7 @@ export const CONFIG = {
   QUIETE_MINUTI: 30,
   TRASCRIVI: 'si',
   LINGUA: 'it',
-  PROVINI_PER_DOMANDA: 6,
+  PROVINI_PER_DOMANDA: 10,
   MAX_MB_FILE: 500,
   MAX_FILE: 400,
   // le quantità di serie, se il cliente non ha il pacchetto nel foglio Clienti (colonne reel_mese, post_mese, storie_mese)
@@ -400,12 +400,11 @@ se('Qualcosa caricato?', "$('Esito dei caricamenti').first().json.ok", [COL(11),
 officinaMultipart('Officina: catalogo', "'/progetto/' + $('Officina: nuovo progetto').first().json.progetto + '/catalogo'", [{ parameterType: 'formData', name: 'dati', value: '{}' }], [COL(12), G], 1800000);
 codice('Provini da scaricare', 'provini-da-scaricare.js', [COL(13), G]);
 se('Catalogo pronto?', '$json.fermo !== true', [COL(14), G]);
-officinaScarica('Scarica il provino', '$json.percorso', 'provino', [COL(15), G]);
-base64('Provino in base64', 'provino', [COL(16), G]);
-codice('Domande sul materiale', 'domande-sul-materiale.js', [COL(17), G]);
-claude('Claude: guarda il materiale', [COL(18), G], 600000);
+// i provini non si scaricano: all'AD arriva il loro percorso nell'officina, come allegato
+codice('Domande sul materiale', 'domande-sul-materiale.js', [COL(16), G]);
+const GUARDA = chiediAD('guarda il materiale', [COL(18), G]);
 codice("Leggi cosa c'è", 'leggi-cosa-ce.js', [COL(19), G]);
-claude('Claude: piano del mese', [COL(20), G], 900000);
+const PIANO = chiediAD('piano del mese', [COL(20), G]);
 codice('Leggi il piano', 'leggi-il-piano.js', [COL(21), G]);
 se('Piano scritto?', '$json.ok', [COL(22), G]);
 // il controllo del piano usa lo stesso stile (e quindi lo stesso ritmo) del montaggio dei reel con la regia
@@ -413,7 +412,7 @@ const CORPO_PIANO = "{ piano: $json.piano, mese: $('Config').first().json.mese.c
 officinaJson('Officina: controlla il piano', "'/progetto/' + $('Officina: nuovo progetto').first().json.progetto + '/piano'", CORPO_PIANO, [COL(23), G]);
 se('Serve una correzione?', "Array.isArray($json.problemi) && $json.problemi.some((p) => p.gravita === 'blocca')", [COL(24), G]);
 codice('Domanda di correzione', 'domanda-di-correzione.js', [COL(25), G - 150]);
-claude('Claude: correggi il piano', [COL(26), G - 150], 900000);
+const CORREGGI = chiediAD('correggi il piano', [COL(26), G - 150]);
 codice('Leggi la correzione', 'leggi-la-correzione.js', [COL(27), G - 150]);
 officinaJson('Officina: ricontrolla il piano', "'/progetto/' + $('Officina: nuovo progetto').first().json.progetto + '/piano'", CORPO_PIANO, [COL(28), G - 150]);
 codice('Piano finale', 'piano-finale.js', [COL(29), G]);
@@ -440,6 +439,10 @@ nodo("Crea la cartella d'uscita", 'n8n-nodes-base.httpRequest', 4.5, {
 codice('Contenuti da montare', 'contenuti-da-montare.js', [COL(35), G + 50]);
 se('Si monta?', '$json.fermo !== true', [COL(36), G + 50]);
 seStesso('Monta il contenuto', [COL(37), G + 50], true);
+codice('Domande di controllo', 'domande-di-controllo.js', [COL(37) + 60, G - 150]);
+se('Ci sono controlli?', '$json.nessuno !== true', [COL(37) + 180, G - 150]);
+const CONTROLLA = chiediAD('controlla i reel', [COL(37) + 420, G - 150]);
+codice('Unisci i controlli', 'unisci-i-controlli.js', [COL(37) + 660, G - 150]);
 codice('Esito dei montaggi', 'esito-dei-montaggi.js', [COL(38), G + 50]);
 codice('Messaggi finali', 'messaggi.js', [COL(39), G - 100]);
 telegram('Telegram: riepilogo', [COL(40), G - 100]);
@@ -483,15 +486,15 @@ collega('Progetto creato?', 'Messaggio di stop', 1);
 catena('Carica il file', 'Esito dei caricamenti', 'Telegram: materiale guardato', 'Qualcosa caricato?');
 collega('Qualcosa caricato?', 'Officina: catalogo', 0);
 catena('Officina: catalogo', 'Provini da scaricare', 'Catalogo pronto?');
-collega('Catalogo pronto?', 'Scarica il provino', 0);
+collega('Catalogo pronto?', 'Domande sul materiale', 0);
 collega('Catalogo pronto?', 'Messaggio di stop', 1);
-catena('Scarica il provino', 'Provino in base64', 'Domande sul materiale', 'Claude: guarda il materiale', "Leggi cosa c'è", 'Claude: piano del mese', 'Leggi il piano', 'Piano scritto?');
+catena('Domande sul materiale', ...GUARDA, "Leggi cosa c'è", ...PIANO, 'Leggi il piano', 'Piano scritto?');
 collega('Piano scritto?', 'Officina: controlla il piano', 0);
 collega('Piano scritto?', 'Messaggio di stop', 1);
 catena('Officina: controlla il piano', 'Serve una correzione?');
 collega('Serve una correzione?', 'Domanda di correzione', 0);
 collega('Serve una correzione?', 'Piano finale', 1);
-catena('Domanda di correzione', 'Claude: correggi il piano', 'Leggi la correzione', 'Officina: ricontrolla il piano', 'Piano finale', 'Piano pronto?');
+catena('Domanda di correzione', ...CORREGGI, 'Leggi la correzione', 'Officina: ricontrolla il piano', 'Piano finale', 'Piano pronto?');
 collega('Piano pronto?', 'Messaggi del piano', 0);
 collega('Piano pronto?', "Cartelle d'uscita", 0);
 collega('Piano pronto?', 'Messaggio di stop', 1);
@@ -502,7 +505,11 @@ collega('Va creata?', 'Contenuti da montare', 1);
 catena("Crea la cartella d'uscita", 'Contenuti da montare', 'Si monta?');
 collega('Si monta?', 'Monta il contenuto', 0);
 collega('Si monta?', 'Messaggio di stop', 1);
-catena('Monta il contenuto', 'Esito dei montaggi');
+// il controllo dei reel sulla moodboard: una corsa sola dell'AD a fine giro, poi gli esiti vanno avanti come prima
+catena('Monta il contenuto', 'Domande di controllo', 'Ci sono controlli?');
+collega('Ci sono controlli?', CONTROLLA[0], 0);
+collega('Ci sono controlli?', 'Unisci i controlli', 1);
+catena(...CONTROLLA, 'Unisci i controlli', 'Esito dei montaggi');
 collega('Esito dei montaggi', 'Messaggi finali');
 collega('Esito dei montaggi', 'Scrivo nel Calendario?');
 collega('Esito dei montaggi', 'Chiudo il progetto?');
@@ -565,12 +572,6 @@ officinaMultipart('Officina: monta', "'/progetto/' + $('Config').first().json.pr
   conFile('musica', 'con_musica'),
 ], [COL(8), M], 1800000, RIPROVA(2, 60000));
 codice('Esito del montaggio', 'esito-del-montaggio.js', [COL(9), M]);
-se('Controllo con Claude?', '$json.controlla', [COL(10), M]);
-officinaScarica('Scarica i fotogrammi', '$json.fotogrammi', 'fotogrammi', [COL(11), M - 150]);
-base64('Fotogrammi in base64', 'fotogrammi', [COL(12), M - 150]);
-codice('Domanda di controllo', 'domanda-di-controllo.js', [COL(13), M - 150]);
-claude('Claude: controlla il video', [COL(14), M - 150], 300000);
-codice('Leggi il controllo', 'leggi-il-controllo.js', [COL(15), M - 150]);
 codice('File da caricare', 'file-da-caricare.js', [COL(16), M]);
 se('Ci sono file?', '$json.salta !== true', [COL(17), M]);
 officinaScarica("Scarica dall'officina", '$json.percorso', 'data', [COL(18), M]);
@@ -591,10 +592,7 @@ collega('Scarica il logo dal sito', 'Serve la musica?');
 collega('Serve la musica?', 'Scarica la musica', 0);
 collega('Serve la musica?', 'Unisci i file', 1);
 collega('Scarica la musica', 'Unisci i file');
-catena('Unisci i file', 'Officina: monta', 'Esito del montaggio', 'Controllo con Claude?');
-collega('Controllo con Claude?', 'Scarica i fotogrammi', 0);
-collega('Controllo con Claude?', 'File da caricare', 1);
-catena('Scarica i fotogrammi', 'Fotogrammi in base64', 'Domanda di controllo', 'Claude: controlla il video', 'Leggi il controllo', 'File da caricare', 'Ci sono file?');
+catena('Unisci i file', 'Officina: monta', 'Esito del montaggio', 'File da caricare', 'Ci sono file?');
 collega('Ci sono file?', "Scarica dall'officina", 0);
 collega('Ci sono file?', 'Esito del contenuto', 1);
 catena("Scarica dall'officina", 'Carica su Drive', 'Esito del contenuto');
@@ -688,7 +686,7 @@ nodo('Chiedi: cosa cambio?', 'n8n-nodes-base.telegram', 1.2, {
 }, [COL(11), V + 100], { credentials: CRED.telegram, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', webhookId: uuid('Chiedi: cosa cambio?:webhook') });
 codice('Domanda di ritocco', 'domanda-di-ritocco.js', [COL(12), V + 100]);
 se('Ritocco possibile?', '$json.ok', [COL(13), V + 100]);
-claude('Claude: ritocca la regia', [COL(14), V + 50], 600000);
+const RITOCCA = chiediAD('ritocca la regia', [COL(14), V + 50]);
 codice('Leggi il ritocco', 'leggi-il-ritocco.js', [COL(15), V + 50]);
 se('Ritocco pronto?', '$json.ok', [COL(16), V + 50]);
 nodo('Da rimontare', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// Il contenuto ritoccato va all'esecuzione «monta», come quelli del giro.\nreturn [{ json: $('Leggi il ritocco').first().json.monta }];" }, [COL(17), V]);
@@ -725,9 +723,9 @@ collega('Scrivo la riga?', 'Riga per il foglio', 0);
 collega('Scrivo la riga?', 'Telegram: approvato', 1);
 catena('Riga per il foglio', 'Scrivi la riga approvata', 'Telegram: approvato');
 catena('Chiedi: cosa cambio?', 'Domanda di ritocco', 'Ritocco possibile?');
-collega('Ritocco possibile?', 'Claude: ritocca la regia', 0);
+collega('Ritocco possibile?', RITOCCA[0], 0);
 collega('Ritocco possibile?', 'Telegram: niente ritocco', 1);
-catena('Claude: ritocca la regia', 'Leggi il ritocco', 'Ritocco pronto?');
+catena(...RITOCCA, 'Leggi il ritocco', 'Ritocco pronto?');
 collega('Ritocco pronto?', 'Da rimontare', 0);
 collega('Ritocco pronto?', 'Telegram: ritocco non riuscito', 1);
 catena('Telegram: ritocco non riuscito', 'Scheda di prima', 'Rimanda la scheda di prima');
@@ -780,7 +778,7 @@ nota('Nota 05 - Rivedi', leggi('note', '05-rivedi.md'), [COL(3) - 40, RIGA.rived
 nota('Nota 06 - Guarda', leggi('note', '06-guarda.md'), [COL(3) - 40, RIGA.guarda + 160], 1200, 220, 5);
 
 export const workflow = {
-  name: '16 · Montatore',
+  name: '31 · Montatore', // dal 25/11 (NOMI.montatore in flussi/nomi.mjs); su n8n si cerca anche col nome vecchio
   nodes: nodi,
   connections: connessioni,
   settings: { executionOrder: 'v1', timezone: 'Europe/Rome', callerPolicy: 'workflowsFromSameOwner', errorWorkflow: 'D3Ugm3sc201nteFX', saveManualExecutions: true, saveDataErrorExecution: 'all', saveDataSuccessExecution: 'none', binaryMode: 'separate' },

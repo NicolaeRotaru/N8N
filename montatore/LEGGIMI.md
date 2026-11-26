@@ -55,7 +55,9 @@ Niente viene pubblicato da solo. Niente viene inventato: il montaggio usa solo t
 ## Cosa devi fare
 Una volta sola, per accenderlo:
 1. **Pubblica l'officina 1.4.0** su Sliplane: è la stessa officina di prima, con le rotte nuove del montatore e della regia. Serve il merge del ramo nel `main` del repository `NicolaeRotaru/N8N`. Poi su Sliplane parte la nuova pubblicazione. Controllo: `GET {OFFICINA_URL}/salute` deve dire `versione: "1.4.0"`.
-2. **Importa il workflow** `montatore/16-montatore.json` in n8n (se non c'è già «16 · Montatore»). Le credenziali sono le stesse degli altri workflow.
+2. **Importa il workflow** `montatore/16-montatore.json` in n8n (se non c'è già: dal 25/11 si chiama «31 · Montatore», prima «16 · Montatore»). Le credenziali sono le stesse degli altri workflow. Prima di generarlo metti `CHIEDI_ID` = l'id di «90 · Chiedi all'AD» su n8n (`CHIEDI_ID=… node montatore/genera.mjs`): l'id non sta nel repository.
+
+**L'IA la fa l'AD** (Nicola, 24/11: nessun flusso chiama più l'API di Claude a pagamento). I cinque passi con l'IA (guarda il materiale, piano del mese, correggi il piano, ritocca la regia, controlla i reel) passano da «90 · Chiedi all'AD» con tre nodi ciascuno: «Per l'AD» (la richiesta diventa un lavoro, coi testi lunghi come allegati e le immagini come file dell'officina), «Chiedi all'AD» (una corsa sola per tutti gli elementi) e «Dall'AD» (la risposta nella forma di prima). Un giro usa circa 4 corse della routine (al massimo 40 al giorno per tutti i flussi). Finché «90 · Chiedi all'AD» è in prova, il montatore non riceve risposte: il giro si ferma al piano con «l'AD non ha risposto». Servono anche gli allegati attivi su n8n (Data table e «89 · Allegati per l'AD»: vedi `flussi/LEGGIMI.md`).
 3. **Controlla il Config** del workflow: `OFFICINA_URL` uguale a quello dei workflow 07 e 08, `MODALITA` = `prova`.
 4. Premi **Publish** (il tasto di n8n che accende il workflow). Il modulo è all'indirizzo `/form/montatore` del vostro n8n, con lo stesso accesso degli altri moduli.
 
@@ -97,13 +99,14 @@ GIRO
  ├─ officina POST /progetto
  ├─ per ogni file un'esecuzione «carica»: Drive → officina POST /progetto/<id>/materiale
  ├─ officina POST /progetto/<id>/catalogo → provini (griglie 5×4 con i codici V03.2, F07) + testo
- ├─ Claude «guarda»: provini a gruppi di PROVINI_PER_DOMANDA → cosa si vede, soggetto, valore 1-5, aggancio, problemi
- ├─ Claude «piano»: scheda cliente + mese + festività + richiesta + note + catalogo descritto → contenuti con tagli
+ ├─ AD «guarda»: provini a gruppi di PROVINI_PER_DOMANDA (come file dell'officina) → cosa si vede, soggetto, valore 1-5, aggancio, problemi
+ ├─ AD «piano»: scheda cliente + mese + festività + richiesta + note + catalogo descritto → contenuti con tagli
  ├─ officina POST /progetto/<id>/piano → controllo (codici veri, tempi dentro la clip, durate, mese, date già passate, ripetizioni)
- ├─ se il controllo ha tolto contenuti: Claude «correggi», una volta sola, e nuovo controllo
+ ├─ se il controllo ha tolto contenuti: AD «correggi», una volta sola, e nuovo controllo
  ├─ cartella d'uscita «Pronti (montatore)» (creata se manca)
  ├─ per ogni contenuto un'esecuzione «monta»: logo + musica → officina POST /progetto/<id>/monta
- │     → (video) Claude controlla i 6 fotogrammi → file su Drive
+ │     → file su Drive
+ ├─ AD «controlla i reel»: tutti i reel insieme (al massimo 12), una corsa sola, sul provino dei fotogrammi
  ├─ attivo: righe nel Calendario · sempre: riepilogo su Telegram
  └─ tutto riuscito: officina POST /progetto/<id>/chiudi (con le schede su Telegram il progetto resta aperto e scade da solo dopo 14 giorni)
 ```
@@ -115,11 +118,11 @@ Un'esecuzione per file e una per contenuto: n8n tiene in memoria un file alla vo
 | `OFFICINA_URL` | `http://officina.internal:8080` | lo stesso dei workflow 07 e 08 |
 | `MODALITA` | `prova` | `attivo` = scrive anche nel Calendario |
 | `NOME_CARTELLA_PRONTI` | `Pronti (montatore)` | cartella d'uscita dentro il servizio (in prova con « - prova») |
-| `ANTHROPIC_MODEL` | `claude-opus-5-5` | modello per guardare, pianificare e controllare |
+| `ANTHROPIC_MODEL` | `claude-opus-5-5` | non si usa più (l'IA la fa l'AD): resta nella richiesta che diventa il lavoro |
 | `EFFORT_CAPIRE` / `EFFORT_PIANO` / `EFFORT_CONTROLLO` | `medium` / `high` / `medium` | quanto ragiona Claude in ogni domanda |
-| `USA_CONTROLLO` | `si` | Claude guarda i fotogrammi di ogni video montato |
+| `USA_CONTROLLO` | `si` | a fine giro l'AD guarda i fotogrammi dei reel (al massimo 12, una corsa sola); storie e post li guardate voi |
 | `TRASCRIVI` / `LINGUA` | `si` / `it` | parlato trascritto (sottotitoli e frasi nel catalogo) |
-| `PROVINI_PER_DOMANDA` | `6` | immagini per richiesta a Claude (al massimo ~20 MB) |
+| `PROVINI_PER_DOMANDA` | `10` | provini per domanda all'AD: 30 provini al massimo = 3 domande = 33 allegati, sotto i 40 di una corsa |
 | `MAX_MB_FILE` / `MAX_FILE` | `500` / `400` | file più grandi o in più si saltano, con l'avviso |
 | `REEL` / `POST` / `STORIE` | `10` / `8` / `16` | quantità di serie, solo se il modulo le lascia vuote **e** il cliente non ha il pacchetto nel foglio Clienti |
 | `STILE_VIDEO` | `sdg` | stile della regia dei reel (`sdg` = moodboard di Scatti di G, `virale`, `pulito`) |

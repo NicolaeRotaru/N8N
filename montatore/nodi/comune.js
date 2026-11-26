@@ -171,11 +171,73 @@ function corpoClaude(CFG, opz) {
     messages: [{ role: 'user', content: contenuto }],
   };
 }
+// Il lavoro per l'AD («90 · Chiedi all'AD») al posto della richiesta per l'API di Claude: Nicola, 24/11, nessun flusso
+// chiama più l'API a pagamento. Il prompt di sistema diventa il compito. Il messaggio va dentro se è corto, altrimenti
+// negli allegati (pezzi da 120.000 caratteri, sotto i 512 KB dell'allegato). Le immagini vanno come file dell'officina
+// (il percorso /file/…): all'AD non arrivano in base64, e così non si salvano nemmeno nella tabella degli allegati.
+const FLUSSO_AD = '31 · Montatore';
+function lavoroAD(corpo, percorsi) {
+  if (!corpo || typeof corpo !== 'object') return { flusso: FLUSSO_AD, compito: '-', dati: null, schema: null, non_mandare: "niente da chiedere all'AD" };
+  const sistema = typeof corpo.system === 'string' ? corpo.system : Array.isArray(corpo.system) ? corpo.system.map((b) => testo(b && b.text)).join('\n\n') : '';
+  const parti = (Array.isArray(corpo.messages) ? corpo.messages : []).flatMap((m) => (Array.isArray(m && m.content) ? m.content : [{ type: 'text', text: testo(m && m.content) }]));
+  const messaggio = parti.filter((b) => b && b.type === 'text').map((b) => String(b.text || '')).join('\n\n');
+  const immagini = parti.filter((b) => b && b.type === 'image').length;
+  // i percorsi del montatore sono «<lavoro>/<file>» (vedi percorsoOfficina): agli allegati serve «/file/<lavoro>/<file>»
+  const vie = (Array.isArray(percorsi) ? percorsi : []).map(testo).filter(Boolean).map((p) => (p.startsWith('/file/') ? p : '/file/' + p.replace(/^\/+/, '')));
+  const schema = (corpo.output_config && corpo.output_config.format && corpo.output_config.format.schema) || null;
+  const allegati = [];
+  let dati;
+  if (messaggio.length > 6000) {
+    const pezzi = [];
+    for (let i = 0; i < messaggio.length; i += 120000) pezzi.push(messaggio.slice(i, i + 120000));
+    pezzi.forEach((p, i) => allegati.push({ nome: pezzi.length > 1 ? 'messaggio ' + (i + 1) : 'messaggio', tipo: 'testo', contenuto: p }));
+    dati = { messaggio: pezzi.length > 1 ? 'Il messaggio è negli allegati «messaggio 1»…«messaggio ' + pezzi.length + '», da leggere in ordine.' : "Il messaggio è nell'allegato «messaggio»." };
+  } else {
+    dati = { messaggio };
+  }
+  vie.forEach((p, i) => allegati.push({ nome: 'immagine ' + (i + 1), tipo: 'officina', percorso: p }));
+  const compito = [
+    sistema,
+    '---',
+    'Il messaggio su cui lavorare è in «dati.messaggio» (o negli allegati che indica): fai quello che chiede, seguendo le regole qui sopra.',
+    vie.length ? 'Le immagini del messaggio sono negli allegati «immagine 1»…«immagine ' + vie.length + '», nello stesso ordine: aprile e guardale prima di rispondere.' : '',
+    schema ? "In «risultato» metti l'oggetto che rispetta lo schema." : '',
+  ].filter(Boolean).join('\n\n');
+  const lavoro = { flusso: FLUSSO_AD, compito, dati, schema, ...(allegati.length ? { allegati } : {}) };
+  if (immagini > vie.length) lavoro.non_mandare = "immagini senza il percorso dell'officina: all'AD non arrivano";
+  return lavoro;
+}
+// La risposta dell'AD nella forma che leggiClaude si aspetta dall'API di Claude (il resto del flusso non cambia).
+function rispostaAD(r) {
+  const x = r && typeof r === 'object' ? r : {};
+  if (x.ok === true) {
+    const text = typeof x.risultato === 'string' ? x.risultato : JSON.stringify(x.risultato ?? null);
+    return { type: 'message', role: 'assistant', content: [{ type: 'text', text }], stop_reason: 'end_turn', fatto_da: 'AD', avvisi: Array.isArray(x.avvisi) ? x.avvisi : [] };
+  }
+  const errore = x.errore || (x.error && (x.error.message || x.error)) || "l'AD non ha risposto";
+  return { error: { type: 'ad', message: 'AD: ' + accorcia(testo(errore), 300) } };
+}
+// Il giudizio del controllo di un video (risposta dell'AD nella forma di Claude) → { esito, voto, punti, motivo }.
+// «da rivedere» se lo dice l'AD o se il voto è 1-2 (un punto segnato da solo non basta: un'immagine un po' scura non è
+// motivo per bocciare). Quando è da rivedere il motivo dice cosa non va, con le note dei punti. Se non risponde, il
+// contenuto va avanti lo stesso: lo approvate voi.
+function giudizioControllo(r) {
+  const x = leggiClaude(r);
+  if (!x.ok) return { esito: 'non_controllato', motivo: x.motivo };
+  const d = x.dati;
+  const voto = Math.max(1, Math.min(5, intero(d.voto, 3)));
+  const punti = (Array.isArray(d.punti) ? d.punti : []).map((p) => ({ punto: testo(p.punto), ok: p.ok !== false, nota: accorcia(testo(p.nota), 160) }));
+  const rivedere = d.esito === 'da_rivedere' || voto <= 2;
+  const noteKo = punti.filter((p) => !p.ok && p.nota).map((p) => p.punto + ': ' + p.nota);
+  const base = d.esito === 'da_rivedere' ? testo(d.motivo) : '';
+  const motivo = rivedere ? [base, ...noteKo.filter((n) => !base.includes(n.replace(/^[a-z]+: /, '')))].filter(Boolean).join(' · ') || 'voto basso (' + voto + '/5)' : testo(d.motivo);
+  return { esito: rivedere ? 'da_rivedere' : 'ok', voto, punti, motivo: accorcia(motivo, 400) };
+}
 // La risposta di Claude → { ok, dati } oppure { ok:false, motivo }.
 function leggiClaude(r) {
   const corpo = r && r.body !== undefined && r.statusCode !== undefined ? r.body : r;
   if (!corpo || typeof corpo !== 'object') return { ok: false, motivo: 'nessuna risposta' };
-  if (corpo.error) return { ok: false, motivo: 'errore di Claude: ' + accorcia(testo(corpo.error.message || corpo.error.type), 200) };
+  if (corpo.error) return { ok: false, motivo: 'errore: ' + accorcia(testo(corpo.error.message || corpo.error.type), 200) };
   const blocchi = Array.isArray(corpo.content) ? corpo.content : [];
   const t = blocchi.filter((b) => b && b.type === 'text').map((b) => b.text).join('');
   if (!t) return { ok: false, motivo: 'risposta vuota' + (corpo.stop_reason ? ' (' + corpo.stop_reason + ')' : '') };
