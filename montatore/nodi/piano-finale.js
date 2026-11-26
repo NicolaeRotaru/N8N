@@ -26,5 +26,5 @@ for (const x of contenuti) {
 }
 const avvisi = (fin.problemi || []).filter((p) => p.gravita === 'blocca' || ['ripetizione', 'numeri_diversi'].includes(p.codice));
 if (avvisi.length) { righe.push(''); righe.push('Da sapere: ' + h(accorcia(avvisi.map((p) => p.messaggio).join(' '), 1500))); }
-if (note) { righe.push(''); righe.push('Nota di Claude: ' + h(accorcia(note, 800))); }
+if (note) { righe.push(''); righe.push('Nota dell\'AD: ' + h(accorcia(note, 800))); }
 return [{ json: { ok: true, contenuti, conti: c, messaggi: aPezzi(righe) } }];

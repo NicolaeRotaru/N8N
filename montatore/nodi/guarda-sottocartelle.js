@@ -8,14 +8,20 @@ $input.all().forEach((x, i) => {
   const voci = x.json.files || [];
   // c'è già la cartella «Pronti»: il servizio è già partito (dal modulo o da un giro di prima). Non si riparte.
   const radicePronti = chiaveNome(testo($('Config').first().json.NOME_CARTELLA_PRONTI || 'Pronti (montatore)'));
-  if (voci.some((f) => eCartella(f) && chiaveNome(f.name).startsWith(radicePronti))) {
+  const pronti = voci.find((f) => eCartella(f) && chiaveNome(f.name).startsWith(radicePronti));
+  if (pronti) {
     const S = $getWorkflowStaticData('global');
     S.servizi = S.servizi || {};
     S.servizi[s.servizio_id] = { ...(S.servizi[s.servizio_id] || {}), avviato: new Date().toISOString(), da: 'pronti' };
+    // un giro partito da un'altra strada (il modulo): il guardiano lo conta, e non ne fa partire un altro insieme. Di solito
+    // la cartella porta la fine stimata (la legge «Guarda: servizi pronti» da «Guarda: giri in corso»); se non la porta
+    // (cartella creata a mano, o da una versione di prima), da quando è nata almeno GIRI_DISTANZA_MINUTI.
+    const quando = Date.parse(pronti.createdTime || '');
+    if (Number.isFinite(quando) && quando <= Date.now() && quando > (Date.parse(S.giro_visto || '') || 0)) S.giro_visto = new Date(quando).toISOString();
     return;
   }
   const cartelle = voci.filter((f) => eCartella(f) && ruoloCartella(f.name) && !/pronti/i.test(testo(f.name)));
-  const diretti = voci.filter((f) => !eCartella(f)).map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, createdTime: f.createdTime }));
+  const diretti = voci.filter((f) => !eCartella(f)).map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, createdTime: f.createdTime, size: f.size, videoMediaMetadata: f.videoMediaMetadata }));
   // un servizio è una cartella con le sottocartelle del servizio (video verticali, video orizzontali, foto…): una cartella
   // qualunque («Grafiche», «Menu») non fa partire niente. I servizi con i file sciolti si lanciano dal modulo.
   if (!cartelle.length) return;

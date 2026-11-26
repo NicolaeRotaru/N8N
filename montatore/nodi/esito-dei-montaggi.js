@@ -18,10 +18,14 @@ m.push(ok.length + ' contenuti pronti su Drive' + (daRivedere.length ? ' (' + da
 if (cartella) m.push('Cartella: ' + linkCartella(cartella));
 if (revisione) m.push('Adesso arriva una scheda per ogni contenuto: ✅ Approva ' + (attivo ? 'lo mette nel Calendario' : '(in prova non scrive nel Calendario)') + ', ✏️ Correggi lo rimonta con la vostra nota. Niente si pubblica senza di voi.');
 else m.push(attivo ? 'Nel Calendario ho scritto ' + righe.length + ' righe: le storie sono «da approvare», reel e post «da scrivere» (il 04 prepara la didascalia), quelli da rivedere restano in «bozza». Niente si pubblica senza di voi.'
-  : 'Modalità prova: nel Calendario non ho scritto niente. Se il risultato vi convince, mettete MODALITA = attivo nel Config del workflow 16.');
+  : 'Modalità prova: nel Calendario non ho scritto niente. Se il risultato vi convince, mettete MODALITA = attivo nel Config del «31 · Montatore».');
 for (const x of daRivedere) m.push('🔎 ' + leggibileData(x.contenuto.data, x.contenuto.ora) + ' · ' + h(x.contenuto.titolo) + ': ' + h(x.controllo.motivo));
 for (const x of ko) m.push('❌ ' + leggibileData((x.contenuto || {}).data, (x.contenuto || {}).ora) + ' · ' + h((x.contenuto || {}).titolo || ('contenuto ' + x.n)) + ': ' + h(accorcia(testo(x.motivo) || 'errore sconosciuto', 300)));
-const avvisi = [...new Set(ok.flatMap((x) => x.avvisi || []))];
+const oltre = ok.filter((x) => x.controllo && x.controllo.oltre_il_tetto);
+// quello che l'AD ha detto mentre guardava il materiale o scriveva il piano (es. un allegato che non si apriva)
+const dalPasso = (n) => ($(n).isExecuted ? ($(n).first().json || {}).avvisi_ad : null);
+const avvisi = [...new Set([...(dalPasso('Leggi il piano') || []), ...(dalPasso('Leggi la correzione') || []), ...ok.flatMap((x) => x.avvisi || [])])];
+if (oltre.length) avvisi.unshift(oltre.length === 1 ? "Un reel non l'ha guardato l'AD (al massimo 12 in una corsa): guardatelo voi." : oltre.length + " reel non li ha guardati l'AD (al massimo 12 in una corsa): guardateli voi.");
 if (avvisi.length) m.push('Da sapere: ' + h(accorcia(avvisi.join(' '), 1200)));
 // con la revisione su Telegram il Calendario lo scrive «Approva», contenuto per contenuto; il progetto resta aperto
 // nell'officina per le correzioni (scade da solo dopo PROGETTO_DURATA_ORE)

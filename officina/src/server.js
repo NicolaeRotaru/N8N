@@ -25,8 +25,9 @@ import { controllaPiano } from './piano.js';
 import { montaContenuto } from './montaggio.js';
 import { leggiSceneggiatura } from './sceneggiatura.js';
 import { controllaRegia, regoleDelloStile } from './regia.js';
-import { montaRegia, stileDa, FORMATI } from './regia-render.js';
+import { montaRegia, stileDa, conScelte, FORMATI } from './regia-render.js';
 import { provaFiltri } from './autoprova.js';
+import { misuraRiferimento } from './riferimento.js';
 import { forseRallenta, modoRallenty } from './rallenty.js';
 import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
 
@@ -366,7 +367,7 @@ export async function creaServer(cfg = leggiConfig()) {
     const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
     // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
-    const stile = stileDa(dati.stile, dati.marchio, dati.identita);
+    const stile = conScelte(stileDa(dati.stile, dati.marchio, dati.identita), dati);
     const R = regoleDelloStile(stile);
     const lut = await lutPerMateriali(cfg, progetto.materiali, { lut: dati.lut ?? null, lut_materiali: dati.lut_materiali ?? null });
     // più formati dalla stessa regia (es. ["verticale","orizzontale"]): stessi tagli, inquadrature ritagliate per ognuno
@@ -402,6 +403,9 @@ export async function creaServer(cfg = leggiConfig()) {
     return { lut: r.nome, punti: r.punti, elenco: await elencoLut(cfg) };
   });
   app.get('/lut', async () => ({ elenco: await elencoLut(cfg) }));
+  // Un reel di riferimento (uno che per il team è perfetto): quanto dura ogni inquadratura, dove cadono i tagli, la
+  // musica, e un ritmo proposto con le chiavi di stile.ritmo. Il video si butta a fine lavoro.
+  rotta('/riferimento', { video: { min: 1, max: 1 } }, ({ file, segnale }) => misuraRiferimento(file.video[0], cfg, segnale));
 
   // Telegram: apre l'argomento di un gruppo (un'attività = un argomento). Lavoro leggero: niente coda.
   app.post('/telegram/argomento', async (req) => apriArgomento(req.body, cfg));

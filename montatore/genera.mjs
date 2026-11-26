@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 const QUI = path.dirname(fileURLToPath(import.meta.url));
 const leggi = (...p) => fs.readFileSync(path.join(QUI, ...p), 'utf8');
 const COMUNE = leggi('nodi', 'comune.js');
+import { snellisciCodice } from '../flussi/snellisci-aiuti.mjs';
 // La moodboard di Scatti di G (moodboard/sdg.md) entra nel prompt del piano e in quello della correzione della regia:
 // è il linguaggio del marchio, vale per ogni video.
 const MOODBOARD = `<moodboard>\n${leggi('moodboard', 'sdg.md').trim()}\n</moodboard>`;
@@ -66,7 +67,6 @@ export const CRED = {
   drive: { googleDriveOAuth2Api: { id: 'FCSps1wTGjDI2YUg', name: 'Google Drive - Agenzia' } },
   telegram: { telegramApi: { id: 'OSR2Mp2IrY68ShiL', name: 'Telegram - Bot agenzia' } },
   officina: { httpHeaderAuth: { id: 'EHAwE00jwfTG54AP', name: 'Officina - Chiave' } },
-  anthropic: { httpHeaderAuth: { id: 'CSy3VQGj4dTxcjEj', name: 'Anthropic API' } },
   moduli: { httpBasicAuth: { id: 'HgjV31e82sq3vEoP', name: 'n8n - Accesso moduli' } },
 };
 
@@ -88,11 +88,13 @@ function catena(...nomi) {
 }
 
 // Nodo Code: aiuti comuni + i prompt che il corpo usa + il corpo.
+// Ogni nodo porta solo gli aiuti comuni che usa (snellimento della sessione «n8n in ordine», flussi/snellisci-aiuti.mjs):
+// il blocco intero è 15 mila caratteri, copiato in 40 nodi. Se il taglio non è sicuro, il nodo resta col blocco intero.
 export function sorgenteCodice(file) {
   const corpo = leggi('nodi', file);
   let costanti = '';
   for (const [k, v] of Object.entries(COSTANTI)) if (corpo.includes(k)) costanti += `const ${k} = ${JSON.stringify(v)};\n`;
-  return `${COMUNE}\n${costanti}// ===== ${file} =====\n${corpo}`;
+  return snellisciCodice(`${COMUNE}\n${costanti}// ===== ${file} =====\n${corpo}`).codice;
 }
 function codice(nome, file, pos, extra = {}) {
   return nodo(nome, 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: sorgenteCodice(file) }, pos, extra);
@@ -143,6 +145,15 @@ function driveElenca(nome, q, pos, campi = 'nextPageToken,files(id,name,mimeType
     options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
   }, pos, { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
 }
+// Le cartelle «Pronti» dei giri in corso (proprietà montatore_giro, scritta alla partenza e tolta a fine giro), su tutti i
+// Drive (anche quelli condivisi): una ricerca incompleta o con più pagine vale come «non lo so».
+function giriInCorso(nome, pos) {
+  driveElenca(nome, "mimeType = 'application/vnd.google-apps.folder' and appProperties has { key='montatore_giro' and value='si' } and trashed = false", pos, 'nextPageToken,incompleteSearch,files(id,name,createdTime,appProperties)');
+  const n = nodi.find((x) => x.name === nome);
+  n.parameters.queryParameters.parameters.push({ name: 'corpora', value: 'allDrives' });
+  n.alwaysOutputData = true;
+  return nome;
+}
 const OFFICINA = "$('Config').first().json.OFFICINA_URL.replace(/\\/+$/, '')";
 function officinaJson(nome, percorso, corpo, pos, timeout = 120000) {
   return nodo(nome, 'n8n-nodes-base.httpRequest', 4.5, {
@@ -178,25 +189,23 @@ function officinaScarica(nome, percorso, campo, pos) {
     options: { timeout: 300000, response: { response: { responseFormat: 'file', outputPropertyName: campo } } },
   }, pos, { credentials: CRED.officina, ...RIPROVA(3, 10000), onError: 'continueRegularOutput' });
 }
-function claude(nome, pos, timeout) {
-  return nodo(nome, 'n8n-nodes-base.httpRequest', 4.5, {
-    method: 'POST',
-    url: 'https://api.anthropic.com/v1/messages',
-    authentication: 'genericCredentialType',
-    genericAuthType: 'httpHeaderAuth',
-    sendHeaders: true,
-    specifyHeaders: 'keypair',
-    headerParameters: { parameters: [
-      { name: 'anthropic-version', value: '2026-10-21' },
-      { name: 'anthropic-beta', value: 'server-side-fallback-2026-07-01' },
-      { name: 'content-type', value: 'application/json' },
-    ] },
-    sendBody: true,
-    contentType: 'json',
-    specifyBody: 'json',
-    jsonBody: '={{ JSON.stringify($json.corpo) }}',
-    options: { timeout },
-  }, pos, { credentials: CRED.anthropic, ...RIPROVA(3, 20000), onError: 'continueRegularOutput' });
+// Il lavoro con l'IA lo fa l'AD col piano Max attraverso «90 · Chiedi all'AD» (Nicola, 24/11: nessun flusso chiama
+// più l'API di Claude a pagamento). Ogni passo diventa tre nodi: «Per l'AD» (la richiesta diventa un lavoro, con gli
+// allegati), «Chiedi all'AD» (una corsa sola per tutti gli elementi) e «Dall'AD» (la risposta nella forma di prima).
+// L'id del sotto-flusso su n8n lo mette chi carica (variabile CHIEDI_ID): mai nel repository.
+const CHIEDI_ID = process.env.CHIEDI_ID || 'DA_IMPOSTARE';
+function chiediAD(cosa, [x, y]) {
+  const nomi = [`Per l'AD: ${cosa}`, `Chiedi all'AD: ${cosa}`, `Dall'AD: ${cosa}`];
+  nodo(nomi[0], 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: sorgenteCodice('per-l-ad.js') }, [x - 120, y + 160]);
+  nodo(nomi[1], 'n8n-nodes-base.executeWorkflow', 1.3, {
+    source: 'database',
+    workflowId: { __rl: true, mode: 'id', value: CHIEDI_ID, cachedResultName: "90 · Chiedi all'AD" },
+    workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
+    mode: 'once',
+    options: { waitForSubWorkflow: true },
+  }, [x, y], { onError: 'continueRegularOutput' });
+  nodo(nomi[2], 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: sorgenteCodice('dall-ad.js') }, [x + 120, y + 160]);
+  return nomi;
 }
 function base64(nome, campo, pos) {
   return nodo(nome, 'n8n-nodes-base.extractFromFile', 1.1, { operation: 'binaryToPropery', binaryPropertyName: campo, destinationKey: 'base64', options: {} }, pos, { onError: 'continueRegularOutput' });
@@ -249,9 +258,11 @@ export const CONFIG = {
   // servizio caricato entro questo giorno del mese → piano del mese in corso; dopo → piano del mese successivo
   GIORNO_LIMITE_MESE: 10,
   QUIETE_MINUTI: 30,
+  // un servizio alla volta: il successivo parte dopo questi minuti (i giri in parallelo rompono il conto delle corse)
+  GIRI_DISTANZA_MINUTI: 120,
   TRASCRIVI: 'si',
   LINGUA: 'it',
-  PROVINI_PER_DOMANDA: 6,
+  PROVINI_PER_DOMANDA: 10,
   MAX_MB_FILE: 500,
   MAX_FILE: 400,
   // le quantità di serie, se il cliente non ha il pacchetto nel foglio Clienti (colonne reel_mese, post_mese, storie_mese)
@@ -362,7 +373,13 @@ catena('Elenca il servizio', 'Trova le sottocartelle', 'Cartella leggibile?');
 collega('Cartella leggibile?', 'Elenca i file', 0);
 collega('Cartella leggibile?', 'Dal modulo?', 1);
 catena('Elenca i file', 'Prepara il lavoro', "C'è materiale?");
-collega("C'è materiale?", 'Prepara la partenza', 0);
+giriInCorso('Partenza: giri in corso', [COL(14) + 60, RIGA.modulo - 250]);
+codice('Si può partire?', 'si-puo-partire.js', [COL(14) + 120, RIGA.modulo - 100]);
+se('Nessun giro in corso?', '$json.ok', [COL(14) + 180, RIGA.modulo - 100]);
+collega("C'è materiale?", 'Partenza: giri in corso', 0);
+catena('Partenza: giri in corso', 'Si può partire?', 'Nessun giro in corso?');
+collega('Nessun giro in corso?', 'Prepara la partenza', 0);
+collega('Nessun giro in corso?', 'Dal modulo?', 1);
 collega("C'è materiale?", 'Dal modulo?', 1);
 // il segno «già partito» si mette subito: la cartella «Pronti (montatore)» nel servizio (il giro poi la usa per i file)
 se('Serve la cartella Pronti?', "!!($('Prepara il lavoro').first().json.pronti && $('Prepara il lavoro').first().json.pronti.crea)", [COL(16), RIGA.modulo - 250]);
@@ -377,18 +394,41 @@ nodo('Crea subito la cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
   sendBody: true,
   contentType: 'json',
   specifyBody: 'json',
-  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro] }) }}",
+  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro], appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine, montatore_inizio: $('Prepara il lavoro').first().json.pronti.inizio } }) }}",
   options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
 }, [COL(17), RIGA.modulo - 350], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+// con «rifai» la cartella c'è già: le si scrive la fine stimata del giro nuovo (la legge il guardiano delle cartelle)
+nodo('Segna il giro sulla cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($('Prepara il lavoro').first().json.pronti.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  jsonBody: "={{ JSON.stringify({ appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine, montatore_inizio: $('Prepara il lavoro').first().json.pronti.inizio } }) }}",
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(17), RIGA.modulo - 200], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+codice('Segno sulla cartella', 'segno-sulla-cartella.js', [COL(18), RIGA.modulo - 280]);
+se('Segno messo?', "$json.lavoro === 'giro'", [COL(18) + 120, RIGA.modulo - 280]);
 collega('Prepara la partenza', 'Serve la cartella Pronti?');
 collega('Serve la cartella Pronti?', 'Crea subito la cartella Pronti', 0);
-catena('Prepara la partenza', 'Avvia il montaggio', 'Dal modulo (partito)?');
+collega('Serve la cartella Pronti?', 'Segna il giro sulla cartella Pronti', 1);
+collega('Crea subito la cartella Pronti', 'Segno sulla cartella');
+collega('Segna il giro sulla cartella Pronti', 'Segno sulla cartella');
+catena('Segno sulla cartella', 'Segno messo?');
+collega('Segno messo?', 'Avvia il montaggio', 0);
+collega('Segno messo?', 'Dal modulo?', 1);
+catena('Avvia il montaggio', 'Dal modulo (partito)?');
 collega('Dal modulo (partito)?', 'Fine: partito', 0);
 
 // ---------------------------------------------------------------- GIRO (esecuzione lunga, lanciata dal modulo)
 const G = RIGA.giro;
 codice('Inizio del giro', 'inizio-del-giro.js', [COL(3), G]);
-collega('Quale lavoro?', 'Inizio del giro', USCITA.giro);
+
 telegram('Telegram: si parte', [COL(4), G]);
 officinaJson('Officina: nuovo progetto', "'/progetto'", "{ nome: $('Config').first().json.cliente.nome_locale + ' · ' + $('Config').first().json.servizio.nome }", [COL(5), G]);
 codice('Un file alla volta', 'un-file-alla-volta.js', [COL(6), G]);
@@ -400,12 +440,11 @@ se('Qualcosa caricato?', "$('Esito dei caricamenti').first().json.ok", [COL(11),
 officinaMultipart('Officina: catalogo', "'/progetto/' + $('Officina: nuovo progetto').first().json.progetto + '/catalogo'", [{ parameterType: 'formData', name: 'dati', value: '{}' }], [COL(12), G], 1800000);
 codice('Provini da scaricare', 'provini-da-scaricare.js', [COL(13), G]);
 se('Catalogo pronto?', '$json.fermo !== true', [COL(14), G]);
-officinaScarica('Scarica il provino', '$json.percorso', 'provino', [COL(15), G]);
-base64('Provino in base64', 'provino', [COL(16), G]);
-codice('Domande sul materiale', 'domande-sul-materiale.js', [COL(17), G]);
-claude('Claude: guarda il materiale', [COL(18), G], 600000);
+// i provini non si scaricano: all'AD arriva il loro percorso nell'officina, come allegato
+codice('Domande sul materiale', 'domande-sul-materiale.js', [COL(16), G]);
+const GUARDA = chiediAD('guarda il materiale', [COL(18), G]);
 codice("Leggi cosa c'è", 'leggi-cosa-ce.js', [COL(19), G]);
-claude('Claude: piano del mese', [COL(20), G], 900000);
+const PIANO = chiediAD('piano del mese', [COL(20), G]);
 codice('Leggi il piano', 'leggi-il-piano.js', [COL(21), G]);
 se('Piano scritto?', '$json.ok', [COL(22), G]);
 // il controllo del piano usa lo stesso stile (e quindi lo stesso ritmo) del montaggio dei reel con la regia
@@ -413,7 +452,7 @@ const CORPO_PIANO = "{ piano: $json.piano, mese: $('Config').first().json.mese.c
 officinaJson('Officina: controlla il piano', "'/progetto/' + $('Officina: nuovo progetto').first().json.progetto + '/piano'", CORPO_PIANO, [COL(23), G]);
 se('Serve una correzione?', "Array.isArray($json.problemi) && $json.problemi.some((p) => p.gravita === 'blocca')", [COL(24), G]);
 codice('Domanda di correzione', 'domanda-di-correzione.js', [COL(25), G - 150]);
-claude('Claude: correggi il piano', [COL(26), G - 150], 900000);
+const CORREGGI = chiediAD('correggi il piano', [COL(26), G - 150]);
 codice('Leggi la correzione', 'leggi-la-correzione.js', [COL(27), G - 150]);
 officinaJson('Officina: ricontrolla il piano', "'/progetto/' + $('Officina: nuovo progetto').first().json.progetto + '/piano'", CORPO_PIANO, [COL(28), G - 150]);
 codice('Piano finale', 'piano-finale.js', [COL(29), G]);
@@ -440,6 +479,10 @@ nodo("Crea la cartella d'uscita", 'n8n-nodes-base.httpRequest', 4.5, {
 codice('Contenuti da montare', 'contenuti-da-montare.js', [COL(35), G + 50]);
 se('Si monta?', '$json.fermo !== true', [COL(36), G + 50]);
 seStesso('Monta il contenuto', [COL(37), G + 50], true);
+codice('Domande di controllo', 'domande-di-controllo.js', [COL(37) + 60, G - 150]);
+se('Ci sono controlli?', '$json.nessuno !== true', [COL(37) + 180, G - 150]);
+const CONTROLLA = chiediAD('controlla i reel', [COL(37) + 420, G - 150]);
+codice('Unisci i controlli', 'unisci-i-controlli.js', [COL(37) + 660, G - 150]);
 codice('Esito dei montaggi', 'esito-dei-montaggi.js', [COL(38), G + 50]);
 codice('Messaggi finali', 'messaggi.js', [COL(39), G - 100]);
 telegram('Telegram: riepilogo', [COL(40), G - 100]);
@@ -477,21 +520,51 @@ telegram('Telegram: giro fermo', [COL(14), G + 250]);
 
 // le idee del workflow 03 per questo mese (righe «PI-…» in stato «idea»): le legge «Leggi cosa c'è»
 nodo('Leggi il Calendario', 'n8n-nodes-base.httpRequest', 4.5, LEGGI_CALENDARIO, [COL(4) + 120, G + 150], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
+// prima di cominciare: un solo giro alla volta anche quando due partenze arrivano nello stesso momento (vedi il nodo)
+nodo('Aspetta i segni', 'n8n-nodes-base.wait', 1.1, { amount: 45, unit: 'seconds' }, [COL(2) + 60, G - 200], { webhookId: uuid('Aspetta i segni:webhook') });
+giriInCorso('Ricontrolla i giri', [COL(2) + 120, G - 200]);
+codice('Primo ad arrivare?', 'primo-ad-arrivare.js', [COL(2) + 180, G - 200]);
+se('Parto?', '$json.parti === true', [COL(2) + 240, G - 200]);
+se('Tocco la cartella?', '$json.tocca === true', [COL(3), G - 350]);
+nodo('Togli il mio segno', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($json.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  // la cartella creata da questa partenza si cestina (così il servizio si può rifare dal modulo); quella di un «rifai» resta
+  jsonBody: '={{ JSON.stringify($json.cestina ? { trashed: true } : { appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }) }}',
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(4), G - 350], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+codice('Non parto', 'non-parto.js', [COL(5), G - 300]);
+telegram('Telegram: non parto (insieme)', [COL(6), G - 300]);
+collega('Quale lavoro?', 'Aspetta i segni', USCITA.giro);
+catena('Aspetta i segni', 'Ricontrolla i giri', 'Primo ad arrivare?', 'Parto?');
+collega('Parto?', 'Inizio del giro', 0);
+collega('Parto?', 'Tocco la cartella?', 1);
+collega('Tocco la cartella?', 'Togli il mio segno', 0);
+collega('Tocco la cartella?', 'Non parto', 1);
+catena('Togli il mio segno', 'Non parto', 'Telegram: non parto (insieme)');
 catena('Inizio del giro', 'Telegram: si parte', 'Leggi il Calendario', 'Officina: nuovo progetto', 'Un file alla volta', 'Progetto creato?');
 collega('Progetto creato?', 'Carica il file', 0);
 collega('Progetto creato?', 'Messaggio di stop', 1);
 catena('Carica il file', 'Esito dei caricamenti', 'Telegram: materiale guardato', 'Qualcosa caricato?');
 collega('Qualcosa caricato?', 'Officina: catalogo', 0);
 catena('Officina: catalogo', 'Provini da scaricare', 'Catalogo pronto?');
-collega('Catalogo pronto?', 'Scarica il provino', 0);
+collega('Catalogo pronto?', 'Domande sul materiale', 0);
 collega('Catalogo pronto?', 'Messaggio di stop', 1);
-catena('Scarica il provino', 'Provino in base64', 'Domande sul materiale', 'Claude: guarda il materiale', "Leggi cosa c'è", 'Claude: piano del mese', 'Leggi il piano', 'Piano scritto?');
+catena('Domande sul materiale', ...GUARDA, "Leggi cosa c'è", ...PIANO, 'Leggi il piano', 'Piano scritto?');
 collega('Piano scritto?', 'Officina: controlla il piano', 0);
 collega('Piano scritto?', 'Messaggio di stop', 1);
 catena('Officina: controlla il piano', 'Serve una correzione?');
 collega('Serve una correzione?', 'Domanda di correzione', 0);
 collega('Serve una correzione?', 'Piano finale', 1);
-catena('Domanda di correzione', 'Claude: correggi il piano', 'Leggi la correzione', 'Officina: ricontrolla il piano', 'Piano finale', 'Piano pronto?');
+catena('Domanda di correzione', ...CORREGGI, 'Leggi la correzione', 'Officina: ricontrolla il piano', 'Piano finale', 'Piano pronto?');
 collega('Piano pronto?', 'Messaggi del piano', 0);
 collega('Piano pronto?', "Cartelle d'uscita", 0);
 collega('Piano pronto?', 'Messaggio di stop', 1);
@@ -502,7 +575,11 @@ collega('Va creata?', 'Contenuti da montare', 1);
 catena("Crea la cartella d'uscita", 'Contenuti da montare', 'Si monta?');
 collega('Si monta?', 'Monta il contenuto', 0);
 collega('Si monta?', 'Messaggio di stop', 1);
-catena('Monta il contenuto', 'Esito dei montaggi');
+// il controllo dei reel sulla moodboard: una corsa sola dell'AD a fine giro, poi gli esiti vanno avanti come prima
+catena('Monta il contenuto', 'Domande di controllo', 'Ci sono controlli?');
+collega('Ci sono controlli?', CONTROLLA[0], 0);
+collega('Ci sono controlli?', 'Unisci i controlli', 1);
+catena(...CONTROLLA, 'Unisci i controlli', 'Esito dei montaggi');
 collega('Esito dei montaggi', 'Messaggi finali');
 collega('Esito dei montaggi', 'Scrivo nel Calendario?');
 collega('Esito dei montaggi', 'Chiudo il progetto?');
@@ -512,6 +589,51 @@ collega('Scrivo nel Calendario?', 'Righe del Calendario', 0);
 catena('Righe del Calendario', 'Scrivi nel Calendario');
 collega('Chiudo il progetto?', 'Officina: chiudi il progetto', 0);
 catena('Messaggio di stop', 'Telegram: giro fermo');
+// a fine giro (finito o fermo) il segno sulla cartella «Pronti» si toglie: il posto si libera subito, e l'elenco dei giri
+// in corso resta corto. Se il giro cade prima, il posto si libera alla fine stimata.
+se('C\'è un posto da liberare?', "!!($('Config').first().json.pronti && $('Config').first().json.pronti.id)", [COL(40), G + 400]);
+nodo('Libera il posto', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($('Config').first().json.pronti.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  jsonBody: '={{ JSON.stringify({ appProperties: { montatore_giro: null, montatore_fine: null, montatore_inizio: null } }) }}',
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(41), G + 400], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', executeOnce: true });
+nodo('Leggi la cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'GET',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($('Config').first().json.pronti.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id,appProperties' }] },
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(40) + 60, G + 400], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', executeOnce: true });
+codice('Il segno è mio?', 'il-segno-e-mio.js', [COL(40) + 120, G + 400]);
+se('Libero io?', '$json.libera', [COL(40) + 180, G + 400]);
+se('Posto liberato?', '!!$json.id', [COL(41) + 120, G + 400]);
+se('C\'è da avvisare?', '!!$json.avviso', [COL(40) + 240, G + 520]);
+codice('Avviso sul posto', 'avviso-sul-posto.js', [COL(41) + 240, G + 520]);
+telegram('Telegram: posto non liberato', [COL(41) + 300, G + 520]);
+collega('Esito dei montaggi', 'C\'è un posto da liberare?');
+collega('Messaggio di stop', 'C\'è un posto da liberare?');
+// niente caricato (officina giù): il messaggio parte da «Telegram: materiale guardato», e il posto si libera lo stesso
+collega('Qualcosa caricato?', 'C\'è un posto da liberare?', 1);
+collega('C\'è un posto da liberare?', 'Leggi la cartella Pronti', 0);
+catena('Leggi la cartella Pronti', 'Il segno è mio?', 'Libero io?');
+collega('Libero io?', 'Libera il posto', 0);
+collega('Libero io?', 'C\'è da avvisare?', 1);
+catena('Libera il posto', 'Posto liberato?');
+collega('Posto liberato?', 'Avviso sul posto', 1);
+collega('C\'è da avvisare?', 'Avviso sul posto', 0);
+catena('Avviso sul posto', 'Telegram: posto non liberato');
 collega('Ci sono schede?', 'Schede da rivedere', 0);
 catena('Schede da rivedere', 'Manda le schede');
 
@@ -565,12 +687,6 @@ officinaMultipart('Officina: monta', "'/progetto/' + $('Config').first().json.pr
   conFile('musica', 'con_musica'),
 ], [COL(8), M], 1800000, RIPROVA(2, 60000));
 codice('Esito del montaggio', 'esito-del-montaggio.js', [COL(9), M]);
-se('Controllo con Claude?', '$json.controlla', [COL(10), M]);
-officinaScarica('Scarica i fotogrammi', '$json.fotogrammi', 'fotogrammi', [COL(11), M - 150]);
-base64('Fotogrammi in base64', 'fotogrammi', [COL(12), M - 150]);
-codice('Domanda di controllo', 'domanda-di-controllo.js', [COL(13), M - 150]);
-claude('Claude: controlla il video', [COL(14), M - 150], 300000);
-codice('Leggi il controllo', 'leggi-il-controllo.js', [COL(15), M - 150]);
 codice('File da caricare', 'file-da-caricare.js', [COL(16), M]);
 se('Ci sono file?', '$json.salta !== true', [COL(17), M]);
 officinaScarica("Scarica dall'officina", '$json.percorso', 'data', [COL(18), M]);
@@ -591,10 +707,7 @@ collega('Scarica il logo dal sito', 'Serve la musica?');
 collega('Serve la musica?', 'Scarica la musica', 0);
 collega('Serve la musica?', 'Unisci i file', 1);
 collega('Scarica la musica', 'Unisci i file');
-catena('Unisci i file', 'Officina: monta', 'Esito del montaggio', 'Controllo con Claude?');
-collega('Controllo con Claude?', 'Scarica i fotogrammi', 0);
-collega('Controllo con Claude?', 'File da caricare', 1);
-catena('Scarica i fotogrammi', 'Fotogrammi in base64', 'Domanda di controllo', 'Claude: controlla il video', 'Leggi il controllo', 'File da caricare', 'Ci sono file?');
+catena('Unisci i file', 'Officina: monta', 'Esito del montaggio', 'File da caricare', 'Ci sono file?');
 collega('Ci sono file?', "Scarica dall'officina", 0);
 collega('Ci sono file?', 'Esito del contenuto', 1);
 catena("Scarica dall'officina", 'Carica su Drive', 'Esito del contenuto');
@@ -688,7 +801,7 @@ nodo('Chiedi: cosa cambio?', 'n8n-nodes-base.telegram', 1.2, {
 }, [COL(11), V + 100], { credentials: CRED.telegram, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', webhookId: uuid('Chiedi: cosa cambio?:webhook') });
 codice('Domanda di ritocco', 'domanda-di-ritocco.js', [COL(12), V + 100]);
 se('Ritocco possibile?', '$json.ok', [COL(13), V + 100]);
-claude('Claude: ritocca la regia', [COL(14), V + 50], 600000);
+const RITOCCA = chiediAD('ritocca la regia', [COL(14), V + 50]);
 codice('Leggi il ritocco', 'leggi-il-ritocco.js', [COL(15), V + 50]);
 se('Ritocco pronto?', '$json.ok', [COL(16), V + 50]);
 nodo('Da rimontare', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', jsCode: "// Il contenuto ritoccato va all'esecuzione «monta», come quelli del giro.\nreturn [{ json: $('Leggi il ritocco').first().json.monta }];" }, [COL(17), V]);
@@ -725,9 +838,9 @@ collega('Scrivo la riga?', 'Riga per il foglio', 0);
 collega('Scrivo la riga?', 'Telegram: approvato', 1);
 catena('Riga per il foglio', 'Scrivi la riga approvata', 'Telegram: approvato');
 catena('Chiedi: cosa cambio?', 'Domanda di ritocco', 'Ritocco possibile?');
-collega('Ritocco possibile?', 'Claude: ritocca la regia', 0);
+collega('Ritocco possibile?', RITOCCA[0], 0);
 collega('Ritocco possibile?', 'Telegram: niente ritocco', 1);
-catena('Claude: ritocca la regia', 'Leggi il ritocco', 'Ritocco pronto?');
+catena(...RITOCCA, 'Leggi il ritocco', 'Ritocco pronto?');
 collega('Ritocco pronto?', 'Da rimontare', 0);
 collega('Ritocco pronto?', 'Telegram: ritocco non riuscito', 1);
 catena('Telegram: ritocco non riuscito', 'Scheda di prima', 'Rimanda la scheda di prima');
@@ -756,13 +869,16 @@ nodo('Guarda: leggi Clienti', 'n8n-nodes-base.httpRequest', 4.5, {
   queryParameters: { parameters: [{ name: 'valueRenderOption', value: 'FORMATTED_VALUE' }, { name: 'majorDimension', value: 'ROWS' }] },
   options: { timeout: 30000, response: { response: { responseFormat: 'json' } } },
 }, [COL(3), W], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
-collega('Quale lavoro?', 'Guarda: leggi Clienti', USCITA.guarda);
+// i giri in corso, partiti da qualunque strada (guardiano, modulo, «rifai»): le cartelle «Pronti» con la fine stimata
+giriInCorso('Guarda: giri in corso', [COL(2) + 60, W - 160]);
+collega('Quale lavoro?', 'Guarda: giri in corso', USCITA.guarda);
+collega('Guarda: giri in corso', 'Guarda: leggi Clienti');
 codice('Guarda: cartelle dei clienti', 'guarda-clienti.js', [COL(4), W]);
 driveElenca('Guarda: servizi dei clienti', "={{ \"'\" + $json.cartella_cliente + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and createdTime > '\" + $json.dopo + \"'\" }}", [COL(5), W], 'nextPageToken,files(id,name,createdTime)');
 codice('Guarda: servizi nuovi', 'guarda-servizi.js', [COL(6), W]);
-driveElenca('Guarda: dentro il servizio', "={{ \"'\" + $json.servizio_id + \"' in parents and trashed = false\" }}", [COL(7), W], 'nextPageToken,files(id,name,mimeType,createdTime)');
+driveElenca('Guarda: dentro il servizio', "={{ \"'\" + $json.servizio_id + \"' in parents and trashed = false\" }}", [COL(7), W], 'nextPageToken,files(id,name,mimeType,createdTime,size,videoMediaMetadata(durationMillis))');
 codice('Guarda: sottocartelle', 'guarda-sottocartelle.js', [COL(8), W]);
-driveElenca('Guarda: dentro le sottocartelle', "={{ \"'\" + $json.cartella + \"' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'\" }}", [COL(9), W], 'nextPageToken,files(id,name,mimeType,createdTime)');
+driveElenca('Guarda: dentro le sottocartelle', "={{ \"'\" + $json.cartella + \"' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'\" }}", [COL(9), W], 'nextPageToken,files(id,name,mimeType,createdTime,size,videoMediaMetadata(durationMillis))');
 codice('Guarda: servizi pronti', 'guarda-pronti.js', [COL(10), W]);
 seStesso('Guarda: avvia il montaggio', [COL(11), W - 80], false, true);
 telegram('Telegram: servizio nuovo', [COL(11), W + 80]);
@@ -780,7 +896,7 @@ nota('Nota 05 - Rivedi', leggi('note', '05-rivedi.md'), [COL(3) - 40, RIGA.rived
 nota('Nota 06 - Guarda', leggi('note', '06-guarda.md'), [COL(3) - 40, RIGA.guarda + 160], 1200, 220, 5);
 
 export const workflow = {
-  name: '16 · Montatore',
+  name: '31 · Montatore', // dal 25/11 (NOMI.montatore in flussi/nomi.mjs); su n8n si cerca anche col nome vecchio
   nodes: nodi,
   connections: connessioni,
   settings: { executionOrder: 'v1', timezone: 'Europe/Rome', callerPolicy: 'workflowsFromSameOwner', errorWorkflow: 'D3Ugm3sc201nteFX', saveManualExecutions: true, saveDataErrorExecution: 'all', saveDataSuccessExecution: 'none', binaryMode: 'separate' },

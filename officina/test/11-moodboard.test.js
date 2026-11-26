@@ -13,9 +13,10 @@ import { controllaRegia, regoleDelloStile } from '../src/regia.js';
 import { controllaPiano } from '../src/piano.js';
 import { STILI, stileDa, filtroVoce, misuraRitardoVoce, VOCE_STUDIO, VOCE_STUDIO_SENZA_RITARDO, grafoInquadratura, modoInquadratura, FORMATI } from '../src/regia-render.js';
 import { leggiConfig } from '../src/config.js';
-import { provaFiltri, FILTRI_RICHIESTI } from '../src/autoprova.js';
+import { provaFiltri, FILTRI_RICHIESTI, FILTRI_FACOLTATIVI } from '../src/autoprova.js';
 import { filtroZoomFoto, filtroRiempi, filtroColore, catenaAudio, FILTRO_DIFETTI } from '../src/regia-render.js';
 import { filtroScene } from '../src/analisi.js';
+import { DESHAKE, bilanciamento } from '../src/ritocco-clip.js';
 
 const H = { 'x-officina-chiave': CHIAVE, 'content-type': 'application/json' };
 const R = regoleDelloStile(STILI.sdg);
@@ -256,7 +257,7 @@ test('prova dei filtri: girano con le stesse funzioni del montaggio; se ne manca
   const voceMontaggi = await filtroVoce(STILI.sdg, { ffmpeg: FF });
   const cubo = path.join(dati, 'autoprova', 'identita.cube');
   const attesi = {
-    verticale: grafoInquadratura({ larghezza: 180, altezza: 320, trasferimento: '' }, { w: 320, h: 180 }, { modo: 'intera', fps: 25, lut: cubo }).replace('[v]', '[g]'),
+    verticale: grafoInquadratura({ larghezza: 180, altezza: 320, trasferimento: '' }, { w: 320, h: 180 }, { modo: 'intera', fps: 25, lut: cubo, stab: DESHAKE, bilancia: bilanciamento(new Map([['a', { r: 150, g: 120, b: 90 }], ['b', { r: 110, g: 120, b: 130 }]])).get('a') }).replace('[v]', '[g]'),
     colore: filtroColore(STILI.sdg), riempi: filtroRiempi(25, 25), zoom: filtroZoomFoto(STILI.sdg, { w: 320, h: 180 }, 25),
     scene: filtroScene(), difetti: FILTRO_DIFETTI, audio: catenaAudio(2, 3, 1, 0.3, voceMontaggi),
   };
@@ -329,7 +330,7 @@ test('l\'elenco dei filtri della prova contiene ogni filtro scritto nel codice (
   const scritti = tutti.filter((n) => new RegExp(`[\`'",;\\]]${n}(?=[=,;\\[\`])`).test(codice) || new RegExp(`[,;\\]]${n}(?![a-z0-9_])`).test(codice));
   assert.ok(scritti.length > 35, `la ricerca ne trova troppo pochi: ${scritti.length}`);
   for (const n of ['scdet', 'zscale', 'tonemap', 'fade', 'pad', 'silencedetect', 'noise', 'ass', 'loudnorm']) assert.ok(scritti.includes(n), `la ricerca non vede ${n}`);
-  assert.deepEqual(scritti.filter((n) => !FILTRI_RICHIESTI.includes(n)), [], 'filtri scritti nel codice ma non nell\'elenco della prova: aggiungili a FILTRI_RICHIESTI in src/autoprova.js');
+  assert.deepEqual(scritti.filter((n) => ![...FILTRI_RICHIESTI, ...FILTRI_FACOLTATIVI].includes(n)), [], 'filtri scritti nel codice ma non nell\'elenco della prova: aggiungili a FILTRI_RICHIESTI in src/autoprova.js');
 });
 
 test('rallenty vero: una clip a 50 fotogrammi senza voce entra rallentata (doppia durata, 25 fotogrammi); con «rallenta: no» resta com\'è', async () => {
@@ -532,6 +533,6 @@ test('l\'elenco dei filtri della prova contiene ogni filtro che il server ha chi
     });
   }
   assert.ok(chiamate.length > 50 && nomi.size > 25, `il registro è troppo povero: ${chiamate.length} chiamate, ${nomi.size} filtri`);
-  const fuori = [...nomi].filter((n) => !FILTRI_RICHIESTI.includes(n)).sort();
+  const fuori = [...nomi].filter((n) => ![...FILTRI_RICHIESTI, ...FILTRI_FACOLTATIVI].includes(n)).sort();
   assert.deepEqual(fuori, [], 'filtri usati dal montaggio ma non provati all\'avvio: aggiungili a FILTRI_RICHIESTI in src/autoprova.js');
 });

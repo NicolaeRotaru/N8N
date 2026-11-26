@@ -19,5 +19,4 @@ return P.contenuti.map((c, i) => ({ json: {
   musica: J.musica,
   cartella_uscita: cartella,
   cliente: { cliente: J.cliente.cliente, nome_locale: J.cliente.nome_locale },
-  controllo: siNo(J.USA_CONTROLLO, true),
 } }));

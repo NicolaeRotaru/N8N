@@ -1,13 +1,17 @@
-// Le descrizioni di Claude entrano nel catalogo; poi la domanda per il piano del mese.
+// Le descrizioni dell'AD entrano nel catalogo; poi la domanda per il piano del mese.
 const J = $('Config').first().json;
 const cat = $('Officina: catalogo').first().json;
 const descr = {};
 let falliti = 0;
 let gruppi = 0;
+const motivi = [];
+// gli avvisi dell'AD (es. «un allegato non si apre») arrivano al team nel riepilogo finale
+const avvisiAD = [];
 for (const it of $input.all()) {
   gruppi++;
-  const x = leggiClaude(it.json);
-  if (!x.ok) { falliti++; continue; }
+  for (const a of (it.json && Array.isArray(it.json.avvisi) ? it.json.avvisi : [])) avvisiAD.push(accorcia(testo(a && (a.messaggio || a)), 200));
+  const x = leggiClaude(it.json, (d) => Array.isArray(d.scene));
+  if (!x.ok) { falliti++; motivi.push(x.motivo); continue; }
   for (const s of (x.dati.scene || [])) {
     const k = testo(s.codice).toUpperCase();
     if (k) descr[k] = { cosa: accorcia(dato(s.cosa_si_vede), 140), soggetto: testo(s.soggetto), inquadratura: ['largo', 'medio', 'dettaglio', 'volto'].includes(testo(s.inquadratura)) ? testo(s.inquadratura) : '', valore: Math.max(1, Math.min(5, intero(s.valore, 3))), aggancio: !!s.aggancio, problemi: (s.problemi || []).map(dato).filter(Boolean).slice(0, 4) };
@@ -22,7 +26,7 @@ const arricchito = testo(cat.testo).split('\n').map((r) => {
 const mese = J.mese;
 const oggi = partiRoma();
 // Le idee del workflow 03 (piano pensato prima del servizio, righe «PI-…» in stato «idea» nel Calendario) per questo
-// cliente e questo mese: entrano nel piano come traccia. Restano com'erano nel foglio: il 16 non le tocca.
+// cliente e questo mese: entrano nel piano come traccia. Restano com'erano nel foglio: il montatore non le tocca.
 const cal = $('Leggi il Calendario').isExecuted ? $('Leggi il Calendario').first().json : {};
 const idee = (cal && Array.isArray(cal.values) ? righeFoglio(cal) : [])
   // il mese dalla cella data_ora, scritta dal 03 («2026-12-04 18:30») o formattata dal foglio («04/12/2026 18:30»): se
@@ -96,5 +100,23 @@ const schemaPiano = {
   required: ['contenuti', 'note_per_il_team'],
   additionalProperties: false,
 };
+// Quante scene l'AD ha descritto davvero, fra quelle che gli abbiamo chiesto. Se NESSUNA, il piano non si chiede: sarebbe
+// scritto senza aver visto il materiale. Succede quando la corsa fallisce, ma anche quando l'AD risponde «ok» senza aver
+// potuto aprire i provini (le sue istruzioni gli dicono di lavorare senza e di scriverlo negli avvisi). Niente corsa
+// sprecata: «Leggi il piano» ferma il giro e dice perché. Sotto il 60% delle scene, un avviso nel riepilogo.
+const domande = $('Domande sul materiale').isExecuted ? $('Domande sul materiale').all().map((x) => x.json || {}) : [];
+// le scene chieste: i codici delle domande (se il nodo non c'è, quelli delle scene e delle foto nel catalogo)
+const daCatalogo = () => testo(cat.testo).split('\n').map((r) => r.trim().split(/\s/)[0].toUpperCase()).filter((k) => /^(V\d+\.\d+|F\d+)$/.test(k));
+const chieste = new Set(domande.length ? domande.flatMap((d) => (Array.isArray(d.codici) ? d.codici : []).map((k) => testo(k).toUpperCase())) : daCatalogo());
+const viste = chieste.size ? Object.keys(descr).filter((k) => chieste.has(k)).length : Object.keys(descr).length;
+const fermati = (motivo) => [{ json: { corpo: null, testo_utente: testoUtente, descritte: 0, gruppi, gruppi_falliti: falliti, avvisi_ad: [...new Set(avvisiAD)], fermo: motivo } }];
+if (domande.length && domande[0].vuoto) return fermati("nessun provino ha un percorso dell'officina che l'AD possa aprire (è un problema dei file, non dell'AD: segnalatelo, «rifai» da solo non basta)");
+if (gruppi > 0 && viste === 0) {
+  if (falliti === gruppi) return fermati("l'AD non ha potuto guardare il materiale (" + gruppi + (gruppi === 1 ? ' domanda senza risposta: ' : ' domande su ' + gruppi + ' senza risposta: ') + accorcia(testo(motivi[0]), 200) + ')');
+  return fermati("l'AD ha risposto ma non ha descritto nessuna scena" + (chieste.size ? ' su ' + chieste.size : '') + (avvisiAD.length ? ' («' + accorcia(avvisiAD[0], 160) + '»)' : ': forse non ha potuto aprire i provini'));
+}
+const avvisi = [...new Set(avvisiAD)];
+if (chieste.size && viste < chieste.size * 0.6) avvisi.unshift("L'AD ha descritto " + viste + ' scene su ' + chieste.size + ': il piano è scritto senza vedere le altre' + (falliti ? ' (' + accorcia(testo(motivi[0]), 160) + ')' : '') + '.');
+else if (falliti) avvisi.unshift("L'AD ha guardato " + (gruppi - falliti) + ' gruppi di provini su ' + gruppi + ': il piano è scritto senza vedere le scene degli altri (' + accorcia(testo(motivi[0]), 160) + ').');
 const corpo = corpoClaude(J, { effort: J.EFFORT_PIANO || 'high', max_tokens: 32000, schema: schemaPiano, sistema: PROMPT_PIANO, testo: testoUtente });
-return [{ json: { corpo, testo_utente: testoUtente, descritte: Object.keys(descr).length, gruppi, gruppi_falliti: falliti, idee_03: idee.map((r) => testo(r.id)) } }];
+return [{ json: { corpo, testo_utente: testoUtente, descritte: viste, gruppi, gruppi_falliti: falliti, avvisi_ad: avvisi, idee_03: idee.map((r) => testo(r.id)) } }];

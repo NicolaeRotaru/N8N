@@ -1,3 +1,8 @@
 node_modules/
 .locale/
 test/.tmp/
+
+# file audio e video di prova: mai nel repository
+*.wav
+*.mp4
+*.mov

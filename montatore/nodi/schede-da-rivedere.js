@@ -20,7 +20,6 @@ return (E.schede || []).map((x, i) => ({ json: {
     mese: J.mese,
     musica: J.musica,
     cartella_uscita: cartella,
-    controllo: siNo(J.USA_CONTROLLO, true),
     di: P.contenuti.length,
     contesto,
   },
