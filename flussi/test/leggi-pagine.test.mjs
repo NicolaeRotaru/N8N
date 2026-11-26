@@ -543,7 +543,7 @@ function MM_preloadImages() { var d=document; }
 });
 
 test('sicurezza (26/11): un dominio che imita Google, le mappe o Meta non si apre; i siti veri dei locali sì', () => {
-  for (const u of ['https://maps.google.ab.cd/place/x', 'http://maps.google.com.evil.it/', 'https://google-maps.example.com/', 'https://facebook.it-locale.com/bar', 'https://gmaps.sito.it/']) {
+  for (const u of ['https://maps.google.ab.cd/place/x', 'http://maps.google.com.evil.it/', 'https://google-maps.example.com/', 'https://facebook.it-locale.com/bar', 'https://gmaps.sito.it/', 'https://search.google.ab.cd/', 'https://x.google.com.zz/']) {
     const v = LP.indirizzoSicuro(u);
     assert.equal(v.ok, false, u);
   }

@@ -511,3 +511,18 @@ test("AD, 26/11: solo https. Un sito dichiarato in http che non si apre in https
   const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: j }], nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Vecchio', sito: 'http://www.barvecchio.it' } }] } });
   assert.match(json.richiesta.system, /https è false/);
 });
+
+test("dal collaudo della #26: «non protetto» solo se https è stato provato e rifiutato; un 403, un timeout o un rinvio non lo dicono", async () => {
+  const prova = async (risposta) => (await componi({ f: { sito: 'http://www.barvecchio.it' }, extra: { 'Pagine da leggere': [{ json: { url: 'https://www.barvecchio.it/' } }],
+    'Scarica le pagine': [{ json: risposta, pairedItem: { item: 0 } }] } })).fatti.sito;
+  assert.equal((await prova({ error: { message: 'connect ECONNREFUSED 1.2.3.4:443' } })).dati.https, false);
+  assert.equal((await prova({ error: { message: 'unable to verify the first certificate', code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' } })).dati.https, false);
+  for (const r of [{ statusCode: 403, data: '' }, { error: { message: 'timeout of 15000ms exceeded' } }, { statusCode: 301, headers: { location: 'https://barvecchio.eatbu.com/' }, data: '' }]) {
+    const sito = await prova(r);
+    assert.equal(sito.stato, 'vuoto', JSON.stringify(r));
+    assert.equal(sito.dati, null);
+  }
+  // Il giro di lettura non è nemmeno partito: niente «non protetto».
+  const senzaGiro = (await componi({ f: { sito: 'http://www.barvecchio.it' }, extra: { 'Pagine da leggere': undefined, 'Scarica le pagine': undefined } })).fatti.sito;
+  assert.equal(senzaGiro.stato, 'vuoto');
+});

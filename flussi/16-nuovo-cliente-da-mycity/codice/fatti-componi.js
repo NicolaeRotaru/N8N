@@ -181,9 +181,27 @@ for (const [richieste, uscite] of [['Pagine da leggere', 'Scarica le pagine'], [
   candidati.sort((a, z) => a.profondita - z.profondita);
   if (candidati[0]) { htmlSito = candidati[0].corpo.slice(0, 1000000); urlSito = candidati[0].url; }
 }
+// Dal collaudo della #26: «non protetto» SOLO se la richiesta https a quell'host è partita davvero e ha fallito per connessione
+// rifiutata o per il certificato/TLS. Un 403, un timeout, un rinvio altrove o un giro non partito NON dicono che manca https.
+const senzaHttps = (() => {
+  if (!hostSito) return false;
+  for (const [richieste, uscite] of [['Pagine da leggere', 'Scarica le pagine'], ['Sottopagine da leggere', 'Scarica le sottopagine']]) {
+    if (!eseguito(richieste) || !eseguito(uscite)) continue;
+    const rich = $(richieste).all();
+    for (const [i, it] of $(uscite).all().entries()) {
+      const k = it && it.pairedItem && typeof it.pairedItem.item === 'number' ? it.pairedItem.item : i;
+      const url = testo(rich[k] && rich[k].json && rich[k].json.url);
+      if (!/^https:\/\//i.test(url) || (hostDi(url) !== hostSito && !hostDi(url).endsWith('.' + hostSito))) continue;
+      const e = (it && it.json && it.json.error) || null;
+      const msg = e ? (typeof e === 'string' ? e : [e.message, e.code, e.description, e.cause && e.cause.code].filter(Boolean).join(' ')) : '';
+      if (/ECONNREFUSED|EPROTO|CERT_|certificate|self[- ]signed|SSL|TLS|wrong version number|ERR_TLS|UNABLE_TO_VERIFY/i.test(msg)) return true;
+    }
+  }
+  return false;
+})();
 if (!hostSito) fatti.sito = assente('vuoto', "l'attività non ha un sito noto", 'Controlli di n8n');
 // AD, 26/11: si legge solo in https. Un sito dichiarato in http che in https non si apre è «non protetto»: è un dato, e un consiglio.
-else if (!htmlSito && /^http:\/\//i.test(sitoNoto)) fatti.sito = blocco('letto', { fonte: null, fonte_nome: 'Controlli di n8n', letto_il: ora,
+else if (!htmlSito && /^http:\/\//i.test(sitoNoto) && senzaHttps) fatti.sito = blocco('letto', { fonte: null, fonte_nome: 'Controlli di n8n', letto_il: ora,
   motivo: 'il sito risponde solo senza https: non è protetto e n8n non lo apre', dati: { indirizzo: unaRiga(sitoNoto, 500), https: false, viewport_mobile: null, titolo: null,
     descrizione: null, descrizione_caratteri: null, dati_strutturati: [] } });
 else if (!htmlSito) fatti.sito = assente('vuoto', 'le pagine del sito non sono state scaricate nella ricerca', 'Controlli di n8n', { fonte: /^https:\/\//i.test(sitoNoto) ? sitoNoto : null });
