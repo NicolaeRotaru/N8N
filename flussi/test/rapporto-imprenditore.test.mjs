@@ -177,7 +177,7 @@ test('dal sito MyCity arrivano indirizzo, tipo e coordinate (se ci sono)', async
 const elemento = (id, tags, dLat = 0.0005, dLon = 0) => ({ type: 'node', id, lat: LAT + dLat, lon: LON + dLon, tags });
 const OVERPASS = { statusCode: 200, body: { elements: [
   elemento(1, { amenity: 'bar', name: 'Bar Roma' }, 0.00001),
-  elemento(2, { amenity: 'cafe', name: 'Caffè Duomo', website: 'https://www.caffeduomo.it', 'contact:instagram': 'https://instagram.com/caffeduomo' }, 0.001),
+  elemento(2, { amenity: 'cafe', name: 'Caffè Duomo', opening_hours: 'Mo-Sa 07:00-20:00', website: 'https://www.caffeduomo.it', 'contact:instagram': 'https://instagram.com/caffeduomo' }, 0.001),
   elemento(3, { amenity: 'bar', name: 'Bar Facebook', website: 'https://www.facebook.com/barfb' }, 0.0015),
   elemento(4, { amenity: 'bar', name: 'Bar Interno', website: 'http://officina.internal:8080/' }, 0.002),
   elemento(5, { amenity: 'bar' }, 0.0012),
@@ -223,6 +223,9 @@ test('fatti: ogni blocco ha stato, fonte, fonte_nome, letto_il e parte; i dati v
   assert.equal(f.vicini.dati.concorrenti.numero, 4);
   assert.deepEqual(f.vicini.dati.concorrenti.elenco.map((c) => c.nome), ['Caffè Duomo', 'Bar Facebook', 'Bar Interno']);
   assert.equal(f.vicini.dati.concorrenti.elenco[0].fonte, 'https://www.openstreetmap.org/node/2');
+  assert.equal(f.vicini.dati.concorrenti.elenco[0].orari_osm, 'Mo-Sa 07:00-20:00');
+  assert.equal(f.vicini.dati.concorrenti.elenco[1].orari_osm, null, 'orari mancanti su OSM: null, non inventati');
+  for (const b of Object.values(f)) if (b && typeof b === 'object') assert.ok(!b.conserva_fino_al, 'nessun dato con scadenza');
   assert.equal(f.vicini.dati.servizi.fermate_bus, 2);
   assert.equal(f.vicini.dati.servizi.scuole, 0, 'contate, nessuna: zero vero');
   assert.equal(f.vicini.dati.servizi_parte, 4);
@@ -266,7 +269,7 @@ test('Google: anche se la risposta porta voto, recensioni e orari, si tiene SOLO
   assert.equal(JSON.stringify(j).includes('300'), false);
 });
 
-test('DataForSEO: al sito solo i numeri, i testi solo all\'AD e mai il nome di chi scrive; scade in 30 giorni', async () => {
+test('DataForSEO: al sito solo i numeri, i testi solo all\'AD e mai il nome di chi scrive; niente scadenze', async () => {
   const cfg = { FONTE_DATAFORSEO: 'si', CREDENZIALE_DATAFORSEO: 'collegata' };
   const items = Array.from({ length: 5 }, (_, i) => ({ rating: { value: i < 4 ? 5 : 2 }, review_text: `Servizio veloce e caffè ottimo, ci torno sempre ${i}`, profile_name: 'Mario Rossi',
     profile_url: 'https://maps.google.com/u/1', owner_answer: i === 0 ? 'Grazie!' : null, timestamp: '2026-11-2' + i + ' 10:00:00 +00:00' }));
@@ -277,8 +280,10 @@ test('DataForSEO: al sito solo i numeri, i testi solo all\'AD e mai il nome di c
     'Fatti · DataForSEO: posizione': [{ json: compito([{ items: [{ type: 'organic', url: 'https://altro.it', rank_group: 1 }, { type: 'organic', url: 'https://www.caffeduomo.it/', rank_group: 2 }, { type: 'organic', url: 'https://www.barroma.it/', rank_group: 3 }] }]) }],
   };
   const j = await componi({ cfg, extra });
-  assert.deepEqual(j.fatti.recensioni.dati, { lette: 5, voto_medio: 4.4, per_stelle: { 1: 0, 2: 1, 3: 0, 4: 0, 5: 4 }, con_risposta: 1, ultima_il: '2026-11-24' });
-  assert.ok(j.fatti.recensioni.conserva_fino_al > j.fatti.recensioni.letto_il);
+  // AD, 26/11: niente voto medio né stelle, niente dati con scadenza.
+  assert.deepEqual(j.fatti.recensioni.dati, { lette: 5, con_risposta: 1, ultima_il: '2026-11-24' });
+  assert.equal(j.fatti.recensioni.conserva_fino_al, null);
+  assert.equal(JSON.stringify(j.fatti).includes('voto_medio'), false);
   assert.equal(JSON.stringify(j.fatti).includes('Servizio veloce'), false, 'i testi non vanno al sito');
   assert.equal(JSON.stringify(j).includes('Mario'), false, 'mai il nome di chi scrive');
   assert.equal(JSON.stringify(j).includes('maps.google'), false);

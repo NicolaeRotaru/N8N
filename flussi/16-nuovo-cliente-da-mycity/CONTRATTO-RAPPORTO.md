@@ -1,6 +1,6 @@
 # Contratto del rapporto dell'imprenditore · n8n (flusso 26) → sito
 
-Versione **1.3** · 26/11/2026 (1.1: il parere legale su Google, TripAdvisor e DataForSEO · 1.2: le parti per abbonamento e i concorrenti sui social e sul web, decisioni di Nicola delle 14:35 e 14:54 · 1.3: le parti allineate al PIANO, `proposta` nel piano dei 30 giorni, la regola delle 15:00 «non si cancella mai, si archivia») · sessione «rapporto imprenditore — parte n8n».
+Versione **1.3** · 26/11/2026 (1.1: il parere legale su Google, TripAdvisor e DataForSEO · 1.2: le parti per abbonamento e i concorrenti sui social e sul web, decisioni di Nicola delle 14:35 e 14:54 · 1.3: le parti allineate al PIANO, `proposta` nel piano dei 30 giorni, la regola delle 15:00 «non si cancella mai, si archivia» · 1.4: decisioni dell'AD delle 14:38 — niente dati con scadenza, niente voto medio né stelle, orari dei concorrenti da OpenStreetMap, numeri di parte definitivi) · sessione «rapporto imprenditore — parte n8n».
 Chi lo cambia lo dice all'altra parte prima. Si possono **aggiungere** campi; quelli scritti qui non si rinominano.
 
 Dove viaggia: dentro la scheda che il 26 manda già al sito (`POST /api/agenzia/scheda-cliente`, stessa
@@ -33,8 +33,12 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
    browser dal `place_id`; l'attribuzione è quella del riquadro. Niente contenuti derivati dai dati Google.
 5. **DataForSEO è una filiera separata** da Google Places: i suoi numeri non si mescolano con quelli di
    Places. I testi delle recensioni restano solo in memoria durante la lettura (all'AD per i temi) e non
-   arrivano mai al sito; al sito vanno solo temi con quante recensioni li citano (almeno 3). I blocchi
-   DataForSEO portano `conserva_fino_al` = `letto_il` + 30 giorni: dopo, il sito non li mostra più.
+   arrivano mai al sito; al sito vanno solo temi con quante recensioni li citano (almeno 3).
+   **Niente dati con scadenza (1.4):** `posizione` viene solo da OpenStreetMap (ODbL) o da MyCity, mai da
+   Google; di Google resta solo `place_id`, che non scade. Per questo `conserva_fino_al` oggi è sempre `null`.
+   **Eccezione dichiarata:** se un giorno arriva un dato con un limite di legge o di licenza, vince il limite
+   (il blocco porterà `conserva_fino_al`), e non è un'archiviazione. L'unico limite di oggi riguarda i testi
+   delle recensioni DataForSEO (24 ore), che però non si salvano mai.
 6. **I concorrenti si contano solo da OpenStreetMap.**
 7. **Fonte spenta ≠ dato assente.** Una fonte a pagamento spenta dà `stato: "spento"`, e il sito non la
    mostra come «non trovato».
@@ -77,13 +81,13 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
   "fonte_nome": "string",            // es. "OpenStreetMap", "MET Norway", "Google Places"
   "licenza": "string | null",        // es. "ODbL", "CC BY 4.0" — il sito la cita accanto al dato
   "letto_il": "ISO | null",
-  "conserva_fino_al": "ISO | null",  // solo DataForSEO; null altrove
+  "conserva_fino_al": "ISO | null",  // 1.4: oggi sempre null (eccezione dichiarata solo per un limite di legge o licenza)
   "dati": { … } | null,              // null quando stato ≠ "letto"
   "parte": 1                         // la parte dell'analisi (tabella «Le parti»): il sito filtra per abbonamento
 }
 ```
 
-### Le parti (1.2, allineate al PIANO nella 1.3)
+### Le parti (1.2, allineate al PIANO nella 1.3, definitive nella 1.4)
 
 Ogni blocco di `fatti` e ogni sezione dell'AD porta il numero della sua `parte`. Quali parti entrano in
 quale fascia lo decide Nicola e lo mostra il sito: n8n raccoglie sempre tutto.
@@ -122,7 +126,8 @@ potrebbe venire solo da DataForSEO, oggi non letto. Nelle sezioni dell'AD la par
   "concorrenti": {
     "numero": 7,                                 // stesso tipo di attività nel raggio, lei esclusa
     "tipo_osm": "amenity=bar",                   // il tipo cercato
-    "elenco": [ { "nome": "Bar Esempio", "tipo_osm": "amenity=cafe", "distanza_m": 120, "fonte": "https://www.openstreetmap.org/node/123" } ]  // al massimo 10, dal più vicino
+    "elenco": [ { "nome": "Bar Esempio", "tipo_osm": "amenity=cafe", "distanza_m": 120, "fonte": "https://www.openstreetmap.org/node/123",
+                  "orari_osm": "Mo-Sa 07:00-20:00" | null } ]  // al massimo 10, dal più vicino; orari_osm = tag opening_hours com'è scritto, null dove manca (1.4)
   },
   "servizi": {                                   // conteggi nel raggio; 0 = contati, nessuno
     "fermate_bus": 3, "parcheggi": 2, "scuole": 1, "uffici_pubblici": 0, "farmacie": 1, "negozi_totali": 41
@@ -202,7 +207,7 @@ Una sola chiamata (Text Search con il solo campo `places.id`). Nessun concorrent
 ### Recensioni (DataForSEO, recensioni Google) — spento di serie
 
 ```jsonc
-{ "lette": 100, "voto_medio": 4.4, "per_stelle": { "1": 8, "2": 5, "3": 12, "4": 40, "5": 35 }, "con_risposta": 61, "ultima_il": "2026-11-20" }
+{ "lette": 100, "con_risposta": 61, "ultima_il": "2026-11-20" }   // 1.4: niente voto medio né stelle
 ```
 Numeri contati da n8n sulle recensioni lette da DataForSEO. I testi vanno solo all'AD, in memoria, mai al
 sito, mai con nomi, foto o citazioni.
@@ -261,8 +266,7 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
 ## 3. Cosa fa il sito con un dato spento o vecchio
 
 - `stato: "spento"` → la riga non si mostra (o «in arrivo»), mai «0».
-- `conserva_fino_al` passata (DataForSEO) → il sito non mostra più `dati` e scrive «da rileggere» (1.3: non li cancella, regola 9; se l'AD decide diversamente lo dirà). Il `place_id` di Google non scade.
-- `recensioni.dati.voto_medio` e `per_stelle`: il sito (26/11) ha scelto di non salvarli né mostrarli, per il parere legale («niente voto medio coi dati Google»). n8n li manda lo stesso: decide l'AD.
+- `conserva_fino_al`: oggi sempre `null` (1.4). Se un giorno un blocco lo porta, è un limite di legge o di licenza: passata la data quel dato non si tiene più. Il `place_id` di Google non scade.
 - Ogni numero mostrato porta accanto `fonte_nome` e la data di `letto_il`; dove c'è `licenza`, anche quella.
 
 ## 4. Il lavoro per «Chiedi all'AD»

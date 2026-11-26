@@ -14,7 +14,6 @@ const unaRiga = (v, n) => Array.from(testo(v).replace(/\s+/g, ' ')).slice(0, n).
 const eseguito = (nome) => { try { return $(nome).isExecuted; } catch (e) { return false; } };
 const adesso = new Date();
 const ora = adesso.toISOString();
-const fra30 = new Date(adesso.getTime() + 30 * 86400000).toISOString();
 
 const blocco = (stato, extra = {}) => ({ stato, motivo: null, fonte: null, fonte_nome: '', licenza: null, letto_il: null, conserva_fino_al: null, dati: null, ...extra });
 const assente = (stato, motivo, fonte_nome, extra = {}) => blocco(stato, { motivo: unaRiga(motivo, 200) || 'dato non disponibile', fonte_nome, ...extra });
@@ -72,7 +71,8 @@ else {
         concorrenti: tipo ? {
           numero: concorrenti.length, tipo_osm: `${tipo.chiave}=${tipo.valori}`,
           elenco: concorrenti.filter((x) => testo(x.t.name)).sort((a, z) => a.d - z.d).slice(0, 10)
-            .map((x) => ({ nome: unaRiga(x.t.name, 80), tipo_osm: `${tipo.chiave}=${testo(x.t[tipo.chiave])}`, distanza_m: x.d, fonte: `https://www.openstreetmap.org/${x.e.type}/${x.e.id}` })),
+            // Gli orari dal tag opening_hours di OpenStreetMap, com'è scritto (null = su OSM mancano): servono a «chi è aperto quando tu sei chiuso».
+            .map((x) => ({ nome: unaRiga(x.t.name, 80), tipo_osm: `${tipo.chiave}=${testo(x.t[tipo.chiave])}`, distanza_m: x.d, fonte: `https://www.openstreetmap.org/${x.e.type}/${x.e.id}`, orari_osm: unaRiga(x.t.opening_hours, 200) || null })),
         } : { numero: null, motivo: "tipo di attività non riconosciuto: i concorrenti non si contano", tipo_osm: null, elenco: [] },
         servizi: {
           fermate_bus: conta((t) => t.highway === 'bus_stop' || t.amenity === 'bus_station'),
@@ -232,7 +232,8 @@ else {
 }
 
 // ── DataForSEO: recensioni (solo numeri al sito; i testi all'AD), volumi di ricerca e posizione ──
-const DFS = { fonte: 'https://dataforseo.com/', fonte_nome: 'DataForSEO', conserva_fino_al: fra30 };
+// AD, 26/11: niente dati con scadenza (conserva_fino_al resta null), e niente voto medio né stelle (non servono, non viaggiano).
+const DFS = { fonte: 'https://dataforseo.com/', fonte_nome: 'DataForSEO' };
 let testiRecensioni = [];
 if (!piano.chiama.dataforseo) { fatti.recensioni = spenta('dataforseo', DFS.fonte_nome); fatti.ricerche = spenta('dataforseo', DFS.fonte_nome); }
 else {
@@ -254,7 +255,7 @@ else {
       if (t.length >= 15 && testiRecensioni.length < 40) testiRecensioni.push({ stelle: v >= 1 && v <= 5 ? v : null, testo: t });
     }
     fatti.recensioni = blocco(n ? 'letto' : 'vuoto', { ...DFS, motivo: n ? null : 'nessuna recensione', letto_il: ora,
-      dati: { lette: n, voto_medio: n ? Math.round((somma / n) * 10) / 10 : null, per_stelle: per, con_risposta: risposte, ultima_il: ultima || null } });
+      dati: { lette: n, con_risposta: risposte, ultima_il: ultima || null } });
   }
   const vol = compito('Fatti · DataForSEO: volumi');
   const serp = compito('Fatti · DataForSEO: posizione');
