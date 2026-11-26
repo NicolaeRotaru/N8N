@@ -63,10 +63,10 @@ test('soggetto: nel reel verticale la copertura senza posizione segue il soggett
   const f = conSoggetto('sg-reel-destra.mp4', 1450, 8);
   const pid = await progettoNuovo('soggetto');
   assert.equal((await carica(pid, f)).stato, 200);
-  const monta = async (coperture) => {
-    const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 5, coperture }] }, stile: 'sdg', formato: 'verticale' }, file: {} });
+  const monta = async (coperture, scelte = { segui_soggetto: 'si' }) => {
+    const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 5, coperture }] }, stile: 'sdg', formato: 'verticale', ...scelte }, file: {} });
     assert.equal(r.stato, 200, JSON.stringify(r.json));
-    const p = path.join(TMP, `sg-${coperture[0].replace(/\W/g, '_')}.mp4`);
+    const p = path.join(TMP, `sg-${coperture[0].replace(/\W/g, '_')}-${Object.keys(scelte).length}.mp4`);
     fs.writeFileSync(p, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);
     return p;
   };
@@ -74,6 +74,9 @@ test('soggetto: nel reel verticale la copertura senza posizione segue il soggett
   const fermo = await soggettoAlCentro(await monta(['V01.1 centro']), 2.5);
   assert.ok(auto > 0.5, `il soggetto dovrebbe stare al centro del reel: ${auto.toFixed(2)}`);
   assert.ok(fermo < 0.05, `con «centro» scritto dalla regia la striscia resta al centro della clip (soggetto fuori): ${fermo.toFixed(2)}`);
+  // di serie (Nicola, 26/11) il soggetto non si segue: senza «segui_soggetto: si» la striscia resta al centro
+  const diSerie = await soggettoAlCentro(await monta(['V01.1'], {}), 2.5);
+  assert.ok(diSerie < 0.05, `spento di serie: ${diSerie.toFixed(2)}`);
 });
 
 // ------------------------------------------------------------------ tagli a tempo di musica
@@ -144,7 +147,7 @@ test('tagli a tempo nel montaggio vero: i cambi di colore cadono sul battito; co
   for (const c of ['white', 'gray', 'black']) assert.equal((await carica(pid, colore(c))).stato, 200);
   const piano = { battute: [{ immagini: 9, coperture: ['V01.1', 'V02.1', 'V03.1'] }], musica: true };
   const tagli = async (musica) => {
-    const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, stile: 'sdg', formato: 'verticale' }, file: { musica } });
+    const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, stile: 'sdg', formato: 'verticale', tagli_a_tempo: 'si' }, file: { musica } });
     assert.equal(r.stato, 200, JSON.stringify(r.json));
     const p = path.join(TMP, `bt-${path.basename(musica)}.mp4`);
     fs.writeFileSync(p, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);
@@ -158,6 +161,10 @@ test('tagli a tempo nel montaggio vero: i cambi di colore cadono sul battito; co
     const battito = 0.13 + Math.round((t - 0.13) / 0.5) * 0.5;
     assert.ok(Math.abs(t - battito) <= 0.05, `il cambio a ${t} s dovrebbe stare sul battito (${battito.toFixed(2)} s)`);
   }
+  // di serie (Nicola, 26/11) i tagli a tempo sono spenti: senza «tagli_a_tempo: si» la stessa base non sposta niente
+  const spento = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano, stile: 'sdg', formato: 'verticale' }, file: { musica: CLICK120() } });
+  assert.equal(spento.stato, 200);
+  assert.ok(!spento.json.avvisi.some((a) => a.codice === 'tagli_a_tempo'), 'spento di serie');
   const conRumore = await tagli(RUMORE());
   assert.ok(!conRumore.avvisi.some((a) => a.codice === 'tagli_a_tempo'), 'senza battito chiaro non si sposta niente');
   assert.deepEqual(conRumore.cambi.map((t) => Math.round(t * 25)), [75, 150], 'i tagli della regia: 3 e 6 secondi');
@@ -414,7 +421,7 @@ test('collaudo: nel montaggio vero il taglio a tempo non fa vedere la scena dopo
   const m1 = await carica(pid, dueScene);
   assert.deepEqual(m1.json.materiale.scene.map((x) => [x.inizio, x.fine]), [[0, 3], [3, 8]]);
   assert.equal((await carica(pid, grigio)).stato, 200);
-  const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 6, coperture: ['V01.1', 'V02.1'] }], musica: true }, stile: 'sdg', formato: 'verticale', colori_uguali: false, stabilizza: 'no' }, file: { musica: CLICK120() } });
+  const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 6, coperture: ['V01.1', 'V02.1'] }], musica: true }, stile: 'sdg', formato: 'verticale', colori_uguali: false, stabilizza: 'no', tagli_a_tempo: 'si' }, file: { musica: CLICK120() } });
   assert.equal(r.stato, 200, JSON.stringify(r.json));
   const out = path.join(TMP, 'c26-scena.mp4');
   fs.writeFileSync(out, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);

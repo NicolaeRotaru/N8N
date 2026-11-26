@@ -162,7 +162,8 @@ export function luminanza(hex) {
 // restano quelli dello stile (per Scatti di G: la moodboard). I sottotitoli restano nel font dello stile, che si legge.
 // identita = i colori e i font di Scatti di G scritti nel Config del workflow: quando il marchio dell'agenzia cambia
 // (colori, font) si cambia lì, senza toccare il codice né ripubblicare l'officina. Solo valori validi.
-// Le scelte del montaggio da professionisti, se la richiesta le dice (altrimenti quelle dello stile: tutte accese):
+// Le scelte del montaggio da professionisti, se la richiesta le dice. Di serie: stabilizzazione e colori uguali accesi,
+// tagli a tempo e soggetto spenti (si accendono con «si»):
 // stabilizza ('auto' | 'si' | 'no'), colori_uguali, tagli_a_tempo, segui_soggetto (vero/falso, anche «si»/«no»).
 export function conScelte(stile, dati = {}) {
   const fuori = { ...stile };
@@ -446,7 +447,8 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
   // (solo se il pezzo si ritaglia davvero: con «auto» una clip troppo diversa dal formato esce intera, e lì il soggetto non serve)
   const tenuto = info ? Math.min(info.larghezza / info.altezza, fmt.w / fmt.h) / Math.max(info.larghezza / info.altezza, fmt.w / fmt.h) : 0;
   const ritaglia = modo === 'riempi' || (modo === 'auto' && tenuto >= 0.8);
-  if (!q.posizione && stile.segui_soggetto !== false && ritaglia && info && info.larghezza / info.altezza > (fmt.w / fmt.h) * 1.05) {
+  // (a richiesta dalla 1.6.0: segui_soggetto «si» nella richiesta. Nicola, 26/11: spento di serie finché non passa il collaudo)
+  if (!q.posizione && stile.segui_soggetto === true && ritaglia && info && info.larghezza / info.altezza > (fmt.w / fmt.h) * 1.05) {
     const chiave = `${sorgente}@${f3(q.inizio)}@${f3(fotogrammi / FPS)}@${fmt.w}x${fmt.h}`;
     if (soggetti.size > 500) soggetti.clear();
     if (!soggetti.has(chiave)) soggetti.set(chiave, await centroSoggetto(sorgente, q.inizio, fotogrammi / FPS, fmt, cfg, segnale));
@@ -532,7 +534,8 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
   // i tagli a tempo di musica (battiti.js): solo con la musica, solo se il battito è chiaro, solo fra due coperture (o
   // foto). Le battute con le voci e i volti non si toccano, e la durata del video resta quella.
   const musicaScelta = tl.musica?.usa ? (musicaFile || (tl.musica.fonte && sorgenti.get(tl.musica.fonte)) || null) : null;
-  if (musicaScelta && stile.tagli_a_tempo !== false) {
+  // (a richiesta dalla 1.6.0: tagli_a_tempo «si» nella richiesta. Nicola, 26/11: spento di serie finché non passa il collaudo)
+  if (musicaScelta && stile.tagli_a_tempo === true) {
     try {
       const m = await battitiMusica(musicaScelta, cfg, segnale, Math.min(180, tl.durata + 2));
       if (m.affidabilita >= SOGLIA_BATTITO) {

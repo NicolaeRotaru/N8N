@@ -56,7 +56,7 @@ export function trovaBattiti(pcm, sr = SR) {
   for (let p = lagBuono * 0.98; p <= lagBuono * 1.02; p += 0.005) {
     for (let f = 0; f < p; f += 0.25) {
       let tot = 0;
-      for (let t = f; t < n; t += p) tot += largo[Math.round(t)];
+      for (let t = f; t < n; t += p) tot += largo[Math.round(t)] || 0;
       if (tot > meglio) { meglio = tot; p0 = p; f0 = f; }
     }
   }
