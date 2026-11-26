@@ -356,7 +356,20 @@ const GENERICHE = new Set(['bar', 'caffe', 'caffetteria', 'ristorante', 'pizzeri
 const paroleNome = normale(f.nome_locale).trim().split(' ').filter(Boolean);
 const distintive = paroleNome.filter((w) => !GENERICHE.has(w)).length ? paroleNome.filter((w) => !GENERICHE.has(w)) : paroleNome;
 const citta = normale(testo(f.citta) || 'Piacenza').trim();
-const eDellAttivita = (pg) => { const t = normale(pg.testo); return distintive.length > 0 && distintive.every((w) => t.includes(' ' + w + ' ')) && (!citta || t.includes(' ' + citta + ' ')); };
+// Dal collaudo della #22 (26/11): le parole del nome vanno cercate vicine e in ordine (al massimo 2 parole in mezzo), non
+// sparse («Bar Centrale in via Roma» non è «Bar Roma»); la città vale anche nell'indirizzo della pagina; e una pagina il cui
+// dominio contiene il nome attaccato (barroma.it) è del locale anche se il suo sito non era noto.
+// Le parole distintive sono già solo lettere e cifre (normale): si mettono nella regex così come sono.
+// Con una sola parola distintiva («Bar Roma» → roma) non basta: si chiede il nome intero, parola dopo parola (al massimo 1 in mezzo).
+const vicine = distintive.length >= 2 ? new RegExp(' ' + distintive.join(' (?:[a-z0-9]+ ){0,2}') + ' ')
+  : paroleNome.length ? new RegExp(' ' + paroleNome.join(' (?:[a-z0-9]+ )?') + ' ') : null;
+const attaccato = paroleNome.join('');
+const eDellAttivita = (pg) => {
+  const t = normale(testo(pg.testo).slice(0, 200000));
+  const u = normale(testo(pg.url).replace(/[\/._-]+/g, ' '));
+  if (attaccato.length >= 5 && hostDi(pg.url).replace(/[^a-z0-9]/g, '').includes(attaccato)) return true;
+  return !!vicine && vicine.test(t) && (!citta || t.includes(' ' + citta + ' ') || u.includes(' ' + citta + ' '));
+};
 const fuoriSito = lette.filter((pg) => !eDelSito(pg));
 const altre = fuoriSito.filter(eDellAttivita).slice(0, 4);
 const pagine_scartate_omonimi = fuoriSito.filter((pg) => !eDellAttivita(pg)).length;

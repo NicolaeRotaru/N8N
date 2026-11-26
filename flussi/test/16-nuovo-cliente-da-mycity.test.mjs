@@ -969,3 +969,14 @@ test("omonimi: accenti, maiuscole e parole generiche del nome non contano; il si
     { nome_locale: 'Caffè Città', citta: 'Piacenza' }));
   assert.deepEqual(accenti.altre_pagine.map((p) => p.url), ['https://p.it/a']);
 });
+
+// --- Dal collaudo indipendente della #22 (26/11): parole vicine, città nell'indirizzo, dominio col nome ----------------------
+test("omonimi, dal collaudo: le parole del nome vanno vicine; la città vale anche nell'indirizzo; il dominio col nome è del locale", async () => {
+  const dati = datiDi(await preparaConPagine(CORPUS([
+    { url: 'https://www.tripadvisor.it/bar-piacenza', testo: 'I migliori bar di Piacenza: Bar Centrale in via Roma 12, aperitivi.' },
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'Bar Roma. Via Garibaldi 3. Caffetteria.' },
+    { url: 'https://www.barroma.it/menu', testo: 'Il nostro menu: Bar Roma, colazioni.' },
+  ]), { nome_locale: 'Bar Roma', citta: 'Piacenza', sito: '' }));
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url).sort(), ['https://www.barroma.it/menu', 'https://www.sluurpy.it/piacenza/bar-roma']);
+  assert.equal(dati.pagine_scartate_omonimi, 1);
+});
