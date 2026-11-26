@@ -379,11 +379,27 @@ nodo('Crea subito la cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
   sendBody: true,
   contentType: 'json',
   specifyBody: 'json',
-  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro] }) }}",
+  jsonBody: "={{ JSON.stringify({ name: $('Prepara il lavoro').first().json.pronti.nome, mimeType: 'application/vnd.google-apps.folder', parents: [$('Prepara il lavoro').first().json.pronti.dentro], appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine } }) }}",
   options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
 }, [COL(17), RIGA.modulo - 350], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+// con «rifai» la cartella c'è già: le si scrive la fine stimata del giro nuovo (la legge il guardiano delle cartelle)
+nodo('Segna il giro sulla cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($('Prepara il lavoro').first().json.pronti.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  jsonBody: "={{ JSON.stringify({ appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine } }) }}",
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(17), RIGA.modulo - 200], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
 collega('Prepara la partenza', 'Serve la cartella Pronti?');
 collega('Serve la cartella Pronti?', 'Crea subito la cartella Pronti', 0);
+collega('Serve la cartella Pronti?', 'Segna il giro sulla cartella Pronti', 1);
 catena('Prepara la partenza', 'Avvia il montaggio', 'Dal modulo (partito)?');
 collega('Dal modulo (partito)?', 'Fine: partito', 0);
 
@@ -756,7 +772,11 @@ nodo('Guarda: leggi Clienti', 'n8n-nodes-base.httpRequest', 4.5, {
   queryParameters: { parameters: [{ name: 'valueRenderOption', value: 'FORMATTED_VALUE' }, { name: 'majorDimension', value: 'ROWS' }] },
   options: { timeout: 30000, response: { response: { responseFormat: 'json' } } },
 }, [COL(3), W], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
-collega('Quale lavoro?', 'Guarda: leggi Clienti', USCITA.guarda);
+// i giri in corso, partiti da qualunque strada (guardiano, modulo, «rifai»): le cartelle «Pronti» con la fine stimata
+driveElenca('Guarda: giri in corso', "mimeType = 'application/vnd.google-apps.folder' and appProperties has { key='montatore_giro' and value='si' } and trashed = false", [COL(2) + 60, W - 160], 'nextPageToken,files(id,name,createdTime,appProperties)');
+nodi.find((n) => n.name === 'Guarda: giri in corso').alwaysOutputData = true;
+collega('Quale lavoro?', 'Guarda: giri in corso', USCITA.guarda);
+collega('Guarda: giri in corso', 'Guarda: leggi Clienti');
 codice('Guarda: cartelle dei clienti', 'guarda-clienti.js', [COL(4), W]);
 driveElenca('Guarda: servizi dei clienti', "={{ \"'\" + $json.cartella_cliente + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and createdTime > '\" + $json.dopo + \"'\" }}", [COL(5), W], 'nextPageToken,files(id,name,createdTime)');
 codice('Guarda: servizi nuovi', 'guarda-servizi.js', [COL(6), W]);

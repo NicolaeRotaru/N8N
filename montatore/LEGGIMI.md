@@ -5,7 +5,7 @@
 
 ## Novità del 26/11/2026
 - **L'IA la fa l'AD, non più l'API di Claude a pagamento.** I cinque passi con l'IA passano da «90 · Chiedi all'AD». Il workflow si chiama «31 · Montatore».
-- **Un servizio alla volta.** Se il guardiano trova tre servizi pronti insieme, ne parte uno; gli altri aspettano in fila. Il successivo parte quando il giro di prima ha finito secondo la stima, fatta dalla durata dei video che dà Drive: mai prima di 2 ore (`GIRI_DISTANZA_MINUTI`). Esempio: un servizio con 2 ore di girato tiene il posto per circa 4 ore. Anche un giro lanciato dal modulo conta, appena compare la sua cartella «Pronti». Così le corse dell'AD non partono in parallelo, e il conto dei tetti (40 al giorno, 25 all'ora) resta giusto.
+- **Un servizio alla volta.** Se il guardiano trova tre servizi pronti insieme, ne parte uno; gli altri aspettano in fila. Ogni giro, da qualunque strada parta (guardiano, modulo, «rifai»), scrive sulla sua cartella «Pronti» su Drive quando pensa di finire. Il guardiano legge quelle cartelle e fa partire il successivo solo quando tutte sono scadute, mai prima di 2 ore (`GIRI_DISTANZA_MINUTI`). Esempio: un servizio con 2 ore di girato tiene il posto per circa 4 ore. Se Drive non dà ancora la durata dei video, la stima si fa dal peso (200 MB al minuto). Così le corse dell'AD non partono in parallelo, e il conto dei tetti (40 al giorno, 25 all'ora) resta giusto.
 - **Se l'AD non descrive nessuna scena, il giro si ferma e lo dice.** Vale quando la corsa fallisce, e anche quando l'AD risponde ma non ha potuto aprire i provini. Prima il piano si scriveva lo stesso, alla cieca. Se descrive meno del 60% delle scene, il piano si scrive e il riepilogo dice quante ne mancano. Gli avvisi dell'AD (per esempio «un allegato non si apre») arrivano nel riepilogo da tutti i passi: materiale, piano, correzione, controllo dei reel.
 - **Il controllo dell'AD guarda i reel, fino a 12 per giro.** Se i reel sono di più, il riepilogo dice quali non ha guardato. Le storie video, i post e i video rimontati dopo un ✏️ Correggi non ripassano dal controllo: li guardate voi sulla scheda.
 
@@ -75,7 +75,8 @@ Ogni volta che c'è un servizio nuovo:
 3. Aspetta i messaggi su Telegram e guarda la cartella «Pronti (montatore)».
 
 ## Cosa non ho verificato
-- **Giri in parallelo, i casi che restano.** Un ritocco da Telegram, o un altro flusso che usa l'AD, può partire mentre gira un giro. Lo stesso vale per un giro lanciato dal modulo prima che compaia la sua cartella «Pronti», cioè prima del piano. La cura vera è nel conto delle corse di «90 · Chiedi all'AD», che tocca alla regia.
+- **Giri in parallelo, i casi che restano.** Un ritocco da Telegram, o un altro flusso che usa l'AD, può partire mentre gira un giro. La cura vera è nel conto delle corse di «90 · Chiedi all'AD», che tocca alla regia. Un giro che si ferma a metà tiene il posto fino alla sua fine stimata.
+- **La ricerca su Drive per proprietà** (`appProperties has { key='montatore_giro' … }`) l'ho scritta dalla documentazione di Drive: non l'ho vista girare sul vostro Drive.
 - **Il giro vero non l'ho fatto girare.** Da qui non arrivo all'officina sul vostro server. Non arrivo neanche a Drive e Telegram, e non ho una chiave di Claude.
   - L'ho provato a pezzi: i nodi Code con un finto n8n, e un giro simulato contro l'officina vera, con Drive e Claude finti.
   - La prima prova vera va fatta in modalità prova, con un servizio piccolo (5-10 file).

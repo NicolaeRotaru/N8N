@@ -179,7 +179,10 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   const nodiP = (cfg, figli) => ({ Config: { ...CFG_MODULO, ...cfg }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': SERVIZIO, 'Trova le sottocartelle': SC, 'Elenca il servizio': { files: figli } });
   const senzaPronti = FIGLI.files.filter((f) => !/pronti/i.test(f.name));
   const nuovo = esegui('prepara-il-lavoro.js', { nodi: nodiP({}, senzaPronti), input: [files] })[0].json;
-  assert.deepEqual(nuovo.pronti, { nome: 'Pronti (montatore) - prova', dentro: SERVIZIO.servizio.id, crea: true });
+  const { fine, ...pronti } = nuovo.pronti;
+  assert.deepEqual(pronti, { nome: 'Pronti (montatore) - prova', dentro: SERVIZIO.servizio.id, crea: true, id: '' });
+  const minutiFine = (Date.parse(fine) - Date.now()) / 60000;
+  assert.ok(Math.abs(minutiFine - (Math.round(nuovo.lavoro.stima_minuti * 1.3) + 30)) < 2, `la fine stimata del giro: ${Math.round(minutiFine)} minuti (stima ${nuovo.lavoro.stima_minuti})`);
   const conPronti = [...senzaPronti, { id: 'idPr', name: 'Pronti (montatore)', mimeType: 'application/vnd.google-apps.folder' }];
   const doppio = esegui('prepara-il-lavoro.js', { nodi: nodiP({}, conPronti), input: [files] })[0].json;
   assert.equal(doppio.ok, false);
@@ -563,6 +566,40 @@ test('terzo collaudo: la lettura del JSON accetta solo la forma attesa, e vince 
   assert.equal(esegui('leggi-il-piano.js', { nodi: { Config: GIRO }, input: dall([{ ok: true, risultato: piano }]) })[0].json.ok, true);
 });
 
+test('guardiano rifatto (Nicola, 26/11): la fine stimata sta sulla cartella «Pronti» di ogni giro, da qualunque strada parta', () => {
+  const dove = [{ cliente: 'el-tropico', nome_locale: 'El Tropico Latino', servizio_id: 'sB', servizio_nome: 'B', cartella: 'x', diretti: [] }];
+  const pronto = [{ files: [{ id: 'b', name: 'b.mp4', mimeType: 'video/mp4', createdTime: new Date(Date.now() - 60 * 60000).toISOString() }] }];
+  const giri = (...fini) => ({ files: fini.map((f, i) => ({ id: `p${i}`, name: 'Pronti (montatore)', appProperties: { montatore_giro: 'si', montatore_fine: f } })) });
+  const pronti = (elenco, S = { servizi: {} }) => esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': dove, 'Guarda: giri in corso': elenco }, input: pronto, statico: S });
+  const fra = (min) => new Date(Date.now() + min * 60000).toISOString();
+  // un giro (partito dal modulo, dal guardiano o con «rifai») finisce fra 50 minuti: B aspetta
+  assert.deepEqual(pronti(giri(fra(-30), fra(50))), []);
+  // tutti i giri finiti: B parte
+  assert.equal(pronti(giri(fra(-30), fra(-5))).length, 1);
+  // una fine fra 3 giorni è sbagliata: non blocca
+  assert.equal(pronti(giri(fra(3 * 24 * 60))).length, 1);
+  // Drive non risponde: niente partenze, si riguarda al giro dopo
+  assert.deepEqual(pronti({ error: { message: 'Drive 500' } }), []);
+  // video senza la durata di Drive (in elaborazione): la stima si fa dal peso, non cade al minimo
+  const pesanti = Array.from({ length: 12 }, (_, i) => ({ id: `v${i}`, name: `c${i}.mov`, mimeType: 'video/quicktime', size: String(1.75 * 1024 ** 3), createdTime: new Date(Date.now() - 60 * 60000).toISOString() }));
+  const S = { servizi: {} };
+  esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': dove, 'Guarda: giri in corso': giri() }, input: [{ files: pesanti }], statico: S });
+  assert.ok((Date.parse(S.libero_dopo) - Date.now()) / 60000 > 150, `21 GB di girato senza durata: il posto è tenuto ${Math.round((Date.parse(S.libero_dopo) - Date.now()) / 60000)} minuti`);
+  // «rifai» su un servizio con la cartella già fatta: la cartella si riusa, e le si scrive la fine nuova
+  const SC = { ok: true, ruoli: { idVert: { ruolo: 'verticale', nome: 'Video Verticali' } }, q: '' };
+  const files = { files: [{ id: 'v1', name: 'clip.mp4', mimeType: 'video/mp4', size: '50000000', parents: ['idVert'], videoMediaMetadata: { durationMillis: '600000' } }] };
+  const CFG = { ...CONFIG, cliente: 'el tropico', cartella: 'Servizio A', mese: '2026-12', reel: 6, post: 5, storie: 10, note: 'rifai' };
+  const rifai = esegui('prepara-il-lavoro.js', { nodi: { Config: CFG, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': { ok: true, servizio: { id: 'sA', nome: 'Servizio A' } }, 'Trova le sottocartelle': SC,
+    'Elenca il servizio': { files: [{ id: 'giaPronti', name: 'Pronti (montatore) - prova', mimeType: 'application/vnd.google-apps.folder' }] } }, input: [files] })[0].json;
+  assert.deepEqual([rifai.ok, rifai.pronti.crea, rifai.pronti.id], [true, false, 'giaPronti']);
+  assert.ok(Date.parse(rifai.pronti.fine) > Date.now() + 30 * 60000);
+  // senza durate la stima del giro cresce col peso
+  // (8 file da 450 MB: sotto il limite di 500 MB per file)
+  const senzaDurata = { files: Array.from({ length: 8 }, (_, i) => ({ ...files.files[0], id: `w${i}`, name: `w${i}.mp4`, size: String(450 * 1024 ** 2), videoMediaMetadata: undefined })) };
+  const stima = (f) => esegui('prepara-il-lavoro.js', { nodi: { Config: { ...CFG, note: '' }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': { ok: true, servizio: { id: 'sA', nome: 'Servizio A' } }, 'Trova le sottocartelle': SC }, input: [f] })[0].json.lavoro.stima_minuti;
+  assert.ok(stima(senzaDurata) > stima({ files: [{ ...files.files[0], videoMediaMetadata: undefined }] }) + 15, '3,6 GB senza durata pesano più di 50 MB');
+});
+
 test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {
   const nodo = (n) => workflow.nodes.find((x) => x.name === n);
   const cond = nodo('Ci sono controlli?').parameters.conditions.conditions[0].leftValue.replace(/^=\{\{\s*|\s*\}\}$/g, '');
@@ -702,7 +739,13 @@ test('il workflow generato: nodi unici, collegamenti validi, Config completo, ne
   assert.deepEqual(aggiornaFoglio, [], 'nessun nodo modifica righe che esistono già nel foglio');
   // lo smistatore: ogni lavoro alla sua corsia; il guardiano entra nella stessa porta del modulo
   const uscite = workflow.connections['Quale lavoro?'].main.map((u) => u.map((x) => x.node));
-  assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: leggi Clienti'], ['Leggi Clienti'], ['Leggi Clienti']]);
+  assert.deepEqual(uscite, [['Inizio del giro'], ['Scarica il file'], ['Da dove arriva il logo?'], ['Aspetta il turno'], ['Guarda: giri in corso'], ['Leggi Clienti'], ['Leggi Clienti']]);
+  // i giri in corso si leggono una volta, prima dei clienti; e anche con Drive giù esce un elemento (il guardiano non parte)
+  assert.deepEqual([dopoN('Guarda: giri in corso'), workflow.nodes.find((n) => n.name === 'Guarda: giri in corso').alwaysOutputData], [['Guarda: leggi Clienti'], true]);
+  assert.match(workflow.nodes.find((n) => n.name === 'Guarda: giri in corso').parameters.queryParameters.parameters[0].value, /appProperties has \{ key='montatore_giro' and value='si' \}/);
+  const crea = workflow.nodes.find((n) => n.name === 'Crea subito la cartella Pronti').parameters.jsonBody;
+  assert.match(crea, /montatore_fine: \$\('Prepara il lavoro'\)\.first\(\)\.json\.pronti\.fine/);
+  assert.deepEqual(dopoN('Serve la cartella Pronti?', 1), ['Segna il giro sulla cartella Pronti']);
   assert.deepEqual(workflow.connections['Ogni 15 minuti'].main[0].map((x) => x.node), ['Segna: guarda']);
   // la scheda su Telegram: due pulsanti, attesa in giorni dal Config; la correzione è testo libero
   const scheda = NODO('Chiedi: va bene?').parameters;

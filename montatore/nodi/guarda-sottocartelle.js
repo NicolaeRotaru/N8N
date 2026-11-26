@@ -13,8 +13,9 @@ $input.all().forEach((x, i) => {
     const S = $getWorkflowStaticData('global');
     S.servizi = S.servizi || {};
     S.servizi[s.servizio_id] = { ...(S.servizi[s.servizio_id] || {}), avviato: new Date().toISOString(), da: 'pronti' };
-    // un giro partito da un'altra strada (il modulo): il guardiano lo conta, e non ne fa partire un altro insieme.
-    // La cartella «Pronti» nasce a metà giro, dopo il piano: da lì almeno GIRI_DISTANZA_MINUTI prima del prossimo.
+    // un giro partito da un'altra strada (il modulo): il guardiano lo conta, e non ne fa partire un altro insieme. Di solito
+    // la cartella porta la fine stimata (la legge «Guarda: servizi pronti» da «Guarda: giri in corso»); se non la porta
+    // (cartella creata a mano, o da una versione di prima), da quando è nata almeno GIRI_DISTANZA_MINUTI.
     const quando = Date.parse(pronti.createdTime || '');
     if (Number.isFinite(quando) && quando <= Date.now() && quando > (Date.parse(S.giro_visto || '') || 0)) S.giro_visto = new Date(quando).toISOString();
     return;

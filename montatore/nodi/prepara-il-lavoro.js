@@ -53,7 +53,10 @@ const nf = file.length - nv;
 const secondi = file.reduce((s, x) => s + (x.durata || 0), 0);
 const trascrivi = siNo(CFG.TRASCRIVI, true);
 // stima: analisi ~0,3× la durata (più ~0,8× se si trascrive), caricamento, Claude, montaggio
-const minuti = Math.max(5, Math.round(secondi * (0.3 + (trascrivi ? 0.8 : 0)) / 60 + nf * 0.05 + file.reduce((s, x) => s + x.byte, 0) / 1048576 / 600 + 6 + richiesta.reel * 1.2 + richiesta.post * 0.3 + richiesta.storie * 0.5));
+// un video senza la durata di Drive (ancora in elaborazione, o un formato che Drive non legge): la durata si stima dal
+// peso, a 200 MB al minuto (fra il 1080p e il 4K del telefono)
+const secondiStimati = file.reduce((s, x) => s + (x.durata || (x.tipo === 'video' ? (x.byte / 1048576 / 200) * 60 : 0)), 0);
+const minuti = Math.max(5, Math.round(secondiStimati * (0.3 + (trascrivi ? 0.8 : 0)) / 60 + nf * 0.05 + file.reduce((s, x) => s + x.byte, 0) / 1048576 / 600 + 6 + richiesta.reel * 1.2 + richiesta.post * 0.3 + richiesta.storie * 0.5));
 const lavoro = {
   lavoro: 'giro',
   avviato: partiRoma().data + ' ' + partiRoma().ora,
@@ -85,5 +88,10 @@ const gia = figli.find((f) => eCartella(f) && chiaveNome(f.name).startsWith(radi
 if (gia && !/\brifai\b/i.test(testo(CFG.note))) {
   return [{ json: { ok: false, messaggio: 'In «' + S.nome + '» c\'è già la cartella «' + testo(gia.name) + '»: questo servizio è già partito (o è già montato). Se vuoi rifarlo davvero, scrivi «rifai» nelle note.' } }];
 }
-lavoro.pronti = { nome: nomePronti, dentro: S.id, crea: !figli.some((f) => eCartella(f) && testo(f.name) === nomePronti) };
+// la fine stimata del giro si scrive sulla cartella «Pronti» (proprietà di Drive): il guardiano delle cartelle la legge e
+// non fa partire un altro servizio finché il giro non ha finito, anche se è partito dal modulo o con «rifai». ×1,3 e 30
+// minuti in più per le attese dell'AD (fino a 15 minuti a corsa).
+const stessa = figli.find((f) => eCartella(f) && testo(f.name) === nomePronti);
+const fine = new Date(Date.now() + (Math.round(minuti * 1.3) + 30) * 60000).toISOString();
+lavoro.pronti = { nome: nomePronti, dentro: S.id, crea: !stessa, id: stessa ? testo(stessa.id) : '', fine };
 return [{ json: { ok: true, lavoro, messaggio, pronti: lavoro.pronti } }];

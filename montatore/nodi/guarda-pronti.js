@@ -2,9 +2,11 @@
 // (la copia dalla scheda SD è finita). Allora parte il montaggio, una volta sola per cartella (il mese lo decide «Prepara il lavoro»).
 // UN servizio alla volta: due giri insieme fanno partire «90 · Chiedi all'AD» in parallelo, e le corse in parallelo si
 // cancellano a vicenda il conto dei tetti (40 al giorno, 25 all'ora). Il successivo parte quando il giro di prima ha
-// finito secondo la stima (la formula di «Prepara il lavoro», dalla durata dei video che dà Drive, ×1,3 più 30 minuti per
-// le attese dell'AD), mai prima di GIRI_DISTANZA_MINUTI. Anche un giro partito dal modulo conta: lo dice la sua cartella
-// «Pronti» (vedi «Guarda: sottocartelle»). Gli altri servizi pronti restano in fila, il più vecchio per primo.
+// finito secondo la stima, mai prima di GIRI_DISTANZA_MINUTI. Dove si legge la fine stimata:
+// - sulle cartelle «Pronti» dei giri (proprietà montatore_fine, scritta alla partenza da «Prepara il lavoro», qualunque
+//   sia la strada: guardiano, modulo, «rifai»): le elenca «Guarda: giri in corso»;
+// - nella memoria del guardiano (libero_dopo, la sua stima quando fa partire un servizio, prima che la cartella esista).
+// Se l'elenco dei giri non arriva (Drive non risponde) non parte niente: si riguarda al giro dopo.
 // Solo il guardiano scrive questa memoria: le esecuzioni del giro e del modulo non la toccano (la riscriverebbero intera).
 const J = $('Config').first().json;
 const S = $getWorkflowStaticData('global');
@@ -32,16 +34,21 @@ for (const [id, e] of per) {
   pronti.push({ id, e, materiale, ultimo });
 }
 const distanza = Math.max(30, intero(J.GIRI_DISTANZA_MINUTI, 120)) * 60000;
+const elenco = $('Guarda: giri in corso').isExecuted ? $('Guarda: giri in corso').first().json || {} : { files: [] };
+if (elenco.error || !Array.isArray(elenco.files)) return [];
+// la fine più lontana fra i giri in corso (una data oltre 24 ore è sbagliata: si ignora)
+const fineGiri = Math.max(0, ...elenco.files.map((f) => Date.parse(((f && f.appProperties) || {}).montatore_fine || '')).filter((t) => Number.isFinite(t) && t <= ora + 24 * 3600000));
 // un'ora scritta male, o nel futuro (orologio tornato indietro), non blocca il guardiano per sempre
 const passato = (v) => { const t = Date.parse(v || ''); return Number.isFinite(t) && t <= ora ? t : 0; };
 const liberoDopo = Date.parse(S.libero_dopo || '');
-const libero = Math.max(Number.isFinite(liberoDopo) && liberoDopo <= ora + 24 * 3600000 ? liberoDopo : 0,
+const libero = Math.max(fineGiri, Number.isFinite(liberoDopo) && liberoDopo <= ora + 24 * 3600000 ? liberoDopo : 0,
   passato(S.ultimo_avvio) && passato(S.ultimo_avvio) + distanza, passato(S.giro_visto) && passato(S.giro_visto) + distanza);
 if (!pronti.length || ora < libero) return [];
 pronti.sort((a, b) => a.ultimo - b.ultimo);
 // quanto dura il giro di questo servizio (stima di «Prepara il lavoro» con le quantità di serie)
 const stimaMinuti = (materiale) => {
-  const secondi = materiale.reduce((x, f) => x + (Number(f.videoMediaMetadata && f.videoMediaMetadata.durationMillis) || 0) / 1000, 0);
+  // senza la durata di Drive (video ancora in elaborazione) la durata si stima dal peso, a 200 MB al minuto
+  const secondi = materiale.reduce((x, f) => x + ((Number(f.videoMediaMetadata && f.videoMediaMetadata.durationMillis) || 0) / 1000 || (eVideo(f) ? ((Number(f.size) || 0) / 1048576 / 200) * 60 : 0)), 0);
   const mb = materiale.reduce((x, f) => x + (Number(f.size) || 0), 0) / 1048576;
   const foto = materiale.filter((f) => eFoto(f)).length;
   const q = (k, d) => intero(J[k], d);
