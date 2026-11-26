@@ -12,7 +12,9 @@ corpo.analisi.business.reputazione_temi
 corpo.analisi.business.confronto_concorrenti
 corpo.analisi.business.occasioni
 corpo.analisi.business.soldi_pubblici
-corpo.analisi.business.piano_30_giorni   ← le nuove sezioni scritte dall'AD (sezione 2)
+corpo.analisi.business.piano_30_giorni
+corpo.analisi.business.idee_dal_confronto  (1.2)
+corpo.analisi.business.parti               (1.2) ← le nuove sezioni scritte dall'AD (sezione 2)
 ```
 
 Le sezioni di prima (`situazione`, `mercato`, `clienti`, `opportunita`, `rischi`, `prime_mosse`) restano
@@ -92,9 +94,9 @@ quale fascia lo decide Nicola e lo mostra il sito: n8n raccoglie sempre tutto.
 | 9 | Soldi pubblici | `bandi` | `soldi_pubblici` |
 | 10 | Opportunità e rischi | — | `opportunita`, `rischi` |
 | 11 | Il piano | — | `prime_mosse`, `piano_30_giorni` |
-| 12 | Concorrenti sui social e sul web | `concorrenti_canali` | `confronto_concorrenti[].canali`, `idee_dal_confronto` |
+| 12 | Concorrenti sui social e sul web | `concorrenti_canali` | `confronto_concorrenti[].meglio/peggio`, `idee_dal_confronto` |
 
-`vicini` porta `parte: 3` (i servizi del quartiere sono `parte: 2` dentro `dati.servizi_parte`). Nelle
+`vicini` porta `parte: 3` (i servizi del quartiere sono parte 2: `dati.servizi_parte = 2`). Nelle
 sezioni dell'AD la parte non sta in ogni frase: sta nella mappa `analisi.business.parti`, es.
 `{ "situazione": 1, "reputazione_temi": 4, … }`. **Numeri provvisori** finché non li allineo all'elenco
 delle 11 parti del PIANO: se cambiano, cambia solo questa tabella.
@@ -250,7 +252,7 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
 ## 3. Cosa fa il sito con un dato spento o vecchio
 
 - `stato: "spento"` → la riga non si mostra (o «in arrivo»), mai «0».
-- `conserva_fino_al` passata → si cancella `dati` (resta `place_id`), si mostra «da rileggere».
+- `conserva_fino_al` passata (DataForSEO) → si cancella `dati`, si mostra «da rileggere». Il `place_id` di Google non scade.
 - Ogni numero mostrato porta accanto `fonte_nome` e la data di `letto_il`; dove c'è `licenza`, anche quella.
 
 ## 4. Il lavoro per «Chiedi all'AD»
