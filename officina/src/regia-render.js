@@ -13,6 +13,7 @@ import { sonda, BASE, CODIFICA_FINALE, misuraVolume, filtroLoudnorm, durataFile,
 import { caricaFont, nomeFamigliaLibass } from './font.js';
 import { apri, preparaLogo } from './immagini.js';
 import { filtroLut } from './lut.js';
+import { centroSoggetto } from './soggetto.js';
 
 // Fotogrammi al secondo: li decide lo stile (Scatti di G gira e consegna a 25). Senza stile, 30.
 export const FPS_BASE = 30;
@@ -366,7 +367,10 @@ export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centr
   if (modo === 'intera' || !riempi) {
     return `[0:v]${pre}fps=${FPS},split=2[a][b];[a]scale=${Math.round(W / 4)}:${Math.round(H / 4)}:force_original_aspect_ratio=increase,crop=${Math.round(W / 4)}:${Math.round(H / 4)},boxblur=10:2,scale=${W}:${H},eq=brightness=-0.06[sf];[b]scale=${W}:${H}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos[pp];[sf][pp]overlay=(W-w)/2:(H-h)/2,${FINE}[v]`;
   }
-  const centro = { sinistra: 'iw/3', destra: '2*iw/3', centro: 'iw/2' }[posizione] || 'iw/2';
+  // la posizione: parola (sinistra/centro/destra, dalla regia) oppure numero da 0 a 1 (il soggetto trovato da soggetto.js)
+  const centro = typeof posizione === 'number' && Number.isFinite(posizione)
+    ? `${Math.min(1, Math.max(0, posizione)).toFixed(3)}*iw`
+    : { sinistra: 'iw/3', destra: '2*iw/3', centro: 'iw/2' }[posizione] || 'iw/2';
   const x = `max(0\\,min(iw-ow\\,${centro}-ow/2))`;
   // una clip più alta del quadro (verticale in orizzontale) si ritaglia dall'alto: le persone stanno nel terzo superiore
   const y = r < t ? '(ih-oh)*0.3' : '(ih-oh)/2';
@@ -400,6 +404,8 @@ export function filtroRiempi(fotogrammi, fps) {
   return `tpad=stop_mode=clone:stop_duration=${f3(fotogrammi / fps + 1)}`;
 }
 
+// i centri del soggetto già trovati (stessa clip, stesso pezzo, stesso formato): non si ricalcolano
+const soggetti = new Map();
 async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null) {
   const t = String(cfg.threadFfmpeg);
   const FPS = stile.fps || FPS_BASE;
@@ -413,7 +419,16 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
     return;
   }
   const modo = modoInquadratura(q, info, fmt, stile);
-  const grafo = grafoInquadratura(info, fmt, { modo, posizione: q.posizione || 'centro', fps: FPS, lut }).replace('[v]', '[g]');
+  // senza una posizione scritta dalla regia, la striscia di una clip più larga del formato segue il soggetto
+  let posizione = q.posizione || 'centro';
+  if (!q.posizione && stile.segui_soggetto !== false && modo !== 'intera' && info && info.larghezza / info.altezza > (fmt.w / fmt.h) * 1.05) {
+    const chiave = `${sorgente}@${f3(q.inizio)}@${f3(fotogrammi / FPS)}@${fmt.w}x${fmt.h}`;
+    if (soggetti.size > 500) soggetti.clear();
+    if (!soggetti.has(chiave)) soggetti.set(chiave, await centroSoggetto(sorgente, q.inizio, fotogrammi / FPS, fmt, cfg, segnale));
+    const c = soggetti.get(chiave);
+    if (c !== null) posizione = c;
+  }
+  const grafo = grafoInquadratura(info, fmt, { modo, posizione, fps: FPS, lut }).replace('[v]', '[g]');
   // tpad: se la clip finisce prima (la regia non lo permette, ma un file può dichiarare una durata sbagliata), l'ultimo
   // fotogramma resta fino a riempire il pezzo: mai un pezzo più corto, quindi mai le immagini dopo che scivolano
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-ss', f3(q.inizio), '-t', f3(fotogrammi / FPS + 0.5), '-i', sorgente,
