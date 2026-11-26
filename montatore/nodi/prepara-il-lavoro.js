@@ -65,6 +65,8 @@ const lavoro = {
   mese,
   richiesta,
   note: accorcia(comandiNote(CFG.note).note, 2000),
+  // «subito» scritto nel modulo: le note qui sopra sono già ripulite, e il controllo all'inizio del giro lo legge da qui
+  subito: comandiNote(CFG.note).subito,
   file,
   musica,
   scartati,
