@@ -3,7 +3,7 @@ const J = $('Config').first().json;
 const E = J.esito || {};
 const G = J.giro || {};
 const c = E.contenuto || {};
-const R = leggiClaude($input.first().json);
+const R = leggiClaude($input.first().json, (d) => (d.regia && typeof d.regia === 'object') || typeof d.non_posso === 'string');
 const nome = h((G.cliente || {}).nome_locale) + ' · ' + h(c.titolo);
 if (!R.ok || R.troncata) return [{ json: { ok: false, messaggio: '⚠️ <b>Ritocco non riuscito</b> · ' + nome + '\nAD: ' + h(R.ok ? 'risposta troncata' : R.motivo) + '. La scheda di prima torna qui sotto: approvate quella o scrivete un\'altra correzione.' } }];
 const d = R.dati;

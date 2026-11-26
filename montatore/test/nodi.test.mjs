@@ -544,6 +544,25 @@ test('secondo collaudo del 26/11: «ok» senza scene ferma il giro; copertura pe
   assert.deepEqual(esegui('domande-sul-materiale.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Provini da scaricare': prov } }).map((x) => x.json.codici), [['V01.2']]);
 });
 
+test('terzo collaudo: la lettura del JSON accetta solo la forma attesa, e vince l\'ultima parola dell\'AD', () => {
+  const dall = (items) => esegui('dall-ad.js', { input: items }).map((x) => x.json);
+  // un controllo che non è avvenuto (l'AD cita l'errore dello strumento) resta «non controllato», non diventa «ok 3/5»
+  const reel = { ok: true, n: 1, contenuto: { ...CONT[0], titolo: 'Reel 1' }, fotogrammi: 'lav1/fotogrammi.jpg', file: [] };
+  const dom = esegui('domande-di-controllo.js', { nodi: { Config: GIRO }, input: [reel] }).map((x) => x.json);
+  const unisci = (testo) => esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': [reel], 'Domande di controllo': dom, "Dall'AD: controlla i reel": dall([{ ok: true, risultato: testo }]) } })[0].json.controllo;
+  assert.equal(unisci('Non riesco ad aprire il reel: lo strumento ha risposto {"errore":"404","dettaglio":"non trovato"}').esito, 'non_controllato');
+  // bozza «ok» e poi correzione «da rivedere»: vince la correzione
+  const due = '```json\n{"punti":[],"voto":4,"esito":"ok","motivo":"bene"}\n```\nRiguardando:\n```json\n{"punti":[],"voto":2,"esito":"da_rivedere","motivo":"la scritta copre il viso"}\n```';
+  assert.deepEqual([unisci(due).esito, unisci(due).voto], ['da_rivedere', 2]);
+  // un primo recinto con un elenco, poi le descrizioni: si leggono le descrizioni
+  const scene = '```json\n["V01.1"]\n```\n```json\n{"scene":[{"codice":"V01.1","cosa_si_vede":"mojito","soggetto":"drink","inquadratura":"dettaglio","valore":5,"aggancio":true,"problemi":[]}]}\n```';
+  const g = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Domande sul materiale': [{ codici: ['V01.1'] }] }, input: dall([{ ok: true, risultato: scene }]) })[0].json;
+  assert.ok(!g.fermo && g.descritte === 1, JSON.stringify(g.fermo));
+  // un primo recinto con dei conti, poi il piano: si legge il piano
+  const piano = 'Conti:\n```json\n{"reel":3,"post":2}\n```\nIl piano:\n```json\n{"contenuti":[],"note_per_il_team":"ok"}\n```';
+  assert.equal(esegui('leggi-il-piano.js', { nodi: { Config: GIRO }, input: dall([{ ok: true, risultato: piano }]) })[0].json.ok, true);
+});
+
 test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {
   const nodo = (n) => workflow.nodes.find((x) => x.name === n);
   const cond = nodo('Ci sono controlli?').parameters.conditions.conditions[0].leftValue.replace(/^=\{\{\s*|\s*\}\}$/g, '');

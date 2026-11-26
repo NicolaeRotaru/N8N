@@ -10,7 +10,7 @@ const avvisiAD = [];
 for (const it of $input.all()) {
   gruppi++;
   for (const a of (it.json && Array.isArray(it.json.avvisi) ? it.json.avvisi : [])) avvisiAD.push(accorcia(testo(a && (a.messaggio || a)), 200));
-  const x = leggiClaude(it.json);
+  const x = leggiClaude(it.json, (d) => Array.isArray(d.scene));
   if (!x.ok) { falliti++; motivi.push(x.motivo); continue; }
   for (const s of (x.dati.scene || [])) {
     const k = testo(s.codice).toUpperCase();

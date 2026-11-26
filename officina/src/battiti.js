@@ -46,43 +46,49 @@ export function trovaBattiti(pcm, sr = SR) {
   const mediaAuto = somma / Math.max(1, conta);
   const affidabilita = mediaAuto > 0 ? migliore / mediaAuto : 0;
   if (!lagBuono || !(affidabilita > 0)) return { bpm: 0, battiti: [], affidabilita: 0 };
-  // il periodo più preciso: la media pesata intorno al lag migliore (passi frazionari)
-  let num = 0; let den = 0;
-  for (let lag = Math.max(lagMin, lagBuono - 1); lag <= Math.min(lagMax, lagBuono + 1); lag++) {
-    let c = 0;
-    for (let i = lag; i < n; i++) c += colpi[i] * colpi[i - lag];
-    num += lag * c; den += c;
+  // periodo e fase INSIEME: fra i periodi vicini a quello dell'autocorrelazione (±2%, a passi di 0,005) e tutte le fasi
+  // (a quarti di passo), la coppia che mette più colpi sui battiti di TUTTO il tratto. Stimare prima il periodo e poi la
+  // fase non basta: un periodo sbagliato dello 0,3% su un minuto sposta gli ultimi battiti di mezzo colpo, e la fase
+  // migliore «in media» sbaglia l'inizio. I colpi si guardano allargati di un passo (il massimo dei tre vicini).
+  const largo = new Float64Array(n);
+  for (let i = 0; i < n; i++) largo[i] = Math.max(colpi[i], colpi[i - 1] || 0, colpi[i + 1] || 0);
+  let p0 = lagBuono; let f0 = 0; let meglio = -1;
+  for (let p = lagBuono * 0.98; p <= lagBuono * 1.02; p += 0.005) {
+    for (let f = 0; f < p; f += 0.25) {
+      let tot = 0;
+      for (let t = f; t < n; t += p) tot += largo[Math.round(t)];
+      if (tot > meglio) { meglio = tot; p0 = p; f0 = f; }
+    }
   }
-  const periodo = den > 0 ? num / den : lagBuono;
-  // la fase: lo spostamento (in passi) che mette più colpi sui battiti
-  let fase = 0; let meglio = -1;
-  for (let f = 0; f < periodo; f += 0.5) {
-    let tot = 0;
-    for (let t = f; t < n; t += periodo) tot += colpi[Math.round(t)] || 0;
-    if (tot > meglio) { meglio = tot; fase = f; }
-  }
-  // la rifinitura: il periodo trovato a passi interi sbaglia di poco (119,9 invece di 120), ma su un minuto l'errore si
-  // somma fino a 0,05 s. Per ogni battito previsto si cerca il colpo più forte vicino (2 passi prima o dopo, con la
-  // parabola sui tre valori intorno per scendere sotto il passo); poi la retta dei minimi quadrati tempo = fase + k·periodo
-  // su tutti quei colpi dà periodo e fase precisi. Se la retta non torna (pochi colpi, periodo troppo diverso) resta la stima.
-  const punti = [];
-  for (let k = 0, t = fase; t < n; t += periodo, k++) {
-    const c = Math.round(t);
-    let forte = 0; let dove = -1;
-    for (let i = Math.max(1, c - 2); i <= Math.min(n - 2, c + 2); i++) if (colpi[i] > forte) { forte = colpi[i]; dove = i; }
-    if (dove < 0) continue;
-    const a = colpi[dove - 1]; const b = colpi[dove]; const d = colpi[dove + 1];
-    const curva = a - 2 * b + d;
-    punti.push([k, dove + (curva < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (a - d)) / curva)) : 0)]);
-  }
-  let p0 = periodo; let f0 = fase;
-  if (punti.length >= 8) {
+  // la rifinitura: per ogni battito previsto il colpo più forte vicino (2 passi prima o dopo, con la parabola sui tre
+  // valori intorno per scendere sotto il passo), poi la retta dei minimi quadrati tempo = fase + k·periodo, due volte.
+  // Se gli scarti dalla retta restano grandi (il brano cambia tempo, o il battito non c'è), l'affidabilità scende sotto
+  // la soglia: meglio non spostare niente che tagliare in controtempo.
+  let scarto = Infinity;
+  let copertura = 0;
+  for (let giro = 0; giro < 2; giro++) {
+    const punti = [];
+    let previsti = 0;
+    for (let k = 0, t = f0; t < n; t += p0, k++) {
+      const c = Math.round(t);
+      previsti++;
+      let forte = 0; let dove = -1;
+      for (let i = Math.max(1, c - 2); i <= Math.min(n - 2, c + 2); i++) if (colpi[i] > forte) { forte = colpi[i]; dove = i; }
+      if (dove < 0) continue;
+      const a = colpi[dove - 1]; const b = colpi[dove]; const d = colpi[dove + 1];
+      const curva = a - 2 * b + d;
+      punti.push([k, dove + (curva < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (a - d)) / curva)) : 0)]);
+    }
+    if (punti.length < 8) break;
     const mk = punti.reduce((x, [k]) => x + k, 0) / punti.length;
     const mt = punti.reduce((x, [, t]) => x + t, 0) / punti.length;
     let sxy = 0; let sxx = 0;
     for (const [k, t] of punti) { sxy += (k - mk) * (t - mt); sxx += (k - mk) * (k - mk); }
     const p1 = sxx > 0 ? sxy / sxx : 0;
-    if (Math.abs(p1 - periodo) < periodo * 0.03) { p0 = p1; f0 = mt - p1 * mk; }
+    if (!(Math.abs(p1 - p0) < p0 * 0.03)) break;
+    p0 = p1; f0 = mt - p1 * mk;
+    scarto = Math.sqrt(punti.reduce((x, [k, t]) => x + (t - (f0 + k * p0)) ** 2, 0) / punti.length);
+    copertura = punti.length / Math.max(1, previsti);
   }
   while (f0 < 0) f0 += p0;
   while (f0 >= p0) f0 -= p0;
@@ -90,7 +96,10 @@ export function trovaBattiti(pcm, sr = SR) {
   // il colpo entra in fondo alla finestra di 2 passi: il picco rifinito cade ~1,2 passi prima del battito vero (misurato su
   // un clic secco e su una cassa morbida: scarto rimasto entro 5 ms)
   for (let t = f0; t < n; t += p0) battiti.push(r3(((t + 1.2) * PASSO) / sr));
-  return { bpm: Math.round((600 * passiAlSecondo) / p0) / 10, battiti, affidabilita: Math.round(affidabilita * 100) / 100 };
+  // i colpi devono stare su una griglia sola: scarti medi entro 1,5 passi (~35 ms) e almeno il 70% dei battiti previsti con
+  // un colpo vero vicino. Un brano che cambia tempo a metà ne trova il 65%; un'intro di 8 s senza battito su 32 il 75%.
+  const affidabile = scarto <= 1.5 && copertura >= 0.7 ? affidabilita : Math.min(affidabilita, 1);
+  return { bpm: Math.round((600 * passiAlSecondo) / p0) / 10, battiti, affidabilita: Math.round(affidabile * 100) / 100, copertura: Math.round(copertura * 100) / 100 };
 }
 
 // I battiti di un file musicale, nei primi `maxSecondi` (chi chiama passa la durata del video più 2 s: si legge solo il
@@ -107,8 +116,9 @@ export async function battitiMusica(file, cfg, segnale, maxSecondi = 180) {
     // il brano continua oltre il tratto letto: quanto dura lo dice ffprobe (se non risponde, niente ripetizioni)
     try {
       const { stdout: j } = await esegui(cfg.ffprobe || 'ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { segnale, timeoutMs: 30_000 });
+      // un brano lungo quanto il tratto letto (o un soffio di più) vale per quello che è
       const d = Number(String(j).trim());
-      durata = d > letti ? r3(d) : Infinity;
+      durata = d > 0 ? Math.max(letti, r3(d)) : Infinity;
     } catch (e) {
       if (segnale?.aborted) throw e;
       durata = Infinity;
@@ -123,7 +133,8 @@ export function battitiSulVideo(musica, durataVideo) {
   const fuori = [];
   for (let giro = 0; giro === 0 || giro * musica.durata < durataVideo + 1; giro++) {
     for (const b of musica.battiti) {
-      const t = b + giro * musica.durata;
+      // al primo giro il battito è quello (con una durata infinita, 0 × ∞ darebbe NaN)
+      const t = giro === 0 ? b : b + giro * musica.durata;
       if (t <= durataVideo + 1) fuori.push(r3(t));
     }
   }
@@ -137,15 +148,17 @@ export function battitiSulVideo(musica, durataVideo) {
 export function tagliATempo(video, battiti, { fps = 25, minima = 0.6, durataClip = () => null, fineDi = null, tolleranza = 0.35 } = {}) {
   const fuori = video.map((q) => ({ ...q }));
   if (!battiti.length || fuori.length < 2) return { video: fuori, spostati: 0 };
+  // due pezzi di fila della stessa ripresa (il secondo riparte dove finisce il primo), sui valori di partenza
+  const diFila = (a, b) => !!(a && b && a.fonte === b.fonte && a.tipo !== 'foto' && b.tipo !== 'foto' && Math.abs(a.fine - b.inizio) < 1.5 / fps);
   const alFotogramma = (t) => Math.round(t * fps) / fps;
   let spostati = 0;
   for (let k = 0; k < fuori.length - 1; k++) {
     const sx = fuori[k];
     const dx = fuori[k + 1];
     if (sx.tipo === 'volto' || dx.tipo === 'volto') continue;
-    // due pezzi di fila della stessa ripresa (la destra riparte dove finisce la sinistra): il taglio non si vede, e
-    // spostarlo ripeterebbe o salterebbe dei fotogrammi
-    if (sx.fonte === dx.fonte && sx.tipo !== 'foto' && Math.abs(sx.fine - dx.inizio) < 1.5 / fps) continue;
+    // la stessa ripresa di fila: il taglio fra le due non si vede, e spostarlo ripeterebbe o salterebbe dei fotogrammi.
+    // Lo stesso se la destra è seguita dalla sua ripresa: spostando il taglio la destra cambia dove finisce.
+    if (diFila(video[k], video[k + 1]) || diFila(video[k + 1], video[k + 2])) continue;
     const taglio = sx.a;
     const corto = Math.min(sx.a - sx.da, dx.a - dx.da);
     const limite = Math.min(tolleranza, corto / 3);

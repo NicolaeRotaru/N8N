@@ -438,3 +438,41 @@ test('collaudo: nel montaggio vero il taglio a tempo non fa vedere la scena dopo
   const dopo = await distanza(true);
   assert.ok(dopo <= prima + 1, `la clip con la LUT si è allontanata dalle altre: distanza ${prima} → ${dopo}`);
 });
+
+// ------------------------------------------------------------------ terzo collaudo del 26/11
+test('terzo collaudo: il battito tiene su un brano vero-simile di 3 minuti; intro senza battito sì, cambio di tempo no', async () => {
+  const m0 = (t0, p) => `mod(t-${t0}\\,${p})`;
+  const cassaBasso = (t0, p) => `(0.9*exp(-18*${m0(t0, p)})*sin(2*PI*(50*${m0(t0, p)}+4*(1-exp(-30*${m0(t0, p)}))))+0.4*exp(-4*${m0(t0, p)})*sin(2*PI*110*${m0(t0, p)}))*gte(t\\,${t0})`;
+  const peggiore = (m, t0, p) => Math.max(...m.battiti.filter((b) => b >= t0 - 0.1).map((b) => Math.abs(b - (t0 + Math.round((b - t0) / p) * p))));
+  // cassa + basso che suona per tutto il battito, 182 s: prima a 180 s l'errore arrivava a mezzo battito
+  const lungo = await battitiMusica(suono('c3-cassa-basso.wav', cassaBasso(0.2, 0.5), 182), CFG, null, 182);
+  assert.ok(lungo.affidabilita >= SOGLIA_BATTITO && peggiore(lungo, 0.2, 0.5) <= 0.01, `bpm ${lungo.bpm}, errore ${peggiore(lungo, 0.2, 0.5)}`);
+  // 8 s di pad senza colpi, poi la cassa: il battito si trova lo stesso
+  const intro = await battitiMusica(suono('c3-intro.wav', `0.2*sin(2*PI*220*t)*(1-gte(t\\,8))+${cassaBasso(8.2, 0.5)}`, 32), CFG, null, 32);
+  assert.ok(intro.affidabilita >= SOGLIA_BATTITO && peggiore(intro, 8.2, 0.5) <= 0.01, `intro: affidabilità ${intro.affidabilita}, copertura ${intro.copertura}`);
+  // 120 battiti per 30 s, poi 126: i colpi non stanno su una griglia sola, meglio non spostare niente
+  const cambio = await battitiMusica(suono('c3-cambio.wav', `0.8*exp(-60*mod(t-0.13\\,0.5))*sin(2*PI*1200*t)*gte(t\\,0.13)*(1-gte(t\\,30))+0.8*exp(-60*mod(t-30.13\\,${60 / 126}))*sin(2*PI*1200*t)*gte(t\\,30.13)`, 62), CFG, null, 62);
+  assert.ok(cambio.affidabilita < SOGLIA_BATTITO, `cambio di tempo: affidabilità ${cambio.affidabilita} (copertura ${cambio.copertura})`);
+});
+
+test('terzo collaudo: durata infinita o uguale al tratto letto tiene i battiti; la ripresa resta continua; il soggetto di notte si trova', async () => {
+  const clic = suono('c3-clic60.wav', '0.8*exp(-60*mod(t-0.13\\,0.5))*sin(2*PI*1200*t)*gte(t\\,0.13)', 60);
+  const senzaProbe = await battitiMusica(clic, { ffmpeg: 'ffmpeg', ffprobe: '/bin/false' }, null, 32);
+  assert.equal(senzaProbe.durata, Infinity);
+  assert.ok(battitiSulVideo(senzaProbe, 30).length > 50, 'ffprobe che non risponde: il primo giro di battiti resta');
+  const giusto = await battitiMusica(suono('c3-clic32.wav', '0.8*exp(-60*mod(t-0.13\\,0.5))*sin(2*PI*1200*t)*gte(t\\,0.13)', 32), CFG, null, 32);
+  assert.ok(battitiSulVideo(giusto, 30).length > 50, `brano lungo quanto il tratto letto: durata ${giusto.durata}`);
+  // [V02, V01.1, V01.2] con V01 ripresa continua: spostare il taglio V02|V01.1 farebbe saltare (o ripetere) la ripresa
+  const cop = (fonte, da, a, inizio) => ({ fonte, tipo: 'copertura', inizio, fine: inizio + (a - da), da, a });
+  const video = [cop('V02', 0, 3, 2), cop('V01', 3, 9, 0), cop('V01', 9, 15, 6)];
+  for (const [b, fineDi] of [[3.2, (q) => (q.fonte === 'V01' ? (q.fine <= 6 ? 6 : 12) : 10)], [2.8, () => 18]]) {
+    const r = tagliATempo(video, [b], { fps: 25, minima: 1, fineDi });
+    assert.ok(Math.abs(r.video[1].fine - r.video[2].inizio) < 0.02, `battito ${b}: la ripresa va da ${r.video[1].fine} a ${r.video[2].inizio}`);
+  }
+  // notte: una figura a 25 su un fondo a 10, a 0,8 della larghezza
+  const W = 480; const H = 270; const buf = Buffer.alloc(W * H * 3);
+  let seme = 9; const caso = () => { seme = (seme * 16807) % 2147483647; return seme / 2147483647; };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const v = (Math.abs(i - 0.8 * W) < 45 && j > H - 200 ? 25 : 10) + (caso() - 0.5) * 4; for (let c = 0; c < 3; c++) buf[(j * W + i) * 3 + c] = Math.round(v); }
+  const notte = await centroInImmagine(await sharp(buf, { raw: { width: W, height: H, channels: 3 } }).blur(2).png().toBuffer(), VERTICALE);
+  assert.ok(notte !== null && Math.abs(notte - 0.8) < 0.1, `notte: centro ${notte}`);
+});

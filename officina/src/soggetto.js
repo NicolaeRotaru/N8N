@@ -25,7 +25,8 @@ export async function centroInImmagine(png, fmt) {
   // bordo sinistro, e quel voto tirerebbe la media fuori dal soggetto vero degli altri fotogrammi. Si astiene.
   const st = await sharp(png).stats();
   const dettaglio = st.channels.slice(0, 3).reduce((a, c) => a + c.stdev, 0) / Math.min(3, st.channels.length);
-  if (!(dettaglio >= 6)) return null;
+  // (soglia 2: un nero o un grigio uniformi stanno fra 0 e 1; una notte con una figura poco più chiara del fondo sta a 5)
+  if (!(dettaglio >= 2)) return null;
   const r = await sharp(png).resize(larghezza, m.height, { fit: 'cover', position: sharp.strategy.attention }).toBuffer({ resolveWithObject: true });
   // sharp dà la posizione dell'immagine rispetto al ritaglio (negativa): il ritaglio comincia a |cropOffsetLeft|
   const sinistra = Math.abs(Number(r.info.cropOffsetLeft) || 0);

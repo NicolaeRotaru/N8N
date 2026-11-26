@@ -4,7 +4,7 @@ const G = $("Leggi cosa c'è").isExecuted ? $("Leggi cosa c'è").first().json : 
 const dopo = ' Il materiale resta nell\'officina per 14 giorni: rilancia il modulo più tardi (con «rifai» nelle note).';
 if (G.fermo) return [{ json: { ok: false, messaggio: '⚠️ <b>Montatore fermo</b> · ' + h(J.cliente.nome_locale) + '\nNiente piano: ' + h(G.fermo) + '. Senza vedere il materiale il piano sarebbe scritto alla cieca.' + dopo } }];
 const r = $input.first().json || {};
-const x = leggiClaude(r);
+const x = leggiClaude(r, (d) => Array.isArray(d.contenuti));
 if (!x.ok || !Array.isArray(x.dati.contenuti)) {
   return [{ json: { ok: false, messaggio: '⚠️ <b>Montatore fermo</b> · ' + h(J.cliente.nome_locale) + '\nL\'AD non ha scritto il piano (' + h(x.motivo || 'risposta senza contenuti') + ').' + dopo } }];
 }

@@ -228,7 +228,7 @@ function rispostaAD(r) {
 // motivo per bocciare). Quando è da rivedere il motivo dice cosa non va, con le note dei punti. Se non risponde, il
 // contenuto va avanti lo stesso: lo approvate voi.
 function giudizioControllo(r) {
-  const x = leggiClaude(r);
+  const x = leggiClaude(r, (d) => d.voto !== undefined || d.esito !== undefined);
   if (!x.ok) return { esito: 'non_controllato', motivo: x.motivo };
   const d = x.dati;
   const voto = Math.max(1, Math.min(5, intero(d.voto, 3)));
@@ -239,24 +239,31 @@ function giudizioControllo(r) {
   const motivo = rivedere ? [base, ...noteKo.filter((n) => !base.includes(n.replace(/^[a-z]+: /, '')))].filter(Boolean).join(' · ') || 'voto basso (' + voto + '/5)' : testo(d.motivo);
   return { esito: rivedere ? 'da_rivedere' : 'ok', voto, punti, motivo: accorcia(motivo, 400) };
 }
-// La risposta di Claude → { ok, dati } oppure { ok:false, motivo }.
-function leggiClaude(r) {
+// La risposta di Claude (o dell'AD nella stessa forma) → { ok, dati } oppure { ok:false, motivo }. `forma(dati)` dice se
+// l'oggetto ha i campi che quel passo si aspetta: senza, un oggetto qualsiasi trovato nel testo (per esempio l'errore di
+// uno strumento citato dall'AD) passerebbe per una risposta buona.
+function leggiClaude(r, forma) {
   const corpo = r && r.body !== undefined && r.statusCode !== undefined ? r.body : r;
   if (!corpo || typeof corpo !== 'object') return { ok: false, motivo: 'nessuna risposta' };
   if (corpo.error) return { ok: false, motivo: 'errore: ' + accorcia(testo(corpo.error.message || corpo.error.type), 200) };
   const blocchi = Array.isArray(corpo.content) ? corpo.content : [];
   const t = blocchi.filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
   if (!t) return { ok: false, motivo: 'risposta vuota' + (corpo.stop_reason ? ' (' + corpo.stop_reason + ')' : '') };
-  // il JSON a volte arriva dentro ```json … ``` (l'AD scrive come in chat), magari dopo una frase: si prova il testo
-  // intero, poi il primo blocco fra i recinti, poi quello che sta fra la prima { e l'ultima }
-  const recinto = t.match(/```[ \t]*[a-zA-Z]*[ \t]*\r?\n?([\s\S]*?)```/);
-  const prove = [t, recinto ? recinto[1].trim() : null, t.includes('{') ? t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1) : null].filter(Boolean);
-  let dati;
+  // il JSON a volte arriva dentro ```json … ``` (l'AD scrive come in chat), magari dopo una frase o in più blocchi: si prova
+  // il testo intero, poi i blocchi fra i recinti dall'ultimo (l'ultima parola dell'AD vince), poi quello che sta fra la
+  // prima { e l'ultima }. Vince il primo oggetto con la forma attesa.
+  const recinti = [...t.matchAll(/```[ \t]*[a-zA-Z]*[ \t]*\r?\n?([\s\S]*?)```/g)].map((m) => m[1].trim()).reverse();
+  const prove = [t, ...recinti, t.includes('{') ? t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1) : null].filter(Boolean);
   let letto = false;
-  for (const p of prove) { try { dati = JSON.parse(p); letto = true; break; } catch (e) { /* la prossima */ } }
+  for (const p of prove) {
+    let dati;
+    try { dati = JSON.parse(p); } catch (e) { continue; }
+    letto = true;
+    if (!dati || typeof dati !== 'object' || Array.isArray(dati) || (forma && !forma(dati))) continue;
+    return { ok: true, dati, troncata: corpo.stop_reason === 'max_tokens' };
+  }
   if (!letto) return { ok: false, motivo: 'JSON non leggibile' + (corpo.stop_reason === 'max_tokens' ? ' (troncata: risposta troppo lunga)' : '') };
-  if (!dati || typeof dati !== 'object' || Array.isArray(dati)) return { ok: false, motivo: 'JSON con forma sbagliata' };
-  return { ok: true, dati, troncata: corpo.stop_reason === 'max_tokens' };
+  return { ok: false, motivo: 'JSON con forma sbagliata' };
 }
 // Un indirizzo dell'officina (assoluto o relativo) → il percorso dopo /file/, da mettere dietro OFFICINA_URL.
 function percorsoOfficina(url) { return String(url || '').replace(/^.*?(^|\/)file\//, ''); }
