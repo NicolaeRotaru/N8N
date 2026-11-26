@@ -40,7 +40,7 @@ export const CODICE_FATTI_COMPONI = codice('fatti-componi.js').replace('__TESTO_
 /** Il nome di programma con cui ci si presenta alle fonti gratis: generico, senza nomi né contatti personali. */
 export const USER_AGENT = 'rapporto-attivita/1.0';
 /** L'istanza Overpass di serie (si cambia nel Config, OVERPASS_URL). */
-export const OVERPASS_URL = 'https://overpass.private.coffee/api/interpreter';
+export const OVERPASS_URL = 'https://overpass.kumi.systems/api/interpreter';
 
 export const N = {
   prepara: 'Fatti · Prepara',
@@ -143,7 +143,7 @@ export function nodiFatti([x, y], { credenziali = {} } = {}) {
     http(N.overpass, pos(6, -1), { method: 'POST', url: "={{ $('Config').first().json.OVERPASS_URL || 'https://overpass-api.de/api/interpreter' }}", ...intestazioni(UA),
       sendBody: true, contentType: 'form-urlencoded', bodyParameters: { parameters: [{ name: 'data', value: `={{ ${POS}.overpass_query }}` }] },
       // Overpass risponde spesso 502/504 quando è carico: qui l'errore non si nasconde (neverError no), così il nodo riprova.
-      options: { response: { response: { fullResponse: true } }, timeout: 30000 } }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 }),
+      options: { response: { response: { fullResponse: true } }, timeout: 60000 } }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 }),
     http(N.meteo, pos(7, -1), { method: 'GET', url: `={{ ${POS}.meteo_url }}`, ...intestazioni(UA), options: risposta() }),
     nodoCodice(N.radar, CODICE_FATTI_FONTI_RADAR, pos(8)),
     http(N.scaricaRadar, pos(9), { method: 'GET', url: '={{ $json.url }}', ...intestazioni(UA),
