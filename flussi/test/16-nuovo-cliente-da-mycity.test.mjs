@@ -897,18 +897,18 @@ test("le pagine del sito si tagliano: il lavoro per l'AD resta sotto i 64 KB anc
 
 test("l'analisi del business riceve anche le altre pagine scaricate (portali, elenchi, giornali), dopo quelle del sito", async () => {
   const json = await preparaConPagine(CORPUS([
-    { url: 'https://www.sluurpy.it/piacenza/ora-del-gusto', testo: 'Ora del Gusto, Piacenza: bar caffetteria, 4,5 su 5.' },
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'Bar Roma, Piacenza: bar caffetteria, 4,5 su 5.' },
     { url: 'https://www.barroma.it/', testo: 'Bar Roma. Colazioni dal 1980.' },
-    { url: 'https://www.ilpiacenza.it/articolo', testo: 'Articolo di giornale sul bar.' },
+    { url: 'https://www.ilpiacenza.it/articolo', testo: 'Articolo di giornale sul Bar Roma di via Roma a Piacenza.' },
   ]));
   const dati = datiDi(json);
   assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.barroma.it/']);
-  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/ora-del-gusto', 'https://www.ilpiacenza.it/articolo']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/bar-roma', 'https://www.ilpiacenza.it/articolo']);
   assert.match(dati.altre_pagine[0].testo, /bar caffetteria/);
   assert.match(json.richiesta.system, /altre_pagine/);
   assert.match(json.richiesta.system, /omonim/);
   // Senza sito del locale conosciuto, tutte le pagine scaricate vanno fra le altre.
-  const senzaSito = datiDi(await preparaConPagine(CORPUS([{ url: 'https://www.sluurpy.it/x', testo: 'Scheda del locale.' }]), { nome_locale: 'Ora del Gusto' }));
+  const senzaSito = datiDi(await preparaConPagine(CORPUS([{ url: 'https://www.sluurpy.it/x', testo: 'Scheda di Ora del Gusto a Piacenza.' }]), { nome_locale: 'Ora del Gusto' }));
   assert.deepEqual(senzaSito.pagine_del_sito, []);
   assert.deepEqual(senzaSito.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
 });
@@ -916,7 +916,7 @@ test("l'analisi del business riceve anche le altre pagine scaricate (portali, el
 test("con tante pagine lunghe il sito del locale ha la precedenza, e il lavoro resta sotto i 64 KB", async () => {
   const lunga = 'Qualità è perché più caffè '.repeat(2000);
   const json = await preparaConPagine(CORPUS([
-    ...Array.from({ length: 8 }, (_, i) => ({ url: `https://portale${i}.it/scheda`, testo: lunga })),
+    ...Array.from({ length: 8 }, (_, i) => ({ url: `https://portale${i}.it/scheda`, testo: 'Bar Roma, Piacenza. ' + lunga })),
     ...Array.from({ length: 3 }, (_, i) => ({ url: `https://www.barroma.it/p${i}`, testo: lunga })),
   ]));
   const lavoro = JSON.stringify({ compito: json.richiesta.system, dati: { messaggio: json.richiesta.messages[0].content }, schema: json.richiesta.output_config.format.schema });
@@ -940,4 +940,32 @@ test("rapporto: di serie le fonti a pagamento sono spente e finte; con DataForSE
   assert.deepEqual(controlla(conDfs), []);
   conDfs.settings.saveDataSuccessExecution = 'all';
   assert.ok(controlla(conDfs).some((p) => /24 ore/.test(p)));
+});
+
+// --- 26/11/2026 (Nicola: «fai anche le altre cose»): gli omonimi si fermano nel codice, non solo nel prompt -----------
+// Una pagina di portale passa all'AD solo se nel suo testo ci sono le parole distintive del nome (non «bar», «ristorante»…)
+// e la città dell'attività. Le pagine del sito del locale non hanno bisogno del controllo.
+
+test("omonimi: una pagina di portale senza il nome o senza la città dell'attività non arriva all'AD", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'BAR ROMA – Piacenza (PC). Caffetteria in centro.' },
+    { url: 'https://www.sluurpy.it/milano/bar-roma', testo: 'Bar Roma, Milano: aperitivi sui Navigli.' },
+    { url: 'https://www.tripadvisor.it/bar-piacenza', testo: 'I migliori bar di Piacenza: Bar Centrale, Caffè Grande.' },
+    { url: 'https://www.paginegialle.it/caffe-milano', testo: 'Caffè Milano a Piacenza.' },
+  ]), { nome_locale: 'Bar Roma', citta: 'Piacenza' });
+  const dati = datiDi(json);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/bar-roma']);
+  assert.equal(dati.pagine_scartate_omonimi, 3);
+});
+
+test("omonimi: accenti, maiuscole e parole generiche del nome non contano; il sito del locale passa sempre", async () => {
+  const dati = datiDi(await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/x', testo: "ORA DEL GUSTO di Sant'Ambrogio, piacenza: bar e gelateria." },
+    { url: 'https://www.oradelgusto.it/', testo: 'Benvenuti! Il nostro bar.' },
+  ]), { nome_locale: 'Bar Ora del Gusto', citta: 'Piacenza', sito: 'https://www.oradelgusto.it' }));
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.oradelgusto.it/']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
+  const accenti = datiDi(await preparaConPagine(CORPUS([{ url: 'https://p.it/a', testo: 'Caffe Citta di Piacenza, Piacenza.' }]),
+    { nome_locale: 'Caffè Città', citta: 'Piacenza' }));
+  assert.deepEqual(accenti.altre_pagine.map((p) => p.url), ['https://p.it/a']);
 });
