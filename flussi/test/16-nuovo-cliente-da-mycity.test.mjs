@@ -926,3 +926,18 @@ test("con tante pagine lunghe il sito del locale ha la precedenza, e il lavoro r
   assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
   assert.ok(dati.altre_pagine.length >= 1);
 });
+
+// --- 26/11/2026 · Il rapporto dell'imprenditore: le fonti a pagamento nascono spente, e con DataForSEO collegato lo storico non si salva ----
+test("rapporto: di serie le fonti a pagamento sono spente e finte; con DataForSEO collegato il 26 non salva le esecuzioni", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi' });
+  const cfg = Object.fromEntries(w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.map((a) => [a.name, a.value]));
+  for (const k of ['GOOGLE', 'TRIPADVISOR', 'DATAFORSEO', 'INSTAGRAM']) { assert.equal(cfg[`FONTE_${k}`], 'no'); assert.equal(cfg[`CREDENZIALE_${k}`], 'finta'); }
+  assert.deepEqual(controlla(w), []);
+  assert.equal(w.nodes.filter((n) => /googleapis|tripadvisor|dataforseo|graph\.facebook/.test(JSON.stringify(n.parameters?.url || ''))).every((n) => n.disabled === true), true);
+  const conDfs = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi', credenzialiFonti: { dataforseo: 'cred-d' } });
+  assert.equal(conDfs.settings.saveDataSuccessExecution, 'none');
+  assert.equal(conDfs.settings.saveDataErrorExecution, 'none');
+  assert.deepEqual(controlla(conDfs), []);
+  conDfs.settings.saveDataSuccessExecution = 'all';
+  assert.ok(controlla(conDfs).some((p) => /24 ore/.test(p)));
+});

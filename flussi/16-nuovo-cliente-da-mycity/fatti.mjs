@@ -39,6 +39,8 @@ export const CODICE_FATTI_COMPONI = codice('fatti-componi.js').replace('__TESTO_
 
 /** Il nome di programma con cui ci si presenta alle fonti gratis: generico, senza nomi né contatti personali. */
 export const USER_AGENT = 'rapporto-attivita/1.0';
+/** L'istanza Overpass di serie (si cambia nel Config, OVERPASS_URL). */
+export const OVERPASS_URL = 'https://overpass.private.coffee/api/interpreter';
 
 export const N = {
   prepara: 'Fatti · Prepara',
@@ -109,7 +111,8 @@ const aPagamento = (fonte, nodo, credenzialeId) => {
 
 /** Le voci del Config che servono ai fatti. credenziali = { google: id?, … } (solo quelle con la chiave vera). */
 export function vociConfig({ credenziali = {}, instagramId, accese = [] } = {}) {
-  const voci = [['RAGGIO_VICINI_M', 400]];
+  // Overpass: l'istanza principale (overpass-api.de) chiede di non usarla per lavori automatici e il 26/11 era al completo.
+  const voci = [['RAGGIO_VICINI_M', 400], ['OVERPASS_URL', OVERPASS_URL]];
   for (const [nome, f] of Object.entries(FONTI_A_PAGAMENTO)) {
     // «si» solo se Nicola la chiede accesa (--fonti-accese) E la credenziale è quella vera; TripAdvisor mai, finché non c'è un sì scritto.
     const si = accese.includes(nome) && !!credenziali[nome] && nome !== 'tripadvisor';
@@ -137,7 +140,7 @@ export function nodiFatti([x, y], { credenziali = {} } = {}) {
     { id: randomUUID(), name: N.aspetta1, type: 'n8n-nodes-base.wait', typeVersion: 1.1, position: pos(3, -1), parameters: { resume: 'timeInterval', amount: 1, unit: 'seconds' } },
     nodoCodice(N.posizione, CODICE_FATTI_POSIZIONE, pos(4)),
     se(N.ifPosizione, `={{ ${POS}.buona === true }}`, pos(5)),
-    http(N.overpass, pos(6, -1), { method: 'POST', url: 'https://overpass-api.de/api/interpreter', ...intestazioni(UA),
+    http(N.overpass, pos(6, -1), { method: 'POST', url: "={{ $('Config').first().json.OVERPASS_URL || 'https://overpass-api.de/api/interpreter' }}", ...intestazioni(UA),
       sendBody: true, contentType: 'form-urlencoded', bodyParameters: { parameters: [{ name: 'data', value: `={{ ${POS}.overpass_query }}` }] },
       // Overpass risponde spesso 502/504 quando è carico: qui l'errore non si nasconde (neverError no), così il nodo riprova.
       options: { response: { response: { fullResponse: true } }, timeout: 30000 } }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 }),

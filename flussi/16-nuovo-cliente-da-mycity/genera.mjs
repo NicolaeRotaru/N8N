@@ -896,6 +896,9 @@ export function trasforma(modulo12, opzioni = {}) {
     w.connections = collegato.connections;
   }
   w.settings = { ...(w.settings || {}), saveManualExecutions: false };
+  // 26/11/2026 — Parere legale: i testi delle recensioni (DataForSEO) si cancellano entro 24 ore. Lo storico di n8n li terrebbe:
+  // con DataForSEO collegata il 26 non salva le esecuzioni (gli errori arrivano lo stesso dal «99 · Avvisi errori»).
+  if (opzioni.credenzialiFonti?.dataforseo) w.settings = { ...w.settings, saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none' };
   delete w.id; delete w.active; delete w.versionId; delete w.triggerCount; delete w.shared; delete w.tags;
   delete w.createdAt; delete w.updatedAt; delete w.staticData; delete w.pinData; delete w.meta; delete w.isArchived;
   return w;
@@ -980,6 +983,8 @@ export function controlla(w) {
     if (nomi.has(nome)) problemi.push(`c'è «${nome}»: il 16 iscriverebbe di nuovo in MyCity chi si è appena iscritto`);
   }
   problemi.push(...controllaFatti(w));
+  const dfs = cfg?.parameters?.assignments?.assignments?.find((x) => x.name === 'CREDENZIALE_DATAFORSEO')?.value;
+  if (dfs === 'collegata' && (w.settings?.saveDataSuccessExecution !== 'none' || w.settings?.saveDataErrorExecution !== 'none')) problemi.push('con DataForSEO collegato lo storico di n8n terrebbe i testi delle recensioni oltre 24 ore');
   return problemi;
 }
 
