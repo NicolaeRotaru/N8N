@@ -54,6 +54,12 @@ const LI = (() => {
     if (/[<>"{}|\\^`]/.test(percorso)) return { ok: false, url: t, motivo: 'caratteri non validi' };
     if (META.test(host)) return { ok: false, url: t, motivo: 'Facebook/Instagram: non si legge' };
     if (ePortale(host, (percorso.match(/^[^?]*/) || [''])[0].toLowerCase())) return { ok: false, url: t, motivo: 'mappe o portale: solo frammento' };
+    // 26/11/2026 (revisore di sicurezza del sito): un dominio che IMITA Google, le mappe o Meta (maps.google.ab.cd,
+    // google-maps.example.com, facebook.it-locale.com) non si apre: può puntare dove vuole, anche dentro il server.
+    // Quelli veri sono già fermati sopra (Meta) o sotto (mappe e portali).
+    if (!/(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(host) && /(^|[.-])(google|gmaps|goo-gl|maps|facebook|instagram|whatsapp)([.-]|$)/.test(host)) {
+      return { ok: false, url: t, motivo: 'imita Google, le mappe o Meta: non si legge' };
+    }
     if (/\.(jpe?g|png|gif|webp|svg|ico|css|js|mp4|mov|mp3|zip|docx?|xlsx?)(\?|$)/i.test(percorso)) return { ok: false, url: t, motivo: 'non è una pagina' };
     const url = `${schema}://${host}${percorso || '/'}`;
     return { ok: true, url, chiave: chiave(url) };
