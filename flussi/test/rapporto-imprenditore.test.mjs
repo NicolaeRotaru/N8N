@@ -494,6 +494,8 @@ test('dalla generazione a secco sul 12 vero: i nodi Google Sheets e Drive del 12
     { type: 'n8n-nodes-base.httpRequest', parameters: { url: "={{ 'https://places.googleapis.com/v1/' + $json.id }}" } },
     { type: 'n8n-nodes-base.httpRequest', parameters: { url: '={{ $json.base }}', queryParameters: { parameters: [{ name: 'u', value: 'https://maps.googleapis.com/maps/api/place/details/json' }] } } },
     { type: 'n8n-nodes-base.httpRequestTool', parameters: { url: 'https://routes.googleapis.com/directions/v2:computeRoutes' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://www.googleapis.com/drive/../geolocation/v1/geolocate' } },
+    { type: 'n8n-nodes-base.httpRequest', parameters: { url: 'https://fakesheets.googleapis.com/v1/x' } },
   ];
   for (const f of furbi) {
     const prova = { ...w, nodes: [...w.nodes, { name: 'Furbo', ...f }] };
