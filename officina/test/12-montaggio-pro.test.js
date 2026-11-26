@@ -162,3 +162,90 @@ test('tagli a tempo nel montaggio vero: i cambi di colore cadono sul battito; co
   assert.ok(!conRumore.avvisi.some((a) => a.codice === 'tagli_a_tempo'), 'senza battito chiaro non si sposta niente');
   assert.deepEqual(conRumore.cambi.map((t) => Math.round(t * 25)), [75, 150], 'i tagli della regia: 3 e 6 secondi');
 });
+
+// ------------------------------------------------------------------ stabilizzazione e colori uguali
+import { bilanciamento, vaStabilizzata, scenaDi, haFiltro, SOGLIA_MOSSA, DESHAKE, coloreMedio } from '../src/ritocco-clip.js';
+import { conScelte, stileDa } from '../src/regia-render.js';
+
+test('colori uguali: ogni clip va a metà strada verso la mediana, entro il 12% per canale; una clip già giusta non si tocca', () => {
+  const misure = new Map([['neutra', { r: 120, g: 120, b: 120 }], ['neutra2', { r: 122, g: 120, b: 118 }], ['calda', { r: 160, g: 120, b: 80 }], ['vuota', null]]);
+  const c = bilanciamento(misure);
+  assert.equal(c.has('vuota'), false);
+  assert.equal(c.get('neutra'), '', 'già vicina al riferimento');
+  const [, rr, gg, bb] = c.get('calda').match(/colorchannelmixer=rr=([\d.]+):gg=([\d.]+):bb=([\d.]+)/).map(Number);
+  assert.ok(rr < 1 && bb > 1, `la clip calda perde rosso e prende blu: ${c.get('calda')}`);
+  assert.ok(rr >= 0.88 && bb <= 1.12, 'mai oltre il 12%');
+  assert.ok(Math.abs(gg - 1) < 0.05);
+  // la luce: una clip più scura si schiarisce di poco (al massimo 0,05)
+  const luce = bilanciamento(new Map([['a', { r: 60, g: 60, b: 60 }], ['b', { r: 140, g: 140, b: 140 }], ['c', { r: 145, g: 145, b: 145 }]]));
+  assert.match(luce.get('a'), /eq=brightness=0\.05,$/);
+  assert.deepEqual([...bilanciamento(new Map([['sola', { r: 200, g: 100, b: 50 }]])).keys()], [], 'con una clip sola non c\'è niente da uniformare');
+});
+
+test('stabilizzazione: quando si fa, e la scena di un pezzo', async () => {
+  assert.equal(vaStabilizzata({}, { movimento: SOGLIA_MOSSA + 1 }), true, 'auto: la scena mossa sì');
+  assert.equal(vaStabilizzata({}, { movimento: SOGLIA_MOSSA }), false);
+  assert.equal(vaStabilizzata({ stabilizza: 'si' }, { movimento: 0 }), true);
+  assert.equal(vaStabilizzata({ stabilizza: 'no' }, { movimento: 99 }), false);
+  assert.equal(vaStabilizzata({}, null), false);
+  const m = { scene: [{ codice: 'V01.1', inizio: 0, fine: 4 }, { codice: 'V01.2', inizio: 4, fine: 9 }] };
+  assert.equal(scenaDi(m, { etichetta: 'V01.2' }).codice, 'V01.2');
+  assert.equal(scenaDi(m, { inizio: 5 }).codice, 'V01.2', 'un volto: la scena dal tempo');
+  assert.equal(scenaDi(null, { inizio: 1 }), null);
+  assert.equal(await haFiltro(CFG, 'deshake'), true);
+  assert.equal(await haFiltro(CFG, 'filtro-che-non-esiste'), false);
+  // le scelte dalla richiesta
+  const s = conScelte(stileDa('sdg'), { stabilizza: 'SI', colori_uguali: 'no', tagli_a_tempo: false, segui_soggetto: 'si' });
+  assert.deepEqual([s.stabilizza, s.colori_uguali, s.tagli_a_tempo, s.segui_soggetto], ['si', false, false, true]);
+  assert.deepEqual(conScelte(stileDa('sdg'), {}), stileDa('sdg'), 'senza scelte lo stile resta com\'è');
+});
+
+// quanto «trema» un video: la differenza media fra fotogrammi vicini, su una fascia centrale
+async function tremolio(video) {
+  const dir = fs.mkdtempSync(path.join(TMP, 'tremolio-'));
+  ffmpeg(['-i', video, '-vf', 'fps=12,scale=108:192,format=gray', path.join(dir, 'f-%03d.png')]);
+  const file = fs.readdirSync(dir).filter((f) => f.endsWith('.png')).sort();
+  let prima = null; let tot = 0; let n = 0;
+  for (const f of file) {
+    const { data } = await sharp(path.join(dir, f)).raw().toBuffer({ resolveWithObject: true });
+    if (prima) { let d = 0; for (let i = 0; i < data.length; i++) d += Math.abs(data[i] - prima[i]); tot += d / data.length; n++; }
+    prima = data;
+  }
+  return tot / Math.max(1, n);
+}
+
+test('stabilizzazione e colori nel montaggio vero: la clip mossa trema meno; la clip calda si avvicina alle altre', async () => {
+  // una clip che trema: un quadro dettagliato che salta di qualche pixel a ogni fotogramma
+  const mossa = clip('st-mossa.mp4', ['-f', 'lavfi', '-i', 'testsrc2=s=2000x1160:d=6:r=25', '-vf', "crop=1920:1080:'40+30*sin(n*1.7)':'40+30*cos(n*2.3)'", '-t', '6']);
+  const pid = await progettoNuovo('stabile');
+  assert.equal((await carica(pid, mossa)).stato, 200);
+  const monta = async (stabilizza) => {
+    const r = await chiama(s.base, `/progetto/${pid}/regia/monta`, { dati: { piano: { battute: [{ immagini: 4, coperture: ['V01.1 centro'] }] }, stile: 'sdg', formato: 'orizzontale', stabilizza, colori_uguali: false }, file: {} });
+    assert.equal(r.stato, 200, JSON.stringify(r.json));
+    const p = path.join(TMP, `st-${stabilizza}.mp4`);
+    fs.writeFileSync(p, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);
+    return p;
+  };
+  const senza = await tremolio(await monta('no'));
+  const con = await tremolio(await monta('si'));
+  assert.ok(con < senza * 0.8, `stabilizzata dovrebbe tremare meno: ${con.toFixed(1)} contro ${senza.toFixed(1)}`);
+
+  // i colori: una clip neutra e una calda, con un po' di grana (così hanno una miniatura vera)
+  const tinta = (nome, colore) => clip(nome, ['-f', 'lavfi', '-i', `color=c=${colore}:s=1080x1920:d=6:r=25`, '-vf', 'noise=alls=12:allf=t', '-t', '6']);
+  const pid2 = await progettoNuovo('colori');
+  for (const f of [tinta('cl-neutra.mp4', '0x7f7f7f'), tinta('cl-neutra2.mp4', '0x828080'), tinta('cl-calda.mp4', '0xa8805a')]) assert.equal((await carica(pid2, f)).stato, 200);
+  const rapporto = async (uguali) => {
+    const r = await chiama(s.base, `/progetto/${pid2}/regia/monta`, { dati: { piano: { battute: [{ immagini: 9, coperture: ['V01.1', 'V02.1', 'V03.1'] }] }, stile: 'sdg', formato: 'verticale', colori_uguali: uguali, tagli_a_tempo: false }, file: {} });
+    assert.equal(r.stato, 200, JSON.stringify(r.json));
+    const p = path.join(TMP, `cl-${uguali}.mp4`);
+    fs.writeFileSync(p, (await scarica(r.json.file.find((x) => x.tipo === 'video').url)).buf);
+    const png = path.join(TMP, `cl-${uguali}.png`);
+    ffmpeg(['-ss', '7.5', '-i', p, '-frames:v', '1', '-y', png]);
+    const m = await coloreMedio(png);
+    return m.r / m.b;
+  };
+  const prima = await rapporto(false);
+  const dopo = await rapporto(true);
+  assert.ok(dopo < prima - 0.08, `la clip calda dovrebbe essere meno calda: rosso/blu ${dopo.toFixed(2)} contro ${prima.toFixed(2)}`);
+  assert.ok(dopo > 1.05, `ma resta un po' calda (metà strada): ${dopo.toFixed(2)}`);
+});

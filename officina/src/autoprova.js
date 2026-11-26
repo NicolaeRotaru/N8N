@@ -14,6 +14,7 @@ import path from 'node:path';
 import { esegui } from './processi.js';
 import { STILI, filtroColore, filtroVoce, filtroZoomFoto, filtroRiempi, catenaAudio, grafoInquadratura, FILTRO_DIFETTI, VOCE_STUDIO_SENZA_RITARDO } from './regia-render.js';
 import { filtroScene } from './analisi.js';
+import { DESHAKE, bilanciamento } from './ritocco-clip.js';
 import { filtroLut } from './lut.js';
 
 // Tutti i filtri (e le sorgenti sintetiche) che l'officina usa da qualche parte.
@@ -23,7 +24,11 @@ export const FILTRI_RICHIESTI = [
   'eq', 'fade', 'format', 'fps', 'freezedetect', 'highpass', 'loudnorm', 'lut3d', 'noise', 'null', 'nullsink', 'overlay', 'pad', 'scale',
   'scdet', 'setpts', 'setsar', 'sidechaincompress', 'silencedetect', 'sine', 'split', 'tonemap', 'tpad', 'volume',
   'volumedetect', 'zoompan', 'zscale',
+  // i ritocchi delle clip (ritocco-clip.js): colori uguali e stabilizzazione semplice
+  'colorchannelmixer', 'deshake', 'unsharp',
 ];
+// Facoltativi: se mancano l'officina ripiega (vidstab → deshake) e /salute lo dice, ma il controllo resta ok.
+export const FILTRI_FACOLTATIVI = ['vidstabdetect', 'vidstabtransform'];
 
 // La LUT che non cambia niente (2×2×2 punti, il rosso cambia per primo): serve solo a far passare il filtro lut3d.
 const CUBO_IDENTITA = `LUT_3D_SIZE 2\n${[0, 1].flatMap((b) => [0, 1].flatMap((g) => [0, 1].map((r) => `${r} ${g} ${b}`))).join('\n')}\n`;
@@ -31,13 +36,14 @@ const CUBO_IDENTITA = `LUT_3D_SIZE 2\n${[0, 1].flatMap((b) => [0, 1].flatMap((g)
 const ultimeRighe = (e) => String(e?.stderr || e?.message || e).trim().split('\n').slice(-3).join(' ').slice(0, 300);
 
 export async function provaFiltri(cfg) {
-  const esito = { ok: false, ffmpeg: null, mancanti: [], ritardo_voce: null, errore: null };
+  const esito = { ok: false, ffmpeg: null, mancanti: [], facoltativi_mancanti: [], ritardo_voce: null, errore: null };
   try {
     const { stdout: versione } = await esegui(cfg.ffmpeg, ['-hide_banner', '-version'], { timeoutMs: 15_000 });
     esito.ffmpeg = (/ffmpeg version (\S+)/.exec(String(versione)) || [])[1] || null;
     const { stdout: elenco } = await esegui(cfg.ffmpeg, ['-hide_banner', '-filters'], { timeoutMs: 15_000 });
     const presenti = new Set(String(elenco).split('\n').map((r) => r.trim().split(/\s+/)[1]).filter(Boolean));
     esito.mancanti = FILTRI_RICHIESTI.filter((f) => !presenti.has(f));
+    esito.facoltativi_mancanti = FILTRI_FACOLTATIVI.filter((f) => !presenti.has(f));
   } catch (e) {
     esito.errore = `FFmpeg non risponde: ${ultimeRighe(e)}`;
     return esito;
@@ -64,7 +70,9 @@ export async function provaFiltri(cfg) {
   const erroreVoce = 'la voce da studio non si misura: i montaggi la puliscono senza il filtro del soffio';
   if (!senzaVoce) esito.ritardo_voce = Number((/start_sample=(\d+)/.exec(voce) || [0, 0])[1]);
   const fmt = { w: 320, h: 180 };
-  const verticale = grafoInquadratura({ larghezza: 180, altezza: 320, trasferimento: '' }, fmt, { modo: 'intera', fps: s.fps, lut: cubo }).replace('[v]', '[g]');
+  // con i ritocchi delle clip veri: la stabilizzazione semplice e un bilanciamento calcolato da due colori diversi
+  const bilancia = bilanciamento(new Map([['a', { r: 150, g: 120, b: 90 }], ['b', { r: 110, g: 120, b: 130 }]])).get('a');
+  const verticale = grafoInquadratura({ larghezza: 180, altezza: 320, trasferimento: '' }, fmt, { modo: 'intera', fps: s.fps, lut: cubo, stab: DESHAKE, bilancia }).replace('[v]', '[g]');
   const grafo = [
     verticale,
     `[g]${filtroColore(s)},${filtroRiempi(25, s.fps)},split=2[v][d]`,

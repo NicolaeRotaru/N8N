@@ -25,7 +25,7 @@ import { controllaPiano } from './piano.js';
 import { montaContenuto } from './montaggio.js';
 import { leggiSceneggiatura } from './sceneggiatura.js';
 import { controllaRegia, regoleDelloStile } from './regia.js';
-import { montaRegia, stileDa, FORMATI } from './regia-render.js';
+import { montaRegia, stileDa, conScelte, FORMATI } from './regia-render.js';
 import { provaFiltri } from './autoprova.js';
 import { forseRallenta, modoRallenty } from './rallenty.js';
 import { salvaLut, elencoLut, lutPerMateriali, nomeLut } from './lut.js';
@@ -366,7 +366,7 @@ export async function creaServer(cfg = leggiConfig()) {
     const { dir, progetto } = await apriProgetto(cfg.datiDir, params.pid, cfg.progettoDurataMs);
     if (!dati.piano || typeof dati.piano !== 'object') throw nonValido('dati_non_validi', 'Manca «piano»: il piano di regia {battute:[…]}.');
     // la timeline si ricalcola qui dal piano: il render non si fida di una timeline arrivata da fuori
-    const stile = stileDa(dati.stile, dati.marchio, dati.identita);
+    const stile = conScelte(stileDa(dati.stile, dati.marchio, dati.identita), dati);
     const R = regoleDelloStile(stile);
     const lut = await lutPerMateriali(cfg, progetto.materiali, { lut: dati.lut ?? null, lut_materiali: dati.lut_materiali ?? null });
     // più formati dalla stessa regia (es. ["verticale","orizzontale"]): stessi tagli, inquadrature ritagliate per ognuno

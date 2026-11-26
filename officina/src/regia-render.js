@@ -15,6 +15,7 @@ import { apri, preparaLogo } from './immagini.js';
 import { filtroLut } from './lut.js';
 import { centroSoggetto } from './soggetto.js';
 import { battitiMusica, battitiSulVideo, tagliATempo } from './battiti.js';
+import { scenaDi, vaStabilizzata, filtroStabile, coloreMedio, bilanciamento } from './ritocco-clip.js';
 
 // sotto questa affidabilità il battito non è chiaro (rumore, pad, pianoforte libero): i tagli restano dove sono
 export const SOGLIA_BATTITO = 2.5;
@@ -161,6 +162,16 @@ export function luminanza(hex) {
 // restano quelli dello stile (per Scatti di G: la moodboard). I sottotitoli restano nel font dello stile, che si legge.
 // identita = i colori e i font di Scatti di G scritti nel Config del workflow: quando il marchio dell'agenzia cambia
 // (colori, font) si cambia lì, senza toccare il codice né ripubblicare l'officina. Solo valori validi.
+// Le scelte del montaggio da professionisti, se la richiesta le dice (altrimenti quelle dello stile: tutte accese):
+// stabilizza ('auto' | 'si' | 'no'), colori_uguali, tagli_a_tempo, segui_soggetto (vero/falso, anche «si»/«no»).
+export function conScelte(stile, dati = {}) {
+  const fuori = { ...stile };
+  const sino = (v) => (typeof v === 'boolean' ? v : !['no', 'false', '0', 'off'].includes(String(v).trim().toLowerCase()));
+  if (dati.stabilizza !== undefined && dati.stabilizza !== null && dati.stabilizza !== '') fuori.stabilizza = String(dati.stabilizza).trim().toLowerCase();
+  for (const k of ['colori_uguali', 'tagli_a_tempo', 'segui_soggetto']) if (dati[k] !== undefined && dati[k] !== null && dati[k] !== '') fuori[k] = sino(dati[k]);
+  return fuori;
+}
+
 export function stileDa(nome, marchio, identita = null) {
   const base = STILI[String(nome || 'sdg').toLowerCase()] || STILI.sdg;
   const s = JSON.parse(JSON.stringify(base));
@@ -359,7 +370,8 @@ const PRE_HDR = 'zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap
 const FINE = 'setsar=1,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p';
 
 // Filtro di un'inquadratura video: riempi (ritaglio, con la posizione del soggetto) o sfondo sfocato della stessa clip.
-export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centro', fps = FPS_BASE, lut = null } = {}) {
+// stab e bilancia: i ritocchi della clip (ritocco-clip.js), subito dopo fps (stessi fotogrammi della misura del tremolio).
+export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centro', fps = FPS_BASE, lut = null, stab = '', bilancia = '' } = {}) {
   const FPS = fps;
   const { w: W, h: H } = fmt;
   // girato in log: prima la LUT della camera (i colori «veri»), poi tutto il resto
@@ -369,7 +381,7 @@ export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centr
   const tenuto = r > t ? t / r : r / t;
   const riempi = modo === 'riempi' || (modo === 'auto' && tenuto >= 0.8);
   if (modo === 'intera' || !riempi) {
-    return `[0:v]${pre}fps=${FPS},split=2[a][b];[a]scale=${Math.round(W / 4)}:${Math.round(H / 4)}:force_original_aspect_ratio=increase,crop=${Math.round(W / 4)}:${Math.round(H / 4)},boxblur=10:2,scale=${W}:${H},eq=brightness=-0.06[sf];[b]scale=${W}:${H}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos[pp];[sf][pp]overlay=(W-w)/2:(H-h)/2,${FINE}[v]`;
+    return `[0:v]${pre}fps=${FPS},${stab}${bilancia}split=2[a][b];[a]scale=${Math.round(W / 4)}:${Math.round(H / 4)}:force_original_aspect_ratio=increase,crop=${Math.round(W / 4)}:${Math.round(H / 4)},boxblur=10:2,scale=${W}:${H},eq=brightness=-0.06[sf];[b]scale=${W}:${H}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos[pp];[sf][pp]overlay=(W-w)/2:(H-h)/2,${FINE}[v]`;
   }
   // la posizione: parola (sinistra/centro/destra, dalla regia) oppure numero da 0 a 1 (il soggetto trovato da soggetto.js)
   const centro = typeof posizione === 'number' && Number.isFinite(posizione)
@@ -378,7 +390,7 @@ export function grafoInquadratura(info, fmt, { modo = 'auto', posizione = 'centr
   const x = `max(0\\,min(iw-ow\\,${centro}-ow/2))`;
   // una clip più alta del quadro (verticale in orizzontale) si ritaglia dall'alto: le persone stanno nel terzo superiore
   const y = r < t ? '(ih-oh)*0.3' : '(ih-oh)/2';
-  return `[0:v]${pre}fps=${FPS},scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H}:${x}:${y},${FINE}[v]`;
+  return `[0:v]${pre}fps=${FPS},${stab}${bilancia}scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H}:${x}:${y},${FINE}[v]`;
 }
 
 // Fotogrammi di un file (si contano i pacchetti del flusso video: veloce, senza decodificare).
@@ -410,7 +422,7 @@ export function filtroRiempi(fotogrammi, fps) {
 
 // i centri del soggetto già trovati (stessa clip, stesso pezzo, stesso formato): non si ricalcolano
 const soggetti = new Map();
-async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null) {
+async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dirTmp, cfg, segnale, lut = null, { scena = null, bilancia = '' } = {}) {
   const t = String(cfg.threadFfmpeg);
   const FPS = stile.fps || FPS_BASE;
   if (q.tipo === 'foto') {
@@ -432,7 +444,11 @@ async function pezzoVideo(q, sorgente, info, fmt, stile, fotogrammi, uscita, dir
     const c = soggetti.get(chiave);
     if (c !== null) posizione = c;
   }
-  const grafo = grafoInquadratura(info, fmt, { modo, posizione, fps: FPS, lut }).replace('[v]', '[g]');
+  // la clip mossa si stabilizza (prima passata qui: misura del tremolio sugli stessi fotogrammi del pezzo)
+  const stab = vaStabilizzata(stile, scena)
+    ? await filtroStabile({ sorgente, inizio: q.inizio, durata: fotogrammi / FPS, pre: (HDR.includes(info?.trasferimento) ? PRE_HDR : '') + filtroLut(lut), fps: FPS, dirTmp, nome: path.basename(uscita, path.extname(uscita)), cfg, segnale })
+    : '';
+  const grafo = grafoInquadratura(info, fmt, { modo, posizione, fps: FPS, lut, stab, bilancia }).replace('[v]', '[g]');
   // tpad: se la clip finisce prima (la regia non lo permette, ma un file può dichiarare una durata sbagliata), l'ultimo
   // fotogramma resta fino a riempire il pezzo: mai un pezzo più corto, quindi mai le immagini dopo che scivolano
   await esegui(cfg.ffmpeg, [...BASE, '-v', 'error', '-threads', t, '-ss', f3(q.inizio), '-t', f3(fotogrammi / FPS + 0.5), '-i', sorgente,
@@ -522,6 +538,22 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
     }
   }
 
+  // i colori uguali fra le clip (ritocco-clip.js): il colore medio di ogni pezzo sulla miniatura della sua scena
+  let correzioni = new Map();
+  if (stile.colori_uguali !== false) {
+    const misure = new Map();
+    const lette = new Map();
+    for (const [k, q] of tl.video.entries()) {
+      if (q.tipo === 'foto') continue;
+      const scena = scenaDi(materiali.get(q.fonte), q);
+      if (!scena?.miniatura) continue;
+      const file = path.join(dirProgetto, scena.miniatura);
+      if (!lette.has(file)) lette.set(file, await coloreMedio(file).catch(() => null));
+      misure.set(k, lette.get(file));
+    }
+    correzioni = bilanciamento(misure);
+  }
+
   // 1-2) inquadrature → pezzi, poi in fila. I confini si arrotondano al fotogramma sulla timeline assoluta: niente deriva.
   const lista = [];
   let fotogrammiFatti = 0;
@@ -535,7 +567,8 @@ export async function montaRegia({ tl, progetto, dirProgetto, stile, logo, music
     if (fotogrammi <= 0) continue;
     fotogrammiFatti = fineFotogramma;
     const nome = `inq-${String(k).padStart(3, '0')}.mkv`;
-    await pezzoVideo(q, sorgenti.get(q.fonte), info.get(q.fonte), fmt, stile, fotogrammi, path.join(dirTmp, nome), dirTmp, cfg, segnale, lut.get(q.fonte) || null);
+    await pezzoVideo(q, sorgenti.get(q.fonte), info.get(q.fonte), fmt, stile, fotogrammi, path.join(dirTmp, nome), dirTmp, cfg, segnale, lut.get(q.fonte) || null,
+      { scena: q.tipo === 'foto' ? null : scenaDi(materiali.get(q.fonte), q), bilancia: correzioni.get(k) || '' });
     if (info.get(q.fonte) && HDR.includes(info.get(q.fonte).trasferimento) && !avvisi.some((a) => a.codice === 'hdr_convertito')) {
       avvisi.push({ codice: 'hdr_convertito', messaggio: `Il video ${q.fonte} è in HDR: l'ho convertito nei colori normali (SDR).` });
     }
