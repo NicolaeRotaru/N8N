@@ -1,6 +1,6 @@
 # Contratto del rapporto dell'imprenditore · n8n (flusso 26) → sito
 
-Versione **1.1** · 26/11/2026 (1.1: il parere legale del 26/11 su Google, TripAdvisor e DataForSEO) · sessione «rapporto imprenditore — parte n8n».
+Versione **1.2** · 26/11/2026 (1.1: il parere legale su Google, TripAdvisor e DataForSEO · 1.2: le parti per abbonamento e i concorrenti sui social e sul web, decisioni di Nicola delle 14:35 e 14:54) · sessione «rapporto imprenditore — parte n8n».
 Chi lo cambia lo dice all'altra parte prima. Si possono **aggiungere** campi; quelli scritti qui non si rinominano.
 
 Dove viaggia: dentro la scheda che il 26 manda già al sito (`POST /api/agenzia/scheda-cliente`, stessa
@@ -53,7 +53,8 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
   "tripadvisor": Blocco<TripAdvisor>,   // a pagamento, solo bar/ristoranti/hotel, spento di serie
   "recensioni":  Blocco<Recensioni>,    // DataForSEO, spento di serie
   "ricerche":    Blocco<Ricerche>,      // DataForSEO, spento di serie
-  "instagram":   Blocco<Instagram>      // gratis ma serve l'account professionale di MyCity, spento di serie
+  "instagram":   Blocco<Instagram>,     // gratis ma serve l'account professionale di MyCity, spento di serie
+  "concorrenti_canali": Blocco<ConcorrentiCanali>   // parte 12: sito, Instagram e posizioni dei 3-5 concorrenti più vicini
 }
 ```
 
@@ -68,9 +69,35 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
   "licenza": "string | null",        // es. "ODbL", "CC BY 4.0" — il sito la cita accanto al dato
   "letto_il": "ISO | null",
   "conserva_fino_al": "ISO | null",  // solo DataForSEO; null altrove
-  "dati": { … } | null               // null quando stato ≠ "letto"
+  "dati": { … } | null,              // null quando stato ≠ "letto"
+  "parte": 1                         // la parte dell'analisi (tabella «Le parti»): il sito filtra per abbonamento
 }
 ```
+
+### Le parti (1.2)
+
+Ogni blocco di `fatti` e ogni sezione dell'AD porta il numero della sua `parte`. Quali parti entrano in
+quale fascia lo decide Nicola e lo mostra il sito: n8n raccoglie sempre tutto.
+
+| parte | cosa | blocchi di `fatti` | sezioni dell'AD (`analisi.business`) |
+|---|---|---|---|
+| 1 | Com'è messa oggi | `posizione` | `situazione` |
+| 2 | Il quartiere | `vicini` (servizi) | — |
+| 3 | I concorrenti vicini | `vicini` (concorrenti) | `mercato`, `confronto_concorrenti` |
+| 4 | Clienti e reputazione | `recensioni` | `clienti`, `reputazione_temi` |
+| 5 | Il sito | `sito` | `giudizio_sito` |
+| 6 | I social | `instagram` | (social, porta analisi-canali) |
+| 7 | Farsi trovare su Google | `google`, `tripadvisor`, `ricerche` | — |
+| 8 | Occasioni: eventi e meteo | `eventi`, `meteo` | `occasioni` |
+| 9 | Soldi pubblici | `bandi` | `soldi_pubblici` |
+| 10 | Opportunità e rischi | — | `opportunita`, `rischi` |
+| 11 | Il piano | — | `prime_mosse`, `piano_30_giorni` |
+| 12 | Concorrenti sui social e sul web | `concorrenti_canali` | `confronto_concorrenti[].canali`, `idee_dal_confronto` |
+
+`vicini` porta `parte: 3` (i servizi del quartiere sono `parte: 2` dentro `dati.servizi_parte`). Nelle
+sezioni dell'AD la parte non sta in ogni frase: sta nella mappa `analisi.business.parti`, es.
+`{ "situazione": 1, "reputazione_temi": 4, … }`. **Numeri provvisori** finché non li allineo all'elenco
+delle 11 parti del PIANO: se cambiano, cambia solo questa tabella.
 
 - `letto` = la fonte ha risposto e c'è qualcosa; `vuoto` = ha risposto ma non c'è niente (es. nessun
   concorrente nel raggio: allora `dati` c'è e i contatori sono 0 veri); `spento` = voce del Config a `no`,
@@ -122,6 +149,33 @@ Al massimo 8 eventi e 6 bandi. Sono titoli letti sulla pagina, non verificati un
 ```
 Se il sito non c'è o non è stato scaricato: `stato: "vuoto"` con il motivo.
 
+### ConcorrentiCanali (parte 12)
+
+I 3-5 concorrenti più vicini di `vicini.concorrenti.elenco` (OpenStreetMap). Mai dati Google, mai pagine di
+Meta lette di nascosto: il sito si legge solo se OpenStreetMap lo indica (tag `website`), con lo stesso
+lettore e le stesse regole delle pagine del 12 (al massimo 2 pagine per concorrente); Instagram solo con
+Business Discovery (account professionale di MyCity, voce `FONTE_INSTAGRAM`).
+
+```jsonc
+{
+  "elenco": [ {
+    "nome": "Bar Esempio", "distanza_m": 120, "fonte": "https://www.openstreetmap.org/node/123",
+    "sito": { "c_e": true | false | null, "indirizzo": "https://… | null", "livello": "semplice" | "medio" | "pregio" | null,
+              "https": true | null, "viewport_mobile": true | null, "motivo": "string | null" },
+    "instagram": null | {                               // null + motivo in instagram_motivo se spento o non trovato
+      "profilo": "nomeprofilo", "follower": 2300, "post_ultimi_30_giorni": 12,
+      "formati": { "reel": 5, "foto": 4, "carosello": 3 },         // negli ultimi 30 giorni
+      "interazioni_medie": 84,                                       // (mi piace + commenti) per post, ultimi 30 post
+      "migliori": [ { "link": "https://www.instagram.com/p/…", "data": "2026-11-12", "formato": "reel", "interazioni": 410 } ],  // al massimo 3
+      "orari": { "mattina": 3, "pranzo": 2, "pomeriggio": 4, "sera": 3 }   // ora di Roma: 6-11, 11-15, 15-19, 19-6
+    },
+    "instagram_motivo": "string | null",
+    "posizione_google": 4 | null,                       // DataForSEO, sulla prima parola di `ricerche`; null = non letta o non tra i primi 30
+    "letto_il": "ISO"
+  } ]
+}
+```
+
 ### Google (Google Places API (New)) — spento di serie
 
 ```jsonc
@@ -155,7 +209,8 @@ sito, mai con nomi, foto o citazioni.
 ### Instagram (Business Discovery) — spento di serie
 
 ```jsonc
-{ "profilo": "nomeprofilo", "follower": 1240, "post_totali": 310, "post_ultimi_30_giorni": 6, "video_ultimi_30_giorni": 2, "ultimo_post_il": "2026-11-21" }
+{ "profilo": "nomeprofilo", "follower": 1240, "post_totali": 310, "post_ultimi_30_giorni": 6, "video_ultimi_30_giorni": 2, "ultimo_post_il": "2026-11-21",
+  "formati": { "reel": 2, "foto": 3, "carosello": 1 }, "interazioni_medie": 41, "migliori": [ … ], "orari": { … } }   // come in ConcorrentiCanali (1.2)
 ```
 Solo profili professionali pubblici; il nome del profilo è quello dell'attività, non di una persona.
 
@@ -168,8 +223,14 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
   { "tema": "servizio veloce (≤80)", "tono": "positivo" | "negativo" | "misto", "quante": 14, "fonte": "https://dataforseo.com/" }
 ],                           // solo dalle recensioni DataForSEO; quante ≥ 3, altrimenti il tema non esce; niente frasi né citazioni
 "confronto_concorrenti": [   // al massimo 5
-  { "nome": "Bar Esempio", "distanza_m": 120 | null, "voto": 4.2 | null, "recensioni": 120 | null, "differenza": "≤200: cosa fa meglio o peggio di noi", "fonte": "https://…" }
+  { "nome": "Bar Esempio", "distanza_m": 120 | null, "voto": 4.2 | null, "recensioni": 120 | null, "differenza": "≤200: cosa fa meglio o peggio di noi", "fonte": "https://…",
+    "meglio": "≤200 | null: cosa fa meglio di noi (sito, social, contenuti)", "peggio": "≤200 | null: cosa fa peggio", "fonte_canali": "https://… | null" }   // 1.2
 ],
+"idee_dal_confronto": [      // 1.2, parte 12: esattamente da 0 a 3 idee di contenuti nate dal confronto
+  { "idea": "≤200", "perche": "≤200: cosa abbiamo visto nei concorrenti", "servizio": "foto_video" | "social" | "sito_web" | null, "fonte": "https://…" }
+],
+"parti": { "situazione": 1, "mercato": 3, "clienti": 4, "opportunita": 10, "rischi": 10, "prime_mosse": 11,
+           "reputazione_temi": 4, "confronto_concorrenti": 3, "occasioni": 8, "soldi_pubblici": 9, "piano_30_giorni": 11, "idee_dal_confronto": 12 },
 "occasioni": [               // al massimo 5: eventi, meteo, stagione nei prossimi 30 giorni
   { "quando": "2026-12-08" | null, "cosa": "≤160", "perche_conta": "≤200", "fonte": "https://…" }
 ],
