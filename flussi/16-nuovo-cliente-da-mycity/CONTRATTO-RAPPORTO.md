@@ -1,6 +1,6 @@
 # Contratto del rapporto dell'imprenditore · n8n (flusso 26) → sito
 
-Versione **1** · 26/11/2026 · sessione «rapporto imprenditore — parte n8n».
+Versione **1.1** · 26/11/2026 (1.1: il parere legale del 26/11 su Google, TripAdvisor e DataForSEO) · sessione «rapporto imprenditore — parte n8n».
 Chi lo cambia lo dice all'altra parte prima. Si possono **aggiungere** campi; quelli scritti qui non si rinominano.
 
 Dove viaggia: dentro la scheda che il 26 manda già al sito (`POST /api/agenzia/scheda-cliente`, stessa
@@ -25,10 +25,16 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
 2. **Un dato che manca è `null` con il `motivo`**, mai uno zero. Uno zero vuol dire «contato, ed è zero».
 3. **Niente persone.** Nessun nome di chi scrive le recensioni, nessun dato del titolare (nome, telefono,
    email, indirizzo di casa). Delle recensioni si tengono solo i temi.
-4. **Dati Google: al massimo 30 giorni.** Ogni blocco che viene da Google (Places, e DataForSEO che legge
-   Google) porta `conserva_fino_al` = `letto_il` + 30 giorni. Dopo quella data il sito cancella `dati`
-   (tiene solo `place_id`, che Google permette di conservare) e mostra «da rileggere».
-5. **Fonte spenta ≠ dato assente.** Una fonte a pagamento spenta dà `stato: "spento"`, e il sito non la
+4. **Google Places: solo `place_id`** (termini EEA dall'8/7/2025). Voto, recensioni, orari, nome,
+   indirizzo di Google: zero giorni, da nessuna parte (database, scheda, email, PDF). Il sito mostra la
+   scheda Google col riquadro ufficiale `<gmp-place-details>` (Places UI Kit), caricato in diretta nel
+   browser dal `place_id`; l'attribuzione è quella del riquadro. Niente contenuti derivati dai dati Google.
+5. **DataForSEO è una filiera separata** da Google Places: i suoi numeri non si mescolano con quelli di
+   Places. I testi delle recensioni restano solo in memoria durante la lettura (all'AD per i temi) e non
+   arrivano mai al sito; al sito vanno solo temi con quante recensioni li citano (almeno 3). I blocchi
+   DataForSEO portano `conserva_fino_al` = `letto_il` + 30 giorni: dopo, il sito cancella `dati`.
+6. **I concorrenti si contano solo da OpenStreetMap.**
+7. **Fonte spenta ≠ dato assente.** Una fonte a pagamento spenta dà `stato: "spento"`, e il sito non la
    mostra come «non trovato».
 
 ## 1. `analisi.fatti`
@@ -61,7 +67,7 @@ identiche. Un campo nuovo che il sito non conosce si ignora, non si rifiuta.
   "fonte_nome": "string",            // es. "OpenStreetMap", "MET Norway", "Google Places"
   "licenza": "string | null",        // es. "ODbL", "CC BY 4.0" — il sito la cita accanto al dato
   "letto_il": "ISO | null",
-  "conserva_fino_al": "ISO | null",  // solo Google e DataForSEO; null altrove
+  "conserva_fino_al": "ISO | null",  // solo DataForSEO; null altrove
   "dati": { … } | null               // null quando stato ≠ "letto"
 }
 ```
@@ -119,25 +125,23 @@ Se il sito non c'è o non è stato scaricato: `stato: "vuoto"` con il motivo.
 ### Google (Google Places API (New)) — spento di serie
 
 ```jsonc
-{
-  "place_id": "ChIJ…",              // l'unico campo che resta oltre i 30 giorni
-  "voto": 4.5, "recensioni": 312,
-  "concorrenti": [ { "nome": "…", "place_id": "…", "voto": 4.2, "recensioni": 120, "distanza_m": 210 } ]  // al massimo 5
-}
+{ "place_id": "ChIJ…" }     // e nient'altro: il resto lo mostra il riquadro ufficiale nel browser
 ```
+Una sola chiamata (Text Search con il solo campo `places.id`). Nessun concorrente da Google.
 
-### TripAdvisor (Content API) — spento di serie, solo bar/ristoranti/hotel
+### TripAdvisor (Content API) — spento finché non c'è un sì scritto; solo bar/ristoranti/hotel
 
 ```jsonc
-{ "location_id": "123", "voto": 4.0, "recensioni": 88, "classifica": "n. 45 di 380 ristoranti a Piacenza" | null }
+{ "location_id": "123" }    // e nient'altro
 ```
 
 ### Recensioni (DataForSEO, recensioni Google) — spento di serie
 
 ```jsonc
-{ "lette": 200, "voto_medio": 4.4, "per_stelle": { "1": 8, "2": 5, "3": 12, "4": 40, "5": 135 }, "con_risposta": 61, "ultima_il": "2026-11-20" }
+{ "lette": 100, "voto_medio": 4.4, "per_stelle": { "1": 8, "2": 5, "3": 12, "4": 40, "5": 35 }, "con_risposta": 61, "ultima_il": "2026-11-20" }
 ```
-I testi delle recensioni vanno solo all'AD (per i temi), mai al sito, mai con il nome di chi scrive.
+Numeri contati da n8n sulle recensioni lette da DataForSEO. I testi vanno solo all'AD, in memoria, mai al
+sito, mai con nomi, foto o citazioni.
 
 ### Ricerche (DataForSEO) — spento di serie
 
@@ -161,8 +165,8 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
 
 ```jsonc
 "reputazione_temi": [        // al massimo 6
-  { "tema": "servizio veloce", "tono": "positivo" | "negativo" | "misto", "quante": 14 | null, "frase": "≤200, parafrasi, mai citazione con nomi", "fonte": "https://…" }
-],
+  { "tema": "servizio veloce (≤80)", "tono": "positivo" | "negativo" | "misto", "quante": 14, "fonte": "https://dataforseo.com/" }
+],                           // solo dalle recensioni DataForSEO; quante ≥ 3, altrimenti il tema non esce; niente frasi né citazioni
 "confronto_concorrenti": [   // al massimo 5
   { "nome": "Bar Esempio", "distanza_m": 120 | null, "voto": 4.2 | null, "recensioni": 120 | null, "differenza": "≤200: cosa fa meglio o peggio di noi", "fonte": "https://…" }
 ],
@@ -177,8 +181,9 @@ Come le sezioni di prima: frasi corte, ognuna con la sua `fonte` https; dove l'A
 ]
 ```
 
-- `voto`, `recensioni`, `distanza_m`, `quante` vengono **da `fatti`** (l'AD li copia, n8n li ricontrolla:
-  un numero che non è in `fatti` diventa `null`).
+- `distanza_m` viene da `fatti.vicini` (OpenStreetMap); `voto` e `recensioni` dei concorrenti solo da
+  DataForSEO, oggi non letti: escono `null`. Un numero che non è in `fatti` n8n lo mette a `null`.
+- `confronto_concorrenti` nomina solo concorrenti che stanno in `fatti.vicini.concorrenti.elenco`.
 - Niente prezzi, telefoni, email, nomi di persone (stessi controlli di `business`).
 
 ## 3. Cosa fa il sito con un dato spento o vecchio
