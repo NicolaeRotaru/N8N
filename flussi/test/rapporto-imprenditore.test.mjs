@@ -517,7 +517,8 @@ test("dal collaudo della #26: «non protetto» solo se https è stato provato e 
     'Scarica le pagine': [{ json: risposta, pairedItem: { item: 0 } }] } })).fatti.sito;
   assert.equal((await prova({ error: { message: 'connect ECONNREFUSED 1.2.3.4:443' } })).dati.https, false);
   assert.equal((await prova({ error: { message: 'unable to verify the first certificate', code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' } })).dati.https, false);
-  for (const r of [{ statusCode: 403, data: '' }, { error: { message: 'timeout of 15000ms exceeded' } }, { statusCode: 301, headers: { location: 'https://barvecchio.eatbu.com/' }, data: '' }]) {
+  for (const r of [{ statusCode: 403, data: '' }, { error: { message: 'timeout of 15000ms exceeded' } }, { error: { message: 'Client network socket disconnected before secure TLS connection was established', code: 'ECONNRESET' } },
+    { error: { message: 'getaddrinfo ENOTFOUND ssl.barvecchio.it', code: 'ENOTFOUND' } }, { statusCode: 301, headers: { location: 'https://barvecchio.eatbu.com/' }, data: '' }]) {
     const sito = await prova(r);
     assert.equal(sito.stato, 'vuoto', JSON.stringify(r));
     assert.equal(sito.dati, null);

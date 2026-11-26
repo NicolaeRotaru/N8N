@@ -194,7 +194,8 @@ const senzaHttps = (() => {
       if (!/^https:\/\//i.test(url) || (hostDi(url) !== hostSito && !hostDi(url).endsWith('.' + hostSito))) continue;
       const e = (it && it.json && it.json.error) || null;
       const msg = e ? (typeof e === 'string' ? e : [e.message, e.code, e.description, e.cause && e.cause.code].filter(Boolean).join(' ')) : '';
-      if (/ECONNREFUSED|EPROTO|CERT_|certificate|self[- ]signed|SSL|TLS|wrong version number|ERR_TLS|UNABLE_TO_VERIFY/i.test(msg)) return true;
+      // Solo i CODICI d'errore (maiuscoli, precisi), mai parole libere: «TLS connection was established» può essere un firewall.
+      if (/\b(ECONNREFUSED|EPROTO|ERR_TLS_CERT_ALTNAME_INVALID|CERT_[A-Z_]+|[A-Z_]*SELF_SIGNED[A-Z_]*|UNABLE_TO_VERIFY_LEAF_SIGNATURE|UNABLE_TO_GET_ISSUER_CERT[A-Z_]*)\b/.test(msg)) return true;
     }
   }
   return false;

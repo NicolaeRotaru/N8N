@@ -547,5 +547,5 @@ test('sicurezza (26/11): un dominio che imita Google, le mappe o Meta non si apr
     const v = LP.indirizzoSicuro(u);
     assert.equal(v.ok, false, u);
   }
-  for (const u of ['https://www.barroma.it/', 'https://www.mappamondo-viaggi.it/', 'https://www.google.com/search?q=ora']) assert.equal(LP.indirizzoSicuro(u).ok, true, u);
+  for (const u of ['https://www.barroma.it/', 'https://www.mappamondo-viaggi.it/', 'https://www.google.com/search?q=ora', 'https://sites.google.com/view/barroma']) assert.equal(LP.indirizzoSicuro(u).ok, true, u);
 });
