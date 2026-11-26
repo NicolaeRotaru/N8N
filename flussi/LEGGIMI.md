@@ -46,8 +46,20 @@ pagina «Analisi del business»). Le attività create dal modulo 12 (flusso 20) 
 stesso, come quelle che si iscrivono da sole: la ricerca si rifà una volta (col piano Max), e il 16 trova
 il doppione nel foglio Clienti e non riscrive la riga.
 
+**Il sito e i social di oggi** (Nicola, 25/11/2026 sera: sito e social nel preventivo solo dove valgono di
+più di quello che l'attività ha già). Nella stessa domanda dell'analisi del business, l'AD giudica anche il
+sito che l'attività ha già (livello semplice/medio/pregio, aspetto, pagine, funzioni, e cosa daremmo di più
+nel Premium) e Instagram, Facebook, TikTok e la scheda Google Maps (livello debole/attivo/forte, post al mese, video sì/no, cura,
+risposte alle recensioni, cosa daremmo di più). Ogni giudizio ha la sua fonte https; dove un dato manca si
+dice. Il giudizio sul sito va nella scheda (`analisi.giudizio_sito`); quello sui social va al sito con
+`POST /api/agenzia/analisi-canali` (stessa credenziale della scheda), mai in prova. La rete della routine
+dell'AD non apre il sito del locale: le sue pagine, già scaricate da n8n nella ricerca («Leggi la ricerca»),
+arrivano all'AD fra i dati (`pagine_del_sito`, al massimo 6), e dopo di loro le altre pagine scaricate
+(`altre_pagine`: portali, elenchi, giornali, al massimo 4), in tutto al massimo 22.000 byte.
+
 ```bash
-N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id credenziale del segreto> --vero --manda
+N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs --credenziale <id credenziale del segreto> --vero \
+  --sito https://www.mycity-marketplace.com --credenziale-sito <id «MyCity - Segreto scheda cliente»> --manda
 ```
 
 Senza `--vero` il 16 resta in «prova»: cerca (e costa) ma non scrive. Senza `--manda` controlla soltanto.
@@ -55,6 +67,28 @@ Senza `--vero` il 16 resta in «prova»: cerca (e costa) ma non scrive. Senza `-
 **Dal lato del sito** (repository `mycity`): le variabili `N8N_NUOVO_CLIENTE_WEBHOOK_URL`
 (`https://n8n-shdy.sliplane.app/webhook/mycity-nuovo-cliente`) e `N8N_NUOVO_CLIENTE_SEGRETO` (lo stesso
 valore della credenziale «MyCity - Segreto nuovo cliente» in n8n). Senza tutte e due il sito non manda niente.
+
+**Il rapporto dell'imprenditore** (26/11/2026, firma di Nicola; contratto col sito in
+`16-nuovo-cliente-da-mycity/CONTRATTO-RAPPORTO.md`, versione 1.2). Fra la ricerca e la domanda all'AD, il 26 raccoglie i
+**fatti** (`fatti.mjs` e `codice/fatti-*.js`): numeri con fonte e data, un dato che manca è `null` col motivo.
+- **Gratis, accese:** OpenStreetMap (Nominatim per l'indirizzo, se il sito non manda `lat`/`lon`; Overpass per concorrenti
+  e servizi entro `RAGGIO_VICINI_M` = 400 m; una richiesta al secondo, nome di programma `rapporto-attivita/1.0`), MET Norway
+  (meteo 7 giorni, CC BY 4.0, mai Open-Meteo), le pagine di eventi e bandi del radar (`24-radar-web/codice/fonti.json`), i
+  controlli del sito sulle pagine già scaricate (https, viewport, titolo, descrizione, dati strutturati), e i siti dei 3-5
+  concorrenti più vicini, solo se OpenStreetMap li indica, col controllo del lettore di pagine (mai Meta, mappe, portali).
+- **A pagamento, spente:** Google Places (solo `place_id`, parere legale), TripAdvisor (solo `location_id`, spento finché
+  non c'è un sì scritto), DataForSEO (recensioni, volumi a Piacenza, posizione), Instagram Business Discovery (lei e i
+  concorrenti; serve l'account professionale di MyCity). **Tre freni, ne basta uno:** `FONTE_…` = `no` nel Config;
+  `CREDENZIALE_…` = `finta` (e il nodo HTTP spento) finché Nicola non dà al generatore l'id della credenziale con la chiave
+  vera; `TETTO_…_GIORNO`. Lo stesso controllo sta nel nodo IF davanti a ogni chiamata, e `controlla()` lo verifica.
+- **L'AD** riceve i fatti ridotti (i testi delle recensioni solo a lui, mai al sito) e scrive anche `reputazione_temi`,
+  `confronto_concorrenti`, `idee_dal_confronto`, `occasioni`, `soldi_pubblici`, `piano_30_giorni`; n8n le ricontrolla sui
+  fatti. Il lavoro resta sotto i 64 KB (le pagine si accorciano finché ci sta). I fatti vanno al sito in `analisi.fatti`.
+
+```bash
+N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs … --crea-credenziali          # una volta: 4 credenziali finte
+N8N_API_KEY=… node flussi/16-nuovo-cliente-da-mycity/genera.mjs … --credenziale-dataforseo <id> --fonti-accese dataforseo
+```
 
 ## 18 · Analisi di un'attività
 
@@ -277,6 +311,36 @@ zero: se ne trova, esce con 1 e li elenca. La partenza della routine non conta.
 
 ```bash
 N8N_API_KEY=… node flussi/conta-api-claude.mjs
+
+## Le pagine le legge n8n (12 e 26) · `chiedi-all-ad/leggi-pagine.mjs`
+
+**Perché** (25/11/2026, sulla card di Ora del Gusto tutta «non trovato»; Nicola: «Ripara»). Da quando la ricerca
+del 12 la fa l'AD, si erano rotte due cose. La routine dell'AD cerca sul web ma non apre le pagine dei locali: la sua
+rete è chiusa. E anche con le pagine aperte, «Controlla la proposta» confronta ogni citazione col testo delle pagine
+lette, che arrivava solo nella risposta dell'API a pagamento (blocchi `web_fetch_tool_result`). L'AD manda solo il suo
+testo: il confronto non trovava niente e ogni dato del web diventava «non trovato». La riga «Ricerche web: 0 · costo
+0,00 $» leggeva i conti dell'API di prima e segnava sempre zero.
+
+**Cosa fa.** Aggiunge al flusso nodi nuovi e piccoli; quelli grandi del 12 non li tocca.
+- «Chiedi gli indirizzi delle pagine»: nel compito della ricerca, l'AD scrive una riga «PAGINE DA LEGGERE:».
+- Fra «Dall'AD: la ricerca» e «Leggi la ricerca», n8n sceglie le pagine e le scarica. Prima il sito dichiarato, poi la
+  riga dell'AD, i campi «URL:» e gli altri indirizzi, al massimo `MAX_LETTURE`. Mai Meta, mappe, portali o indirizzi
+  interni (nomi senza dominio, IP, porte non standard, `.internal`, sliplane). Poi prende menu, contatti e orari dello
+  stesso sito, e segue i rinvii passando dallo stesso controllo: il nodo HTTP non segue i rinvii da solo. Infine
+  rimette le pagine nella risposta come pagine lette. «Leggi la ricerca» e «Controlla la proposta» lavorano com'erano:
+  le citazioni si confrontano col testo scaricato da n8n.
+- «Ritocca l'anteprima»: la riga dice «Ricerca sul web: fatta dall'AD · pagine lette da n8n: N» e porta gli avvisi
+  dell'AD e di n8n.
+
+**Comandi.** Senza chiave n8n: `node flussi/chiedi-all-ad/leggi-pagine.mjs --file 12.json --operazioni ops.json`
+scrive le operazioni per l'aggiornamento a pezzi (strumento n8n `update_workflow`). Con la chiave:
+`N8N_API_KEY=… node flussi/chiedi-all-ad/leggi-pagine.mjs 12 --manda`. Rilanciato su un flusso che li ha già, aggiorna solo
+il codice; n8n riordina le chiavi e riscrive gli spazi speciali, e il confronto lo sa. Il **26** li ricopia dal 12 col suo
+generatore (`16-nuovo-cliente-da-mycity/genera.mjs`): nessuna modifica lì.
+
+**Montato il 25/11/2026 alle 22:07-22:15** sul 12 («11 · Nuovo cliente») e sul 26, e messo in uso. Prova sul codice vero:
+`FLUSSO_12=<flusso esportato> node --test flussi/test/leggi-pagine.test.mjs`. Con la stessa risposta dell'AD, la catena
+vecchia dà telefono e indirizzo «non trovato», quella nuova «confermato».
 
 ## Il lavoro meccanico del server dell'AD (21-25, 98)
 

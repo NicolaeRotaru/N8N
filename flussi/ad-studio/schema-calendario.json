@@ -1,0 +1,213 @@
+[
+{
+"id": "id",
+"displayName": "id",
+"required": false,
+"defaultMatch": true,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "cliente",
+"displayName": "cliente",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "tipo",
+"displayName": "tipo",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "piattaforme",
+"displayName": "piattaforme",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "data_ora",
+"displayName": "data_ora",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "didascalia",
+"displayName": "didascalia",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "primo_commento",
+"displayName": "primo_commento",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "media",
+"displayName": "media",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "copertina",
+"displayName": "copertina",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "stato",
+"displayName": "stato",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "esecuzione",
+"displayName": "esecuzione",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "link_ig",
+"displayName": "link_ig",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "link_fb",
+"displayName": "link_fb",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "pubblicato_il",
+"displayName": "pubblicato_il",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "errore",
+"displayName": "errore",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "note",
+"displayName": "note",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "brief",
+"displayName": "brief",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "tag_persone",
+"displayName": "tag_persone",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "collaboratori",
+"displayName": "collaboratori",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "luogo",
+"displayName": "luogo",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "string",
+"canBeUsedToMatch": true,
+"removed": false
+},
+{
+"id": "row_number",
+"displayName": "row_number",
+"required": false,
+"defaultMatch": false,
+"display": true,
+"type": "number",
+"canBeUsedToMatch": true,
+"readOnly": true,
+"removed": true
+}
+]

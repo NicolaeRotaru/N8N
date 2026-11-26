@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eseguiCodice } from './esegui-codice.mjs';
 import {
-  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, CODICE_PREPARA_BUSINESS, CODICE_UNISCI_BUSINESS, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
+  CODICE_RICHIESTA, CODICE_PAGINA_4, CODICE_PREPARA_ANALISI, CODICE_SCHEDA_SITO, CODICE_PREPARA_BUSINESS, CODICE_UNISCI_BUSINESS, CODICE_CANALI_SITO, codicePagina, trasforma, controlla, PERCORSO_WEBHOOK, NOME_16, SOLO_NEL_12, RICERCA_CON_CLAUDE,
 } from '../16-nuovo-cliente-da-mycity/genera.mjs';
 
 const richiesta = (attivita = {}, extra = {}) => [{ json: { headers: {}, body: {
@@ -139,6 +139,7 @@ function modulo12Mini() {
         { name: 'RICERCA_CON_CLAUDE', value: 'si' }] } }),
       nodo('Prepara la ricerca', 'n8n-nodes-base.code', { jsCode: "const f = $('Modulo nuovo cliente').first().json;" }),
       nodo('Cerca il locale con Claude', 'n8n-nodes-base.httpRequest', { url: 'https://api.anthropic.com/v1/messages', jsonBody: '={{ JSON.stringify($json.corpo) }}' }),
+      nodo('Leggi la ricerca', 'n8n-nodes-base.code', { jsCode: 'return [];' }),
       nodo('Controlla la proposta', 'n8n-nodes-base.code', { jsCode: 'return [];' }),
       tg('Avvisa: ricerca fermata', '={{ $json.messaggio_stop }}'),
       nodo('Nuovo cliente? (dopo lo stop)', 'n8n-nodes-base.if'),
@@ -164,7 +165,8 @@ function modulo12Mini() {
       'Modulo nuovo cliente': vai('Config'),
       Config: vai('Prepara la ricerca'),
       'Prepara la ricerca': vai('Cerca il locale con Claude'),
-      'Cerca il locale con Claude': vai('Controlla la proposta'),
+      'Cerca il locale con Claude': vai('Leggi la ricerca'),
+      'Leggi la ricerca': vai('Controlla la proposta'),
       'Controlla la proposta': vai('Anteprima su Telegram', 'Avvisa: ricerca fermata'),
       'Avvisa: ricerca fermata': vai('Nuovo cliente? (dopo lo stop)'),
       'Nuovo cliente? (dopo lo stop)': vai('Prepara le pagine', 'Fine: aggiornamento fermato'),
@@ -451,8 +453,10 @@ test("con «Chiedi all'AD» il 16 chiede l'analisi del business fra la ricerca e
   assert.equal(nomi.includes('Analizza il business con Claude'), false);
   assert.equal(w.nodes.filter((n) => /business/.test(n.name)).some((n) => JSON.stringify(n.parameters).includes('api.anthropic.com')), false);
   assert.equal(w.nodes.find((n) => n.name === "Chiedi all'AD: analisi del business").parameters.workflowId.value, 'id-chiedi');
-  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
-  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito']);
+  // 26/11/2026 — Fra la ricerca e la domanda all'AD ci sono i fatti del rapporto dell'imprenditore.
+  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ['Fatti · Prepara']);
+  assert.deepEqual(w.connections['Fatti · Componi'].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
+  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito', "Prepara l'analisi dei social per il sito"]);
   assert.deepEqual(controlla(w), []);
   // Senza «Chiedi all'AD» il 16 resta com'era: dalla ricerca alle bozze.
   const senza = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19' });
@@ -466,7 +470,8 @@ test("la domanda all'AD tiene i dati fra i tag e chiede una fonte per ogni frase
   assert.equal(json.id, 'x');
   assert.match(json.richiesta.system, /Ogni frase ha la sua fonte/);
   assert.match(json.richiesta.system, /non il marketplace/);
-  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse']);
+  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social',
+    'reputazione_temi', 'confronto_concorrenti', 'idee_dal_confronto', 'occasioni', 'soldi_pubblici', 'piano_30_giorni']);
   assert.equal(json.richiesta.messages[0].content.includes('<istruzione>'), false);
 });
 
@@ -513,13 +518,15 @@ test("un'attività del modulo 12 trova la sua riga Clienti: non si riscrive e l'
   assert.throws(() => trasforma(modulo12Mini(), { credenziale, sito: 'https://mycity.example' }), /serve anche --bozze/);
 });
 
-test('dal sito arrivano il sito del locale (solo https) e se l attività l ha iscritta il modulo 12', async () => {
+test('dal sito arrivano il sito del locale (http o https: il lettore apre solo https, AD 26/11) e se l attività l ha iscritta il modulo 12', async () => {
   const [{ json }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'https://barroma.it' }, { provenienza: 'modulo-12' }), statico: {} });
   assert.equal(json.sito, 'https://barroma.it');
   assert.equal(json.dal_modulo_12, true);
   const [{ json: altro }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'http://x.it', id: 'c0b240c0-2a86-4218-9d0f-5154f08ff930' }), statico: {} });
-  assert.equal(altro.sito, '');
+  assert.equal(altro.sito, 'http://x.it');
   assert.equal(altro.dal_modulo_12, false);
+  const [{ json: ftp }] = await eseguiCodice(CODICE_RICHIESTA, { input: richiesta({ sito: 'ftp://x.it', id: 'c0b240c0-2a86-4218-9d0f-5154f08ff931' }), statico: {} });
+  assert.equal(ftp.sito, '');
 });
 
 test("dal secondo collaudo: l'AD può cercare sul web, i voti non sono prezzi, con la ricerca fermata l'analisi del business va al sito", async () => {
@@ -535,4 +542,443 @@ test("dal secondo collaudo: l'AD può cercare sul web, i voti non sono prezzi, c
   assert.equal(s.mandare, true);
   assert.deepEqual(s.corpo.campi, {});
   assert.equal(s.corpo.analisi.business.clienti.length, 1);
+});
+
+// --- 25/11/2026 sera: il giudizio sul sito di oggi e sui social, per offrire sito e social solo dove valgono di più -------
+// Nicola: «offrire una bozza del sito nell'abbonamento solo dove possiamo offrire valore più grande di quello che offre il
+// sito dell'azienda adesso» e «bisogna inserire anche l'analisi dei social dell'azienda come quella del sito web».
+
+const ID = 'c0b240c0-2a86-4218-9d0f-5154f08ff929';
+const RISPOSTA_COMPLETA = {
+  situazione: [{ testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it/chi-siamo' }],
+  mercato: [], clienti: [], opportunita: [], rischi: [], prime_mosse: [],
+  giudizio_sito: { esiste: 'si', livello: 'pregio', aspetto: 'curato', pagine: 'molte', funzioni: ['prenotazioni', 'piu_lingue', 'teletrasporto', 'prenotazioni'],
+    migliorie: 'Prenotazione dal telefono in due tocchi e il menu del giorno aggiornato da WhatsApp.', nota: 'Foto grandi e professionali, testi in tre lingue.',
+    fonte: 'https://barroma.it', non_trovato: ['quando è stato aggiornato'] },
+  social: {
+    instagram: { stato: 'fatta', fonte: 'https://www.instagram.com/barroma', livello: 'debole', follower: 1200, post_al_mese: 2, ultimo_post_il: '2026-11-02',
+      video: false, cura: 'fai-da-te', risposte_recensioni: null, osservazioni: ['Foto scattate col telefono, senza testo.', 'Il caffè costa 1,20 euro.'],
+      migliorie: 'Un post a settimana con la colazione del giorno e un breve video.', non_trovato: ['risposte ai commenti'] },
+    facebook: { stato: 'fatta', fonte: 'barroma-facebook', livello: 'attivo', follower: 900, osservazioni: ['Pagina ferma.'] },
+    tiktok: { stato: 'non_trovato', fonte: null },
+    google: { stato: 'fatta', fonte: 'https://maps.google.com/?cid=1', livello: 'pregio', valutazione: 4.6, recensioni: 210, risposte_recensioni: false, video: 'spesso',
+      osservazioni: ['Media 4,6 su 5, nessuna risposta del titolare.'], migliorie: 'Rispondere a ogni recensione entro due giorni.' },
+    myspace: { stato: 'fatta', fonte: 'https://myspace.com/x' },
+  },
+};
+const PRIMA_DI_UNIRE = { id: ID, nome: 'Bar Roma', scheda: { analisi: { tipo_di_locale: 'bar' }, sito_ufficiale: 'https://barroma.it' }, richiesta: { model: 'm' } };
+const unisci = async (risposta, prima = PRIMA_DI_UNIRE) => (await eseguiCodice(CODICE_UNISCI_BUSINESS, {
+  input: [{ json: { content: [{ text: JSON.stringify(risposta) }] } }], nodi: { "Prepara l'analisi del business": [{ json: prima }] } }))[0].json;
+
+// Il formato che il sito accetta su POST /api/agenzia/analisi-canali (mycity/lib/agenzia/analisi.ts, AnalisiCanaliInArrivo),
+// scritto qui a mano: canali solo quei quattro, numeri solo quelle cinque voci, fonti https, frasi al massimo 240 caratteri.
+function problemiCanali(corpo) {
+  const p = [];
+  if (corpo.tipo !== 'analisi-canali') p.push('tipo');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(corpo.id_attivita)) p.push('id_attivita');
+  if (Number.isNaN(Date.parse(corpo.fatta_il)) || !/Z$|[+-]\d\d:\d\d$/.test(corpo.fatta_il)) p.push('fatta_il');
+  const nomi = Object.keys(corpo.canali || {});
+  if (!nomi.length) p.push('nessun canale');
+  for (const nome of nomi) {
+    if (!['instagram', 'facebook', 'tiktok', 'google'].includes(nome)) { p.push(`canale ${nome}`); continue; }
+    const c = corpo.canali[nome];
+    if (!['fatta', 'non_trovato', 'privato', 'non_disponibile', 'errore'].includes(c.stato)) p.push(`${nome}.stato`);
+    if (c.fonte != null && !/^https:\/\//.test(c.fonte)) p.push(`${nome}.fonte`);
+    for (const k of Object.keys(c.numeri || {})) if (!['follower', 'post_ultimi_30_giorni', 'ultimo_post_il', 'valutazione', 'recensioni'].includes(k)) p.push(`${nome}.numeri.${k}`);
+    for (const k of ['osservazioni', 'consigli']) if (c[k] && (c[k].length > 6 || c[k].some((v) => typeof v !== 'string' || v.length > 240))) p.push(`${nome}.${k}`);
+  }
+  return p;
+}
+
+test("la domanda all'AD chiede anche il giudizio sul sito di oggi e sui social, con le fonti e senza inventare", async () => {
+  const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  const schema = json.richiesta.output_config.format.schema;
+  assert.ok(schema.required.includes('giudizio_sito'));
+  assert.ok(schema.required.includes('social'));
+  const gs = schema.properties.giudizio_sito.properties;
+  for (const k of ['livello', 'aspetto', 'pagine', 'funzioni', 'migliorie', 'fonte']) assert.ok(gs[k], `giudizio_sito.${k}`);
+  assert.deepEqual(gs.livello.enum.filter(Boolean), ['semplice', 'medio', 'pregio']);
+  const so = schema.properties.social.properties;
+  assert.deepEqual(Object.keys(so).sort(), ['facebook', 'google', 'instagram', 'tiktok']);
+  for (const k of ['stato', 'fonte', 'livello', 'post_al_mese', 'video', 'cura', 'risposte_recensioni', 'migliorie']) assert.ok(so.instagram.properties[k], `social.instagram.${k}`);
+  assert.deepEqual(so.instagram.properties.livello.enum, ['debole', 'attivo', 'forte', null]);
+  assert.deepEqual(so.instagram.properties.video.type, ['boolean', 'null']);
+  assert.deepEqual(so.instagram.properties.risposte_recensioni.type, ['boolean', 'null']);
+  assert.match(json.richiesta.system, /non si trova/i);
+  assert.match(json.richiesta.system, /Premium/);
+});
+
+test("il giudizio sul sito va nella scheda (analisi.giudizio_sito), ripulito: fuori elenco = non detto, senza fonte = niente", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  assert.deepEqual(u.scheda.analisi.giudizio_sito, { esiste: 'si', livello: 'pregio', aspetto: 'curato', pagine: 'molte', funzioni: ['prenotazioni', 'piu_lingue'],
+    migliorie: 'Prenotazione dal telefono in due tocchi e il menu del giorno aggiornato da WhatsApp.', nota: 'Foto grandi e professionali, testi in tre lingue.',
+    fonte: 'https://barroma.it', non_trovato: ['quando è stato aggiornato'] });
+  assert.equal(u.scheda.analisi.tipo_di_locale, 'bar', 'il resto della scheda resta');
+  // Senza una fonte https il giudizio non si tiene: il sito lo tratterà come «non guardato» (vale medio).
+  const senzaFonte = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { ...RISPOSTA_COMPLETA.giudizio_sito, fonte: 'barroma.it' } });
+  assert.equal(senzaFonte.scheda.analisi.giudizio_sito, undefined);
+  // Valori fuori elenco diventano null, una miglioria con un prezzo si toglie.
+  const strano = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { ...RISPOSTA_COMPLETA.giudizio_sito, livello: 'stellare', aspetto: 'bello', migliorie: 'Rifarlo a 990 euro.' } });
+  assert.equal(strano.scheda.analisi.giudizio_sito.livello, null);
+  assert.equal(strano.scheda.analisi.giudizio_sito.aspetto, null);
+  assert.equal(strano.scheda.analisi.giudizio_sito.migliorie, null);
+  // Nessun sito: si dice, senza fonte (non c'è una pagina da citare). Ma se il locale un sito l'ha dichiarato, l'AD si è sbagliato.
+  const nessuno = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { esiste: 'no' } }, { ...PRIMA_DI_UNIRE, scheda: { analisi: {} } });
+  assert.equal(nessuno.scheda.analisi.giudizio_sito.esiste, 'no');
+  assert.equal(nessuno.scheda.analisi.giudizio_sito.livello, null);
+  const contraddice = await unisci({ ...RISPOSTA_COMPLETA, giudizio_sito: { esiste: 'no' } });
+  assert.equal(contraddice.scheda.analisi.giudizio_sito, undefined);
+});
+
+test("il giudizio sui social esce nel formato che il sito accetta: un canale senza fonte non si tiene, niente prezzi", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  const corpo = { tipo: 'analisi-canali', id_attivita: ID, fatta_il: '2026-11-25T20:00:00.000Z', canali: u.analisi_canali };
+  assert.deepEqual(problemiCanali(corpo), []);
+  const { instagram, facebook, tiktok, google } = u.analisi_canali;
+  assert.equal('myspace' in u.analisi_canali, false);
+  assert.equal(instagram.stato, 'fatta');
+  assert.equal(instagram.fonte, 'https://www.instagram.com/barroma');
+  assert.deepEqual(instagram.numeri, { follower: 1200, post_ultimi_30_giorni: 2, ultimo_post_il: '2026-11-02' });
+  assert.deepEqual(instagram.osservazioni, ['Foto scattate col telefono, senza testo.'], 'la frase col prezzo si toglie');
+  assert.deepEqual(instagram.consigli, ['Un post a settimana con la colazione del giorno e un breve video.']);
+  assert.deepEqual(instagram.giudizio, { livello: 'debole', post_al_mese: 2, video: false, cura: 'fai-da-te', risposte_recensioni: null,
+    migliorie: 'Un post a settimana con la colazione del giorno e un breve video.', non_trovato: ['risposte ai commenti'] });
+  assert.equal(facebook.stato, 'non_disponibile', 'letto senza una fonte https: non si tiene');
+  assert.equal(facebook.numeri, undefined);
+  assert.deepEqual(tiktok, { stato: 'non_trovato', fonte: null });
+  assert.deepEqual(google.numeri, { valutazione: 4.6, recensioni: 210 });
+  assert.equal(google.giudizio.risposte_recensioni, false);
+  assert.equal(google.giudizio.livello, null, 'semplice/medio/pregio valgono solo per il sito');
+  assert.equal(google.giudizio.video, null, 'una stringa non è un sì o un no');
+  assert.deepEqual(google.osservazioni, ['Media 4,6 su 5, nessuna risposta del titolare.'], 'un voto non è un prezzo');
+  // Se l'AD non ha risposto sui social, non si manda niente (non sappiamo, non diciamo «non trovato»).
+  const senza = await unisci({ ...RISPOSTA_COMPLETA, social: undefined });
+  assert.equal(senza.analisi_canali, null);
+});
+
+test("la scheda al sito porta il giudizio sul sito, anche quando la ricerca si è fermata", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero') });
+  assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio');
+  const [{ json: fermata }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', { ok: false }) });
+  assert.equal(fermata.mandare, true);
+  assert.equal(fermata.corpo.analisi.giudizio_sito.livello, 'pregio');
+  const [{ json: senza }] = await eseguiCodice(CODICE_SCHEDA_SITO, { nodi: NODI_SCHEDA('vero') });
+  assert.equal(senza.corpo.analisi.giudizio_sito, undefined);
+});
+
+test("i social vanno al sito con la porta analisi-canali: mai in prova, solo con un id valido e un'analisi vera", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  const [{ json }] = await eseguiCodice(CODICE_CANALI_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero') });
+  assert.equal(json.mandare, true);
+  assert.deepEqual(problemiCanali(json.corpo), []);
+  assert.equal(json.corpo.id_attivita, ID);
+  assert.equal(json.corpo.origine, 'n8n-16');
+  assert.equal(json.corpo.canali.instagram.letto_il, json.corpo.fatta_il);
+  for (const [modalita, entrata, nodi, motivo] of [
+    ['prova', u, {}, /prova/],
+    ['vero', { ...u, analisi_canali: null }, {}, /social/],
+    ['vero', u, { 'Modulo nuovo cliente': [{ json: { id_mycity: 'attivita-1', nome_locale: 'X' } }] }, /id/],
+  ]) {
+    const [{ json: j }] = await eseguiCodice(CODICE_CANALI_SITO, { input: [{ json: entrata }], nodi: { ...NODI_SCHEDA(modalita), ...nodi } });
+    assert.equal(j.mandare, false);
+    assert.match(j.motivo, motivo);
+  }
+});
+
+test("con --sito e «Chiedi all'AD» il 16 manda i social alla porta analisi-canali, accanto alla scheda; se il sito non li prende avvisa", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi', sito: 'https://mycity.example', credenzialeSito: { id: 'cs', name: 'MyCity - Segreto scheda cliente' }, modalita: 'vero' });
+  assert.deepEqual(controlla(w), []);
+  assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node),
+    ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito', "Prepara l'analisi dei social per il sito"]);
+  const manda = w.nodes.find((n) => n.name === 'Manda i social al sito');
+  assert.equal(manda.parameters.method, 'POST');
+  assert.match(manda.parameters.url, /MYCITY_SITO \}\}\/api\/agenzia\/analisi-canali$/);
+  assert.equal(manda.credentials.httpHeaderAuth.id, 'cs');
+  assert.equal(manda.onError, 'continueRegularOutput');
+  assert.deepEqual(w.connections['Il sito ha preso i social?'].main[1].map((v) => v.node), ['Avvisa: social non arrivati al sito']);
+  const avviso = w.nodes.find((n) => n.name === 'Avvisa: social non arrivati al sito').parameters.text.match(/^=\{\{ ([\s\S]*) \}\}$/)[1];
+  const testo = new Function('$', '$json', `return (${avviso});`)(() => ({ first: () => ({ json: { nome_locale: 'Bar <X>' } }) }), { statusCode: 400 });
+  assert.match(testo, /Bar &lt;X&gt;/);
+  // Senza «Chiedi all'AD» non c'è giudizio sui social: niente nodi.
+  assert.equal(conSito().nodes.some((n) => /social/.test(n.name)), false);
+  // Il controllo vede la credenziale mancante.
+  const rotto = structuredClone(w);
+  rotto.nodes.find((n) => n.name === 'Manda i social al sito').credentials.httpHeaderAuth.id = 'DA_IMPOSTARE';
+  assert.match(controlla(rotto).join('\n'), /social al sito non ha la credenziale/);
+});
+
+// --- Dal collaudo indipendente, e i due pezzi in più chiesti dall'AD (25/11/2026 sera) ------------------------------
+
+test("dal collaudo: una fonte https che non si apre non passa, e nemmeno telefoni, email e prezzi in non_trovato o nelle migliorie", async () => {
+  const r = structuredClone(RISPOSTA_COMPLETA);
+  r.social.instagram.fonte = 'https://%zz';
+  r.social.facebook = { stato: 'privato', fonte: 'https://[foo' };
+  r.giudizio_sito.non_trovato = ['telefono del titolare 0523 123456', 'listino: caffè 1,20 €', 'mail mario.rossi@gmail.com', { x: 1 }, 'orari di apertura'];
+  r.giudizio_sito.migliorie = 'Pacchetto sito da EUR2 o chf 50, Brioche 2 E';
+  r.social.google.non_trovato = ['cell 333 1234567'];
+  r.social.google.migliorie = 'Brioche 2 E per chi lascia una recensione.';
+  r.social.google.ultimo_post_il = '2026-13-45';
+  const u = await unisci(r);
+  assert.equal(u.analisi_canali.instagram.stato, 'non_disponibile');
+  assert.equal(u.analisi_canali.facebook.fonte, null);
+  assert.deepEqual(problemiCanali({ tipo: 'analisi-canali', id_attivita: ID, fatta_il: '2026-11-25T20:00:00.000Z', canali: u.analisi_canali }), []);
+  assert.deepEqual(u.scheda.analisi.giudizio_sito.non_trovato, ['orari di apertura']);
+  assert.equal(u.scheda.analisi.giudizio_sito.migliorie, null);
+  assert.deepEqual(u.analisi_canali.google.giudizio.non_trovato, []);
+  assert.equal(u.analisi_canali.google.giudizio.migliorie, null);
+  assert.equal(u.analisi_canali.google.consigli, undefined);
+  // Un anno seguito da «e» non è un prezzo; una data che non esiste o nel futuro non si tiene.
+  const r2 = structuredClone(RISPOSTA_COMPLETA);
+  r2.giudizio_sito.nota = 'Rifatto nel 1980 e mai più aggiornato.';
+  r2.social.instagram.ultimo_post_il = '2999-01-01';
+  const u2 = await unisci(r2);
+  assert.equal(u2.scheda.analisi.giudizio_sito.nota, 'Rifatto nel 1980 e mai più aggiornato.');
+  assert.equal(u2.analisi_canali.instagram.numeri.ultimo_post_il, undefined);
+});
+
+test("l'AD: il segno «analisi fatta» arriva al sito anche quando tutte le sezioni sono vuote, con gli avvisi dell'AD", async () => {
+  const vuota = { situazione: [], mercato: [], clienti: [], opportunita: [], rischi: [], prime_mosse: [], giudizio_sito: { esiste: 'non_so' }, social: {} };
+  const [{ json: u }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, {
+    input: [{ json: { content: [{ text: JSON.stringify(vuota) }], avvisi: ['Nessuna fonte pubblica sul locale.', 'Chiamate il 0523 123456', 7] } }],
+    nodi: { "Prepara l'analisi del business": [{ json: { id: 'x', scheda: null, richiesta: {} } }] } });
+  assert.equal(u.scheda.analisi.business, undefined);
+  assert.ok(!Number.isNaN(Date.parse(u.scheda.analisi.business_fatta_il)));
+  assert.deepEqual(u.scheda.analisi.business_avvisi, ['Nessuna fonte pubblica sul locale.']);
+  assert.equal(u.analisi_business, 'fatta, senza fonti');
+  // La ricerca si è fermata e l'analisi è vuota: il segno va al sito lo stesso.
+  const [{ json: s }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', { ok: false }) });
+  assert.equal(s.mandare, true);
+  assert.equal(s.corpo.analisi.business_fatta_il, u.scheda.analisi.business_fatta_il);
+  assert.deepEqual(s.corpo.analisi.business_avvisi, ['Nessuna fonte pubblica sul locale.']);
+  // Se l'AD non ha risposto davvero, nessun segno: l'analisi non è fatta.
+  const [{ json: no }] = await eseguiCodice(CODICE_UNISCI_BUSINESS, { input: [{ json: { error: { message: 'AD: tempo scaduto' } } }],
+    nodi: { "Prepara l'analisi del business": [{ json: { id: 'x', scheda: null, richiesta: {} } }] } });
+  assert.equal(no.scheda, null);
+});
+
+test("l'AD: ogni opportunità dice quale servizio la copre (foto_video, sito_web, social, analisi)", async () => {
+  const [{ json: d }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  const voce = d.richiesta.output_config.format.schema.properties.opportunita.items;
+  assert.ok(voce.required.includes('servizio'));
+  assert.deepEqual(voce.properties.servizio.enum, ['foto_video', 'sito_web', 'social', 'analisi', null]);
+  const r = { ...RISPOSTA_COMPLETA, opportunita: [
+    { testo: 'Frase senza fonte, da scartare per prima.', fonte: 'x', servizio: 'social' },
+    { testo: 'Nessuno pubblica foto della colazione in zona.', fonte: 'https://x.it/a', servizio: 'foto_video' },
+    { testo: 'Il sito non permette di prenotare un tavolo.', fonte: 'https://x.it/b', servizio: 'teletrasporto' },
+  ] };
+  const u = await unisci(r);
+  assert.deepEqual(u.scheda.analisi.business.opportunita.map((v) => v.servizio), ['foto_video', null]);
+  assert.equal('servizio' in u.scheda.analisi.business.situazione[0], false);
+});
+
+// --- Il contratto del sito (sessione del preventivo, ramo mycity claude/sito-dove-vale-di-piu, 25/11/2026 sera) -----------
+
+test('contratto: ogni oggetto dello schema per l\'AD chiede tutte le sue voci e nessuna in più', async () => {
+  const [{ json }] = await eseguiCodice(CODICE_PREPARA_BUSINESS, { input: [{ json: { id: 'x' } }],
+    nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: { nome_locale: 'Bar Roma' } }] } });
+  const visita = (nodo, dove) => {
+    if (!nodo || typeof nodo !== 'object') return;
+    if (nodo.properties) {
+      assert.equal(nodo.additionalProperties, false, `${dove}: additionalProperties`);
+      assert.deepEqual([...nodo.required].sort(), Object.keys(nodo.properties).sort(), `${dove}: required`);
+      for (const [k, v] of Object.entries(nodo.properties)) visita(v, `${dove}.${k}`);
+    }
+    if (nodo.items) visita(nodo.items, `${dove}[]`);
+  };
+  visita(json.richiesta.output_config.format.schema, 'schema');
+  const s = json.richiesta.output_config.format.schema.properties;
+  assert.deepEqual(s.giudizio_sito.properties.funzioni.items.enum, ['prenotazioni', 'negozio_online', 'piu_lingue', 'blog', 'menu', 'galleria', 'modulo_contatti', 'area_clienti']);
+  assert.match(s.giudizio_sito.properties.migliorie.description, /Rifacciamo il tuo sito/);
+  for (const sez of ['opportunita', 'prime_mosse']) {
+    assert.ok(s[sez].items.properties.proposta, `${sez}.proposta`);
+    assert.match(s[sez].items.properties.proposta.description, /160 caratteri/);
+  }
+  assert.equal(s.situazione.items.properties.proposta, undefined);
+});
+
+test('contratto: servizio e proposta su opportunità e prime mosse (10-160 caratteri, niente prezzi), scartati altrove; migliorie da 10 caratteri', async () => {
+  const r = structuredClone(RISPOSTA_COMPLETA);
+  r.situazione = [{ testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it', servizio: 'social', proposta: 'Una proposta che qui non va.' }];
+  r.opportunita = [{ testo: 'Nessuno pubblica foto della colazione in zona.', fonte: 'https://x.it/a', servizio: 'foto_video', proposta: 'Un servizio fotografico della colazione per il profilo.' },
+    { testo: 'Il sito non permette di prenotare un tavolo.', fonte: 'https://x.it/b', servizio: 'sito_web', proposta: 'Corta' }];
+  r.prime_mosse = [{ testo: 'Mettere gli orari giusti sulla scheda Google del bar.', fonte: 'https://maps.google.com/x', servizio: 'analisi', proposta: 'Sistemiamo la scheda Google a 49 euro.' },
+    { testo: 'Pubblicare il menu del giorno ogni mattina su Instagram.', fonte: 'https://www.instagram.com/barroma', servizio: 'social', proposta: 'x'.repeat(161) }];
+  r.giudizio_sito.migliorie = 'Il menu';
+  const u = await unisci(r);
+  const b = u.scheda.analisi.business;
+  assert.deepEqual(b.situazione[0], { testo: 'Bar storico in centro, aperto dal 1980 secondo il suo sito.', fonte: 'https://barroma.it' });
+  assert.deepEqual(b.opportunita.map((v) => [v.servizio, v.proposta]), [['foto_video', 'Un servizio fotografico della colazione per il profilo.'], ['sito_web', null]]);
+  assert.deepEqual(b.prime_mosse.map((v) => [v.servizio, v.proposta]), [['analisi', null], ['social', null]]);
+  assert.equal(u.scheda.analisi.giudizio_sito.migliorie, null, 'meno di 10 caratteri');
+});
+
+test("contratto (AD, fonte unica): il giudizio sui social sta solo in analisi-canali, mai nella scheda; il giudizio sul sito arriva con la ricerca in fondo o no", async () => {
+  const u = await unisci(RISPOSTA_COMPLETA);
+  assert.equal(u.scheda.analisi.giudizio_social, undefined);
+  assert.equal(u.analisi_canali.instagram.giudizio.livello, 'debole');
+  for (const proposta of [PROPOSTA, { ok: false }]) {
+    const [{ json }] = await eseguiCodice(CODICE_SCHEDA_SITO, { input: [{ json: u }], nodi: NODI_SCHEDA('vero', proposta) });
+    assert.equal(json.mandare, true);
+    assert.equal(JSON.stringify(json.corpo).includes('giudizio_social'), false);
+    assert.equal(JSON.stringify(json.corpo).includes('"giudizio":'), false, 'nessuna copia del giudizio sui social nella scheda');
+    assert.equal(json.corpo.analisi.giudizio_sito.livello, 'pregio');
+  }
+});
+
+test("dal secondo collaudo: telefoni con barra, parentesi o lineetta lunga non passano; fonti che non si aprono, proposte senza servizio e date assurde nemmeno", async () => {
+  const r = structuredClone(RISPOSTA_COMPLETA);
+  r.opportunita = [
+    { testo: 'Nessuno pubblica foto della colazione in zona.', fonte: 'https://x.it/a', servizio: 'foto_video', proposta: 'Chiama 0523/123456 per le foto' },
+    { testo: 'Il sito non permette di prenotare un tavolo.', fonte: 'https://x.it/b', servizio: null, proposta: 'Rifacciamo il sito con le prenotazioni.' },
+    { testo: 'Mancano le foto del bancone in vetrina.', fonte: 'https://%zz', servizio: 'foto_video', proposta: 'Fotografiamo il bancone e le colazioni.' },
+  ];
+  r.giudizio_sito.nota = 'Numero in alto: tel (0523) 123456 ben visibile.';
+  r.social.instagram.migliorie = 'Scriveteci al +39 (0523) 123456 o allo 0523–123456 ogni giorno.';
+  r.social.instagram.ultimo_post_il = '0000-01-01';
+  const u = await unisci(r);
+  assert.deepEqual(u.scheda.analisi.business.opportunita.map((v) => [v.servizio, v.proposta]), [['foto_video', null], [null, null]]);
+  assert.equal(u.scheda.analisi.giudizio_sito.nota, null);
+  assert.equal(u.analisi_canali.instagram.giudizio.migliorie, null);
+  assert.equal(u.analisi_canali.instagram.numeri.ultimo_post_il, undefined);
+  // Un anno o un orario restano: non sono telefoni.
+  const r2 = structuredClone(RISPOSTA_COMPLETA);
+  r2.giudizio_sito.nota = 'Aperto dal 1980, orari 7-19 dal lunedì al sabato.';
+  assert.equal((await unisci(r2)).scheda.analisi.giudizio_sito.nota, 'Aperto dal 1980, orari 7-19 dal lunedì al sabato.');
+});
+
+
+// --- 25/11/2026 sera (AD): il giudizio sul sito dalle pagine che n8n ha già scaricato ------------------------------
+// La rete della routine dell'AD è chiusa: non può aprire il sito del locale. Le pagine le ha già scaricate n8n, in
+// «Leggi la ricerca» (corpus.pagine, fino a 30.000 caratteri ciascuna): quelle del sito del locale vanno all'AD fra i dati.
+
+const CORPUS = (pagine) => ({ 'Leggi la ricerca': [{ json: { corpus: { pagine: Object.fromEntries(pagine.map((p, i) => ['p' + i, p])), frammenti: [], citati_letti: [] } } }] });
+const preparaConPagine = async (nodi, f = { nome_locale: 'Bar Roma', sito: 'https://www.barroma.it' }) => (await eseguiCodice(CODICE_PREPARA_BUSINESS, {
+  input: [{ json: { id: 'x', scheda: { sito_ufficiale: '' } } }], nodi: { Config: [{ json: {} }], 'Modulo nuovo cliente': [{ json: f }], ...nodi } }))[0].json;
+const datiDi = (json) => JSON.parse(json.richiesta.messages[0].content.split('<dati_dell_attivita>\n')[1].split('\n</dati_dell_attivita>')[0]);
+
+test("il giudizio sul sito: all'AD vanno le pagine del sito del locale che n8n ha già scaricato, e solo quelle", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://barroma.it/', testo: 'Bar Roma. Colazioni dal 1980. Prenota un tavolo. Menu in inglese.' },
+    { url: 'https://www.barroma.it/menu', testo: 'Il nostro menu: brioche, cappuccino.' },
+    { url: 'https://www.instagram.com/barroma', testo: 'Profilo Instagram del Bar Roma.' },
+    { url: 'https://www.tripadvisor.it/bar-roma', testo: 'Recensioni del Bar Roma.' },
+  ]));
+  const dati = datiDi(json);
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://barroma.it/', 'https://www.barroma.it/menu']);
+  assert.match(dati.pagine_del_sito[0].testo, /Prenota un tavolo/);
+  assert.match(json.richiesta.system, /pagine_del_sito/);
+  assert.match(json.richiesta.system, /scaricat/);
+});
+
+test("il sito del locale si prende da quello dichiarato o, se manca, da quello che ha trovato la ricerca; senza ricerca niente pagine", async () => {
+  const pagine = CORPUS([{ url: 'https://pizzeria-luna.it/chi-siamo', testo: 'Pizzeria Luna, forno a legna.' }]);
+  const dallaRicerca = await preparaConPagine({ ...pagine, 'Controlla la proposta': [{ json: { ok: true, sito_ufficiale: 'https://pizzeria-luna.it' } }] }, { nome_locale: 'Luna' });
+  assert.deepEqual(datiDi(dallaRicerca).pagine_del_sito.map((p) => p.url), ['https://pizzeria-luna.it/chi-siamo']);
+  const senzaSito = await preparaConPagine(pagine, { nome_locale: 'Luna' });
+  assert.deepEqual(datiDi(senzaSito).pagine_del_sito, []);
+  const senzaRicerca = await preparaConPagine({});
+  assert.deepEqual(datiDi(senzaRicerca).pagine_del_sito, []);
+});
+
+test("le pagine del sito si tagliano: il lavoro per l'AD resta sotto i 64 KB anche con pagine lunghe e piene di accenti", async () => {
+  const lunga = 'Qualità è perché più caffè '.repeat(2000);
+  const json = await preparaConPagine(CORPUS(Array.from({ length: 8 }, (_, i) => ({ url: `https://www.barroma.it/p${i}`, testo: lunga }))));
+  const lavoro = JSON.stringify({ compito: json.richiesta.system, dati: { messaggio: json.richiesta.messages[0].content }, schema: json.richiesta.output_config.format.schema });
+  assert.ok(Buffer.byteLength(lavoro, 'utf8') < 60000, `il lavoro pesa ${Buffer.byteLength(lavoro, 'utf8')} byte`);
+  const dati = datiDi(json);
+  assert.ok(dati.pagine_del_sito.length >= 1);
+  assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
+});
+
+// --- 25/11/2026, 23:05 (AD, terza prova vera su Ora del Gusto): l'analisi del business riceve TUTTE le pagine scaricate ----
+// La ricerca aveva trovato e scaricato una pagina di un portale (sluurpy.it), ma l'analisi del business restava vuota: l'AD
+// non poteva aprirla, e «Prepara l'analisi del business» passava solo le pagine del sito del locale.
+
+test("l'analisi del business riceve anche le altre pagine scaricate (portali, elenchi, giornali), dopo quelle del sito", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'Bar Roma, Piacenza: bar caffetteria, 4,5 su 5.' },
+    { url: 'https://www.barroma.it/', testo: 'Bar Roma. Colazioni dal 1980.' },
+    { url: 'https://www.ilpiacenza.it/articolo', testo: 'Articolo di giornale sul Bar Roma di via Roma a Piacenza.' },
+  ]));
+  const dati = datiDi(json);
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.barroma.it/']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/bar-roma', 'https://www.ilpiacenza.it/articolo']);
+  assert.match(dati.altre_pagine[0].testo, /bar caffetteria/);
+  assert.match(json.richiesta.system, /altre_pagine/);
+  assert.match(json.richiesta.system, /omonim/);
+  // Senza sito del locale conosciuto, tutte le pagine scaricate vanno fra le altre.
+  const senzaSito = datiDi(await preparaConPagine(CORPUS([{ url: 'https://www.sluurpy.it/x', testo: 'Scheda di Ora del Gusto a Piacenza.' }]), { nome_locale: 'Ora del Gusto' }));
+  assert.deepEqual(senzaSito.pagine_del_sito, []);
+  assert.deepEqual(senzaSito.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
+});
+
+test("con tante pagine lunghe il sito del locale ha la precedenza, e il lavoro resta sotto i 64 KB", async () => {
+  const lunga = 'Qualità è perché più caffè '.repeat(2000);
+  const json = await preparaConPagine(CORPUS([
+    ...Array.from({ length: 8 }, (_, i) => ({ url: `https://portale${i}.it/scheda`, testo: 'Bar Roma, Piacenza. ' + lunga })),
+    ...Array.from({ length: 3 }, (_, i) => ({ url: `https://www.barroma.it/p${i}`, testo: lunga })),
+  ]));
+  const lavoro = JSON.stringify({ compito: json.richiesta.system, dati: { messaggio: json.richiesta.messages[0].content }, schema: json.richiesta.output_config.format.schema });
+  assert.ok(Buffer.byteLength(lavoro, 'utf8') < 60000, `il lavoro pesa ${Buffer.byteLength(lavoro, 'utf8')} byte`);
+  const dati = datiDi(json);
+  assert.equal(dati.pagine_del_sito.length, 3, 'le pagine del sito ci sono tutte');
+  assert.ok(dati.pagine_del_sito.every((p) => p.testo.length > 0));
+  assert.ok(dati.altre_pagine.length >= 1);
+});
+
+// --- 26/11/2026 · Il rapporto dell'imprenditore: le fonti a pagamento nascono spente, e con DataForSEO collegato lo storico non si salva ----
+test("rapporto: di serie le fonti a pagamento sono spente e finte; con DataForSEO collegato il 26 non salva le esecuzioni", () => {
+  const w = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi' });
+  const cfg = Object.fromEntries(w.nodes.find((n) => n.name === 'Config').parameters.assignments.assignments.map((a) => [a.name, a.value]));
+  for (const k of ['GOOGLE', 'TRIPADVISOR', 'DATAFORSEO', 'INSTAGRAM']) { assert.equal(cfg[`FONTE_${k}`], 'no'); assert.equal(cfg[`CREDENZIALE_${k}`], 'finta'); }
+  assert.deepEqual(controlla(w), []);
+  assert.equal(w.nodes.filter((n) => /googleapis|tripadvisor|dataforseo|graph\.facebook/.test(JSON.stringify(n.parameters?.url || ''))).every((n) => n.disabled === true), true);
+  const conDfs = trasforma(modulo12Mini(), { credenziale, bozze: 'id-19', chiedi: 'id-chiedi', credenzialiFonti: { dataforseo: 'cred-d' } });
+  assert.equal(conDfs.settings.saveDataSuccessExecution, 'none');
+  assert.equal(conDfs.settings.saveDataErrorExecution, 'none');
+  assert.deepEqual(controlla(conDfs), []);
+  conDfs.settings.saveDataSuccessExecution = 'all';
+  assert.ok(controlla(conDfs).some((p) => /24 ore/.test(p)));
+});
+
+// --- 26/11/2026 (Nicola: «fai anche le altre cose»): gli omonimi si fermano nel codice, non solo nel prompt -----------
+// Una pagina di portale passa all'AD solo se nel suo testo ci sono le parole distintive del nome (non «bar», «ristorante»…)
+// e la città dell'attività. Le pagine del sito del locale non hanno bisogno del controllo.
+
+test("omonimi: una pagina di portale senza il nome o senza la città dell'attività non arriva all'AD", async () => {
+  const json = await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'BAR ROMA – Piacenza (PC). Caffetteria in centro.' },
+    { url: 'https://www.sluurpy.it/milano/bar-roma', testo: 'Bar Roma, Milano: aperitivi sui Navigli.' },
+    { url: 'https://www.tripadvisor.it/bar-piacenza', testo: 'I migliori bar di Piacenza: Bar Centrale, Caffè Grande.' },
+    { url: 'https://www.paginegialle.it/caffe-milano', testo: 'Caffè Milano a Piacenza.' },
+  ]), { nome_locale: 'Bar Roma', citta: 'Piacenza' });
+  const dati = datiDi(json);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/piacenza/bar-roma']);
+  assert.equal(dati.pagine_scartate_omonimi, 3);
+});
+
+test("omonimi: accenti, maiuscole e parole generiche del nome non contano; il sito del locale passa sempre", async () => {
+  const dati = datiDi(await preparaConPagine(CORPUS([
+    { url: 'https://www.sluurpy.it/x', testo: "ORA DEL GUSTO di Sant'Ambrogio, piacenza: bar e gelateria." },
+    { url: 'https://www.oradelgusto.it/', testo: 'Benvenuti! Il nostro bar.' },
+  ]), { nome_locale: 'Bar Ora del Gusto', citta: 'Piacenza', sito: 'https://www.oradelgusto.it' }));
+  assert.deepEqual(dati.pagine_del_sito.map((p) => p.url), ['https://www.oradelgusto.it/']);
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url), ['https://www.sluurpy.it/x']);
+  const accenti = datiDi(await preparaConPagine(CORPUS([{ url: 'https://p.it/a', testo: 'Caffe Citta di Piacenza, Piacenza.' }]),
+    { nome_locale: 'Caffè Città', citta: 'Piacenza' }));
+  assert.deepEqual(accenti.altre_pagine.map((p) => p.url), ['https://p.it/a']);
+});
+
+// --- Dal collaudo indipendente della #22 (26/11): parole vicine, città nell'indirizzo, dominio col nome ----------------------
+test("omonimi, dal collaudo: le parole del nome vanno vicine; la città vale anche nell'indirizzo; il dominio col nome è del locale", async () => {
+  const dati = datiDi(await preparaConPagine(CORPUS([
+    { url: 'https://www.tripadvisor.it/bar-piacenza', testo: 'I migliori bar di Piacenza: Bar Centrale in via Roma 12, aperitivi.' },
+    { url: 'https://www.sluurpy.it/piacenza/bar-roma', testo: 'Bar Roma. Via Garibaldi 3. Caffetteria.' },
+    { url: 'https://www.barroma.it/menu', testo: 'Il nostro menu: Bar Roma, colazioni.' },
+  ]), { nome_locale: 'Bar Roma', citta: 'Piacenza', sito: '' }));
+  assert.deepEqual(dati.altre_pagine.map((p) => p.url).sort(), ['https://www.barroma.it/menu', 'https://www.sluurpy.it/piacenza/bar-roma']);
+  assert.equal(dati.pagine_scartate_omonimi, 1);
 });

@@ -8,6 +8,11 @@ proposte Base, Business e Premium per l'attività nuova, pronte da mandare dopo 
 gruppo Telegram «Attività») e **17 · Analisi del marketplace** (il giro
 dell'AD sui numeri di MyCity, ogni mattina su Telegram). Come si rigenerano e si provano: `flussi/LEGGIMI.md`.
 
+## flussi/ad-studio/
+Tre flussi spenti con cui l'AD (piano Max, nessuna API di IA) lavora i contenuti dei clienti: **AD · Leggi materiale**
+(anteprime da Drive), **AD · Carica su Drive** e **AD · Proponi nel Calendario** (riga `da_approvare` + anteprima su
+Telegram con Approva / Rifiuta). Primo uso: i 13 contenuti di dicembre di El Tropico Latino. Dettagli: `flussi/ad-studio/LEGGIMI.md`.
+
 ## officina/
 Piccolo servizio HTTP che gira accanto a n8n sullo stesso server Sliplane.
 Ritaglia e sistema le foto, prepara provini e confronti per le approvazioni,
