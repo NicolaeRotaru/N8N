@@ -16,7 +16,7 @@
 // nemmeno un'esecuzione) e dal nodo «Segreto giusto?».
 // Le schede restano nella tabella «Schede per il venditore»: non si cancella niente, si archivia.
 //
-// Uso:  node flussi/14-scheda-venditore/costruisci.mjs --impronta <sha256 del segreto> --sdk 14|14b   (stampa il codice SDK per l'MCP)
+// Uso:  node flussi/14-scheda-venditore/costruisci.mjs --impronta <sha256 del segreto> --sdk 14|14b|14c   (stampa il codice SDK per l'MCP)
 //       node flussi/14-scheda-venditore/costruisci.mjs --impronta <…> --controlla                  (solo i controlli)
 
 import { randomUUID } from 'node:crypto';
@@ -32,6 +32,10 @@ export const PERCORSO_AVVIA = 'scheda-venditore';
 export const PERCORSO_RISULTATO = 'scheda-venditore-risultato';
 export const TABELLA = 'Schede per il venditore';
 export const TABELLA_ID = 'Stmyk8hvuUYE2sHa';
+export const NOME_14C = '14c · Venditori della scheda';
+export const PERCORSO_VENDITORI = 'venditori-scheda';
+export const TABELLA_VENDITORI = 'Venditori della scheda';
+export const TABELLA_VENDITORI_ID = 'x2HYV1HU6kis5HVc';
 export const CHIEDI_ID = 'fRtCLoVmjbbWo9uB'; // «90 · Chiedi all'AD»
 export const AVVISI_ERRORI_ID = 'D3Ugm3sc201nteFX'; // «99 · Avvisi errori»
 const QUI = dirname(fileURLToPath(import.meta.url));
@@ -44,6 +48,7 @@ export const controlloSegreto = (impronta, dove = '$json.headers') => {
 };
 
 const tabella = () => ({ __rl: true, mode: 'id', value: TABELLA_ID, cachedResultName: TABELLA });
+const tabellaVenditori = () => ({ __rl: true, mode: 'id', value: TABELLA_VENDITORI_ID, cachedResultName: TABELLA_VENDITORI });
 const colonne = (nomi, valori) => ({
   mappingMode: 'defineBelow', value: valori, matchingColumns: [],
   schema: nomi.map(([id, type]) => ({ id, displayName: id, required: false, defaultMatch: false, display: true, type, canBeUsedToMatch: true })),
@@ -72,17 +77,17 @@ export function costruisci14({ impronta }) {
     rispondi('Rifiuta: lavoro storto', '={{ JSON.stringify({ ok: false, errore: $json.motivo }) }}', 400, pos(4, 1)),
     { id: randomUUID(), name: 'Segna: in corso', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4),
       parameters: { resource: 'row', operation: 'insert', dataTableId: tabella(),
-        columns: colonne([['lavoro', 'string'], ['stato', 'string'], ['nome', 'string'], ['prima', 'string'], ['iniziato', 'number']],
-          { lavoro: '={{ $json.lavoro }}', stato: 'in_corso', nome: '={{ $json.nome }}', prima: '={{ $json.prima }}', iniziato: '={{ $json.iniziato }}' }), options: {} } },
+        columns: colonne([['lavoro', 'string'], ['stato', 'string'], ['nome', 'string'], ['venditore', 'string'], ['prima', 'string'], ['iniziato', 'number']],
+          { lavoro: '={{ $json.lavoro }}', stato: 'in_corso', nome: '={{ $json.nome }}', venditore: '={{ $json.venditore }}', prima: '={{ $json.prima }}', iniziato: '={{ $json.iniziato }}' }), options: {} } },
     rispondi('Rispondi: partito', "={{ JSON.stringify({ ok: true, lavoro: $('Controlla il lavoro').first().json.lavoro }) }}", 202, pos(5)),
     { id: randomUUID(), name: "Per l'AD", type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(6),
       parameters: { jsCode: "// Un solo lavoro per «90 · Chiedi all'AD»: { flusso, compito, dati, schema }.\nreturn [{ json: $('Controlla il lavoro').first().json.job }];" } },
-    { id: randomUUID(), name: "Chiedi all'AD", type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: pos(7), onError: 'continueRegularOutput',
+    { id: randomUUID(), name: "Chiedi all'AD", type: 'n8n-nodes-base.executeWorkflow', typeVersion: 1.3, position: pos(7), onError: 'continueRegularOutput', alwaysOutputData: true,
       parameters: { source: 'database', workflowId: { __rl: true, mode: 'id', value: CHIEDI_ID, cachedResultName: "90 · Chiedi all'AD" },
         workflowInputs: { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true },
         mode: 'once', options: { waitForSubWorkflow: true } } },
     { id: randomUUID(), name: "Componi l'esito", type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(8), parameters: { jsCode: codice('componi-esito.js') } },
-    { id: randomUUID(), name: "Segna: l'esito", type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(9),
+    { id: randomUUID(), name: "Segna: l'esito", type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(9), retryOnFail: true, maxTries: 3, waitBetweenTries: 2000,
       parameters: { resource: 'row', operation: 'update', dataTableId: tabella(), matchType: 'allConditions',
         filters: { conditions: [{ keyName: 'lavoro', condition: 'eq', keyValue: '={{ $json.lavoro }}' }] },
         columns: colonne([['stato', 'string'], ['risultato', 'string'], ['avvisi', 'string'], ['errore', 'string'], ['secondi', 'number']],
@@ -137,6 +142,86 @@ export function costruisci14b({ impronta }) {
   return { name: NOME_14B, nodes: nodi, connections: collega, settings: impostazioni(AVVISI_ERRORI_ID, { availableInMCP: true }) };
 }
 
+
+/**
+ * 14c · Venditori della scheda — gli account dei venditori (Nicola, 26/11/2026: «ogni venditore ha il suo account,
+ * con la sua email e la password»). La password non arriva mai a n8n: il sito manda solo l'impronta scrypt.
+ * Quattro azioni: leggi (per entrare), iscrivi (solo con il codice d'invito, controllato dal sito), segna
+ * (accesso riuscito o sbagliato: il blocco dopo troppi errori lo calcola il sito), elenco (le schede del venditore).
+ * Per sospendere un venditore: stato «sospeso» nella tabella. Per la password dimenticata: stato «reset», e il
+ * venditore rifà l'iscrizione con la stessa email. Non si cancella niente.
+ */
+export function costruisci14c({ impronta }) {
+  const pos = (i, riga = 0) => [i * 240, riga * 200];
+  const nodi = [];
+  const collega = {};
+  const vai = (da, ...verso) => { collega[da] = { main: verso.map((v) => (v ? [{ node: v, type: 'main', index: 0 }] : [])) }; };
+  const caso = (valore) => ({ conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
+    conditions: [{ id: randomUUID(), leftValue: '={{ $json.azione }}', rightValue: valore, operator: { type: 'string', operation: 'equals' } }], combinator: 'and' },
+    renameOutput: true, outputKey: valore });
+  const perEmail = (espr) => ({ conditions: [{ keyName: 'email', condition: 'eq', keyValue: espr }] });
+  nodi.push(
+    webhook('Dal sito del venditore', 'POST', PERCORSO_VENDITORI, impronta, pos(0)),
+    { id: randomUUID(), name: 'Segreto giusto?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(1), parameters: condizione(controlloSegreto(impronta, "$('Dal sito del venditore').first().json.headers")) },
+    rispondi('Rifiuta: segreto', '={{ JSON.stringify({ ok: false, errore: "segreto sbagliato" }) }}', 401, pos(2, 2)),
+    { id: randomUUID(), name: 'Smista', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2), parameters: { jsCode: codice('smista-venditori.js') } },
+    { id: randomUUID(), name: 'Cosa fare?', type: 'n8n-nodes-base.switch', typeVersion: 3.4, position: pos(3),
+      parameters: { mode: 'rules', rules: { values: ['leggi', 'iscrivi', 'segna', 'elenco'].map(caso) }, options: { fallbackOutput: 'extra', renameFallbackOutput: 'storta' } } },
+    rispondi('Rifiuta: richiesta storta', '={{ JSON.stringify({ ok: false, errore: $json.motivo || "richiesta storta" }) }}', 400, pos(4, 3)),
+    // leggi
+    { id: randomUUID(), name: 'Leggi il venditore', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4, -1), alwaysOutputData: true,
+      parameters: { resource: 'row', operation: 'get', dataTableId: tabellaVenditori(), matchType: 'allConditions', filters: perEmail('={{ $json.email }}'), returnAll: false, limit: 1 } },
+    { id: randomUUID(), name: 'Componi il venditore', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, -1), parameters: { jsCode: codice('componi-venditore.js') } },
+    rispondi('Rispondi: venditore', '={{ JSON.stringify($json) }}', 200, pos(6, -1)),
+    // iscrivi
+    { id: randomUUID(), name: 'C’è già?', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4, 0), alwaysOutputData: true,
+      parameters: { resource: 'row', operation: 'get', dataTableId: tabellaVenditori(), matchType: 'allConditions', filters: perEmail('={{ $json.email }}'), returnAll: false, limit: 1 } },
+    { id: randomUUID(), name: 'Si può iscrivere?', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, 0), parameters: { jsCode: codice('si-puo-iscrivere.js') } },
+    { id: randomUUID(), name: 'Iscrivibile?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(6, 0), parameters: condizione('={{ $json.ok === true }}') },
+    { id: randomUUID(), name: 'Scrivi il venditore', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(7, 0),
+      parameters: { resource: 'row', operation: 'upsert', dataTableId: tabellaVenditori(), matchType: 'allConditions', filters: perEmail('={{ $json.email }}'),
+        columns: colonne([['email', 'string'], ['hash', 'string'], ['stato', 'string'], ['creato', 'number'], ['errori', 'number'], ['bloccato_fino', 'number']],
+          { email: '={{ $json.email }}', hash: '={{ $json.hash }}', stato: 'attivo', creato: '={{ $json.creato }}', errori: 0, bloccato_fino: 0 }), options: {} } },
+    rispondi('Rispondi: iscritto', '={{ JSON.stringify({ ok: true }) }}', 200, pos(8, 0)),
+    rispondi('Rispondi: c’è già', '={{ JSON.stringify({ ok: false, errore: "esiste" }) }}', 409, pos(7, 1)),
+    // segna
+    { id: randomUUID(), name: 'Segna l’accesso', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4, 1),
+      parameters: { resource: 'row', operation: 'update', dataTableId: tabellaVenditori(), matchType: 'allConditions', filters: perEmail('={{ $json.email }}'),
+        columns: colonne([['errori', 'number'], ['bloccato_fino', 'number'], ['ultimo_accesso', 'number']],
+          { errori: '={{ $json.errori }}', bloccato_fino: '={{ $json.bloccato_fino }}', ultimo_accesso: '={{ $json.ultimo_accesso }}' }), options: {} } },
+    rispondi('Rispondi: segnato', '={{ JSON.stringify({ ok: true }) }}', 200, pos(5, 1)),
+    // elenco
+    { id: randomUUID(), name: 'Le sue schede', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(4, 2), alwaysOutputData: true,
+      parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), matchType: 'allConditions',
+        filters: { conditions: [{ keyName: 'venditore', condition: 'eq', keyValue: '={{ $json.email }}' }] }, returnAll: false, limit: 20,
+        orderBy: true, orderByColumn: 'createdAt', orderByDirection: 'DESC' } },
+    { id: randomUUID(), name: 'Componi l’elenco', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(5, 2), parameters: { jsCode: codice('componi-elenco.js') } },
+    rispondi('Rispondi: elenco', '={{ JSON.stringify($json) }}', 200, pos(6, 2)),
+  );
+  vai('Dal sito del venditore', 'Segreto giusto?');
+  vai('Segreto giusto?', 'Smista', 'Rifiuta: segreto');
+  vai('Smista', 'Cosa fare?');
+  vai('Cosa fare?', 'Leggi il venditore', 'C’è già?', 'Segna l’accesso', 'Le sue schede', 'Rifiuta: richiesta storta');
+  vai('Leggi il venditore', 'Componi il venditore');
+  vai('Componi il venditore', 'Rispondi: venditore');
+  vai('C’è già?', 'Si può iscrivere?');
+  vai('Si può iscrivere?', 'Iscrivibile?');
+  vai('Iscrivibile?', 'Scrivi il venditore', 'Rispondi: c’è già');
+  vai('Scrivi il venditore', 'Rispondi: iscritto');
+  vai('Segna l’accesso', 'Rispondi: segnato');
+  vai('Le sue schede', 'Componi l’elenco');
+  vai('Componi l’elenco', 'Rispondi: elenco');
+  nodi.push({ id: randomUUID(), name: 'Nota · Leggimi', type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: [0, -620],
+    parameters: { width: 820, height: 300, content: [
+      `## ${NOME_14C}`, '',
+      "**Cosa fa.** Gli account dei venditori del sito «Scheda del cliente»: ognuno entra con la sua email e la sua password. Qui arriva solo l'impronta della password (scrypt), mai la password.", '',
+      "**Sospendere un venditore:** nella tabella «Venditori della scheda» metti lo stato a «sospeso». **Password dimenticata:** stato «reset», poi il venditore si iscrive di nuovo con la stessa email e il codice d'invito. Non si cancella niente.", '',
+      "**Il segreto** è lo stesso del flusso 14 (intestazione x-scheda-segreto, qui solo l'impronta).", '',
+      '**Generato** da `N8N/flussi/14-scheda-venditore/costruisci.mjs`.',
+    ].join('\n') } });
+  return { name: NOME_14C, nodes: nodi, connections: collega, settings: impostazioni(AVVISI_ERRORI_ID, { availableInMCP: true }) };
+}
+
 export function controlla(w) {
   const problemi = controllaBase(w);
   const tipi = w.nodes.map((n) => n.type);
@@ -153,7 +238,7 @@ function principale(argv) {
   const i = argv.indexOf('--impronta');
   const impronta = i >= 0 ? argv[i + 1] : '';
   const quale = argv[argv.indexOf('--sdk') + 1];
-  const flussi = { '14': costruisci14({ impronta }), '14b': costruisci14b({ impronta }) };
+  const flussi = { '14': costruisci14({ impronta }), '14b': costruisci14b({ impronta }), '14c': costruisci14c({ impronta }) };
   const problemi = Object.values(flussi).flatMap((w) => controlla(w).map((p) => `${w.name}: ${p}`));
   if (problemi.length) { console.error(`✗ ${problemi.join('\n✗ ')}`); return 1; }
   if (argv.includes('--sdk')) { console.log(inSdk(flussi[quale])); return 0; }

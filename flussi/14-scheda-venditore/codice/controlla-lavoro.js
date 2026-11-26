@@ -1,5 +1,5 @@
 // 14 · Scheda per il venditore · Controlla il lavoro
-// Il sito del venditore (Vercel, cartella venditore/ del repo ad-mycity) manda: { lavoro, nome, prima, flusso, compito, dati, schema }.
+// Il sito del venditore (Vercel, cartella venditore/ del repo ad-mycity) manda: { lavoro, venditore, nome, prima, flusso, compito, dati, schema }.
 // Il segreto l'ha già controllato «Segreto giusto?». Qui si controlla la forma: un lavoro storto non parte e non si conta.
 const b = ($('Dal sito del venditore').first().json || {}).body || {};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -9,6 +9,8 @@ if (typeof b.compito !== 'string' || b.compito.length < 50 || b.compito.length >
 if (!b.dati || typeof b.dati !== 'object') return no('dati mancanti');
 if (!b.schema || typeof b.schema !== 'object') return no('schema mancante');
 if (!b.prima || typeof b.prima !== 'object') return no('prima scheda mancante');
+const venditore = String(b.venditore || '').trim().toLowerCase();
+if (venditore.length > 200 || !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(venditore)) return no('venditore mancante');
 const prima = JSON.stringify(b.prima);
 if (prima.length > 80000) return no('prima scheda troppo grande');
 const richiesta = JSON.stringify({ compito: b.compito, dati: b.dati, schema: b.schema });
@@ -17,6 +19,7 @@ return [{ json: {
   valido: true,
   lavoro: String(b.lavoro).toLowerCase(),
   nome: String(b.nome || '').slice(0, 120),
+  venditore,
   prima,
   iniziato: Date.now(),
   job: { flusso: '14 · Scheda per il venditore', compito: b.compito, dati: b.dati, schema: b.schema },
