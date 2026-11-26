@@ -128,7 +128,7 @@ const titoli = (html) => {
   for (const m of pulito.matchAll(/<(h[1-4]|a)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
     const t = decodifica(m[2].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
     if (t.length < 25 || t.length > 180) continue;
-    if (/cookie|privacy|accedi|abbonati|newsletter|iscriviti|leggi tutto|continua a leggere/i.test(t)) continue;
+    if (/cookie|privacy|accedi|abbonati|newsletter|iscriviti|leggi tutto|continua a leggere|salta al contenuto|vai al contenuto|^esplora |^menu|^cerca|area riservata|amministrazione trasparente|^home/i.test(t)) continue;
     const k = t.toLowerCase(); if (visti.has(k)) continue; visti.add(k); fuori.push(t);
   }
   return fuori;

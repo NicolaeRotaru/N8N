@@ -138,7 +138,9 @@ export function nodiFatti([x, y], { credenziali = {} } = {}) {
     nodoCodice(N.posizione, CODICE_FATTI_POSIZIONE, pos(4)),
     se(N.ifPosizione, `={{ ${POS}.buona === true }}`, pos(5)),
     http(N.overpass, pos(6, -1), { method: 'POST', url: 'https://overpass-api.de/api/interpreter', ...intestazioni(UA),
-      sendBody: true, contentType: 'form-urlencoded', bodyParameters: { parameters: [{ name: 'data', value: `={{ ${POS}.overpass_query }}` }] }, options: risposta() }),
+      sendBody: true, contentType: 'form-urlencoded', bodyParameters: { parameters: [{ name: 'data', value: `={{ ${POS}.overpass_query }}` }] },
+      // Overpass risponde spesso 502/504 quando è carico: qui l'errore non si nasconde (neverError no), così il nodo riprova.
+      options: { response: { response: { fullResponse: true } }, timeout: 30000 } }, { retryOnFail: true, maxTries: 3, waitBetweenTries: 5000 }),
     http(N.meteo, pos(7, -1), { method: 'GET', url: `={{ ${POS}.meteo_url }}`, ...intestazioni(UA), options: risposta() }),
     nodoCodice(N.radar, CODICE_FATTI_FONTI_RADAR, pos(8)),
     http(N.scaricaRadar, pos(9), { method: 'GET', url: '={{ $json.url }}', ...intestazioni(UA),
