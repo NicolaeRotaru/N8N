@@ -20,7 +20,7 @@ const PAGAMENTO = {
   google: { voce: 'FONTE_GOOGLE', credenziale: 'CREDENZIALE_GOOGLE', tetto: 'TETTO_GOOGLE_GIORNO', chiamate: 1, tettoBase: 20 },
   tripadvisor: { voce: 'FONTE_TRIPADVISOR', credenziale: 'CREDENZIALE_TRIPADVISOR', tetto: 'TETTO_TRIPADVISOR_GIORNO', chiamate: 1, tettoBase: 20 },
   dataforseo: { voce: 'FONTE_DATAFORSEO', credenziale: 'CREDENZIALE_DATAFORSEO', tetto: 'TETTO_DATAFORSEO_GIORNO', chiamate: 4, tettoBase: 12 },
-  instagram: { voce: 'FONTE_INSTAGRAM', credenziale: 'CREDENZIALE_INSTAGRAM', tetto: 'TETTO_INSTAGRAM_GIORNO', chiamate: 1, tettoBase: 50 },
+  instagram: { voce: 'FONTE_INSTAGRAM', credenziale: 'CREDENZIALE_INSTAGRAM', tetto: 'TETTO_INSTAGRAM_GIORNO', chiamate: 6, tettoBase: 60 },
 };
 const numero = (v, base) => (v === '' || v == null || !Number.isFinite(Number(v)) ? base : Math.max(0, Math.floor(Number(v))));
 
@@ -110,7 +110,8 @@ return [{ json: {
     tipo_osm: tipoOsm, tipo_detto: tipoDetto.slice(0, 200),
     tripadvisor_categoria: categoriaTripadvisor,
     profilo_instagram: profiloInstagram || null,
-    // Le parole che la gente cerca su Google per trovarla (DataForSEO: volumi e posizione). Al massimo 5.
+    // Instagram: 1 chiamata per lei e al massimo 5 per i concorrenti (si contano tutte e 6 prima di partire).
+  // Le parole che la gente cerca su Google per trovarla (DataForSEO: volumi e posizione). Al massimo 5.
     parole_chiave: [...new Set([tipoOsm ? `${tipoOsm.etichetta} ${citta}` : '', tipoOsm ? `${tipoOsm.etichetta} vicino a me` : '', tipoOsm ? `miglior ${tipoOsm.etichetta} ${citta}` : '', nome ? `${nome} ${citta}` : ''].map((p) => p.toLowerCase().replace(/\s+/g, ' ').trim()).filter((p) => p.length >= 3 && p.length <= 80))].slice(0, 5),
     chiama, spente,
     iniziato_il: adesso.toISOString(),

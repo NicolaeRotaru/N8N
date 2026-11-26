@@ -453,7 +453,9 @@ test("con «Chiedi all'AD» il 16 chiede l'analisi del business fra la ricerca e
   assert.equal(nomi.includes('Analizza il business con Claude'), false);
   assert.equal(w.nodes.filter((n) => /business/.test(n.name)).some((n) => JSON.stringify(n.parameters).includes('api.anthropic.com')), false);
   assert.equal(w.nodes.find((n) => n.name === "Chiedi all'AD: analisi del business").parameters.workflowId.value, 'id-chiedi');
-  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
+  // 26/11/2026 — Fra la ricerca e la domanda all'AD ci sono i fatti del rapporto dell'imprenditore.
+  assert.deepEqual(w.connections["Prepara l'analisi dell'attività"].main[0].map((v) => v.node), ['Fatti · Prepara']);
+  assert.deepEqual(w.connections['Fatti · Componi'].main[0].map((v) => v.node), ["Prepara l'analisi del business"]);
   assert.deepEqual(w.connections["Unisci l'analisi del business"].main[0].map((v) => v.node), ['Bozze dei 3 abbonamenti (flusso 19)', 'Prepara la scheda per il sito', "Prepara l'analisi dei social per il sito"]);
   assert.deepEqual(controlla(w), []);
   // Senza «Chiedi all'AD» il 16 resta com'era: dalla ricerca alle bozze.
@@ -468,7 +470,8 @@ test("la domanda all'AD tiene i dati fra i tag e chiede una fonte per ogni frase
   assert.equal(json.id, 'x');
   assert.match(json.richiesta.system, /Ogni frase ha la sua fonte/);
   assert.match(json.richiesta.system, /non il marketplace/);
-  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social']);
+  assert.deepEqual(json.richiesta.output_config.format.schema.required, ['situazione', 'mercato', 'clienti', 'opportunita', 'rischi', 'prime_mosse', 'giudizio_sito', 'social',
+    'reputazione_temi', 'confronto_concorrenti', 'idee_dal_confronto', 'occasioni', 'soldi_pubblici', 'piano_30_giorni']);
   assert.equal(json.richiesta.messages[0].content.includes('<istruzione>'), false);
 });
 
