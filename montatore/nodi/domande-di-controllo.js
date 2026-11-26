@@ -24,7 +24,8 @@ if (!daControllare.length) return [{ json: { nessuno: true } }];
 return daControllare.map(({ e, indice }) => {
   const c = e.contenuto;
   const r = c.regia || {};
-  const scheda = '<scheda>\ntipo: ' + NOMI_TIPO[c.tipo] + '\ntitolo per il team: ' + dato(c.titolo) + '\nidea: ' + dato(c.idea)
+  // titolo e idea accorciati: dodici schede devono stare nei 64 KB di una corsa anche con idee lunghe
+  const scheda = '<scheda>\ntipo: ' + NOMI_TIPO[c.tipo] + '\ntitolo per il team: ' + dato(accorcia(testo(c.titolo), 120)) + '\nidea: ' + dato(accorcia(testo(c.idea), 400))
     + '\ntitolo sopra il video: ' + (dato(c.intro || r.titolo) || 'nessuno') + '\ncartello finale: ' + (dato(c.outro || r.chiusura) || 'nessuno')
     + (Number(c.durata) > 0 ? '\ndurata: ' + virgola(Number(c.durata)) + ' s' : '') + '\n</scheda>';
   return { json: { indice, percorsi: [testo(e.fotogrammi)],

@@ -14,7 +14,7 @@ if (!ok.length) {
   righe.push('Nessun file è entrato nell\'officina.');
 } else {
   righe.push('👀 <b>Ho guardato tutto</b> · ' + h(J.cliente.nome_locale));
-  righe.push(nv.length + ' video (' + virgola(minuti) + ' minuti, ' + scene + ' momenti' + (parlano ? ', in ' + parlano + ' qualcuno parla' : '') + ') e ' + (ok.length - nv.length) + ' foto. Ora Claude guarda le miniature e scrive il piano.');
+  righe.push(nv.length + ' video (' + virgola(minuti) + ' minuti, ' + scene + ' momenti' + (parlano ? ', in ' + parlano + ' qualcuno parla' : '') + ') e ' + (ok.length - nv.length) + ' foto. Ora l\'AD guarda le miniature e scrive il piano.');
 }
 if (ko.length) righe.push('Non entrati (' + ko.length + '): ' + h(accorcia(ko.map((x) => x.file + ': ' + x.motivo).join('; '), 1200)));
 if (avvisi.length) righe.push('Da sapere: ' + h(accorcia([...new Set(avvisi)].join(' '), 1500)));

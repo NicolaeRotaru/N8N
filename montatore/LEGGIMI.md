@@ -1,7 +1,13 @@
 # Montatore — LEGGIMI
 
 > **In due righe:** basta copiare il servizio nella cartella Drive del cliente. Il montatore parte da solo, prepara il piano del mese, monta tutto nello stile di Scatti di G e su Telegram ti chiede ✅ Approva o ✏️ Correggi, contenuto per contenuto.
-> Per accenderlo servono due passi tuoi: pubblicare l'officina 1.4.0 e premere Publish sul workflow 16, che è già in n8n spento.
+> Per accenderlo servono due passi tuoi: pubblicare «90 · Chiedi all'AD» con gli allegati, poi premere Publish sul «31 · Montatore», che è già in n8n spento.
+
+## Novità del 26/11/2026
+- **L'IA la fa l'AD, non più l'API di Claude a pagamento.** I cinque passi con l'IA passano da «90 · Chiedi all'AD». Il workflow si chiama «31 · Montatore».
+- **Un servizio alla volta.** Se il guardiano trova tre servizi pronti insieme, ne parte uno; gli altri aspettano in fila, uno ogni 2 ore (`GIRI_DISTANZA_MINUTI`). Così le corse dell'AD non partono in parallelo, e il conto dei tetti (40 al giorno, 25 all'ora) resta giusto.
+- **Se l'AD non riesce a guardare il materiale, il giro si ferma e lo dice.** Prima scriveva il piano lo stesso, alla cieca. Se ne guarda solo una parte, il piano si scrive e il riepilogo dice quanti gruppi di provini mancano. Anche gli avvisi dell'AD (per esempio «un allegato non si apre») arrivano nel riepilogo.
+- **Il controllo dell'AD guarda i reel, fino a 12 per giro.** Se i reel sono di più, il riepilogo dice quali non ha guardato. Le storie video, i post e i video rimontati dopo un ✏️ Correggi non ripassano dal controllo: li guardate voi sulla scheda.
 
 ## Novità del 24/11/2026, notte
 - **Parte da solo.** Ogni 15 minuti un «guardiano» guarda le cartelle Drive dei clienti attivi.
@@ -9,13 +15,13 @@
   - Esempio: alle 15:10 finite di copiare «Servizio dicembre» nella cartella del Tropico. Fra le 15:40 e le 15:55 arriva su Telegram «👀 Servizio nuovo… parto da solo», poi i messaggi di sempre.
   - Le cartelle che c'erano già prima di accendere il workflow non partono mai da sole. Parte solo una cartella con le sottocartelle del servizio («video verticali», «video orizzontali», «foto»): una cartella «Grafiche» o «Menu» no.
   - Il modulo funziona come prima. Lo stesso servizio però non parte due volte: se nel servizio c'è già la cartella «Pronti (montatore)», il modulo si ferma e lo dice. Per rifarlo davvero si scrive «rifai» nelle note.
-- **Reel e storie video con la regia di Scatti di G.** Claude scrive per ogni video le battute (chi parla, quali frasi) e le coperture scelte per significato. L'officina lo monta con la moodboard: ritmo lento, nero morbido, testi sobri, 25 fotogrammi.
+- **Reel e storie video con la regia di Scatti di G.** L'AD scrive per ogni video le battute (chi parla, quali frasi) e le coperture scelte per significato. L'officina lo monta con la moodboard: ritmo lento, nero morbido, testi sobri, 25 fotogrammi.
 - **Una scheda su Telegram per ogni contenuto.** Dentro ci sono titolo, giorno e ora, link a Drive. L'anteprima arriva solo se il cliente ha il consenso per le persone (colonna `anteprime_con_persone`).
   - ✅ **Approva**: in modalità attivo scrive la riga nel Calendario. Una storia esce «approvato» e la pubblica il 01. Un reel o un post esce «da scrivere»: il 04 fa la didascalia e te la chiede a parte.
-  - ✏️ **Correggi**: ti chiede «cosa cambio?», tu scrivi come lo diresti a voce («più corto», «togli la scena del bancone»). Claude riscrive la regia, l'officina rimonta, su Drive arriva il file «· v2» e una scheda nuova. Al massimo 3 ritocchi.
+  - ✏️ **Correggi**: ti chiede «cosa cambio?», tu scrivi come lo diresti a voce («più corto», «togli la scena del bancone»). L'AD riscrive la regia, l'officina rimonta, su Drive arriva il file «· v2» e una scheda nuova. Al massimo 3 ritocchi.
   - Il cliente non approva niente: decide Scatti di G.
-- **Il controllo finale di Claude giudica sulla moodboard**: immagini, luce, testi, racconto e decoro, con un voto da 1 a 5 che compare sulla scheda. Con un voto da 1 a 2, o quando Claude scrive «da rivedere», il video arriva così, con il motivo; un punto segnato da solo, come un'immagine un po' scura, non basta.
-- **Claude riconosce le inquadrature** (largo, medio, dettaglio, volto) quando guarda il materiale: il piano va da largo a stretto, mai tre dettagli di fila.
+- **Il controllo finale dell'AD giudica i reel sulla moodboard** (fino a 12 per giro): immagini, luce, testi, racconto e decoro, con un voto da 1 a 5 che compare sulla scheda. Con un voto da 1 a 2, o quando l'AD scrive «da rivedere», il video arriva così, con il motivo; un punto segnato da solo, come un'immagine un po' scura, non basta. Storie video, post e video rimontati non hanno il voto.
+- **L'AD riconosce le inquadrature** (largo, medio, dettaglio, volto) quando guarda il materiale: il piano va da largo a stretto, mai tre dettagli di fila.
 - **La voce si pulisce come in studio**: tolto il rimbombo e il soffio di fondo, frasi a volume uniforme.
 - **L'identità di Scatti di G sta nel Config** (`SDG_COLORE_FONDO`, `SDG_COLORE_TESTO`, `SDG_COLORE_ACCENTO`, `SDG_FONT_TITOLI`, `SDG_FONT_TESTO`): quando arrivano i colori nuovi si cambiano lì, senza toccare l'officina. Il logo nei video è quello del cliente, preso dal foglio Clienti a ogni giro: se cambia il file, cambia anche nei video.
 - **Un servizio al mese.** Il mese del piano si decide da solo. Un servizio caricato entro il giorno 10 vale per il mese in corso; dopo, per il mese successivo (`GIORNO_LIMITE_MESE`).
@@ -50,16 +56,16 @@ Niente viene pubblicato da solo. Niente viene inventato: il montaggio usa solo t
   - La cartella in prova si chiama «Pronti (montatore) - prova».
   - Quando i risultati vi convincono, nel Config del workflow mettete `MODALITA` = `attivo`.
   - In attivo, con le schede su Telegram (di serie), la riga del Calendario la scrive ✅ Approva: le storie «approvato», reel e post «da scrivere» (il 04 prepara la didascalia). Se intanto la data è passata, la riga va in «bozza».
-  - Con `REVISIONE` = `no` torna il comportamento di prima: il giro scrive tutte le righe, le storie «da approvare», reel e post «da scrivere», quello che Claude ha bocciato al controllo in «bozza».
+  - Con `REVISIONE` = `no` torna il comportamento di prima: il giro scrive tutte le righe, le storie «da approvare», reel e post «da scrivere», quello che l'AD ha bocciato al controllo in «bozza».
 
 ## Cosa devi fare
 Una volta sola, per accenderlo:
-1. **Pubblica l'officina 1.4.0** su Sliplane: è la stessa officina di prima, con le rotte nuove del montatore e della regia. Serve il merge del ramo nel `main` del repository `NicolaeRotaru/N8N`. Poi su Sliplane parte la nuova pubblicazione. Controllo: `GET {OFFICINA_URL}/salute` deve dire `versione: "1.4.0"`.
+1. **L'officina** deve essere almeno la 1.5.0 (pubblicata il 25/11). Controllo: `GET {OFFICINA_URL}/salute` deve dire `versione: "1.5.0"` o più.
 2. **Importa il workflow** `montatore/16-montatore.json` in n8n (se non c'è già: dal 25/11 si chiama «31 · Montatore», prima «16 · Montatore»). Le credenziali sono le stesse degli altri workflow. Prima di generarlo metti `CHIEDI_ID` = l'id di «90 · Chiedi all'AD» su n8n (`CHIEDI_ID=… node montatore/genera.mjs`): l'id non sta nel repository.
 
-**L'IA la fa l'AD** (Nicola, 24/11: nessun flusso chiama più l'API di Claude a pagamento). I cinque passi con l'IA (guarda il materiale, piano del mese, correggi il piano, ritocca la regia, controlla i reel) passano da «90 · Chiedi all'AD» con tre nodi ciascuno: «Per l'AD» (la richiesta diventa un lavoro, coi testi lunghi come allegati e le immagini come file dell'officina), «Chiedi all'AD» (una corsa sola per tutti gli elementi) e «Dall'AD» (la risposta nella forma di prima). Un giro usa circa 4 corse della routine (al massimo 40 al giorno per tutti i flussi). Finché «90 · Chiedi all'AD» è in prova, il montatore non riceve risposte: il giro si ferma al piano con «l'AD non ha risposto». Servono anche gli allegati attivi su n8n (Data table e «89 · Allegati per l'AD»: vedi `flussi/LEGGIMI.md`).
+**L'IA la fa l'AD** (Nicola, 24/11: nessun flusso chiama più l'API di Claude a pagamento). I cinque passi con l'IA (guarda il materiale, piano del mese, correggi il piano, ritocca la regia, controlla i reel) passano da «90 · Chiedi all'AD» con tre nodi ciascuno: «Per l'AD» (la richiesta diventa un lavoro, coi testi lunghi come allegati e le immagini come file dell'officina), «Chiedi all'AD» (una corsa sola per tutti gli elementi) e «Dall'AD» (la risposta nella forma di prima). Un giro usa circa 4 corse della routine (al massimo 40 al giorno per tutti i flussi). Finché «90 · Chiedi all'AD» è in prova, il montatore non riceve risposte: il giro si ferma al primo passo con «modalità prova: la routine non è partita». Servono anche gli allegati attivi su n8n (Data table e «89 · Allegati per l'AD»: vedi `flussi/LEGGIMI.md`).
 3. **Controlla il Config** del workflow: `OFFICINA_URL` uguale a quello dei workflow 07 e 08, `MODALITA` = `prova`.
-4. Premi **Publish** (il tasto di n8n che accende il workflow). Il modulo è all'indirizzo `/form/montatore` del vostro n8n, con lo stesso accesso degli altri moduli.
+4. Premi **Publish** (il tasto di n8n che accende il workflow). Prima va pubblicato «90 · Chiedi all'AD»: n8n non pubblica un flusso che chiama un sotto-flusso spento («references workflow … which is not published»). Il modulo è all'indirizzo `/form/montatore` del vostro n8n, con lo stesso accesso degli altri moduli.
 
 Ogni volta che c'è un servizio nuovo:
 1. Su Drive, dentro la cartella del cliente, crea la cartella del servizio con tre sottocartelle: **video verticali**, **video orizzontali**, **foto**. Vanno bene anche nomi simili («Video Verticali», «foto»), e anche file sciolti.
@@ -119,10 +125,10 @@ Un'esecuzione per file e una per contenuto: n8n tiene in memoria un file alla vo
 | `MODALITA` | `prova` | `attivo` = scrive anche nel Calendario |
 | `NOME_CARTELLA_PRONTI` | `Pronti (montatore)` | cartella d'uscita dentro il servizio (in prova con « - prova») |
 | `ANTHROPIC_MODEL` | `claude-opus-5-5` | non si usa più (l'IA la fa l'AD): resta nella richiesta che diventa il lavoro |
-| `EFFORT_CAPIRE` / `EFFORT_PIANO` / `EFFORT_CONTROLLO` | `medium` / `high` / `medium` | quanto ragiona Claude in ogni domanda |
+| `EFFORT_CAPIRE` / `EFFORT_PIANO` / `EFFORT_CONTROLLO` | `medium` / `high` / `medium` | non si usano più (l'IA la fa l'AD): restano nella richiesta che diventa il lavoro |
 | `USA_CONTROLLO` | `si` | a fine giro l'AD guarda i fotogrammi dei reel (al massimo 12, una corsa sola); storie e post li guardate voi |
 | `TRASCRIVI` / `LINGUA` | `si` / `it` | parlato trascritto (sottotitoli e frasi nel catalogo) |
-| `PROVINI_PER_DOMANDA` | `10` | provini per domanda all'AD: 30 provini al massimo = 3 domande = 33 allegati, sotto i 40 di una corsa |
+| `PROVINI_PER_DOMANDA` | `10` | provini per domanda all'AD, fra 6 e 10: 30 provini al massimo = 3 domande = 33 allegati, sotto i 40 di una corsa (con meno di 6 le domande sarebbero troppe per i 64 KB) |
 | `MAX_MB_FILE` / `MAX_FILE` | `500` / `400` | file più grandi o in più si saltano, con l'avviso |
 | `REEL` / `POST` / `STORIE` | `10` / `8` / `16` | quantità di serie, solo se il modulo le lascia vuote **e** il cliente non ha il pacchetto nel foglio Clienti |
 | `STILE_VIDEO` | `sdg` | stile della regia dei reel (`sdg` = moodboard di Scatti di G, `virale`, `pulito`) |
@@ -131,8 +137,9 @@ Un'esecuzione per file e una per contenuto: n8n tiene in memoria un file alla vo
 | `LUT` | vuoto | nome della LUT della camera caricata nell'officina, se il girato è in log |
 | `REVISIONE` | `telegram` | una scheda per contenuto con ✅ Approva / ✏️ Correggi; `no` = come prima (righe scritte dal giro) |
 | `ATTESA_REVISIONE_GIORNI` | `7` | quanto aspetta la risposta a una scheda |
-| `MAX_RITOCCHI` / `EFFORT_RITOCCO` | `3` / `medium` | quante volte si può correggere un video, e quanto ragiona Claude per farlo |
+| `MAX_RITOCCHI` / `EFFORT_RITOCCO` | `3` / `medium` | quante volte si può correggere un video (l'effort non si usa più) |
 | `AVVIO_DA_CARTELLA` / `QUIETE_MINUTI` | `si` / `30` | il guardiano delle cartelle, e quanti minuti senza file nuovi prima di partire |
+| `GIRI_DISTANZA_MINUTI` | `120` | il guardiano fa partire un servizio alla volta: il successivo dopo questi minuti (minimo 30) |
 | `GIORNO_LIMITE_MESE` | `10` | servizio caricato entro questo giorno → piano del mese in corso; dopo → del mese successivo |
 
 ### Il foglio Clienti

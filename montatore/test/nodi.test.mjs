@@ -197,11 +197,17 @@ test('Domande sul materiale: provini a gruppi, righe del catalogo giuste, prompt
   const cat = { testo: 'V01 · video verticale …\n  V01.1  0,0–4,0 s · fermo · buona\n  V01.2  4,0–7,0 s · fermo · sfocata\nV02 · video orizzontale …\n  V02.1  0,0–4,0 s · fermo · buona\nF01 · foto orizzontale · buona' };
   const lista = [{ i: 0, percorso: 'a/provino-01.jpg', codici: ['V01.1', 'V01.2'] }, { i: 1, percorso: 'a/provino-02.jpg', codici: ['V02.1', 'F01'] }, { i: 2, percorso: 'a/provino-03.jpg', codici: ['F02'] }];
   const G = { ...CONFIG, PROVINI_PER_DOMANDA: 2, cliente: { nome_locale: 'El Tropico', scheda: { menu_testo: 'Tacos' } } };
-  const r = esegui('domande-sul-materiale.js', { nodi: { Config: G, 'Officina: catalogo': cat, 'Provini da scaricare': lista }, input: [{ base64: 'AAAA' }, { base64: 'BBBB' }, { base64: 'CCCC' }] });
-  assert.equal(r.length, 2);
+  const r = esegui('domande-sul-materiale.js', { nodi: { Config: G, 'Officina: catalogo': cat, 'Provini da scaricare': lista.slice(0, 2) }, input: [{ base64: 'AAAA' }, { base64: 'BBBB' }] });
+  assert.equal(r.length, 1, 'meno di 6 provini per domanda non si può: le domande diventerebbero troppe per una corsa');
   const c = r[0].json.corpo;
   assert.deepEqual(r[0].json.codici, ['V01.1', 'V01.2', 'V02.1', 'F01']);
   assert.equal(c.messages[0].content.filter((b) => b.type === 'image').length, 2);
+  // 7 provini a 6 per domanda: due domande; un percorso che gli allegati dell'AD rifiutano si salta con i suoi codici
+  const sette = Array.from({ length: 7 }, (_, i) => ({ i, percorso: `a/provino-${i}.jpg`, codici: [`F0${i}`] }));
+  sette.push({ i: 7, percorso: 'a b/provino 7.jpg', codici: ['F09'] });
+  const due = esegui('domande-sul-materiale.js', { nodi: { Config: { ...G, PROVINI_PER_DOMANDA: 6 }, 'Officina: catalogo': cat, 'Provini da scaricare': sette } }).map((x) => x.json);
+  assert.deepEqual(due.map((d) => d.percorsi.length), [6, 1]);
+  assert.ok(!due.flatMap((d) => d.codici).includes('F09'), 'il provino col percorso sbagliato resta fuori, gli altri partono');
   const t = c.messages[0].content.at(-1).text;
   assert.match(t, /<catalogo>\nV01 · video verticale …\n {2}V01\.1.*\n {2}V01\.2.*\nV02 · video orizzontale …\n {2}V02\.1.*\nF01 · foto/);
   assert.match(t, /Menu \(per riconoscere i piatti\): Tacos/);
@@ -286,7 +292,7 @@ test('Piano finale: sceglie il piano corretto solo se è meglio; messaggi spezza
   assert.equal(con.contenuti.length, 3);
   assert.match(con.messaggi[0], /corretto una volta/);
   assert.match(con.messaggi[0], /• ven 4\/12 ore 18:30 · reel · Mojito \(4 s\)/);
-  assert.match(con.messaggi[0], /Nota di Claude: nota 2/);
+  assert.match(con.messaggi[0], /Nota dell'AD: nota 2/);
   const peggio = esegui('piano-finale.js', { nodi: { ...base, 'Officina: ricontrolla il piano': { contenuti: [CONT[0]], problemi: [] }, 'Leggi la correzione': { note: 'x' } } })[0].json;
   assert.equal(peggio.contenuti.length, 2, 'la correzione con meno contenuti non vince');
   const vuoto = esegui('piano-finale.js', { nodi: { ...base, 'Officina: controlla il piano': { contenuti: [], problemi: [{ gravita: 'blocca', messaggio: 'tutto fuori mese' }] } } })[0].json;
@@ -435,6 +441,68 @@ test('Per l\'AD e Dall\'AD: la richiesta diventa un lavoro con gli allegati; la 
   assert.equal(letto.ok, false, 'un no dell\'AD si legge come un errore, come prima un errore di Claude');
 });
 
+test('collaudo del 26/11: ordine dei lavori, risposta vera dell\'AD fino ai lettori, guarda fallito, avvisi, tetto dei controlli', () => {
+  const corpo = (t) => ({ system: 'S', messages: [{ role: 'user', content: [{ type: 'text', text: t }] }] });
+  // più lavori in una corsa: l'ordine e l'accoppiamento restano quelli d'ingresso (le risposte tornano per indice)
+  const per = esegui('per-l-ad.js', { input: [{ corpo: corpo('uno') }, { corpo: corpo('due') }, { corpo: corpo('tre') }] });
+  assert.deepEqual(per.map((x) => [x.json.dati.messaggio, x.pairedItem.item]), [['uno', 0], ['due', 1], ['tre', 2]]);
+  // la risposta vera dell'AD passa da «Dall'AD» e arriva ai lettori (piano e controllo) come una risposta buona, non troncata
+  const dall = (items) => esegui('dall-ad.js', { input: items }).map((x) => x.json);
+  const [piano] = dall([{ ok: true, risultato: { contenuti: CONT, note_per_il_team: 'n' }, avvisi: ['l\'allegato «immagine 3» non si apriva'] }]);
+  const letto = esegui('leggi-il-piano.js', { nodi: { Config: GIRO }, input: [piano] })[0].json;
+  assert.deepEqual([letto.ok, letto.troncata, letto.piano.contenuti.length, letto.avvisi_ad], [true, false, CONT.length, ['l\'allegato «immagine 3» non si apriva']]);
+  const [inRecinto] = dall([{ ok: true, risultato: '```json\n{"contenuti":[],"note_per_il_team":""}\n```' }]);
+  assert.equal(esegui('leggi-il-piano.js', { nodi: { Config: GIRO }, input: [inRecinto] })[0].json.ok, true, 'il JSON dentro ```json si legge');
+  // l'errore di n8n come stringa resta nel motivo
+  assert.match(dall([{ error: 'Workflow did not finish' }])[0].error.message, /^AD: Workflow did not finish/);
+  // «guarda» fallito del tutto: niente domanda del piano (nessuna corsa sprecata) e il giro si ferma dicendo perché
+  const no = { error: { message: 'AD: richiesta troppo grande (128405 byte)' } };
+  const cieco = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO }, input: [no, no] })[0].json;
+  assert.equal(cieco.corpo, null);
+  assert.match(cieco.fermo, /2 domande su 2 senza risposta: errore: AD: richiesta troppo grande/);
+  assert.match(esegui('per-l-ad.js', { input: [cieco] })[0].json.non_mandare, /niente da chiedere/);
+  const fermo = esegui('leggi-il-piano.js', { nodi: { Config: GIRO, "Leggi cosa c'è": cieco }, input: [{ error: { message: 'AD: niente da chiedere all\'AD' } }] })[0].json;
+  assert.equal(fermo.ok, false);
+  assert.match(fermo.messaggio, /Montatore fermo.*\nNiente piano: l'AD non ha potuto guardare il materiale/);
+  // guardato a metà: il piano si chiede, e il riepilogo dice cosa manca
+  const ok = { type: 'message', content: [{ type: 'text', text: JSON.stringify({ scene: [{ codice: 'V01.1', cosa_si_vede: 'mojito', soggetto: 'drink', inquadratura: 'dettaglio', valore: 5, aggancio: true, problemi: [] }] }) }], stop_reason: 'end_turn', avvisi: ['provino 2 sfocato'] };
+  const meta = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO }, input: [ok, no] })[0].json;
+  assert.ok(meta.corpo && !meta.fermo);
+  assert.match(meta.avvisi_ad[0], /ha guardato 1 gruppi di provini su 2/);
+  assert.ok(meta.avvisi_ad.includes('provino 2 sfocato'));
+  // il tetto dei controlli si applica DOPO aver scelto i reel: 5 post davanti non tolgono posto ai reel
+  const reel = (n) => ({ ok: true, n, contenuto: { ...CONT[0], titolo: `Reel ${n}` }, fotogrammi: `lav${n}/fotogrammi.jpg`, file: [], controllo: { esito: 'non_controllato', motivo: '' } });
+  const post = (n) => ({ ok: true, n, contenuto: CONT[1], fotogrammi: '', file: [], controllo: { esito: 'non_controllato' } });
+  const esiti = [...Array.from({ length: 5 }, (_, k) => post(k + 1)), ...Array.from({ length: 13 }, (_, k) => reel(k + 6))];
+  const dom = esegui('domande-di-controllo.js', { nodi: { Config: GIRO }, input: esiti }).map((x) => x.json);
+  assert.deepEqual([dom.length, dom[0].indice, dom.at(-1).indice], [12, 5, 16]);
+  const risposte = dall(dom.map(() => ({ ok: true, risultato: { punti: [], voto: 4, esito: 'ok', motivo: 'bene' } })));
+  const uniti = esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': esiti, 'Domande di controllo': dom, "Dall'AD: controlla i reel": risposte } }).map((x) => x.json);
+  assert.deepEqual([uniti[5].controllo.esito, uniti[5].controllo.voto], ['ok', 4], 'la risposta vera dell\'AD diventa il voto');
+  assert.equal(uniti[17].controllo.oltre_il_tetto, true, 'il 13° reel resta da guardare');
+  assert.equal(uniti[0].controllo.oltre_il_tetto, undefined, 'i post no');
+  const nodiTot = { Config: { ...GIRO, MODALITA: 'prova', REVISIONE: 'no' }, "Trova la cartella d'uscita": { id: 'x' }, 'Officina: nuovo progetto': { progetto: 'p' }, 'Piano finale': { contenuti: esiti.map((e) => e.contenuto) }, 'Leggi il piano': { avvisi_ad: ['provino 2 sfocato'] } };
+  const tot = esegui('esito-dei-montaggi.js', { nodi: nodiTot, input: uniti })[0].json.messaggi.join('\n');
+  assert.match(tot, /Da sapere: 1 reel non l'ha guardato l'AD \(al massimo 12 in una corsa\): guardateli voi\. provino 2 sfocato/);
+  // il testo lungo si spezza in allegati senza tagliare a metà un'emoji
+  const [emoji] = esegui('per-l-ad.js', { input: [{ corpo: corpo('x'.repeat(119999) + '😀' + 'y'.repeat(10)) }] }).map((x) => x.json);
+  assert.ok(emoji.allegati.every((a) => a.tipo !== 'testo' || !/[\uD800-\uDBFF]$|^[\uDC00-\uDFFF]/.test(a.contenuto)), 'nessun pezzo con mezza emoji');
+  assert.equal(emoji.allegati.filter((a) => a.tipo === 'testo').map((a) => a.contenuto).join(''), 'x'.repeat(119999) + '😀' + 'y'.repeat(10));
+});
+
+test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {
+  const nodo = (n) => workflow.nodes.find((x) => x.name === n);
+  const cond = nodo('Ci sono controlli?').parameters.conditions.conditions[0].leftValue.replace(/^=\{\{\s*|\s*\}\}$/g, '');
+  const vale = new Function('$json', `return (${cond});`);
+  assert.deepEqual([vale({ nessuno: true }), vale({ indice: 0, percorsi: ['/file/a/f.jpg'] })], [false, true]);
+  const chiedi = workflow.nodes.filter((x) => x.name.startsWith("Chiedi all'AD: "));
+  assert.equal(chiedi.length, 5);
+  for (const c of chiedi) {
+    assert.deepEqual(c.parameters.workflowInputs, { mappingMode: 'defineBelow', value: {}, matchingColumns: [], schema: [], attemptToConvertTypes: false, convertFieldsToString: true }, c.name);
+    assert.deepEqual([c.parameters.mode, c.parameters.options.waitForSubWorkflow, c.onError], ['once', true, 'continueRegularOutput'], c.name);
+  }
+});
+
 test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi una volta sola; parte dopo la quiete', () => {
   const S = {};
   const cfg = { ...CONFIG };
@@ -475,6 +543,17 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
   assert.deepEqual([pronti[0].lavoro, pronti[0].origine, pronti[0].cliente, pronti[0].cartella, pronti[0].reel], ['avvia', 'cartella', 'el-tropico', 'https://drive.google.com/drive/folders/svc1aaaaaaaaaaaaaaaaaaaa', ''], 'quantità vuote: le decide il pacchetto del cliente');
   assert.match(pronti[0].messaggio, /Servizio nuovo.*El Tropico Latino.*Servizio dicembre[\s\S]*2 file/);
   assert.ok(S.servizi.svc1aaaaaaaaaaaaaaaaaaaa.avviato);
+  // un servizio alla volta: due pronti insieme → parte il più vecchio, l'altro aspetta GIRI_DISTANZA_MINUTI
+  const due = [{ ...sub[0], servizio_id: 'sA', diretti: [] }, { ...sub[0], servizio_id: 'sB', diretti: [] }];
+  const piuVecchio = new Date(Date.now() - 90 * 60000).toISOString();
+  const S2 = { servizi: {} };
+  const primo = esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': due }, input: [{ files: [{ id: 'a1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: vecchio }] }, { files: [{ id: 'b1', name: 'b.mp4', mimeType: 'video/mp4', createdTime: piuVecchio }] }], statico: S2 }).map((x) => x.json);
+  assert.deepEqual(primo.map((x) => x.cartella), ['https://drive.google.com/drive/folders/sB'], 'parte uno solo, quello pronto da più tempo');
+  assert.match(primo[0].messaggio, /Altri 1 servizi pronti aspettano in fila: ne parte uno ogni 120 minuti/);
+  const ancora = (statico) => esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': due.slice(0, 1) }, input: [{ files: [{ id: 'a1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: vecchio }] }], statico });
+  assert.deepEqual(ancora(S2), [], 'prima di 2 ore non parte il secondo');
+  S2.ultimo_avvio = new Date(Date.now() - 121 * 60000).toISOString();
+  assert.equal(ancora(S2).length, 1, 'dopo 2 ore sì');
   // al giro dopo il servizio avviato non torna
   const di2 = esegui('guarda-servizi.js', { nodi: { 'Guarda: cartelle dei clienti': cl }, input: cartelle, statico: S }).map((x) => x.json);
   assert.deepEqual(di2.map((x) => x.servizio_nome), ['Shooting']);
@@ -688,12 +767,17 @@ test('giro simulato con l\'officina vera: catalogo → piano di Claude (finto) �
       assert.equal(r.stato, 200, JSON.stringify(r.json));
       const E = esegui('esito-del-montaggio.js', { nodi: { Config: J }, input: [r.json] })[0].json;
       assert.equal(E.ok, true);
-      assert.equal(E.controlla, m.contenuto.tipo === 'reel');
+      assert.equal(Boolean(E.fotogrammi), E.file.some((f) => f.tipo === 'video'), 'ogni video montato porta il provino dei fotogrammi per il controllo');
       const daCaricare = esegui('file-da-caricare.js', { nodi: { Config: J, 'Esito del montaggio': E } }).map((x) => x.json);
       for (const f of daCaricare) assert.equal((await A.scarica(`${s.base}/file/${f.percorso}`)).stato, 200, f.percorso);
       const finto = daCaricare.map((f, i) => ({ id: `drive-${m.n}-${i}` }));
       esitiMonta.push(esegui('esito-del-contenuto.js', { nodi: { Config: J, 'Esito del montaggio': E, 'File da caricare': daCaricare }, input: finto })[0].json);
     }
+    // ---- il controllo a fine giro, dagli esiti veri: il reel arriva alle domande col provino dei suoi fotogrammi, che l'officina serve
+    const domCtl = esegui('domande-di-controllo.js', { nodi: { Config: giro }, input: esitiMonta }).map((x) => x.json);
+    assert.deepEqual(domCtl.map((d) => esitiMonta[d.indice].contenuto.tipo), ['reel'], 'il reel montato va al controllo');
+    assert.equal((await A.scarica(`${s.base}/file/${domCtl[0].percorsi[0]}`)).stato, 200, 'il provino dei fotogrammi esiste nell\'officina');
+    assert.equal(await stannoNellAD(domCtl), 'parti');
     const nodiEsito = (cfg) => ({ Config: { ...giro, MODALITA: 'attivo', ...cfg }, "Trova la cartella d'uscita": usc, "Crea la cartella d'uscita": { id: 'idUscita' }, 'Officina: nuovo progetto': progetto, 'Piano finale': fin });
     const tot = esegui('esito-dei-montaggi.js', { nodi: nodiEsito({ REVISIONE: 'no' }), input: esitiMonta })[0].json;
     assert.equal(tot.righe.length, 3);

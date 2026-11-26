@@ -189,7 +189,13 @@ function lavoroAD(corpo, percorsi) {
   let dati;
   if (messaggio.length > 6000) {
     const pezzi = [];
-    for (let i = 0; i < messaggio.length; i += 120000) pezzi.push(messaggio.slice(i, i + 120000));
+    // pezzi da 120.000 caratteri, mai a metà di un carattere doppio (un'emoji spezzata diventerebbe «��»)
+    for (let i = 0; i < messaggio.length;) {
+      let f = Math.min(messaggio.length, i + 120000);
+      if (f < messaggio.length && /[\uD800-\uDBFF]/.test(messaggio[f - 1])) f--;
+      pezzi.push(messaggio.slice(i, f));
+      i = f;
+    }
     pezzi.forEach((p, i) => allegati.push({ nome: pezzi.length > 1 ? 'messaggio ' + (i + 1) : 'messaggio', tipo: 'testo', contenuto: p }));
     dati = { messaggio: pezzi.length > 1 ? 'Il messaggio è negli allegati «messaggio 1»…«messaggio ' + pezzi.length + '», da leggere in ordine.' : "Il messaggio è nell'allegato «messaggio»." };
   } else {
@@ -239,7 +245,8 @@ function leggiClaude(r) {
   if (!corpo || typeof corpo !== 'object') return { ok: false, motivo: 'nessuna risposta' };
   if (corpo.error) return { ok: false, motivo: 'errore: ' + accorcia(testo(corpo.error.message || corpo.error.type), 200) };
   const blocchi = Array.isArray(corpo.content) ? corpo.content : [];
-  const t = blocchi.filter((b) => b && b.type === 'text').map((b) => b.text).join('');
+  // il JSON a volte arriva dentro ```json … ``` (l'AD scrive come in chat): si tolgono i recinti
+  const t = blocchi.filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim().replace(/^```[a-zA-Z]*\s*\n?([\s\S]*?)\n?\s*```$/, '$1');
   if (!t) return { ok: false, motivo: 'risposta vuota' + (corpo.stop_reason ? ' (' + corpo.stop_reason + ')' : '') };
   let dati;
   try { dati = JSON.parse(t); } catch (e) { return { ok: false, motivo: 'JSON non leggibile' + (corpo.stop_reason === 'max_tokens' ? ' (troncata: risposta troppo lunga)' : '') }; }

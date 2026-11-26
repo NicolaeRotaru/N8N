@@ -21,7 +21,11 @@ else m.push(attivo ? 'Nel Calendario ho scritto ' + righe.length + ' righe: le s
   : 'Modalità prova: nel Calendario non ho scritto niente. Se il risultato vi convince, mettete MODALITA = attivo nel Config del workflow 16.');
 for (const x of daRivedere) m.push('🔎 ' + leggibileData(x.contenuto.data, x.contenuto.ora) + ' · ' + h(x.contenuto.titolo) + ': ' + h(x.controllo.motivo));
 for (const x of ko) m.push('❌ ' + leggibileData((x.contenuto || {}).data, (x.contenuto || {}).ora) + ' · ' + h((x.contenuto || {}).titolo || ('contenuto ' + x.n)) + ': ' + h(accorcia(testo(x.motivo) || 'errore sconosciuto', 300)));
-const avvisi = [...new Set(ok.flatMap((x) => x.avvisi || []))];
+const oltre = ok.filter((x) => x.controllo && x.controllo.oltre_il_tetto);
+// quello che l'AD ha detto mentre guardava il materiale o scriveva il piano (es. un allegato che non si apriva)
+const piano = $('Leggi il piano').isExecuted ? $('Leggi il piano').first().json || {} : {};
+const avvisi = [...new Set([...(Array.isArray(piano.avvisi_ad) ? piano.avvisi_ad : []), ...ok.flatMap((x) => x.avvisi || [])])];
+if (oltre.length) avvisi.unshift(oltre.length + (oltre.length === 1 ? " reel non l'ha guardato" : " reel non li ha guardati") + " l'AD (al massimo 12 in una corsa): guardateli voi.");
 if (avvisi.length) m.push('Da sapere: ' + h(accorcia(avvisi.join(' '), 1200)));
 // con la revisione su Telegram il Calendario lo scrive «Approva», contenuto per contenuto; il progetto resta aperto
 // nell'officina per le correzioni (scade da solo dopo PROGETTO_DURATA_ORE)

@@ -249,6 +249,8 @@ export const CONFIG = {
   // servizio caricato entro questo giorno del mese → piano del mese in corso; dopo → piano del mese successivo
   GIORNO_LIMITE_MESE: 10,
   QUIETE_MINUTI: 30,
+  // un servizio alla volta: il successivo parte dopo questi minuti (i giri in parallelo rompono il conto delle corse)
+  GIRI_DISTANZA_MINUTI: 120,
   TRASCRIVI: 'si',
   LINGUA: 'it',
   PROVINI_PER_DOMANDA: 10,
