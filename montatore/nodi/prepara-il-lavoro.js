@@ -54,8 +54,8 @@ const secondi = file.reduce((s, x) => s + (x.durata || 0), 0);
 const trascrivi = siNo(CFG.TRASCRIVI, true);
 // stima: analisi ~0,3× la durata (più ~0,8× se si trascrive), caricamento, Claude, montaggio
 // un video senza la durata di Drive (ancora in elaborazione, o un formato che Drive non legge): la durata si stima dal
-// peso, a 200 MB al minuto (fra il 1080p e il 4K del telefono)
-const secondiStimati = file.reduce((s, x) => s + (x.durata || (x.tipo === 'video' ? (x.byte / 1048576 / 200) * 60 : 0)), 0);
+// peso, a 130 MB al minuto (il 1080p del telefono; col 4K la stima esce più lunga, e il posto si libera comunque a fine giro)
+const secondiStimati = file.reduce((s, x) => s + (x.durata || (x.tipo === 'video' ? (x.byte / 1048576 / 130) * 60 : 0)), 0);
 const minuti = Math.max(5, Math.round(secondiStimati * (0.3 + (trascrivi ? 0.8 : 0)) / 60 + nf * 0.05 + file.reduce((s, x) => s + x.byte, 0) / 1048576 / 600 + 6 + richiesta.reel * 1.2 + richiesta.post * 0.3 + richiesta.storie * 0.5));
 const lavoro = {
   lavoro: 'giro',
@@ -64,7 +64,7 @@ const lavoro = {
   servizio: S,
   mese,
   richiesta,
-  note: accorcia(testo(CFG.note).replace(/\brifai\b/gi, '').replace(/^[\s,;:.\-]+/, '').trim(), 2000),
+  note: accorcia(testo(CFG.note).replace(/\b(rifai|subito)\b/gi, '').replace(/^[\s,;:.\-]+/, '').trim(), 2000),
   file,
   musica,
   scartati,
@@ -92,6 +92,7 @@ if (gia && !/\brifai\b/i.test(testo(CFG.note))) {
 // non fa partire un altro servizio finché il giro non ha finito, anche se è partito dal modulo o con «rifai». ×1,3 e 30
 // minuti in più per le attese dell'AD (fino a 15 minuti a corsa).
 const stessa = figli.find((f) => eCartella(f) && testo(f.name) === nomePronti);
-const fine = new Date(Date.now() + (Math.round(minuti * 1.3) + 30) * 60000).toISOString();
+// mai meno di GIRI_DISTANZA_MINUTI: anche un servizio piccolo fa 3-4 corse dell'AD, fino a 15 minuti l'una
+const fine = new Date(Date.now() + Math.max(Math.max(30, intero(CFG.GIRI_DISTANZA_MINUTI, 120)), Math.round(minuti * 1.3) + 30) * 60000).toISOString();
 lavoro.pronti = { nome: nomePronti, dentro: S.id, crea: !stessa, id: stessa ? testo(stessa.id) : '', fine };
 return [{ json: { ok: true, lavoro, messaggio, pronti: lavoro.pronti } }];

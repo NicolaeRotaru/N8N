@@ -182,7 +182,7 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   const { fine, ...pronti } = nuovo.pronti;
   assert.deepEqual(pronti, { nome: 'Pronti (montatore) - prova', dentro: SERVIZIO.servizio.id, crea: true, id: '' });
   const minutiFine = (Date.parse(fine) - Date.now()) / 60000;
-  assert.ok(Math.abs(minutiFine - (Math.round(nuovo.lavoro.stima_minuti * 1.3) + 30)) < 2, `la fine stimata del giro: ${Math.round(minutiFine)} minuti (stima ${nuovo.lavoro.stima_minuti})`);
+  assert.ok(Math.abs(minutiFine - Math.max(120, Math.round(nuovo.lavoro.stima_minuti * 1.3) + 30)) < 2, `la fine stimata del giro: ${Math.round(minutiFine)} minuti (stima ${nuovo.lavoro.stima_minuti})`);
   const conPronti = [...senzaPronti, { id: 'idPr', name: 'Pronti (montatore)', mimeType: 'application/vnd.google-apps.folder' }];
   const doppio = esegui('prepara-il-lavoro.js', { nodi: nodiP({}, conPronti), input: [files] })[0].json;
   assert.equal(doppio.ok, false);
@@ -193,7 +193,7 @@ test('Prepara il lavoro: video verticali prima, HEIC e file enormi saltati, musi
   assert.equal(rifai.lavoro.note, 'venerdì serata salsa');
   assert.equal(rifai.pronti.crea, true, 'in prova la cartella «… - prova» non c\'è ancora: si crea');
   // il nodo che crea subito la cartella è collegato prima della partenza del giro
-  assert.deepEqual(workflow.connections['Prepara la partenza'].main[0].map((x) => x.node), ['Serve la cartella Pronti?', 'Avvia il montaggio']);
+  assert.deepEqual(workflow.connections['Prepara la partenza'].main[0].map((x) => x.node), ['Serve la cartella Pronti?'], 'il giro parte dopo il segno sulla cartella (vedi «Segno messo?»)');
 });
 
 test('Domande sul materiale: provini a gruppi, righe del catalogo giuste, prompt e schema', () => {
@@ -576,10 +576,12 @@ test('guardiano rifatto (Nicola, 26/11): la fine stimata sta sulla cartella «Pr
   assert.deepEqual(pronti(giri(fra(-30), fra(50))), []);
   // tutti i giri finiti: B parte
   assert.equal(pronti(giri(fra(-30), fra(-5))).length, 1);
-  // una fine fra 3 giorni è sbagliata: non blocca
-  assert.equal(pronti(giri(fra(3 * 24 * 60))).length, 1);
-  // Drive non risponde: niente partenze, si riguarda al giro dopo
+  // una fine fra 3 giorni vale 24 ore: tiene fermo al massimo un giorno, poi il guardiano riparte
+  assert.deepEqual(pronti(giri(fra(3 * 24 * 60))), []);
+  // Drive non risponde, o l'elenco è incompleto (più pagine, ricerca parziale): niente partenze, si riguarda al giro dopo
   assert.deepEqual(pronti({ error: { message: 'Drive 500' } }), []);
+  assert.deepEqual(pronti({ ...giri(fra(-5)), nextPageToken: 'x' }), []);
+  assert.deepEqual(pronti({ ...giri(fra(-5)), incompleteSearch: true }), []);
   // video senza la durata di Drive (in elaborazione): la stima si fa dal peso, non cade al minimo
   const pesanti = Array.from({ length: 12 }, (_, i) => ({ id: `v${i}`, name: `c${i}.mov`, mimeType: 'video/quicktime', size: String(1.75 * 1024 ** 3), createdTime: new Date(Date.now() - 60 * 60000).toISOString() }));
   const S = { servizi: {} };
@@ -598,6 +600,44 @@ test('guardiano rifatto (Nicola, 26/11): la fine stimata sta sulla cartella «Pr
   const senzaDurata = { files: Array.from({ length: 8 }, (_, i) => ({ ...files.files[0], id: `w${i}`, name: `w${i}.mp4`, size: String(450 * 1024 ** 2), videoMediaMetadata: undefined })) };
   const stima = (f) => esegui('prepara-il-lavoro.js', { nodi: { Config: { ...CFG, note: '' }, 'Trova il cliente': TROVATO, 'Trova la cartella del servizio': { ok: true, servizio: { id: 'sA', nome: 'Servizio A' } }, 'Trova le sottocartelle': SC }, input: [f] })[0].json.lavoro.stima_minuti;
   assert.ok(stima(senzaDurata) > stima({ files: [{ ...files.files[0], videoMediaMetadata: undefined }] }) + 15, '3,6 GB senza durata pesano più di 50 MB');
+});
+
+test('quarto collaudo: il modulo si ferma se un giro è in corso (Nicola: dice l\'ora, «subito» parte lo stesso); il giro parte solo col segno; a fine giro il posto si libera', () => {
+  const P = { ok: true, lavoro: { lavoro: 'giro', pronti: { nome: 'Pronti (montatore) - prova', crea: true, fine: 'x' } }, messaggio: 'parto' };
+  const fra = (min) => new Date(Date.now() + min * 60000).toISOString();
+  const giri = (...fini) => ({ files: fini.map((f, i) => ({ id: `p${i}`, appProperties: { montatore_giro: 'si', montatore_fine: f } })) });
+  const parti = (cfg, elenco) => esegui('si-puo-partire.js', { nodi: { Config: { ...CONFIG, ...cfg }, 'Prepara il lavoro': P }, input: [elenco] })[0].json;
+  // un giro in corso per altri 50 minuti: il modulo non parte e dice fino a che ora
+  const fermo = parti({ origine: 'modulo', note: '' }, giri(fra(-10), fra(50)));
+  assert.equal(fermo.ok, false);
+  const ore = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() + 50 * 60000));
+  assert.match(fermo.messaggio, new RegExp(`in corso, fino alle ${ore} circa\\. .*«subito»`));
+  // «subito» nelle note parte lo stesso; i giri finiti non fermano; dal guardiano non si ricontrolla
+  assert.deepEqual(parti({ origine: 'modulo', note: 'rifai subito' }, giri(fra(50))), P);
+  assert.deepEqual(parti({ origine: 'modulo', note: '' }, giri(fra(-10))), P);
+  assert.deepEqual(parti({ origine: 'cartella', note: '' }, giri(fra(50))), P);
+  // Drive non risponde, o l'elenco è incompleto: non si parte alla cieca
+  for (const el of [{ error: { message: 'Drive 500' } }, { ...giri(), nextPageToken: 'x' }, { ...giri(), incompleteSearch: true }]) assert.match(parti({ origine: 'modulo', note: '' }, el).messaggio, /Non riesco a controllare su Drive/);
+  // il segno sulla cartella: senza (Drive in errore) il giro non parte; con, l'id viaggia col lavoro
+  const L = P.lavoro;
+  const senza = esegui('segno-sulla-cartella.js', { nodi: { 'Prepara la partenza': L }, input: [{ error: { message: 'Drive 500' } }] })[0].json;
+  assert.deepEqual([senza.ok, /senza quel segno il guardiano non saprebbe/.test(senza.messaggio)], [false, true]);
+  const con = esegui('segno-sulla-cartella.js', { nodi: { 'Prepara la partenza': L }, input: [{ id: 'cartellaNuova' }] })[0].json;
+  assert.deepEqual([con.lavoro, con.pronti.id], ['giro', 'cartellaNuova']);
+  // il grafo: modulo → giri in corso → si può partire? → partenza; creazione/segno → segno messo? → avvio; fine giro → libera
+  const dopo = (da, i = 0) => (workflow.connections[da]?.main?.[i] || []).map((x) => x.node);
+  assert.deepEqual(dopo("C'è materiale?"), ['Partenza: giri in corso']);
+  assert.deepEqual([dopo('Nessun giro in corso?'), dopo('Nessun giro in corso?', 1)], [['Prepara la partenza'], ['Dal modulo?']]);
+  assert.deepEqual(dopo('Prepara la partenza'), ['Serve la cartella Pronti?'], 'il giro non parte prima del segno');
+  assert.deepEqual([dopo('Crea subito la cartella Pronti'), dopo('Segna il giro sulla cartella Pronti')], [['Segno sulla cartella'], ['Segno sulla cartella']]);
+  assert.deepEqual([dopo('Segno messo?'), dopo('Segno messo?', 1)], [['Avvia il montaggio'], ['Dal modulo?']]);
+  assert.ok(dopo('Esito dei montaggi').includes("C'è un posto da liberare?") && dopo('Messaggio di stop').includes("C'è un posto da liberare?"));
+  const libera = workflow.nodes.find((n) => n.name === 'Libera il posto');
+  assert.deepEqual([libera.parameters.method, JSON.parse(libera.parameters.jsonBody.replace(/^=\{\{ JSON\.stringify\(|\) \}\}$/g, '').replace(/(\w+):/g, '"$1":'))], ['PATCH', { appProperties: { montatore_giro: null, montatore_fine: null } }]);
+  for (const nome of ['Guarda: giri in corso', 'Partenza: giri in corso']) {
+    const q = Object.fromEntries(workflow.nodes.find((n) => n.name === nome).parameters.queryParameters.parameters.map((x) => [x.name, x.value]));
+    assert.deepEqual([q.corpora, /incompleteSearch/.test(q.fields)], ['allDrives', true], nome);
+  }
 });
 
 test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {

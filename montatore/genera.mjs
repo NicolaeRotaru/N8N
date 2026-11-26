@@ -145,6 +145,15 @@ function driveElenca(nome, q, pos, campi = 'nextPageToken,files(id,name,mimeType
     options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
   }, pos, { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
 }
+// Le cartelle «Pronti» dei giri in corso (proprietà montatore_giro, scritta alla partenza e tolta a fine giro), su tutti i
+// Drive (anche quelli condivisi): una ricerca incompleta o con più pagine vale come «non lo so».
+function giriInCorso(nome, pos) {
+  driveElenca(nome, "mimeType = 'application/vnd.google-apps.folder' and appProperties has { key='montatore_giro' and value='si' } and trashed = false", pos, 'nextPageToken,incompleteSearch,files(id,name,createdTime,appProperties)');
+  const n = nodi.find((x) => x.name === nome);
+  n.parameters.queryParameters.parameters.push({ name: 'corpora', value: 'allDrives' });
+  n.alwaysOutputData = true;
+  return nome;
+}
 const OFFICINA = "$('Config').first().json.OFFICINA_URL.replace(/\\/+$/, '')";
 function officinaJson(nome, percorso, corpo, pos, timeout = 120000) {
   return nodo(nome, 'n8n-nodes-base.httpRequest', 4.5, {
@@ -364,7 +373,13 @@ catena('Elenca il servizio', 'Trova le sottocartelle', 'Cartella leggibile?');
 collega('Cartella leggibile?', 'Elenca i file', 0);
 collega('Cartella leggibile?', 'Dal modulo?', 1);
 catena('Elenca i file', 'Prepara il lavoro', "C'è materiale?");
-collega("C'è materiale?", 'Prepara la partenza', 0);
+giriInCorso('Partenza: giri in corso', [COL(14) + 60, RIGA.modulo - 250]);
+codice('Si può partire?', 'si-puo-partire.js', [COL(14) + 120, RIGA.modulo - 100]);
+se('Nessun giro in corso?', '$json.ok', [COL(14) + 180, RIGA.modulo - 100]);
+collega("C'è materiale?", 'Partenza: giri in corso', 0);
+catena('Partenza: giri in corso', 'Si può partire?', 'Nessun giro in corso?');
+collega('Nessun giro in corso?', 'Prepara la partenza', 0);
+collega('Nessun giro in corso?', 'Dal modulo?', 1);
 collega("C'è materiale?", 'Dal modulo?', 1);
 // il segno «già partito» si mette subito: la cartella «Pronti (montatore)» nel servizio (il giro poi la usa per i file)
 se('Serve la cartella Pronti?', "!!($('Prepara il lavoro').first().json.pronti && $('Prepara il lavoro').first().json.pronti.crea)", [COL(16), RIGA.modulo - 250]);
@@ -397,10 +412,17 @@ nodo('Segna il giro sulla cartella Pronti', 'n8n-nodes-base.httpRequest', 4.5, {
   jsonBody: "={{ JSON.stringify({ appProperties: { montatore_giro: 'si', montatore_fine: $('Prepara il lavoro').first().json.pronti.fine } }) }}",
   options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
 }, [COL(17), RIGA.modulo - 200], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput' });
+codice('Segno sulla cartella', 'segno-sulla-cartella.js', [COL(18), RIGA.modulo - 280]);
+se('Segno messo?', "$json.lavoro === 'giro'", [COL(18) + 120, RIGA.modulo - 280]);
 collega('Prepara la partenza', 'Serve la cartella Pronti?');
 collega('Serve la cartella Pronti?', 'Crea subito la cartella Pronti', 0);
 collega('Serve la cartella Pronti?', 'Segna il giro sulla cartella Pronti', 1);
-catena('Prepara la partenza', 'Avvia il montaggio', 'Dal modulo (partito)?');
+collega('Crea subito la cartella Pronti', 'Segno sulla cartella');
+collega('Segna il giro sulla cartella Pronti', 'Segno sulla cartella');
+catena('Segno sulla cartella', 'Segno messo?');
+collega('Segno messo?', 'Avvia il montaggio', 0);
+collega('Segno messo?', 'Dal modulo?', 1);
+catena('Avvia il montaggio', 'Dal modulo (partito)?');
 collega('Dal modulo (partito)?', 'Fine: partito', 0);
 
 // ---------------------------------------------------------------- GIRO (esecuzione lunga, lanciata dal modulo)
@@ -537,6 +559,26 @@ collega('Scrivo nel Calendario?', 'Righe del Calendario', 0);
 catena('Righe del Calendario', 'Scrivi nel Calendario');
 collega('Chiudo il progetto?', 'Officina: chiudi il progetto', 0);
 catena('Messaggio di stop', 'Telegram: giro fermo');
+// a fine giro (finito o fermo) il segno sulla cartella «Pronti» si toglie: il posto si libera subito, e l'elenco dei giri
+// in corso resta corto. Se il giro cade prima, il posto si libera alla fine stimata.
+se('C\'è un posto da liberare?', "!!($('Config').first().json.pronti && $('Config').first().json.pronti.id)", [COL(40), G + 400]);
+nodo('Libera il posto', 'n8n-nodes-base.httpRequest', 4.5, {
+  method: 'PATCH',
+  url: "={{ 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent($('Config').first().json.pronti.id) }}",
+  authentication: 'predefinedCredentialType',
+  nodeCredentialType: 'googleDriveOAuth2Api',
+  sendQuery: true,
+  specifyQuery: 'keypair',
+  queryParameters: { parameters: [{ name: 'supportsAllDrives', value: 'true' }, { name: 'fields', value: 'id' }] },
+  sendBody: true,
+  contentType: 'json',
+  specifyBody: 'json',
+  jsonBody: '={{ JSON.stringify({ appProperties: { montatore_giro: null, montatore_fine: null } }) }}',
+  options: { timeout: 60000, response: { response: { responseFormat: 'json' } } },
+}, [COL(41), G + 400], { credentials: CRED.drive, ...RIPROVA(3, 5000), onError: 'continueRegularOutput', executeOnce: true });
+collega('Esito dei montaggi', 'C\'è un posto da liberare?');
+collega('Messaggio di stop', 'C\'è un posto da liberare?');
+collega('C\'è un posto da liberare?', 'Libera il posto', 0);
 collega('Ci sono schede?', 'Schede da rivedere', 0);
 catena('Schede da rivedere', 'Manda le schede');
 
@@ -773,8 +815,7 @@ nodo('Guarda: leggi Clienti', 'n8n-nodes-base.httpRequest', 4.5, {
   options: { timeout: 30000, response: { response: { responseFormat: 'json' } } },
 }, [COL(3), W], { credentials: CRED.sheets, ...RIPROVA(2, 5000), onError: 'continueRegularOutput' });
 // i giri in corso, partiti da qualunque strada (guardiano, modulo, «rifai»): le cartelle «Pronti» con la fine stimata
-driveElenca('Guarda: giri in corso', "mimeType = 'application/vnd.google-apps.folder' and appProperties has { key='montatore_giro' and value='si' } and trashed = false", [COL(2) + 60, W - 160], 'nextPageToken,files(id,name,createdTime,appProperties)');
-nodi.find((n) => n.name === 'Guarda: giri in corso').alwaysOutputData = true;
+giriInCorso('Guarda: giri in corso', [COL(2) + 60, W - 160]);
 collega('Quale lavoro?', 'Guarda: giri in corso', USCITA.guarda);
 collega('Guarda: giri in corso', 'Guarda: leggi Clienti');
 codice('Guarda: cartelle dei clienti', 'guarda-clienti.js', [COL(4), W]);

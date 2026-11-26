@@ -35,9 +35,9 @@ for (const [id, e] of per) {
 }
 const distanza = Math.max(30, intero(J.GIRI_DISTANZA_MINUTI, 120)) * 60000;
 const elenco = $('Guarda: giri in corso').isExecuted ? $('Guarda: giri in corso').first().json || {} : { files: [] };
-if (elenco.error || !Array.isArray(elenco.files)) return [];
-// la fine più lontana fra i giri in corso (una data oltre 24 ore è sbagliata: si ignora)
-const fineGiri = Math.max(0, ...elenco.files.map((f) => Date.parse(((f && f.appProperties) || {}).montatore_fine || '')).filter((t) => Number.isFinite(t) && t <= ora + 24 * 3600000));
+if (elenco.error || !Array.isArray(elenco.files) || elenco.nextPageToken || elenco.incompleteSearch) return [];
+// la fine più lontana fra i giri in corso (una fine oltre 24 ore vale 24 ore: tiene fermo al massimo un giorno)
+const fineGiri = Math.max(0, ...elenco.files.map((f) => Date.parse(((f && f.appProperties) || {}).montatore_fine || '')).filter((t) => Number.isFinite(t)).map((t) => Math.min(t, ora + 24 * 3600000)));
 // un'ora scritta male, o nel futuro (orologio tornato indietro), non blocca il guardiano per sempre
 const passato = (v) => { const t = Date.parse(v || ''); return Number.isFinite(t) && t <= ora ? t : 0; };
 const liberoDopo = Date.parse(S.libero_dopo || '');
@@ -47,8 +47,8 @@ if (!pronti.length || ora < libero) return [];
 pronti.sort((a, b) => a.ultimo - b.ultimo);
 // quanto dura il giro di questo servizio (stima di «Prepara il lavoro» con le quantità di serie)
 const stimaMinuti = (materiale) => {
-  // senza la durata di Drive (video ancora in elaborazione) la durata si stima dal peso, a 200 MB al minuto
-  const secondi = materiale.reduce((x, f) => x + ((Number(f.videoMediaMetadata && f.videoMediaMetadata.durationMillis) || 0) / 1000 || (eVideo(f) ? ((Number(f.size) || 0) / 1048576 / 200) * 60 : 0)), 0);
+  // senza la durata di Drive (video ancora in elaborazione) la durata si stima dal peso, a 130 MB al minuto
+  const secondi = materiale.reduce((x, f) => x + ((Number(f.videoMediaMetadata && f.videoMediaMetadata.durationMillis) || 0) / 1000 || (eVideo(f) ? ((Number(f.size) || 0) / 1048576 / 130) * 60 : 0)), 0);
   const mb = materiale.reduce((x, f) => x + (Number(f.size) || 0), 0) / 1048576;
   const foto = materiale.filter((f) => eFoto(f)).length;
   const q = (k, d) => intero(J[k], d);
