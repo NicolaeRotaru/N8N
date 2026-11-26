@@ -1,4 +1,4 @@
-// ===== Aiuti comuni del workflow 16 · Montatore (blocco uguale in tutti i nodi Code: si modifica qui e si rigenera) =====
+// ===== Aiuti comuni del workflow 31 · Montatore (blocco uguale in tutti i nodi Code: si modifica qui e si rigenera) =====
 const CARTELLA_MIME = 'application/vnd.google-apps.folder';
 const ESTENSIONI_VIDEO = ['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', 'mts', 'm2ts', '3gp', 'hevc', 'mpg', 'mpeg'];
 const ESTENSIONI_FOTO = ['jpg', 'jpeg', 'png', 'webp', 'tif', 'tiff', 'avif'];
@@ -245,11 +245,16 @@ function leggiClaude(r) {
   if (!corpo || typeof corpo !== 'object') return { ok: false, motivo: 'nessuna risposta' };
   if (corpo.error) return { ok: false, motivo: 'errore: ' + accorcia(testo(corpo.error.message || corpo.error.type), 200) };
   const blocchi = Array.isArray(corpo.content) ? corpo.content : [];
-  // il JSON a volte arriva dentro ```json … ``` (l'AD scrive come in chat): si tolgono i recinti
-  const t = blocchi.filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim().replace(/^```[a-zA-Z]*\s*\n?([\s\S]*?)\n?\s*```$/, '$1');
+  const t = blocchi.filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
   if (!t) return { ok: false, motivo: 'risposta vuota' + (corpo.stop_reason ? ' (' + corpo.stop_reason + ')' : '') };
+  // il JSON a volte arriva dentro ```json … ``` (l'AD scrive come in chat), magari dopo una frase: si prova il testo
+  // intero, poi il primo blocco fra i recinti, poi quello che sta fra la prima { e l'ultima }
+  const recinto = t.match(/```[ \t]*[a-zA-Z]*[ \t]*\r?\n?([\s\S]*?)```/);
+  const prove = [t, recinto ? recinto[1].trim() : null, t.includes('{') ? t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1) : null].filter(Boolean);
   let dati;
-  try { dati = JSON.parse(t); } catch (e) { return { ok: false, motivo: 'JSON non leggibile' + (corpo.stop_reason === 'max_tokens' ? ' (troncata: risposta troppo lunga)' : '') }; }
+  let letto = false;
+  for (const p of prove) { try { dati = JSON.parse(p); letto = true; break; } catch (e) { /* la prossima */ } }
+  if (!letto) return { ok: false, motivo: 'JSON non leggibile' + (corpo.stop_reason === 'max_tokens' ? ' (troncata: risposta troppo lunga)' : '') };
   if (!dati || typeof dati !== 'object' || Array.isArray(dati)) return { ok: false, motivo: 'JSON con forma sbagliata' };
   return { ok: true, dati, troncata: corpo.stop_reason === 'max_tokens' };
 }

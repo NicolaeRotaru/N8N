@@ -5,7 +5,8 @@ const J = $('Config').first().json;
 const cat = $('Officina: catalogo').first().json;
 // un provino senza percorso, o con un percorso che gli allegati dell'AD non accettano (/file/<lavoro>/<file>), si salta
 // con i suoi codici: altrimenti fermerebbe la corsa di tutti gli altri
-const VIA_OFFICINA = /^\/file\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,120}$/;
+// (anche l'estensione: gli allegati accettano solo immagini .jpg, .jpeg, .png, .webp)
+const VIA_OFFICINA = /^\/file\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,120}\.(jpe?g|png|webp)$/i;
 const viaAD = (p) => { const t = testo(p); const v = t.startsWith('/file/') ? t : '/file/' + t.replace(/^\/+/, ''); return VIA_OFFICINA.test(v) && !v.includes('..'); };
 const lista = $('Provini da scaricare').all().map((x) => x.json).filter((p) => testo(p.percorso) && viaAD(p.percorso));
 // fra 6 e 10: con meno immagini per domanda le domande diventano tante, e la corsa supera i 64 KB della routine

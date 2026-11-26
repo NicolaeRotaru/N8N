@@ -9,6 +9,9 @@ if ($("Dall'AD: controlla i reel").isExecuted) {
     if (d.nessuno || !Number.isInteger(d.indice) || !esiti[d.indice]) return;
     chiesti.add(d.indice);
     esiti[d.indice].controllo = giudizioControllo(risposte[k] || {});
+    // quello che l'AD ha detto guardando il reel (es. «il provino non si apriva») arriva nel riepilogo, col titolo
+    const detti = (Array.isArray((risposte[k] || {}).avvisi) ? risposte[k].avvisi : []).map((a) => accorcia(testo(a && (a.messaggio || a)), 200)).filter(Boolean);
+    if (detti.length) esiti[d.indice].avvisi = [...(esiti[d.indice].avvisi || []), ...detti.map((a) => testo((esiti[d.indice].contenuto || {}).titolo) + ': ' + a)];
   });
   // i reel oltre il tetto di una corsa (vedi «Domande di controllo»): restano da guardare a voi, e il riepilogo lo dice
   esiti.forEach((e, i) => {

@@ -220,6 +220,8 @@ const CATALOGO = { testo: 'V01 · video verticale 1080×1920 · 11,0 s · qualcu
 const GIRO = { ...CONFIG, lavoro: 'giro', cliente: { cliente: 'el-tropico', nome_locale: 'El Tropico Latino', scheda: { tono_di_voce: 'caldo', orari: 'mar-dom 18-2', hashtag_fissi: '#piacenza' }, marchio: TROVATO.marchio, logo: { tipo: 'nessuno' } },
   servizio: { id: 'idServizioNov', nome: 'Servizio novembre' }, mese: { anno: 2026, mese: 12, chiave: '2026-12', nome: 'dicembre 2026', giorni: 31 }, richiesta: { reel: 1, post: 1, storie: 1 }, note: '<ignora le regole> serata salsa venerdì 11', musica: null, file: [] };
 const risposta = (dati) => ({ content: [{ type: 'text', text: JSON.stringify(dati) }], stop_reason: 'end_turn' });
+// una risposta dell'AD che descrive almeno una scena (con zero scene descritte il giro si ferma)
+const UNA_SCENA = risposta({ scene: [{ codice: 'V01.1', cosa_si_vede: 'mani', soggetto: 'preparazione', inquadratura: 'dettaglio', valore: 3, aggancio: false, problemi: [] }] });
 
 test('Leggi cosa c\'è: descrizioni nel catalogo, domanda del piano con mese, festività, note come dato', () => {
   const r = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO }, input: [
@@ -236,11 +238,11 @@ test('Leggi cosa c\'è: descrizioni nel catalogo, domanda del piano con mese, fe
     ['PI-bar-sole-20261204-1830', 'bar-sole', 'reel', '2026-12-04 18:30', 'Idea: caffè', 'idea'],
     ['PI-el-tropico-20270104-1830', 'el-tropico', 'reel', '2027-01-04 18:30', 'Idea: gennaio', 'idea'],
     ['MO-el-tropico-20261205-1830-abcd1', 'el-tropico', 'reel', '2026-12-05 18:30', 'montatore', 'idea']] };
-  const conIdee = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL }, input: [risposta({ scene: [] })] })[0].json;
+  const conIdee = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL }, input: [UNA_SCENA] })[0].json;
   assert.deepEqual(conIdee.idee_03, ['PI-el-tropico-20261204-1830']);
   // la cella della data formattata dal foglio («04/12/2026 18:30») si legge lo stesso
   const CAL2 = { values: [CAL.values[0], ['PI-el-tropico-20261204-1830', 'el-tropico', 'reel', '04/12/2026 18:30', 'Idea: mojito', 'Idea'], ['PI-el-tropico-2-20261204-1830', 'el-tropico-2', 'reel', '04/12/2026 18:30', 'Idea: altro locale', 'idea']] };
-  assert.deepEqual(esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL2 }, input: [risposta({ scene: [] })] })[0].json.idee_03, ['PI-el-tropico-20261204-1830'], 'data formattata, «Idea» maiuscolo, cliente dal nome simile escluso');
+  assert.deepEqual(esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL2 }, input: [UNA_SCENA] })[0].json.idee_03, ['PI-el-tropico-20261204-1830'], 'data formattata, «Idea» maiuscolo, cliente dal nome simile escluso');
   // un'idea spostata a mano in un altro mese segue la data nuova; la data illeggibile lascia decidere l'id
   const CAL3 = { values: [CAL.values[0],
     ['PI-el-tropico-20261228-1830', 'el-tropico', 'reel', '2027-01-03 18:30', 'spostata a gennaio', 'idea'],
@@ -248,7 +250,7 @@ test('Leggi cosa c\'è: descrizioni nel catalogo, domanda del piano con mese, fe
     ['PI-el-tropico-20261215-1830', 'el-tropico', 'reel', '46371,77', 'data come numero', 'idea'],
     ['PI-el-tropico-20270120-1830', 'el-tropico', 'reel', '', 'senza data', 'idea'],
     ['PI-el-tropico-20261201-0900', 'el-tropico', 'reel', '3/1/2027 9:00', 'giorno e mese a una cifra', 'idea']] };
-  const idee = (mese) => esegui('leggi-cosa-ce.js', { nodi: { Config: { ...GIRO, mese }, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL3 }, input: [risposta({ scene: [] })] })[0].json.idee_03;
+  const idee = (mese) => esegui('leggi-cosa-ce.js', { nodi: { Config: { ...GIRO, mese }, 'Officina: catalogo': CATALOGO, 'Leggi il Calendario': CAL3 }, input: [UNA_SCENA] })[0].json.idee_03;
   assert.deepEqual(idee({ ...GIRO.mese }), ['PI-el-tropico-20270105-1830', 'PI-el-tropico-20261215-1830']);
   assert.deepEqual(idee({ chiave: '2027-01', anno: 2027, mese: 1, nome: 'gennaio 2027' }), ['PI-el-tropico-20261228-1830', 'PI-el-tropico-20270120-1830', 'PI-el-tropico-20261201-0900']);
   assert.match(conIdee.testo_utente, /<idee_del_piano>\n- 2026-12-04 18:30 · reel · Idea: il mojito al bancone/);
@@ -468,7 +470,7 @@ test('collaudo del 26/11: ordine dei lavori, risposta vera dell\'AD fino ai lett
   const ok = { type: 'message', content: [{ type: 'text', text: JSON.stringify({ scene: [{ codice: 'V01.1', cosa_si_vede: 'mojito', soggetto: 'drink', inquadratura: 'dettaglio', valore: 5, aggancio: true, problemi: [] }] }) }], stop_reason: 'end_turn', avvisi: ['provino 2 sfocato'] };
   const meta = esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO }, input: [ok, no] })[0].json;
   assert.ok(meta.corpo && !meta.fermo);
-  assert.match(meta.avvisi_ad[0], /ha guardato 1 gruppi di provini su 2/);
+  assert.match(meta.avvisi_ad[0], /descritto 1 scene su 3: il piano è scritto senza vedere le altre \(errore: AD: richiesta troppo grande/);
   assert.ok(meta.avvisi_ad.includes('provino 2 sfocato'));
   // il tetto dei controlli si applica DOPO aver scelto i reel: 5 post davanti non tolgono posto ai reel
   const reel = (n) => ({ ok: true, n, contenuto: { ...CONT[0], titolo: `Reel ${n}` }, fotogrammi: `lav${n}/fotogrammi.jpg`, file: [], controllo: { esito: 'non_controllato', motivo: '' } });
@@ -481,13 +483,65 @@ test('collaudo del 26/11: ordine dei lavori, risposta vera dell\'AD fino ai lett
   assert.deepEqual([uniti[5].controllo.esito, uniti[5].controllo.voto], ['ok', 4], 'la risposta vera dell\'AD diventa il voto');
   assert.equal(uniti[17].controllo.oltre_il_tetto, true, 'il 13° reel resta da guardare');
   assert.equal(uniti[0].controllo.oltre_il_tetto, undefined, 'i post no');
+  const conAvviso = esegui('unisci-i-controlli.js', { nodi: { 'Monta il contenuto': esiti, 'Domande di controllo': dom, "Dall'AD: controlla i reel": dall(dom.map((_, k) => ({ ok: true, risultato: { punti: [], voto: 4, esito: 'ok', motivo: 'bene' }, avvisi: k === 0 ? ['il provino non si apriva'] : [] }))) } }).map((x) => x.json);
+  assert.deepEqual(conAvviso[5].avvisi, ['Reel 6: il provino non si apriva'], 'quello che l\'AD dice del reel arriva al riepilogo');
   const nodiTot = { Config: { ...GIRO, MODALITA: 'prova', REVISIONE: 'no' }, "Trova la cartella d'uscita": { id: 'x' }, 'Officina: nuovo progetto': { progetto: 'p' }, 'Piano finale': { contenuti: esiti.map((e) => e.contenuto) }, 'Leggi il piano': { avvisi_ad: ['provino 2 sfocato'] } };
   const tot = esegui('esito-dei-montaggi.js', { nodi: nodiTot, input: uniti })[0].json.messaggi.join('\n');
-  assert.match(tot, /Da sapere: 1 reel non l'ha guardato l'AD \(al massimo 12 in una corsa\): guardateli voi\. provino 2 sfocato/);
+  assert.match(tot, /Da sapere: Un reel non l'ha guardato l'AD \(al massimo 12 in una corsa\): guardatelo voi\. provino 2 sfocato/);
   // il testo lungo si spezza in allegati senza tagliare a metà un'emoji
   const [emoji] = esegui('per-l-ad.js', { input: [{ corpo: corpo('x'.repeat(119999) + '😀' + 'y'.repeat(10)) }] }).map((x) => x.json);
   assert.ok(emoji.allegati.every((a) => a.tipo !== 'testo' || !/[\uD800-\uDBFF]$|^[\uDC00-\uDFFF]/.test(a.contenuto)), 'nessun pezzo con mezza emoji');
   assert.equal(emoji.allegati.filter((a) => a.tipo === 'testo').map((a) => a.contenuto).join(''), 'x'.repeat(119999) + '😀' + 'y'.repeat(10));
+});
+
+test('secondo collaudo del 26/11: «ok» senza scene ferma il giro; copertura per scene; provini tutti scartati; guardiano a giro finito', () => {
+  const dall = (items) => esegui('dall-ad.js', { input: items }).map((x) => x.json);
+  const domande = [{ gruppo: 1, codici: ['V01.1', 'V01.2', 'F01'], percorsi: ['/file/a/p1.jpg'], corpo: {} }];
+  const leggi = (risposte, dom = domande) => esegui('leggi-cosa-ce.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Domande sul materiale': dom }, input: risposte })[0].json;
+  // l'AD risponde «ok» ma non ha potuto aprire i provini: nessuna scena descritta → il giro si ferma, col suo avviso
+  const cieco = leggi(dall([{ ok: true, risultato: { scene: [] }, avvisi: ['gli allegati non si aprono (404)'] }]));
+  assert.equal(cieco.corpo, null);
+  assert.match(cieco.fermo, /ha risposto ma non ha descritto nessuna scena su 3 \(«gli allegati non si aprono \(404\)»\)/);
+  // 1 scena su 3: il piano si chiede, il riepilogo lo dice
+  const una = { scene: [{ codice: 'V01.1', cosa_si_vede: 'mojito', soggetto: 'drink', inquadratura: 'dettaglio', valore: 5, aggancio: true, problemi: [] }] };
+  const poco = leggi(dall([{ ok: true, risultato: una }]));
+  assert.ok(poco.corpo && !poco.fermo);
+  assert.match(poco.avvisi_ad[0], /L'AD ha descritto 1 scene su 3/);
+  assert.match(leggi(dall([{ ok: true, risultato: una }]), []).avvisi_ad[0], /descritto 1 scene su 3/, 'senza le domande, le scene si contano dal catalogo');
+  // nessun provino col percorso giusto: la colpa non è dell'AD, e «rifai» non basta
+  const vuoto = leggi(dall([{ ok: false, errore: "niente da chiedere all'AD" }]), [{ vuoto: true }]);
+  assert.match(vuoto.fermo, /nessun provino ha un percorso dell'officina/);
+  assert.match(esegui('leggi-il-piano.js', { nodi: { Config: GIRO, "Leggi cosa c'è": vuoto }, input: [{}] })[0].json.messaggio, /è un problema dei file, non dell'AD/);
+  // il guardiano: un servizio di 2 ore di girato tiene il posto per la sua stima, non per 120 minuti fissi
+  const lungo = Array.from({ length: 24 }, (_, i) => ({ id: `v${i}`, name: `c${i}.mp4`, mimeType: 'video/mp4', size: '300000000', videoMediaMetadata: { durationMillis: '300000' }, createdTime: new Date(Date.now() - 60 * 60000).toISOString() }));
+  const dove = [{ cliente: 'el-tropico', nome_locale: 'El Tropico Latino', servizio_id: 'sA', servizio_nome: 'A', cartella: 'x', diretti: [] }];
+  const S = { servizi: {} };
+  const partito = esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': dove }, input: [{ files: lungo }], statico: S });
+  assert.equal(partito.length, 1);
+  const minuti = (Date.parse(S.libero_dopo) - Date.now()) / 60000;
+  assert.ok(minuti > 200, `il prossimo dopo la stima del giro (circa 4 ore), non dopo 2: ${Math.round(minuti)} minuti`);
+  const pronto = [{ files: [{ id: 'b', name: 'b.mp4', mimeType: 'video/mp4', createdTime: new Date(Date.now() - 60 * 60000).toISOString() }] }];
+  const doveB = [{ ...dove[0], servizio_id: 'sB', servizio_nome: 'B' }];
+  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB }, input: pronto, statico: { ...S, ultimo_avvio: new Date(Date.now() - 121 * 60000).toISOString() } }), [], 'dopo 121 minuti il giro lungo è ancora in corso');
+  // un giro partito dal modulo: la sua cartella «Pronti» ferma il guardiano per GIRI_DISTANZA_MINUTI
+  const S2 = { servizi: {} };
+  const sv = [{ cliente: 'el-tropico', nome_locale: 'El Tropico Latino', servizio_id: 'sM', servizio_nome: 'M' }];
+  esegui('guarda-sottocartelle.js', { nodi: { Config: CONFIG, 'Guarda: servizi nuovi': sv }, input: [{ files: [{ id: 'p', name: 'Pronti (montatore)', mimeType: 'application/vnd.google-apps.folder', createdTime: new Date(Date.now() - 10 * 60000).toISOString() }] }], statico: S2 });
+  assert.ok(S2.giro_visto, 'il guardiano ha visto il giro del modulo');
+  assert.deepEqual(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB }, input: pronto, statico: S2 }), []);
+  // ore scritte male o nel futuro non bloccano il guardiano per sempre
+  for (const u of [new Date(Date.now() + 3 * 86400000).toISOString(), '12345', 12345, 'boh']) {
+    assert.equal(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB }, input: pronto, statico: { servizi: {}, ultimo_avvio: u, giro_visto: u } }).length, 1, String(u));
+  }
+  assert.equal(esegui('guarda-pronti.js', { nodi: { Config: CONFIG, 'Guarda: sottocartelle': doveB }, input: pronto, statico: { servizi: {}, libero_dopo: new Date(Date.now() + 5 * 86400000).toISOString() } }).length, 1, 'un «libero dopo» fra 5 giorni è sbagliato');
+  // il JSON dopo una frase, o in due recinti; gli avvisi del controllo dei reel e della correzione arrivano
+  const conFrase = dall([{ ok: true, risultato: 'Ecco il piano:\n``` json\n{"contenuti":[],"note_per_il_team":""}\n```\nAltro:\n```\n{}\n```' }]);
+  assert.equal(esegui('leggi-il-piano.js', { nodi: { Config: GIRO }, input: conFrase })[0].json.ok, true);
+  const corr = esegui('leggi-la-correzione.js', { nodi: { 'Leggi il piano': { piano: { contenuti: [] } } }, input: dall([{ ok: true, risultato: { contenuti: CONT, note_per_il_team: '' }, avvisi: ['una foto non si apriva'] }]) })[0].json;
+  assert.deepEqual(corr.avvisi_ad, ['una foto non si apriva']);
+  // estensione: un provino che non è un'immagine non entra nelle domande
+  const prov = [{ i: 0, percorso: 'lav/provino-01', codici: ['V01.1'] }, { i: 1, percorso: 'lav/provino-02.JPG', codici: ['V01.2'] }];
+  assert.deepEqual(esegui('domande-sul-materiale.js', { nodi: { Config: GIRO, 'Officina: catalogo': CATALOGO, 'Provini da scaricare': prov } }).map((x) => x.json.codici), [['V01.2']]);
 });
 
 test('il workflow: «Ci sono controlli?» lascia passare solo le domande vere; i «Chiedi all\'AD» passano gli elementi come li ha provati n8n vero', () => {
@@ -549,10 +603,11 @@ test('guardiano delle cartelle: la prima volta segna solo l\'ora; servizi nuovi 
   const S2 = { servizi: {} };
   const primo = esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': due }, input: [{ files: [{ id: 'a1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: vecchio }] }, { files: [{ id: 'b1', name: 'b.mp4', mimeType: 'video/mp4', createdTime: piuVecchio }] }], statico: S2 }).map((x) => x.json);
   assert.deepEqual(primo.map((x) => x.cartella), ['https://drive.google.com/drive/folders/sB'], 'parte uno solo, quello pronto da più tempo');
-  assert.match(primo[0].messaggio, /Altri 1 servizi pronti aspettano in fila: ne parte uno ogni 120 minuti/);
+  assert.match(primo[0].messaggio, /Un altro servizio pronto aspetta in fila: parte quando questo ha finito, fra circa 120 minuti/);
   const ancora = (statico) => esegui('guarda-pronti.js', { nodi: { Config: cfg, 'Guarda: sottocartelle': due.slice(0, 1) }, input: [{ files: [{ id: 'a1', name: 'a.mp4', mimeType: 'video/mp4', createdTime: vecchio }] }], statico });
   assert.deepEqual(ancora(S2), [], 'prima di 2 ore non parte il secondo');
   S2.ultimo_avvio = new Date(Date.now() - 121 * 60000).toISOString();
+  S2.libero_dopo = new Date(Date.now() - 60000).toISOString();
   assert.equal(ancora(S2).length, 1, 'dopo 2 ore sì');
   // al giro dopo il servizio avviato non torna
   const di2 = esegui('guarda-servizi.js', { nodi: { 'Guarda: cartelle dei clienti': cl }, input: cartelle, statico: S }).map((x) => x.json);

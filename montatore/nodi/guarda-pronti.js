@@ -1,8 +1,11 @@
 // (guardiano delle cartelle) Un servizio è pronto quando ha del materiale e nessun file nuovo da QUIETE_MINUTI
 // (la copia dalla scheda SD è finita). Allora parte il montaggio, una volta sola per cartella (il mese lo decide «Prepara il lavoro»).
-// UN servizio alla volta, e il successivo solo dopo GIRI_DISTANZA_MINUTI (di serie 120): due giri insieme fanno partire
-// «90 · Chiedi all'AD» in parallelo, e le corse in parallelo si cancellano a vicenda il conto dei tetti (40 al giorno,
-// 25 all'ora). Gli altri servizi pronti restano in fila e partono ai giri seguenti, il più vecchio per primo.
+// UN servizio alla volta: due giri insieme fanno partire «90 · Chiedi all'AD» in parallelo, e le corse in parallelo si
+// cancellano a vicenda il conto dei tetti (40 al giorno, 25 all'ora). Il successivo parte quando il giro di prima ha
+// finito secondo la stima (la formula di «Prepara il lavoro», dalla durata dei video che dà Drive, ×1,3 più 30 minuti per
+// le attese dell'AD), mai prima di GIRI_DISTANZA_MINUTI. Anche un giro partito dal modulo conta: lo dice la sua cartella
+// «Pronti» (vedi «Guarda: sottocartelle»). Gli altri servizi pronti restano in fila, il più vecchio per primo.
+// Solo il guardiano scrive questa memoria: le esecuzioni del giro e del modulo non la toccano (la riscriverebbero intera).
 const J = $('Config').first().json;
 const S = $getWorkflowStaticData('global');
 S.servizi = S.servizi || {};
@@ -29,13 +32,27 @@ for (const [id, e] of per) {
   pronti.push({ id, e, materiale, ultimo });
 }
 const distanza = Math.max(30, intero(J.GIRI_DISTANZA_MINUTI, 120)) * 60000;
-const ultimoAvvio = Date.parse(S.ultimo_avvio || '') || 0;
-if (!pronti.length || ora - ultimoAvvio < distanza) return [];
+// un'ora scritta male, o nel futuro (orologio tornato indietro), non blocca il guardiano per sempre
+const passato = (v) => { const t = Date.parse(v || ''); return Number.isFinite(t) && t <= ora ? t : 0; };
+const liberoDopo = Date.parse(S.libero_dopo || '');
+const libero = Math.max(Number.isFinite(liberoDopo) && liberoDopo <= ora + 24 * 3600000 ? liberoDopo : 0,
+  passato(S.ultimo_avvio) && passato(S.ultimo_avvio) + distanza, passato(S.giro_visto) && passato(S.giro_visto) + distanza);
+if (!pronti.length || ora < libero) return [];
 pronti.sort((a, b) => a.ultimo - b.ultimo);
+// quanto dura il giro di questo servizio (stima di «Prepara il lavoro» con le quantità di serie)
+const stimaMinuti = (materiale) => {
+  const secondi = materiale.reduce((x, f) => x + (Number(f.videoMediaMetadata && f.videoMediaMetadata.durationMillis) || 0) / 1000, 0);
+  const mb = materiale.reduce((x, f) => x + (Number(f.size) || 0), 0) / 1048576;
+  const foto = materiale.filter((f) => eFoto(f)).length;
+  const q = (k, d) => intero(J[k], d);
+  return Math.round(secondi * (0.3 + (siNo(J.TRASCRIVI, true) ? 0.8 : 0)) / 60 + foto * 0.05 + mb / 600 + 6 + q('REEL', 10) * 1.2 + q('POST', 8) * 0.3 + q('STORIE', 16) * 0.5);
+};
 const out = [];
 for (const { id, e, materiale, ultimo } of pronti.slice(0, 1)) {
   S.servizi[id] = { ...(S.servizi[id] || {}), avviato: new Date(ora).toISOString() };
   S.ultimo_avvio = new Date(ora).toISOString();
+  const attesa = Math.max(distanza, (Math.round(stimaMinuti(materiale) * 1.3) + 30) * 60000);
+  S.libero_dopo = new Date(ora + attesa).toISOString();
   const inFila = pronti.length - 1;
   out.push({ json: {
     lavoro: 'avvia',
@@ -50,7 +67,7 @@ for (const { id, e, materiale, ultimo } of pronti.slice(0, 1)) {
     storie: '',
     note: '',
     messaggio: '👀 <b>Servizio nuovo</b> · ' + h(e.s.nome_locale) + ' · «' + h(e.s.servizio_nome) + '»\n' + materiale.length + ' file, l\'ultimo caricato ' + Math.round((ora - ultimo) / 60000) + ' minuti fa: parto da solo con il piano del mese (quello in corso fino al giorno ' + intero(J.GIORNO_LIMITE_MESE, 10) + ', poi il successivo).'
-      + (inFila ? '\nAltri ' + inFila + ' servizi pronti aspettano in fila: ne parte uno ogni ' + Math.round(distanza / 60000) + ' minuti.' : ''),
+      + (inFila ? '\n' + (inFila === 1 ? 'Un altro servizio pronto aspetta' : 'Altri ' + inFila + ' servizi pronti aspettano') + ' in fila: parte quando questo ha finito, fra circa ' + Math.round(attesa / 60000) + ' minuti.' : ''),
   } });
 }
 return out;
