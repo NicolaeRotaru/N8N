@@ -14,7 +14,12 @@
   "piede": "Via Mazzini 77/A, Piacenza · 0523 335932",
   "chiusura_didascalia": "📍 Via Mazzini 77/A, Piacenza\n📞 Prenota: 0523 335932",
   "hashtag": "#eltropicolatino #piacenza",
-  "fatti": "Aperitivo dalle 18:30 da martedì a domenica; cucina 19:00-23:00, venerdì e sabato fino alle 23:30; aperto fino all'1 (ven-sab fino alle 2); lunedì chiuso. Dal 1992, due sale, oltre 100 posti. Telefono solo fisso. Menu: eltropicolatino.it/menu.html. Niente prezzi nelle grafiche; non dare nomi ai piatti delle foto se il cliente non li ha confermati.",
+  "fatti": "Aperitivo dalle 18:30 da martedì a domenica; cucina 19:00-23:00, venerdì e sabato fino alle 23:30; aperto fino all'1 (ven-sab fino alle 2); lunedì chiuso. Dal 1992, due sale, oltre 100 posti. Telefono solo fisso. Menu: eltropicolatino.it/menu.html. Niente prezzi nelle grafiche; non dare nomi ai piatti e ai drink delle foto se il cliente o Nicola non li hanno confermati in «foto_confermate».",
+  "foto_confermate": {
+    "_nota": "Cosa c'è davvero in ogni foto, solo se lo ha detto il cliente o Nicola. Un nome di piatto o di drink scritto SOPRA una foto deve stare in «è», se no controlla-nomi.py si ferma. «non_è» blocca un nome sbagliato già capitato.",
+    "0307": { "è": "margarita frozen alla fragola, in caraffa", "non_è": ["sangria"], "fonte": "Nicola, 27/11/2026 21:48" }
+  },
+  "nomi_da_confermare": ["sangria", "margarita", "mojito", "frozen", "daiquiri", "caipiri", "paloma", "piña colada", "tequila", "burrito", "fajitas", "nachos", "tacos", "enchiladas", "quesadilla", "chile", "cheviche", "camarones", "barbacoa", "parrilla", "guacamole", "churros", "brownie", "mousse"],
   "orari_feed": ["12:15", "18:30", "19:15"],
   "orari_storie": ["13:00", "18:00", "20:30", "21:30"]
 }
