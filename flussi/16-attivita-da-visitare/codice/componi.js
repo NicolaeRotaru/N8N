@@ -3,6 +3,8 @@
 const cfg = $('Config').first().json;
 const f = $('Metti in fila').first().json;
 const VERO = String(cfg.MODALITA || '').trim().toLowerCase() === 'vero';
+// Ogni testo si accorcia PRIMA di proteggerlo: così un blocco non si taglia mai dentro un tag (collaudo m6).
+const corto = (v, n) => { const t = String(v ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 let ad = null;
 try { ad = $('Chiedi all’AD i dossier').isExecuted ? ($('Chiedi all’AD i dossier').first().json || {}) : null; } catch { ad = null; }
@@ -22,34 +24,42 @@ const metri = (m) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString('it-IT'
 const testa = `<b>Attività da visitare</b> · settimana del ${gg}${VERO ? '' : ' · prova'}`;
 const blocchi = [];
 if (!f.letta) {
-  blocchi.push(`${testa}\n\nQuesta settimana la lista non c’è: ${esc(f.motivo || 'la mappa non ha risposto')}. Non vuol dire che non ci sono attività: la mappa non è stata letta. Il flusso riprova lunedì prossimo, o a mano da n8n.`);
+  blocchi.push(`${testa}\n\nQuesta settimana la lista non c’è: ${esc(f.motivo || 'la mappa non ha risposto')}. Non vuol dire che non ci sono attività da visitare. Il flusso riprova lunedì prossimo, o lo si avvia a mano da n8n.`);
 } else {
   const c = f.conti;
   const st = c.stati_finora || {};
   const fuori = [c.catene && `${num(c.catene)} catene`, c.categorie_escluse && `${num(c.categorie_escluse)} in categorie dove non entriamo`, c.chiuse && `${num(c.chiuse)} chiuse`, c.doppioni && `${num(c.doppioni)} doppioni`, c.gia_su_mycity && `${num(c.gia_su_mycity)} già su MyCity`, c.gia_proposte && `${num(c.gia_proposte)} già proposte`, c.senza_nome && `${num(c.senza_nome)} senza nome`].filter(Boolean).join(', ');
-  const conto = c.proposte_finora ? `\nIl conto finora: ${num(c.proposte_finora)} proposte · ${num((st.visitata || 0) + (st.si || 0) + (st.no || 0) + (st.iscritta || 0))} visitate · ${num((st.si || 0) + (st.iscritta || 0))} hanno detto sì · ${num(st.iscritta || 0)} iscritte.` : '';
+  const nonCapiti = st.non_capito ? ` · ${num(st.non_capito)} con uno stato che non capisco (scrivi visitata, si, no o iscritta)` : '';
+  const conto = c.proposte_finora ? `\nIl conto finora: ${num(c.proposte_finora)} proposte · ${num((st.visitata || 0) + (st.si || 0) + (st.no || 0) + (st.iscritta || 0))} visitate · ${num((st.si || 0) + (st.iscritta || 0))} hanno detto sì · ${num(st.iscritta || 0)} iscritte${nonCapiti}.` : '';
   blocchi.push(`${testa}\n\nSulla mappa ci sono ${num(c.letti)} attività entro ${metri(Number(cfg.RAGGIO_M))} da ${esc(cfg.CENTRO_NOME)}. Tolte ${fuori || 'nessuna'}, ne restano ${num(c.in_fila)} in fila. Queste sono le prime ${f.fila.length}.${c.negozi_mycity_letti ? '' : '\n<i>Il database di MyCity non ha risposto: qualcuna potrebbe essere già iscritta.</i>'}${conto}` +
     (conDossier ? '' : `\n<i>Senza il dossier dell’AD: ${esc((ad && (ad.errore || (ad.prova ? 'Chiedi all’AD è in prova' : ''))) || $('Prepara il lavoro').first().json.non_mandare || 'l’AD non ha risposto')}.</i>`));
-  f.fila.forEach((a, i) => {
+  const bloccoDi = (a, i, conDossierPieno) => {
     const s = schede[a.osm];
-    const righe = [`<b>${i + 1}. ${esc(a.nome)}</b> · ${esc(a.tipo)} · ${metri(a.distanza_m)}`,
-      [a.indirizzo && esc(a.indirizzo), a.telefono ? `tel ${esc(a.telefono)}` : 'telefono da trovare'].filter(Boolean).join(' · '),
-      `Perché: ${esc(a.perche)}.`];
+    const righe = [`<b>${i + 1}. ${esc(corto(a.nome, 120))}</b> · ${esc(corto(a.tipo, 60))} · ${metri(a.distanza_m)}`,
+      [a.indirizzo && esc(corto(a.indirizzo, 120)), a.telefono ? `tel ${esc(corto(a.telefono, 40))}` : 'telefono da trovare'].filter(Boolean).join(' · '),
+      `Perché: ${esc(corto(a.perche, 300))}.`];
     if (s) {
-      if (s.attenzione) righe.push(`<b>Attenzione:</b> ${esc(s.attenzione)}`);
-      righe.push(`Chi è: ${esc(s.chi_e)}`);
-      if (s.cosa_vende) righe.push(`Cosa vende: ${esc(s.cosa_vende)}`);
-      righe.push(`Cosa ci guadagna: ${esc(s.cosa_ci_guadagna)}`, `Come convincerlo: ${esc(s.come_convincerlo)}`, `Da proporre: ${esc(s.cosa_proporre)}`);
+      if (s.attenzione) righe.push(`<b>Attenzione:</b> ${esc(corto(s.attenzione, 500))}`);
+      if (conDossierPieno) {
+        righe.push(`Chi è: ${esc(corto(s.chi_e, 500))}`);
+        if (s.cosa_vende) righe.push(`Cosa vende: ${esc(corto(s.cosa_vende, 500))}`);
+        righe.push(`Cosa ci guadagna: ${esc(corto(s.cosa_ci_guadagna, 500))}`, `Come convincerlo: ${esc(corto(s.come_convincerlo, 500))}`, `Da proporre: ${esc(corto(s.cosa_proporre, 500))}`);
+      } else righe.push('<i>Dossier troppo lungo per Telegram: è intero nella tabella.</i>');
     } else if (a.offerta) righe.push(`Da proporre: ${esc(a.offerta)} (da verificare: la mappa può essere vecchia).`);
     righe.push(`<a href="${esc(a.mappa)}">Apri su Google Maps</a>`);
-    blocchi.push(righe.join('\n'));
+    return righe.join('\n');
+  };
+  f.fila.forEach((a, i) => {
+    const b = bloccoDi(a, i, true);
+    // Un blocco che non sta in un messaggio perde il dossier, mai un pezzo di tag.
+    blocchi.push(b.length <= 3800 ? b : bloccoDi(a, i, false));
   });
   blocchi.push('<i>Il primo contatto lo fa una persona, di persona o al telefono: niente messaggi automatici. Dopo la visita scrivi lo stato nella tabella «Attività da visitare» su n8n: visitata, si, no o iscritta.</i>');
 }
 const messaggi = [];
 let corrente = '';
 for (const b of blocchi) {
-  const pezzo = b.length > 3800 ? `${b.slice(0, 3780).replace(/&[a-z]*$/i, '')}…` : b;
+  const pezzo = b; // ogni blocco sta già sotto i 3.800 caratteri: qui non si taglia niente
   if (corrente && corrente.length + pezzo.length + 2 > 3900) { messaggi.push(corrente); corrente = pezzo; } else corrente = corrente ? `${corrente}\n\n${pezzo}` : pezzo;
 }
 if (corrente) messaggi.push(corrente);

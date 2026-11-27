@@ -21,7 +21,7 @@ const lavoro = {
     attivita: (f.fila || []).map((a) => ({ osm: a.osm, nome: a.nome, tipo: a.tipo, indirizzo: a.indirizzo, telefono: a.telefono, sito: a.sito, social: a.social, distanza_m: a.distanza_m, dalla_mappa: a.perche })),
   },
   schema: { type: 'object', properties: { schede: { type: 'array', items: { type: 'object',
-    properties: { osm: { type: 'string' }, chi_e: { type: 'string' }, cosa_vende: { type: 'string' }, cosa_ci_guadagna: { type: 'string' }, come_convincerlo: { type: 'string' }, cosa_proporre: { type: 'string' }, attenzione: { type: 'string' } },
+    properties: { osm: { type: 'string' }, chi_e: { type: 'string', maxLength: 500 }, cosa_vende: { type: 'string', maxLength: 500 }, cosa_ci_guadagna: { type: 'string', maxLength: 500 }, come_convincerlo: { type: 'string', maxLength: 500 }, cosa_proporre: { type: 'string', maxLength: 500 }, attenzione: { type: 'string', maxLength: 500 } },
     required: ['osm', 'chi_e', 'cosa_ci_guadagna', 'come_convincerlo', 'cosa_proporre'] } } }, required: ['schede'] },
 };
 if (!VERO) lavoro.non_mandare = 'modalità prova del flusso 16';

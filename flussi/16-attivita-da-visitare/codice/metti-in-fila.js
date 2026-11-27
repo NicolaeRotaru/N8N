@@ -12,7 +12,9 @@ const QUANTE = Math.max(1, Math.min(30, Number(cfg.QUANTE_A_SETTIMANA) || 10));
 let elementi = null, motivo = '';
 try {
   const r = $('Chiedi alla mappa').first().json || {};
-  const corpo = typeof r.body === 'string' ? r.body : (r.body ? JSON.stringify(r.body) : (r.data || ''));
+  // n8n vero (risposta «text» con fullResponse) mette il testo in `data`: è la forma di tutti i lunedì. `body` resta per sicurezza.
+  const grezzo = r.data !== undefined ? r.data : r.body;
+  const corpo = typeof grezzo === 'string' ? grezzo : (grezzo ? JSON.stringify(grezzo) : '');
   if (r.statusCode && r.statusCode !== 200) motivo = `la mappa ha risposto ${r.statusCode}`;
   else if (r.error) motivo = `la mappa non ha risposto (${String(r.error.message || r.error).slice(0, 120)})`;
   else {
@@ -35,15 +37,22 @@ const SEGMENTI = {
   altri: { peso: 25, nome: 'altri negozi' },
 };
 // Dove non si vince o non si entra (CONTESTO_BUSINESS §3: elettronica persa; catene escluse; niente usato).
-const ESCLUSE = new Set(['vacant', 'disused', 'no', 'yes', 'electronics', 'computer', 'mobile_phone', 'telecommunication', 'hifi', 'appliance',
+const ESCLUSE = new Set(['vacant', 'disused', 'no', 'tobacco', 'mobile_phone_accessories', 'printer_ink', 'energy', 'gas', 'electronics', 'computer', 'mobile_phone', 'telecommunication', 'hifi', 'appliance',
   'car', 'car_parts', 'car_repair', 'motorcycle', 'fuel', 'tyres', 'truck', 'caravan', 'boat', 'second_hand', 'charity', 'pawnbroker',
   'money_lender', 'bookmaker', 'lottery', 'betting', 'gambling', 'e-cigarette', 'weapons', 'erotic', 'funeral_directors', 'storage_rental',
-  'supermarket', 'department_store', 'mall', 'wholesale', 'trade', 'kiosk', 'ticket', 'travel_agency', 'rental', 'vending_machine', 'outpost']);
+  'department_store', 'mall', 'wholesale', 'trade', 'kiosk', 'ticket', 'travel_agency', 'rental', 'vending_machine', 'outpost']);
+// Tabaccherie, ricevitorie e sigarette anche quando la mappa le segna come alimentari (collaudo m2: «Zilli Paola Tabaccheria» era nel fresco).
+const NOME_ESCLUSO = /\b(tabacc\w*|ricevitoria|lotto|totocalcio|sigarett\w*|svapo|scommess\w*|sala giochi|slot)\b/;
 // Catene e franchising: chi ha un marchio sulla mappa, più i nomi più comuni a Piacenza che spesso non lo hanno.
 // Il confronto si fa sul nome normalizzato (minuscole, senza accenti né apostrofi): «Tigotà» con l'accento sfuggiva al \b.
-const CATENE = /\b(conad|coop|esselunga|carrefour|lidl|eurospin|penny|pam|despar|eurospar|interspar|crai|sigma|md discount|aldi|famila|ins mercato|tigota|acqua (e )?sapone|mc ?donald|burger king|old wild west|roadhouse|autogrill|starbucks|douglas|sephora|kiko|limoni|calzedonia|intimissimi|tezenis|yamamay|zara|h m|ovs|benetton|pandora|bata|carpisa|alcott|original marines|primadonna|unieuro|euronics|mediaworld|trony|feltrinelli|mondadori|giunti|tim|vodafone|wind ?tre|iliad|fastweb|poste|bricocenter|leroy merlin|decathlon|pittarello|scarpe (e )?scarpe|ottica avanzi|salmoiraghi|grandvision|vision ottica|optissimo|marionnaud|yves rocher|l?erbolario|lush|flying tiger|thun|rinascente|upim|sorbino|piazza italia|terranova|stroili|blue spirit|cisalfa|foot locker|kfc|poke house|dominos?|spizzico|rossopomodoro|la piadineria|panino giusto|cioccolatitaliani|grom|venchi|lindt|caffe borbone|nespresso|segafredo|arcaplanet|isola dei tesori|maxi zoo|bennet|ipercoop|tuodi|dpiu|todis|ard discount|ekom|basko|sole 365|risparmio casa|tedi|pepco|kasanova|ipersoap|caddys?)\b/;
+const CATENE = /\b(conad|coop|esselunga|carrefour|lidl|eurospin|penny|pam|despar|eurospar|interspar|crai|sigma|md discount|aldi|famila|ins mercato|tigota|acqua (e )?sapone|mc ?donald|burger king|old wild west|roadhouse|autogrill|starbucks|douglas|sephora|kiko|limoni|calzedonia|intimissimi|tezenis|yamamay|zara|h m|ovs|benetton|pandora|bata|carpisa|alcott|original marines|primadonna|unieuro|euronics|mediaworld|trony|feltrinelli|mondadori|giunti|tim|vodafone|wind ?tre|iliad|fastweb|poste|bricocenter|leroy merlin|decathlon|pittarello|scarpe (e )?scarpe|ottica avanzi|salmoiraghi|grandvision|vision ottica|optissimo|marionnaud|yves rocher|l?erbolario|lush|flying tiger|thun|rinascente|upim|sorbino|piazza italia|terranova|stroili|blue spirit|cisalfa|foot locker|kfc|poke house|dominos?|spizzico|rossopomodoro|la piadineria|panino giusto|cioccolatitaliani|grom|venchi|lindt|caffe borbone|nespresso|segafredo|arcaplanet|isola dei tesori|maxi zoo|bennet|ipercoop|tuodi|dpiu|todis|ard discount|ekom|basko|sole 365|risparmio casa|tedi|pepco|kasanova|ipersoap|caddys?|pinalli|citta del sole|yogorino|la piad[ie]neria|pizzium|chef express|pinko|borbonese|luisa spagnoli|grimaldi immobiliare|sun68|sun 68|furla|pitta ?rosso|maxi ?zoo|df sport specialist|sport ?specialist)\b/;
+// Nomi corti che da soli sarebbero parole comuni: valgono solo se il nome è esattamente quello.
+const CATENE_ESATTE = new Set(['coin', 'obi', 'pam', 'tim']);
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// Nomi che dicono solo il mestiere («forneria», «macelleria»): accanto a un negozio dello stesso tipo sono quasi sempre lui.
+const GENERICO = /^(forneria|panetteria|panificio|macelleria|salumeria|gastronomia|alimentari|pasticceria|gelateria|fruttivendolo|frutta e verdura|ortofrutta|drogheria|enoteca|fioraio|fiorista|bar|caffe|caffetteria|pizzeria|ristorante|trattoria|edicola|parrucchiere|barbiere|estetica|centro estetico|ottica|erboristeria|merceria|ferramenta|cartoleria|libreria|calzature|abbigliamento)$/;
+const chiaveNome = (s) => norm(s).replace(/ /g, '');
 const distanza = (a, b) => { // metri, formula dell'emisenoverso
   const R = 6371000, rad = (x) => (x * Math.PI) / 180;
   const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
@@ -64,13 +73,28 @@ const giaSuMyCity = (nome) => { const n = norm(nome); if (suMyCity.has(n)) retur
 // ── chi è già stato proposto (la tabella non si svuota mai: chi c'è non torna in fila) ──
 const proposte = new Set();
 const stati = {};
+// Lo stato lo scrive a mano chi visita: «Sì», « si », «iscritto», «visitata ✓», «no grazie» valgono come le parole giuste.
+// Quello che non si capisce si conta a parte e il messaggio lo dice (scorciatoie #11), mai dato per assente.
+const leggiStato = (v) => {
+  const t = String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z_ ]+/g, ' ').trim();
+  if (!t || /^da[ _]?visitare$/.test(t)) return 'da_visitare';
+  if (/iscritt/.test(t)) return 'iscritta';
+  if (/^(si|yes|ok)\b/.test(t)) return 'si';
+  if (/^no\b/.test(t)) return 'no';
+  if (/visitat|^visto/.test(t)) return 'visitata';
+  return 'non_capito';
+};
+let tabellaRotta = '';
 for (const it of $('Leggi le attività già proposte').all()) {
   const j = it.json || {};
-  if (j.osm) { proposte.add(String(j.osm)); const s = String(j.stato || 'da_visitare').trim().toLowerCase() || 'da_visitare'; stati[s] = (stati[s] || 0) + 1; }
+  if (j.error) { tabellaRotta = String(j.error.message || j.error).slice(0, 120); continue; }
+  if (j.osm) { proposte.add(String(j.osm)); const s = leggiStato(j.stato); stati[s] = (stati[s] || 0) + 1; }
 }
+// Tabella che non risponde: niente lista, se no le prime 10 tornerebbero in fila e si riscriverebbero (collaudo m7).
+if (tabellaRotta) return [{ json: { letta: false, motivo: `la tabella «Attività da visitare» non ha risposto (${tabellaRotta})`, fila: [], conti: null } }];
 
 const conti = { letti: elementi.length, senza_nome: 0, senza_posizione: 0, chiuse: 0, catene: 0, categorie_escluse: 0, doppioni: 0, gia_su_mycity: 0, gia_proposte: 0, fuori_raggio: 0, in_fila: 0, per_segmento: {}, negozi_mycity_letti: suMyCity.size, proposte_finora: proposte.size, stati_finora: stati };
-const visti = new Map(); // nome normalizzato → [posizioni] per togliere i doppioni (stesso negozio come punto e come edificio)
+const visti = []; // { chiave, pos, tipo } per togliere i doppioni (stesso negozio come punto e come edificio, o con due nomi)
 const candidate = [];
 for (const e of elementi) {
   const t = e.tags || {};
@@ -79,18 +103,28 @@ for (const e of elementi) {
   const pos = e.type === 'node' ? { lat: e.lat, lon: e.lon } : (e.center || null);
   if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon)) { conti.senza_posizione++; continue; }
   if (/^closed$/i.test(String(t.opening_hours || '').trim()) || t['disused:shop'] || t.disused === 'yes' || t.abandoned === 'yes') { conti.chiuse++; continue; }
-  if (t.brand || t['brand:wikidata'] || t['operator:wikidata'] || CATENE.test(norm(nome))) { conti.catene++; continue; }
+  const marchioAltrui = t.brand && !chiaveNome(nome).includes(chiaveNome(t.brand));
+  if (t['brand:wikidata'] || t['operator:wikidata'] || marchioAltrui || CATENE.test(norm(nome)) || CATENE_ESATTE.has(norm(nome))) { conti.catene++; continue; }
   const shop = t.shop, amenity = t.amenity, craft = t.craft;
-  if (shop && ESCLUSE.has(shop)) { conti.categorie_escluse++; continue; }
+  if ((shop && ESCLUSE.has(shop)) || NOME_ESCLUSO.test(norm(nome))) { conti.categorie_escluse++; continue; }
   let seg = 'altri';
   for (const [k, s] of Object.entries(SEGMENTI)) if ((shop && s.shop?.includes(shop)) || (!shop && amenity && s.amenity?.includes(amenity))) { seg = k; break; }
   if (seg === 'altri' && !shop && !amenity && craft) seg = 'artigiani';
   const m = distanza({ lat: LAT, lon: LON }, pos);
   if (m > RAGGIO + 50) { conti.fuori_raggio++; continue; }
-  const chiave = norm(nome);
-  const gia = visti.get(chiave) || [];
-  if (gia.some((p) => distanza(p, pos) < 80)) { conti.doppioni++; continue; }
-  visti.set(chiave, [...gia, pos]);
+  const chiave = chiaveNome(nome);
+  const tipoGrezzo = shop || amenity || craft || '';
+  const civico = norm(t['addr:housenumber'] || '');
+  const generico = GENERICO.test(norm(nome));
+  const doppio = visti.some((v) => {
+    const d = distanza(v.pos, pos);
+    if (v.chiave === chiave) return d < 80;
+    if (civico && v.civico && civico !== v.civico) return false; // due civici diversi sono due negozi (Via Calzolai 34 e 36)
+    if (d < 30 && v.chiave.length >= 5 && chiave.length >= 5 && (v.chiave.includes(chiave) || chiave.includes(v.chiave))) return true;
+    return d < 15 && v.tipo === tipoGrezzo && (generico || v.generico);
+  });
+  visti.push({ chiave, pos, tipo: tipoGrezzo, civico, generico }); // anche il doppione resta come punto noto: così si riconosce il terzo nome dello stesso negozio
+  if (doppio) { conti.doppioni++; continue; }
   const osm = `${e.type}/${e.id}`;
   if (giaSuMyCity(nome)) { conti.gia_su_mycity++; continue; }
   if (proposte.has(osm)) { conti.gia_proposte++; continue; }

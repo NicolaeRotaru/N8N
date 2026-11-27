@@ -62,11 +62,13 @@ export function costruisci({ telegram, chatId, errorWorkflow, chiedi, marketplac
     nodoConfig([['MODALITA', vero ? 'vero' : 'prova'], ['TELEGRAM_CHAT_ID', chatId || 'DA_IMPOSTARE'], ['SUPABASE_URL', 'https://clmpyfvpvfjgeviworth.supabase.co'],
       ...Object.entries(CONFIG_16)], pos(1)),
     { id: randomUUID(), name: 'Prepara la domanda', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(2), parameters: { jsCode: codice('prepara-domanda.js') } },
+    // Senza neverError un 429 o un 504 di Overpass è un errore del nodo: così la riprova scatta davvero (collaudo m8).
+    // Dopo 3 tentativi esce un elemento con `error`, che «Metti in fila» legge come «mappa non letta».
     { id: randomUUID(), name: 'Chiedi alla mappa', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: pos(3),
       onError: 'continueRegularOutput', retryOnFail: true, maxTries: 3, waitBetweenTries: 5000,
       parameters: { method: 'GET', url: '={{ $json.url }}', sendHeaders: true,
         headerParameters: { parameters: [{ name: 'User-Agent', value: 'MyCity-Piacenza/1.0 (attivita-da-visitare; n8n)' }, { name: 'Accept', value: 'application/json' }] },
-        options: { response: { response: { fullResponse: true, neverError: true, responseFormat: 'text' } }, timeout: 150000 } } },
+        options: { response: { response: { fullResponse: true, neverError: false, responseFormat: 'text' } }, timeout: 150000 } } },
     letturaSupabase('Leggi i negozi di MyCity', 'profiles?select=id,store_name&role=eq.seller&limit=10000', pos(4), marketplace),
     { id: randomUUID(), name: 'Leggi le attività già proposte', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(5), alwaysOutputData: true, executeOnce: true,
       onError: 'continueRegularOutput', parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), returnAll: true } },
