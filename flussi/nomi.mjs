@@ -12,6 +12,8 @@
 export const NOMI = {
   nuovoCliente: '11 · Nuovo cliente',
   bozzeAbbonamenti: '15 · Bozze dei 3 abbonamenti',
+  // La macchina che trova i clienti (27/11/2026): famiglia 1x clienti, primo numero libero dopo il 15.
+  attivitaDaVisitare: '16 · Attività da visitare',
   iscriviInMyCity: '20 · Iscrivi il cliente in MyCity',
   nuovoClienteDaMyCity: '26 · Nuovo cliente da MyCity',
   analisiMarketplace: '27 · Analisi del marketplace',
