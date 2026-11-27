@@ -42,7 +42,7 @@ export const CONFIG_16 = {
   OVERPASS_URL: 'https://overpass-api.de/api/interpreter',
   LISTINO: 'Vetrina su MyCity: il 10% sui prodotti venduti tramite il sito. ' +
     'Tre abbonamenti mensili ai servizi di MyCity, fatti col partner SDG (foto e video, social, sito web, scheda Google, in misura crescente): ' +
-    'Base 300 €, Business 500 €, Premium 999 € al mese. Primo mese a metà prezzo, nessun vincolo, disdetta con 30 giorni di preavviso; per ora si pagano in contanti, di persona.',
+    'Base 300 €, Business 600 €, Premium 900 € al mese. Primo mese a metà prezzo, nessun vincolo, disdetta con 30 giorni di preavviso; per ora si pagano in contanti, di persona.',
 };
 
 const tabella = () => ({ __rl: true, mode: 'id', value: TABELLA_ID, cachedResultName: TABELLA });
