@@ -229,7 +229,7 @@ test('D3, D4 e l\'ora passata: righe doppie, tasti vecchi e contenuti scaduti no
   const riproposta = { ...FUTURA, media: 'https://drive.google.com/file/d/nuovo/view' };
   const vecchio = (await decidi(t('approva'), [riproposta]))[0].json;
   assert.deepEqual(vecchio.righe, [], 'D4: il tasto dell\'anteprima vecchia non approva i file nuovi');
-  assert.match(vecchio.testo, /versione vecchia/);
+  assert.match(vecchio.testo, /non è più uguale all'anteprima/);
   const scaduta = { ...FUTURA, data_ora: '2020-01-01 10:00' };
   const tardi = (await decidi(t('approva', { versione: await versioneDi({ ...RIGA, ...scaduta }) }), [scaduta]))[0].json;
   assert.deepEqual(tardi.righe, [], 'chi non viene approvato prima della sua ora non esce');
@@ -248,7 +248,7 @@ test('il tasto vecchio non approva una didascalia cambiata: l\'impronta guarda t
   const t = { query_id: 'q1', chat_id: '123', message_id: '77', azione: 'approva', id: FUTURA.id, versione: v };
   const cambiata = (await decidi(t, [{ ...FUTURA, didascalia: 'Testo accorciato' }]))[0].json;
   assert.deepEqual(cambiata.righe, [], 'la didascalia nuova non l\'hai vista: il tasto vecchio non la approva');
-  assert.match(cambiata.testo, /versione vecchia/);
+  assert.match(cambiata.testo, /non è più uguale all'anteprima/);
   // Andata e ritorno dal foglio: la riga come la scrive «Scrivi la riga» e la rilegge il flusso dei tasti ha l'impronta
   // del tasto, anche se il foglio rende gli spazi in un altro modo e la proposta non diceva i social.
   const p = (await controlla({ riga: { ...FUTURA, didascalia: 'Riga uno\nriga due', piattaforme: '' }, anteprima: { file_id: 'f1' } }))[0].json;
@@ -257,6 +257,13 @@ test('il tasto vecchio non approva una didascalia cambiata: l\'impronta guarda t
   const ok = (await decidi({ ...t, versione: p.versione }, [{ ...scritta, didascalia: 'Riga uno\r\nriga due ', stato: 'da_approvare' }]))[0].json;
   assert.equal(ok.righe[0]?.stato, 'approvato', 'la stessa versione, riletta dal foglio, si approva');
   assert.equal((await decidi(t, [{ ...FUTURA, piattaforme: 'ig+fb' }]))[0].json.righe[0]?.stato, 'approvato', 'social non scritti e «ig+fb» sono la stessa cosa');
+  // Dai collaudi del 27/11 sera. Rifiutare non fa mai uscire niente: si può sempre, anche con un tasto di prima. Altrimenti
+  // un Rifiuta su un contenuto già in attesa non farebbe niente, e un «Approva tutti» dopo lo farebbe uscire.
+  const rifiuto = (await decidi({ ...t, azione: 'rifiuta' }, [{ ...FUTURA, didascalia: 'Testo accorciato' }]))[0].json;
+  assert.equal(rifiuto.righe[0]?.stato, 'bozza');
+  // Lo spazio fra le parole e il campo in cui sta un testo contano.
+  assert.notEqual(await versioneDi({ ...FUTURA, didascalia: 'Pane caldo' }), await versioneDi({ ...FUTURA, didascalia: 'Panecaldo' }));
+  assert.notEqual(await versioneDi({ ...FUTURA, didascalia: 'Pane', primo_commento: 'caldo' }), await versioneDi({ ...FUTURA, didascalia: 'Panecaldo', primo_commento: '' }));
 });
 
 test('«Approva tutti» approva solo il suo gruppo, solo il da approvare, e salta doppie e scadute', async () => {
