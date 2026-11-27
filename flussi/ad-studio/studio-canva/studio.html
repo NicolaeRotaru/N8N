@@ -1,55 +1,65 @@
-<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Studio Tropico</title>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Studio contenuti</title>
 <style>
-@font-face{font-family:Slab;font-weight:400;src:url(font/RobotoSlab-400.ttf)}
-@font-face{font-family:Slab;font-weight:700;src:url(font/RobotoSlab-700.ttf)}
-@font-face{font-family:Slab;font-weight:800;src:url(font/RobotoSlab-800.ttf)}
-@font-face{font-family:Archivo;font-weight:400;src:url(font/Archivo-400.ttf)}
-@font-face{font-family:Archivo;font-weight:700;src:url(font/Archivo-700.ttf)}
-:root{--verde:#3D7C2B;--giallo:#FBCA1E;--nero:#253038;--bianco:#FFFFFF;--crema:#FFFFFF;--mag:#253038}
+:root{--scuro:#253038;--accento:#FBCA1E;--secondo:#3D7C2B;--chiaro:#FFFFFF;--su-accento:#253038;--su-secondo:#FFFFFF}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#000;overflow:hidden}
-#tela{position:relative;overflow:hidden;font-family:Archivo,sans-serif;color:#fff}
+#tela{position:relative;overflow:hidden;font-family:Testo,sans-serif;color:#fff}
 .abs{position:absolute}
 .foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .velo{position:absolute;inset:0}
-.logo{position:absolute;background:#fff;border-radius:24px;padding:18px 26px;border:3px solid var(--nero);box-shadow:6px 6px 0 var(--nero);transform:rotate(-2deg)}
+.logo{position:absolute;background:#fff;border-radius:24px;padding:18px 26px;border:3px solid var(--scuro);box-shadow:6px 6px 0 var(--scuro);transform:rotate(-2deg)}
 .logo img{display:block;width:100%}
-.nastro{display:inline-block;background:var(--giallo);color:var(--nero);font:800 92px/1.08 Slab;padding:22px 54px 26px;transform:rotate(-2.5deg);
-  box-shadow:8px 8px 0 var(--nero);border:3px solid var(--nero);border-radius:12px}
-.nastro.verde{background:var(--verde);color:#fff}
-.sotto{font:700 46px/1.25 Archivo;color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.6)}
-.chip{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(37,48,56,.88);color:#fff;
-  font:700 36px Archivo;padding:20px 36px;border-radius:999px;border:3px solid rgba(255,255,255,.25)}
-.chip b{color:var(--giallo)}
-.grande{font:800 132px/1.02 Slab;letter-spacing:-2px}
+.nastro{display:inline-block;background:var(--accento);color:var(--su-accento);font:800 92px/1.08 Titoli;padding:22px 54px 26px;transform:rotate(-2.5deg);
+  box-shadow:8px 8px 0 var(--scuro);border:3px solid var(--scuro);border-radius:12px}
+.nastro.verde{background:var(--secondo);color:var(--su-secondo)}
+.sotto{font:700 46px/1.25 Testo;color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.6)}
+.chip{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:color-mix(in srgb, var(--scuro) 88%, transparent);color:#fff;
+  font:700 36px Testo;padding:20px 36px;border-radius:999px;border:3px solid rgba(255,255,255,.25)}
+.chip b{color:var(--accento)}
+.grande{font:800 132px/1.02 Titoli;letter-spacing:-2px}
 .lista{width:860px}
-.riga{display:flex;align-items:baseline;gap:18px;font:700 54px/1.2 Slab;color:var(--nero);padding:18px 0;border-bottom:3px dashed rgba(37,48,56,.25)}
+.riga{display:flex;align-items:baseline;gap:18px;font:700 54px/1.2 Titoli;color:var(--scuro);padding:18px 0;border-bottom:3px dashed color-mix(in srgb, var(--scuro) 25%, transparent)}
 .riga .p{flex:1;border-bottom:4px dotted rgba(23,17,15,.35);transform:translateY(-12px)}
-.riga .v{font:700 44px Archivo;color:var(--verde)}
+.riga .v{font:700 44px Testo;color:var(--secondo)}
 .polaroid{position:absolute;background:#fff;padding:18px 18px 70px;box-shadow:0 20px 40px rgba(0,0,0,.35)}
 .polaroid img{display:block;width:100%;height:100%;object-fit:cover}
-.cont{position:absolute;top:44px;right:44px;background:rgba(37,48,56,.85);color:#fff;font:700 30px Archivo;padding:10px 22px;border-radius:999px}
-.banda{position:absolute;left:0;right:0;bottom:0;background:var(--bianco);color:var(--nero);padding:44px 64px 50px;border-top:6px solid var(--giallo)}
-.banda h2{font:800 74px/1.05 Slab;color:var(--nero)}
-.banda h2 em{font-style:normal;color:var(--verde)}
-.banda p{font:700 36px/1.3 Archivo;color:#4a5660;margin-top:14px}
-.num{font:800 300px/0.9 Slab;color:#fff;letter-spacing:-8px;text-shadow:0 10px 30px rgba(0,0,0,.45)}
-.lab{font:800 70px/1.05 Slab;color:#fff;text-shadow:0 6px 22px rgba(0,0,0,.55)}
+.cont{position:absolute;top:44px;right:44px;background:color-mix(in srgb, var(--scuro) 85%, transparent);color:#fff;font:700 30px Testo;padding:10px 22px;border-radius:999px}
+.banda{position:absolute;left:0;right:0;bottom:0;background:var(--chiaro);color:var(--scuro);padding:44px 64px 50px;border-top:6px solid var(--accento)}
+.banda h2{font:800 74px/1.05 Titoli;color:var(--scuro)}
+.banda h2 em{font-style:normal;color:var(--secondo)}
+.banda p{font:700 36px/1.3 Testo;color:color-mix(in srgb, var(--scuro) 82%, white);margin-top:14px}
+.num{font:800 300px/0.9 Titoli;color:#fff;letter-spacing:-8px;text-shadow:0 10px 30px rgba(0,0,0,.45)}
+.lab{font:800 70px/1.05 Titoli;color:#fff;text-shadow:0 6px 22px rgba(0,0,0,.55)}
 </style></head><body><div id="tela"></div>
 <script>
 const $=(h)=>{const d=document.createElement('div');d.innerHTML=h.trim();return d.firstChild};
 const FOTO=n=>`hd/_MG_${n}.jpg`;
-const INFO='Via Mazzini 77/A · Prenota <b>0523 335932</b>';
+let INFO='';
 const cl=(x,a,b)=>Math.min(b,Math.max(a,x)), p=(t,a,b)=>cl((t-a)/(b-a),0,1), L=(a,b,x)=>a+(b-a)*x;
 const oC=x=>1-Math.pow(1-x,3), ioC=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, oB=x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
 let PEZZO=null;
-function logo(x,y,w){return `<div class="logo" style="left:${x}px;top:${y}px;width:${w}px"><img src="logo.png"></div>`}
+// ---------- il cliente: colori del marchio, contrasto, caratteri (da cliente.json) ----------
+const RUOLO={scuro:'scuro',accento:'accento',secondo:'secondo',chiaro:'chiaro',nero:'scuro',mag:'scuro',giallo:'accento',verde:'secondo',bianco:'chiaro',crema:'chiaro'};
+let MARCHIO=null;
+function lum(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const v=[0,2,4].map(i=>{let c=parseInt(h.substr(i,2),16)/255;return c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2];}
+function contrasto(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+function testoSu(ruolo){const c=MARCHIO.colori[ruolo];return contrasto(c,MARCHIO.colori.scuro)>=contrasto(c,'#FFFFFF')?'var(--scuro)':'#FFFFFF';}
+window.impostaCliente=function(M){
+  MARCHIO=M; const r=document.documentElement.style;
+  for(const k of ['scuro','accento','secondo','chiaro']) r.setProperty('--'+k,M.colori[k]);
+  r.setProperty('--su-accento',testoSu('accento')); r.setProperty('--su-secondo',testoSu('secondo'));
+  INFO=M.info;
+  const css=[...M.font.titoli.map(f=>`@font-face{font-family:Titoli;font-weight:${f.peso};src:url(${f.file})}`),...M.font.testo.map(f=>`@font-face{font-family:Testo;font-weight:${f.peso};src:url(${f.file})}`)].join('\n');
+  const st=document.createElement('style'); st.textContent=css; document.head.append(st);
+  return document.fonts.ready.then(()=>Promise.all([...document.fonts].map(f=>f.load().catch(()=>{}))));
+};
+function logo(x,y,w){return `<div class="logo" style="left:${x}px;top:${y}px;width:${w}px"><img src="${MARCHIO.logo}"></div>`}
 function costruisci(P){
   PEZZO=P; const T=document.getElementById('tela');
   const [W,H]=P.formato==='storia'||P.tipo==='reel'?[1080,1920]:[1080,1350];
   T.style.width=W+'px';T.style.height=H+'px';T.innerHTML='';
-  const fx=P.fx??50, fy=P.fy??50, col={mag:'var(--nero)',verde:'var(--verde)',giallo:'var(--giallo)',crema:'var(--bianco)',bianco:'var(--bianco)',nero:'var(--nero)'}[P.colore||'mag'];
-  const scuro=(P.colore==='giallo'||P.colore==='crema'||P.colore==='bianco')?'var(--nero)':'#fff';
+  const fx=P.fx??50, fy=P.fy??50, col={scuro:'var(--scuro)',accento:'var(--accento)',secondo:'var(--secondo)',chiaro:'var(--chiaro)',mag:'var(--scuro)',nero:'var(--scuro)',giallo:'var(--accento)',verde:'var(--secondo)',crema:'var(--chiaro)',bianco:'var(--chiaro)'}[P.colore||'mag'];
+  const scuro=testoSu(RUOLO[P.colore||'scuro']);
   if(P.modello==='storia-foto'){
     T.append($(`<img class="foto" src="${FOTO(P.foto)}" style="object-position:${fx}% ${fy}%">`));
     T.append($(`<div class="velo" style="background:linear-gradient(180deg,rgba(0,0,0,.45) 0,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 45%,rgba(0,0,0,.78) 88%)"></div>`));
@@ -62,16 +72,16 @@ function costruisci(P){
     T.append($(`<div class="velo" style="background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.14),rgba(0,0,0,.12) 70%)"></div>`));
     T.append($(logo(390,250,300)));
     T.append($(`<div class="abs grande" style="left:70px;right:70px;top:${P.y??560}px;text-align:center;color:${scuro}">${P.titolo}</div>`));
-    if(P.sotto) T.append($(`<div class="abs sotto2" style="left:80px;right:80px;top:${P.ys??930}px;text-align:center;font:700 50px/1.3 Archivo;color:${scuro}">${P.sotto}</div>`));
+    if(P.sotto) T.append($(`<div class="abs sotto2" style="left:80px;right:80px;top:${P.ys??930}px;text-align:center;font:700 50px/1.3 Testo;color:${scuro}">${P.sotto}</div>`));
     if(P.foto) T.append($(`<div class="polaroid" style="left:300px;top:1150px;width:480px;height:400px;transform:rotate(${P.rot??4}deg)"><img src="${FOTO(P.foto)}" style="object-position:${fx}% ${fy}%"></div>`));
     else if(P.info!==false) T.append($(`<div class="chip" style="top:1500px">${INFO}</div>`));
   }
   if(P.modello==='storia-lista'){
-    T.style.background='var(--crema)';
+    T.style.background='var(--chiaro)';
     T.append($(logo(390,250,300)));
     T.append($(`<div class="abs" style="left:0;right:0;top:600px;text-align:center"><div class="nastro ${P.nastro||''}" style="font-size:76px">${P.titolo}</div></div>`));
     T.append($(`<div class="abs lista" style="left:110px;top:${P.yl??800}px">${P.righe.map(r=>`<div class="riga"><span>${r[0]}</span><span class="p"></span><span class="v">${r[1]||''}</span></div>`).join('')}</div>`));
-    if(P.sotto) T.append($(`<div class="abs" style="left:90px;right:90px;top:${P.ys??1390}px;text-align:center;font:700 40px/1.3 Archivo;color:#4a5660">${P.sotto}</div>`));
+    if(P.sotto) T.append($(`<div class="abs" style="left:90px;right:90px;top:${P.ys??1390}px;text-align:center;font:700 40px/1.3 Testo;color:color-mix(in srgb, var(--scuro) 82%, white)">${P.sotto}</div>`));
     T.append($(`<div class="chip" style="top:1500px">${INFO}</div>`));
   }
   if(P.modello==='post-foto'){
@@ -86,11 +96,11 @@ function costruisci(P){
     T.append($(`<div class="velo" style="background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.16),rgba(0,0,0,.14) 75%)"></div>`));
     T.append($(logo(70,70,240)));
     T.append($(`<div class="abs grande" style="left:70px;right:70px;top:${P.y??330}px;color:${scuro};font-size:${P.fs??120}px">${P.titolo}</div>`));
-    if(P.sotto) T.append($(`<div class="abs" style="left:74px;right:${P.foto?'500px':'80px'};top:${P.ys??780}px;font:700 44px/1.3 Archivo;color:${scuro}">${P.sotto}</div>`));
+    if(P.sotto) T.append($(`<div class="abs" style="left:74px;right:${P.foto?'500px':'80px'};top:${P.ys??780}px;font:700 44px/1.3 Testo;color:${scuro}">${P.sotto}</div>`));
     if(P.foto) T.append($(`<div class="polaroid" style="right:70px;top:${P.yf??720}px;width:360px;height:430px;transform:rotate(${P.rot??5}deg)"><img src="${FOTO(P.foto)}" style="object-position:${fx}% ${fy}%"></div>`));
-    if(P.righe) T.append($(`<div class="abs" style="left:74px;right:80px;top:${P.yl??560}px">${P.righe.map(r=>`<div style="display:flex;gap:22px;align-items:center;font:800 54px/1.15 Slab;color:${scuro};padding:12px 0"><span style="width:58px;height:58px;border-radius:50%;background:${P.colore==='giallo'?'var(--verde)':'var(--giallo)'};color:${P.colore==='giallo'?'#fff':'var(--nero)'};display:flex;align-items:center;justify-content:center;font:800 32px Archivo;flex:none">${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>`));
+    if(P.righe) T.append($(`<div class="abs" style="left:74px;right:80px;top:${P.yl??560}px">${P.righe.map(r=>`<div style="display:flex;gap:22px;align-items:center;font:800 54px/1.15 Titoli;color:${scuro};padding:12px 0"><span style="width:58px;height:58px;border-radius:50%;background:${RUOLO[P.colore]==='accento'?'var(--secondo)':'var(--accento)'};color:${RUOLO[P.colore]==='accento'?'var(--su-secondo)':'var(--su-accento)'};display:flex;align-items:center;justify-content:center;font:800 32px Testo;flex:none">${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>`));
     if(P.cont) T.append($(`<div class="cont">${P.cont}</div>`));
-    if(P.piede!==false) T.append($(`<div class="abs" style="left:74px;bottom:56px;font:700 32px Archivo;color:${scuro};opacity:.92">Via Mazzini 77/A, Piacenza · 0523 335932</div>`));
+    if(P.piede!==false) T.append($(`<div class="abs" style="left:74px;bottom:56px;font:700 32px Testo;color:${scuro};opacity:.92">${MARCHIO.piede}</div>`));
   }
   if(P.tipo==='reel') costruisciReel(P,T);
 }
@@ -100,11 +110,11 @@ function costruisciReel(P,T){
     const g=$(`<div class="abs scena" id="sc${i}" style="inset:0;opacity:0"></div>`);
     if(s.foto){g.append($(`<img class="foto" id="im${i}" src="${FOTO(s.foto)}" style="object-position:${s.fx??50}% ${s.fy??50}%">`));
       g.append($(`<div class="velo" style="background:linear-gradient(180deg,rgba(0,0,0,.40) 0,rgba(0,0,0,.12) 22%,rgba(0,0,0,.50) 38%,rgba(0,0,0,.50) 62%,rgba(0,0,0,.15) 78%,rgba(0,0,0,.55) 100%)"></div>`));}
-    else g.style.background=`var(--${s.colore==='mag'||!s.colore?'nero':s.colore})`;
+    else {g.style.background=`var(--${RUOLO[s.colore||'scuro']})`; g.style.color=testoSu(RUOLO[s.colore||'scuro']);}
     if(s.num) g.append($(`<div class="abs num" id="n${i}" style="left:0;right:0;top:${s.y??760}px;text-align:center">${s.num}</div>`));
-    if(s.lab) g.append($(`<div class="abs" id="l${i}" style="left:50px;right:50px;top:${(s.y??760)+(s.num?310:0)}px;text-align:center"><div class="nastro ${!s.foto&&s.colore==='giallo'?'verde':''}" style="font-size:70px">${s.lab}</div></div>`));
-    if(s.outro){g.append($(`<div class="abs" id="o${i}" style="left:0;right:0;top:420px;text-align:center"><div class="logo" style="position:relative;display:inline-block;width:620px;transform:rotate(-2deg)"><img src="logo.png"></div>
-      <div style="font:800 76px/1.1 Slab;margin-top:70px">${s.outro[0]}</div><div style="font:700 50px Archivo;margin-top:26px;color:var(--giallo)">${s.outro[1]}</div><div style="font:700 44px Archivo;margin-top:18px">${s.outro[2]||''}</div></div>`));}
+    if(s.lab) g.append($(`<div class="abs" id="l${i}" style="left:50px;right:50px;top:${(s.y??760)+(s.num?310:0)}px;text-align:center"><div class="nastro ${!s.foto&&RUOLO[s.colore]==='accento'?'verde':''}" style="font-size:70px">${s.lab}</div></div>`));
+    if(s.outro){g.append($(`<div class="abs" id="o${i}" style="left:0;right:0;top:420px;text-align:center"><div class="logo" style="position:relative;display:inline-block;width:620px;transform:rotate(-2deg)"><img src="${MARCHIO.logo}"></div>
+      <div style="font:800 76px/1.1 Titoli;margin-top:70px">${s.outro[0]}</div><div style="font:700 50px Testo;margin-top:26px;color:var(--accento)">${s.outro[1]}</div><div style="font:700 44px Testo;margin-top:18px">${s.outro[2]||''}</div></div>`));}
     T.append(g);
   });
   T.append($(logo(820,250,200)));

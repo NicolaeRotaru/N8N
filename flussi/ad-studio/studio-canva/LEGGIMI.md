@@ -30,7 +30,13 @@ Niente per usarla. Per un cliente nuovo servono le sue foto su Drive e i colori 
 
 ## Dettagli tecnici
 
-**La cartella di lavoro.** Si copia questa cartella in una cartella di lavoro, fuori dal deposito. Ci si mette dentro:
+**Dal 27/11 vale per qualsiasi cliente: si segue `PROCEDURA.md`** (bozza da seguire).
+- Colori, caratteri, logo e testi del cliente stanno in `clienti/<id>.json`; l'esempio è `clienti/tropico-latino.json`.
+- `marchio.mjs` legge i colori veri dal foglio di stile del sito; `prepara.sh` prepara la cartella di lavoro.
+- Il testo sopra un colore si sceglie da solo per contrasto.
+- Prova del 27/11: le impaginazioni generiche rifanno i pezzi del Tropico identici, con una differenza media sotto 0,01 su 255. Col marchio MyCity cambiano da sole colori, caratteri e contrasto.
+
+**La cartella di lavoro (com'era il 26/11; oggi la fa `prepara.sh`).** Si copia questa cartella in una cartella di lavoro, fuori dal deposito. Ci si mette dentro:
 - `font/`: i caratteri del cliente. Per il Tropico, `RobotoSlab-*.ttf` e `Archivo-*.ttf` da `../../../officina/font/`.
 - `hd/_MG_xxxx.jpg`: le foto del cliente. Si scaricano da Drive col flusso «AD · Leggi materiale (anteprime)», ingresso `file` con `lato: 3200`. Le foto non si mettono nel deposito, perché sono del cliente.
 - `logo.png`: il logo con lo sfondo trasparente, preso dal sito del cliente con l'ingresso `url` dello stesso flusso.

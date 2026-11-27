@@ -1,4 +1,5 @@
-# Consegna dei contenuti del Tropico nel giro dell'agenzia, coi flussi esistenti dell'AD.
+# Consegna dei contenuti di un cliente nel giro dell'agenzia, coi flussi esistenti dell'AD.
+#   python3 consegna.py comprimi            -> rifà con crf 25 i video sopra i 4 MB
 #   python3 consegna.py lotti               -> divide i file in lotti sotto il limite e li elenca
 #   python3 consegna.py prepara <n>         -> scrive il lotto n nel nodo «Prepara» di «AD · Carica su Drive»
 #   python3 consegna.py leggi <esecuzione>  -> legge l'esito del caricamento e salva gli ID in drive.json
@@ -10,7 +11,9 @@ N8N = 'https://n8n-shdy.sliplane.app/api/v1'; WF = '6o75dipPqyQIojx2'
 SEGNAPOSTO = "const FILE = []; // __FILE__ (lo riempie l'AD prima della corsa e lo svuota dopo)"
 LIMITE = 9 * 1024 * 1024
 piano = json.load(open(f'{D}/piano.json'))
-ID_RIGA = {p['id']: (p['id'] + '-car' if p['id'] == 'tropico-latino-20261202-1830' else p['id']) for p in piano}
+CLIENTE = json.load(open(f'{D}/cliente.json'))['id']
+# un id già occupato nel Calendario si cambia nel piano col campo «id_riga»
+ID_RIGA = {p['id']: p.get('id_riga', p['id']) for p in piano}
 
 def file_di(p):
     if p['tipo'] == 'storia': return [p['id'] + '.mp4']
@@ -44,7 +47,13 @@ def scrivi(riga_file):
     return r.get('id'), r.get('message', '')
 
 cmd = sys.argv[1]
-if cmd == 'lotti':
+if cmd == 'comprimi':
+    for f in sorted(os.listdir(OUT)):
+        q = f'{OUT}/{f}'
+        if f.endswith('.mp4') and os.path.getsize(q) > 4_000_000:
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', q, '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', '25', '-preset', 'slow', '-maxrate', '6M', '-bufsize', '12M', '-c:a', 'copy', '-movflags', '+faststart', f'{OUT}/_tmp.mp4'], check=True)
+            os.replace(f'{OUT}/_tmp.mp4', q); print(f, '->', os.path.getsize(q))
+elif cmd == 'lotti':
     g = lotti()
     for i, x in enumerate(g): print(i, len(x), round(sum(os.path.getsize(f'{OUT}/{f}') for f in x) / 1e6, 1), 'MB')
 elif cmd == 'prepara':
@@ -66,11 +75,13 @@ elif cmd == 'righe':
     link = lambda f: f'https://drive.google.com/file/d/{reg[f]}/view'
     out = []
     for p in piano:
-        if p['data_ora'] < '2026-11-27 08:00': continue  # le storie del 26/11 sera sono scadute
+        import datetime, zoneinfo
+        adesso = datetime.datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).strftime('%Y-%m-%d %H:%M')
+        if p['data_ora'] <= adesso: continue  # già scaduto: non si propone
         fs = file_di(p)
         media = ' | '.join(link(f) for f in fs if not f.endswith('-copertina.jpg'))
         chiave = {'storia': 'storia', 'post': 'post', 'carosello': 'carosello', 'reel': 'reel'}[p['tipo']]
-        riga = {'id': ID_RIGA[p['id']], 'cliente': 'tropico-latino', 'tipo': p['tipo'], 'piattaforme': 'ig+fb', 'data_ora': p['data_ora'],
+        riga = {'id': ID_RIGA[p['id']], 'cliente': CLIENTE, 'tipo': p['tipo'], 'piattaforme': 'ig+fb', 'data_ora': p['data_ora'],
                 'didascalia': p.get('didascalia', ''), 'primo_commento': p.get('primo_commento', ''), 'media': media,
                 'copertina': link(p['id'] + '-copertina.jpg') if p['tipo'] == 'reel' else '',
                 'note': f"[AD 26/11 · {chiave} {p['data_ora'][5:]}] proposta dell'AD (piano Max), impaginazioni Canva e reel · SALTA CONTROLLO AI"}
@@ -80,10 +91,10 @@ elif cmd == 'righe':
         dt = datetime.datetime.strptime(p['data_ora'], '%Y-%m-%d %H:%M')
         quando = f"{g[dt.weekday()]} {dt.day}/{dt.month} alle {p['data_ora'][11:]}"
         if p['tipo'] == 'storia':
-            tel = f"Tropico · storia animata · {quando}"
+            tel = f"{CLIENTE} · storia animata · {quando}"
         else:
-            tel = f"Tropico · {p['tipo']} · {quando}\n\n{p['didascalia']}"[:1000]
-        if p['tipo'] == 'carosello': tel = (f"Tropico · carosello di {len(fs)} immagini (qui la prima) · {quando}\n\n" + p['didascalia'])[:1000]
+            tel = f"{CLIENTE} · {p['tipo']} · {quando}\n\n{p['didascalia']}"[:1000]
+        if p['tipo'] == 'carosello': tel = (f"{CLIENTE} · carosello di {len(fs)} immagini (qui la prima) · {quando}\n\n" + p['didascalia'])[:1000]
         out.append({'riga': riga, 'anteprima': anteprima, 'didascalia_telegram': tel,
-                    'messaggio': f"Approvi questo contenuto del Tropico per {quando}? Esce su Instagram e Facebook all'ora scritta."})
+                    'messaggio': f"Approvi questo contenuto per {quando}? Esce su Instagram e Facebook all'ora scritta."})
     json.dump(out, open(f'{D}/proposte.json', 'w'), ensure_ascii=False, indent=1); print(len(out), 'proposte pronte')
