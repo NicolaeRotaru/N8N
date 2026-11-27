@@ -36,7 +36,7 @@ Niente per usarla. Per un cliente nuovo servono le sue foto su Drive e i colori 
 - `logo.png`: il logo con lo sfondo trasparente, preso dal sito del cliente con l'ingresso `url` dello stesso flusso.
 - `musica.wav`: da `python3 ../strumenti/musica.py`, lanciato nella cartella di lavoro.
 
-**I colori del Tropico** (decisione di Nicola, 26/11 verso le 17:10: «il rosa non è il colore del marchio»). Vengono dal foglio di stile del sito, `eltropicolatino.it/assets/css/styles.css`. Lì l'ardesia `#253038` compare 66 volte, il bianco 41, il giallo `#FBCA1E` 16, il verde `#3D7C2B` 13, e il magenta `#D61D73` solo 9. Il magenta resta solo dentro il logo, nel nastro «Cafeteria Taqueria». Lo stile segue il sito: ombre nette ardesia e bordi da 3 px.
+**I colori del Tropico** (decisione di Nicola, 27/11 verso le 00:45: «il rosa non è il colore del marchio»). Vengono dal foglio di stile del sito, `eltropicolatino.it/assets/css/styles.css`. Lì l'ardesia `#253038` compare 66 volte, il bianco 41, il giallo `#FBCA1E` 16, il verde `#3D7C2B` 13, e il magenta `#D61D73` solo 9. Il magenta resta solo dentro il logo, nel nastro «Cafeteria Taqueria». Lo stile segue il sito: ombre nette ardesia e bordi da 3 px.
 
 **I passi.**
 1. `piano-....py` scrive `piano.json`: un contenuto per riga, con tipo, ora, testi e foto. Si usano solo fatti veri: il piano di dicembre del cliente e il menu del suo sito. Niente prezzi nelle grafiche, niente nomi di piatti che il cliente non ha confermato.
