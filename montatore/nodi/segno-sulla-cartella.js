@@ -8,4 +8,5 @@ if (r.error || !id) {
   const motivo = accorcia(testo(r.error && (r.error.message || r.error)) || 'nessuna risposta', 200);
   return [{ json: { ok: false, messaggio: 'Non riesco a scrivere su Drive la cartella «' + testo(L.pronti && L.pronti.nome) + '» (' + motivo + '): senza quel segno il guardiano non saprebbe che il giro sta lavorando. Riprova fra qualche minuto.' } }];
 }
-return [{ json: { ...L, pronti: { ...(L.pronti || {}), id } } }];
+// quando il segno è stato scritto, con l'orologio di n8n (lo stesso per tutti i giri): serve a «Primo ad arrivare?»
+return [{ json: { ...L, pronti: { ...(L.pronti || {}), id, segnato: new Date().toISOString() } } }];
