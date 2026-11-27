@@ -79,6 +79,87 @@ test('D1: il segno del gruppo si scrive solo dopo che anteprima e domanda sono a
   for (const n of ['Manda il video', 'Manda la foto', 'Chiedi Approva o Rifiuta']) assert.equal(nodo(proponi, n).retryOnFail, true, n);
 });
 
+// Collaudo del 27/11/2026: «Scrivi la riga» fa appendOrUpdate per id e mette sempre da_approvare. Una riga già
+// pubblicata e riproposta con lo stesso id tornava da approvare, perdeva le note, e un tocco su Approva la faceva
+// ripubblicare dal flusso 01. Prima di scrivere si rilegge la riga. Nicola, 27/11: se era approvata, torna da approvare.
+const rileggi = async (righeNelFoglio, body = { riga: { ...FUTURA, note: 'versione 2' }, anteprima: { file_id: 'f1' }, lotto: 'cli-1127-0200' }) => {
+  const proposta = await controlla(body);
+  return eseguiCodice(codice(proponi, 'Controlla la riga nel foglio'), { input: righeNelFoglio.map((r) => ({ json: r })), nodi: { 'Controlla la proposta': proposta } });
+};
+const entraIn = (flusso, a) => Object.entries(flusso.connections).flatMap(([da, c]) => c.main.flatMap((uscita, i) => uscita.filter((x) => x.node === a).map(() => [da, i])));
+
+test('una riga già uscita non si riscrive: prima di scriverla si rilegge per id, e chi è già uscito ferma il flusso', async () => {
+  // L'unica strada verso la scrittura passa dalla rilettura e dal controllo.
+  assert.deepEqual(entraIn(proponi, 'Scrivi la riga nel Calendario'), [['Controlla la riga nel foglio', 0]]);
+  assert.deepEqual(entraIn(proponi, 'Controlla la riga nel foglio'), [['Rileggi la riga', 0]]);
+  assert.deepEqual(entraIn(proponi, 'Rileggi la riga'), [['È il riepilogo?', 1]]);
+  const leggiRiga = nodo(proponi, 'Rileggi la riga');
+  assert.equal(leggiRiga.type, 'n8n-nodes-base.googleSheets');
+  assert.equal(leggiRiga.parameters.operation, 'read');
+  assert.deepEqual(leggiRiga.parameters.filtersUI.values, [{ lookupColumn: 'id', lookupValue: "={{ $('Controlla la proposta').first().json.riga.id }}" }]);
+  assert.equal(leggiRiga.parameters.options.returnFirstMatch, undefined, 'servono tutte le righe con quell\'id, non solo la prima');
+  assert.equal(leggiRiga.alwaysOutputData, true, 'una riga nuova non deve fermare il flusso in silenzio');
+  // Quello che il flusso 01 ha già fatto uscire non si tocca.
+  const riga = { ...FUTURA, note: 'n | approvato su Telegram 2026-11-27 03:10' };
+  await assert.rejects(rileggi([{ ...riga, stato: 'pubblicato', link_ig: 'https://instagram.com/p/x' }]), /riga già pubblicata: usa un id nuovo/);
+  await assert.rejects(rileggi([{ ...riga, stato: ' Pubblicato ' }]), /riga già pubblicata: usa un id nuovo/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'in_pubblicazione' }]), /in pubblicazione/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'errore', link_ig: 'https://instagram.com/p/x', errore: 'Facebook non risponde' }]), /già uscita su Instagram/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'da_approvare' }, { ...riga, stato: 'pubblicato' }]), /riga già pubblicata/, 'basta una riga uscita fra le doppie');
+  // Dal collaudo del 27/11 sulla correzione: gli altri modi in cui il flusso 01 dice che una riga è già uscita.
+  await assert.rejects(rileggi([{ ...riga, stato: 'errore', link_fb: 'https://facebook.com/x' }]), /già uscita su Facebook/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'approvato', pubblicato_il: '2026-11-27 18:30' }]), /già uscita/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'errore', errore: 'È rimasta «in_pubblicazione» (esecuzione 812): n8n si è fermato a metà. Controlla su Instagram e Facebook se il contenuto è uscito: se sì scrivi pubblicato, se no rimetti approvato.' }]), /forse già uscita/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'da_approvare' }, { ...riga, stato: 'bozza' }]), /compare 2 volte/, 'le righe doppie non le approva nessuno: si sistemano prima');
+  const fra5 = new Date(Date.now() + 5 * 60000).toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).slice(0, 16);
+  await assert.rejects(rileggi([{ ...riga, stato: 'approvato', data_ora: fra5 }]), /entro 10 minuti/, 'il flusso 01 potrebbe prenderla mentre la riscriviamo');
+  await assert.rejects(rileggi([{ ...riga, stato: 'approvato', data_ora: '2026-01-01 10:00' }]), /entro 10 minuti/, 'ora già passata: il 01 può prenderla adesso');
+  assert.equal(leggiRiga.onError, undefined, 'se la lettura non riesce il flusso si ferma: una riga non letta non è una riga nuova');
+  assert.equal(nodo(proponi, 'Controlla la riga nel foglio').onError, undefined, 'un controllo che non ferma il flusso non controlla niente');
+  // Dal ricollaudo: un'ora scritta in un altro formato non si confronta come testo, e «Approvato» a mano vale come approvato.
+  await assert.rejects(rileggi([{ ...riga, stato: 'approvato', data_ora: '27/11/2099 15:00:00' }]), /non so confrontare/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'Approvato', data_ora: fra5 }]), /entro 10 minuti/);
+  const conSecondi = (await rileggi([{ ...riga, stato: 'approvato', data_ora: '2099-12-06 18:30:00' }]))[0].json;
+  assert.equal(conSecondi.riga.stato, 'da_approvare', 'coi secondi l\'ora si legge lo stesso');
+});
+
+test('una riga approvata e riproposta torna da approvare, con la storia nelle note e l\'avviso nella domanda', async () => {
+  const prima = { ...FUTURA, stato: 'approvato', errore: 'primo commento non riuscito', note: 'SALTA CONTROLLO AI [lotto cli-1127-0100] | approvato su Telegram 2026-11-27 03:10' };
+  const out = (await rileggi([prima]))[0].json;
+  assert.equal(out.riga.stato, 'da_approvare');
+  assert.match(out.riga.note, /^SALTA-CONTROLLO-AI \(valeva per la versione di prima\) \| approvato su Telegram 2026-11-27 03:10 \| errore di prima: primo commento non riuscito \| versione 2 \| riproposta dall'AD \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(era approvato\)$/);
+  assert.equal(out.riga.note.includes('[lotto'), false, 'il segno del gruppo vecchio non resta: «Approva tutti» non deve approvare un\'anteprima non vista');
+  assert.equal(out.note_col_gruppo, out.riga.note + ' [lotto cli-1127-0200]');
+  assert.match(out.messaggio, /Era già approvato: la versione di prima non esce più/);
+  assert.match((await rileggi([{ ...prima, stato: 'Approvato' }]))[0].json.messaggio, /Era già approvato/, 'anche scritto a mano con la maiuscola');
+  // La scrittura, il segno del gruppo e la domanda usano la versione controllata, non quella grezza.
+  assert.equal(nodo(proponi, 'Scrivi la riga nel Calendario').parameters.columns.value.note, '={{ $json.riga.note ?? \'\' }}');
+  assert.equal(nodo(proponi, 'Segna il gruppo').parameters.columns.value.note, "={{ $('Controlla la riga nel foglio').first().json.note_col_gruppo }}");
+  assert.equal(nodo(proponi, 'Chiedi Approva o Rifiuta').parameters.text, "={{ $('Controlla la riga nel foglio').first().json.messaggio }}");
+  // Il controllo AI del flusso 01 si salta con questa scritta nelle note (stessa espressione di «Prepara contenuto»).
+  // Quella della versione di prima, o quella che il controllo AI scrive in «errore» quando ferma un contenuto, non deve
+  // valere per la versione nuova. Vale solo se la riporta la proposta (collaudo del 27/11 sulla correzione).
+  const saltaAi = (note) => /salta\s+controllo\s+ai/i.test(note);
+  assert.equal(saltaAi(out.riga.note), false);
+  const fermataDallAi = { ...FUTURA, stato: 'errore', note: 'n', errore: 'Fermato dal controllo AI: il prezzo nella foto non è quello del sito. Se va bene così, scrivi SALTA CONTROLLO AI nelle note e rimetti approvato.' };
+  const corretta = (await rileggi([fermataDallAi]))[0].json;
+  assert.equal(saltaAi(corretta.riga.note), false, 'la versione corretta ripassa dal controllo AI');
+  assert.equal(saltaAi(corretta.note_col_gruppo), false);
+  assert.match(corretta.riga.note, /errore di prima: Fermato dal controllo AI: il prezzo/, 'la storia resta');
+  const conLaScritta = (await rileggi([fermataDallAi], { riga: { ...FUTURA, note: 'SALTA CONTROLLO AI' }, anteprima: { file_id: 'f1' } }))[0].json;
+  assert.equal(saltaAi(conLaScritta.riga.note), true, 'se la proposta nuova la porta, vale');
+  // Una nota nuova che sta dentro una vecchia più lunga non sparisce.
+  const simile = (await rileggi([{ ...FUTURA, stato: 'bozza', note: 'v2 rifiutata' }], { riga: { ...FUTURA, note: 'v2' }, anteprima: { file_id: 'f1' } }))[0].json;
+  assert.match(simile.riga.note, /^v2 rifiutata \| v2 \| riproposta/);
+  // Una riga nuova passa com'è; una rifiutata torna da approvare senza l'avviso degli approvati.
+  const nuova = (await rileggi([{}]))[0].json;
+  assert.equal(nuova.riga.note, 'versione 2');
+  assert.equal(nuova.messaggio, 'Approvi la riga ' + FUTURA.id + '?');
+  const rifiutata = (await rileggi([{ ...FUTURA, stato: 'bozza', note: 'rifiutato su Telegram 2026-11-27 03:20' }]))[0].json;
+  assert.match(rifiutata.riga.note, /^rifiutato su Telegram 2026-11-27 03:20 \| versione 2 \| riproposta dall'AD .* \(era bozza\)$/);
+  assert.equal(rifiutata.messaggio.includes('Era già approvato'), false);
+});
+
 test('la proposta rifiuta gruppi e id che non stanno nel tasto, e toglie gli spazi dall\'id', async () => {
   await assert.rejects(controlla({ riga: RIGA, anteprima: { file_id: 'f1' }, lotto: 'Lotto Con Spazi' }), /lotto/);
   await assert.rejects(controlla({ riga: { ...RIGA, id: 'x'.repeat(55) }, anteprima: { file_id: 'f1' } }), /troppo lungo/);
