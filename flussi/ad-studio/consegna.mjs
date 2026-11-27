@@ -116,11 +116,15 @@ const QUANDO = [
   "  return g + ' ' + (+m[3]) + '/' + (+m[2]) + ' alle ' + m[4] + ':' + m[5];",
   "};",
 ];
-// L'impronta della versione mostrata: file e ora. Va nel tasto, così il tasto di un'anteprima vecchia non approva
-// la versione riproposta dopo (collaudo del 27/11, D4). Sei caratteri [0-9a-z], FNV-1a a 32 bit.
+// L'impronta della versione mostrata: tutto quello che Nicola vede o che esce (file, ora, testi, copertina, tipo, social).
+// Va nel tasto, così il tasto di un'anteprima vecchia non approva la versione riproposta dopo (collaudo del 27/11, D4).
+// Prima guardava solo file e ora: cambiando la sola didascalia, il tasto vecchio approvava quella nuova (collaudo della
+// N8N#34; Nicola, 27/11 sera: «impronta nuova subito»). Gli spazi contano come uno solo, perché il foglio può renderli
+// in un altro modo, e i social non scritti valgono «ig+fb», come li scrive la proposta. Sei caratteri, FNV-1a a 32 bit.
 const FIRMA = [
   "const firma = (r) => {",
-  "  const s = String(r.media || '').trim() + '|' + String(r.data_ora || '').trim();",
+  "  const v = (k) => String(r[k] === null || r[k] === undefined ? '' : r[k]).replace(/\\s+/g, ' ').trim();",
+  "  const s = [v('media'), v('data_ora'), v('didascalia'), v('primo_commento'), v('copertina'), v('tipo'), v('piattaforme') || 'ig+fb'].join('|');",
   "  let h = 2166136261;",
   "  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }",
   "  return h.toString(36).padStart(7, '0').slice(-6);",
@@ -349,9 +353,11 @@ function flussoTasti(foglio, chat) {
       "    || ('È in stato «' + (r.stato || 'vuoto') + '»: non l\\'ho toccato.');",
       "  return risposta([], 'Era già deciso.', gia);",
       "}",
-      "if (firma(r) !== t.versione) return risposta([], 'Tasto di una versione vecchia.', 'Questo tasto è di una versione vecchia: il contenuto è stato riproposto dopo. Usa i tasti sotto l\\'anteprima più recente.');",
       "const note = String(r.note || '');",
       "if (t.azione === 'rifiuta') return risposta([{ id: t.id, stato: 'bozza', note: note + ' | rifiutato su Telegram ' + ora }], 'Rifiutato', 'Rifiutato: torna in bozza e non esce.');",
+      "// Approva solo se il contenuto nel foglio è quello dell'anteprima. Può non esserlo perché è stato riproposto, cambiato a",
+      "// mano, o perché il foglio ha cambiato il testo (uno 0 iniziale, un + iniziale). Rifiutare invece si può sempre.",
+      "if (t.azione === 'approva' && firma(r) !== t.versione) return risposta([], 'Tasto di una versione vecchia.', 'Non l\\'ho approvato: nel Calendario questo contenuto non è più uguale all\\'anteprima. È stato riproposto, cambiato nel foglio, oppure il tasto è di prima dell\\'aggiornamento dei tasti. Guardalo nel Calendario: puoi approvarlo col tasto sotto l\\'anteprima più recente, o con «Approva tutti» del suo gruppo.');",
       "// Regola della procedura: chi non viene approvato prima della sua ora non esce. Approvarlo dopo lo farebbe uscire fuori orario.",
       "if (!(String(r.data_ora || '') > ora)) return risposta([], 'L\\'ora è già passata.', 'La sua ora (' + quando(r.data_ora) + ') è già passata: non l\\'ho approvato, così non esce in ritardo. Se vuoi farlo uscire, chiedi di spostarlo a un\\'altra ora.');",
       "return risposta([{ id: t.id, stato: 'approvato', note: note + ' | approvato su Telegram ' + ora }], 'Approvato', 'Approvato: esce ' + quando(r.data_ora) + '.');"]),
