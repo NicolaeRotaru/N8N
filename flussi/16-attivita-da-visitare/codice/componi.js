@@ -9,8 +9,12 @@ const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 let ad = null;
 try { ad = $('Chiedi all’AD i dossier').isExecuted ? ($('Chiedi all’AD i dossier').first().json || {}) : null; } catch { ad = null; }
 const schede = {};
-if (ad && ad.ok === true && ad.risultato && Array.isArray(ad.risultato.schede)) for (const s of ad.risultato.schede) if (s && s.osm) schede[String(s.osm)] = s;
-const conDossier = Object.keys(schede).length > 0;
+// L'AD a volte scrive l'identificativo senza «node/»: si riconosce lo stesso dal numero (terzo collaudo n.4).
+if (ad && ad.ok === true && ad.risultato && Array.isArray(ad.risultato.schede)) for (const s of ad.risultato.schede) if (s && s.osm) { schede[String(s.osm)] = s; schede[String(s.osm).split('/').pop()] = s; }
+const schedaDi = (a) => schede[a.osm] || schede[String(a.osm).split('/').pop()];
+const conDossierN = (f.fila || []).filter((a) => schedaDi(a)).length;
+const conDossier = conDossierN > 0;
+const avvisiAD = ad && ad.ok === true ? [].concat(ad.avvisi || []).map((x) => String(typeof x === 'string' ? x : (x && (x.testo || x.messaggio)) || '')).filter(Boolean) : [];
 const settimana = (() => { // il lunedì di questa settimana, ora di Piacenza
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }).formatToParts(new Date()).map((x) => [x.type, x.value]));
   const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day));
@@ -33,9 +37,11 @@ if (!f.letta) {
   const nonCapiti = st.non_capito ? ` · ${num(st.non_capito)} con uno stato che non capisco${elenco ? `: ${elenco}` : ''}. Nella tabella scrivi solo visitata, si, no o iscritta` : '';
   const conto = c.proposte_finora ? `\nIl conto finora: ${num(c.proposte_finora)} proposte · ${num((st.visitata || 0) + (st.si || 0) + (st.no || 0) + (st.iscritta || 0))} visitate · ${num((st.si || 0) + (st.iscritta || 0))} hanno detto sì · ${num(st.iscritta || 0)} iscritte${nonCapiti}.` : '';
   blocchi.push(`${testa}\n\nSulla mappa ci sono ${num(c.letti)} attività entro ${metri(Number(cfg.RAGGIO_M))} da ${esc(cfg.CENTRO_NOME)}. Tolte ${fuori || 'nessuna'}, ne restano ${num(c.in_fila)} in fila. Queste sono le prime ${f.fila.length}.${c.negozi_mycity_letti ? '' : '\n<i>Il database di MyCity non ha risposto: qualcuna potrebbe essere già iscritta.</i>'}${conto}` +
+    (conDossier && conDossierN < f.fila.length ? `\n<i>Senza il dossier dell’AD: ${f.fila.length - conDossierN} attività su ${f.fila.length}. L’AD ha scritto il dossier per le altre ${conDossierN}.</i>` : '') +
+    (avvisiAD.length ? `\n<i>Avvisi dell’AD: ${esc(corto(avvisiAD.join(' · '), 600))}</i>` : '') +
     (conDossier ? '' : `\n<i>Senza il dossier dell’AD: ${esc((ad && (ad.errore || (ad.prova ? 'Chiedi all’AD è in prova' : ''))) || $('Prepara il lavoro').first().json.non_mandare || 'l’AD non ha risposto')}.</i>`));
   const bloccoDi = (a, i, conDossierPieno) => {
-    const s = schede[a.osm];
+    const s = schedaDi(a);
     const righe = [`<b>${i + 1}. ${esc(corto(a.nome, 120))}</b> · ${esc(corto(a.tipo, 60))} · ${metri(a.distanza_m)}`,
       [a.indirizzo && esc(corto(a.indirizzo, 120)), a.telefono ? `tel ${esc(corto(a.telefono, 40))}` : 'telefono da trovare'].filter(Boolean).join(' · '),
       `Perché: ${esc(corto(a.perche, 300))}.`];
@@ -45,8 +51,12 @@ if (!f.letta) {
         righe.push(`Chi è: ${esc(corto(s.chi_e, 500))}`);
         if (s.cosa_vende) righe.push(`Cosa vende: ${esc(corto(s.cosa_vende, 500))}`);
         righe.push(`Cosa ci guadagna: ${esc(corto(s.cosa_ci_guadagna, 500))}`, `Come convincerlo: ${esc(corto(s.come_convincerlo, 500))}`, `Da proporre: ${esc(corto(s.cosa_proporre, 500))}`);
+        if (/^https:\/\/[^\s"<>]+$/.test(String(s.fonte || ''))) righe.push(`<a href="${esc(s.fonte)}">Fonte del dossier</a>`);
       } else righe.push('<i>Dossier troppo lungo per Telegram: è intero nella tabella.</i>');
-    } else if (a.offerta) righe.push(`Da proporre: ${esc(a.offerta)} (da verificare: la mappa può essere vecchia).`);
+    } else {
+      if (conDossier) righe.push('<i>Senza il dossier dell’AD.</i>');
+      if (a.offerta) righe.push(`Da proporre: ${esc(a.offerta)} (da verificare: la mappa può essere vecchia).`);
+    }
     righe.push(`<a href="${esc(a.mappa)}">Apri su Google Maps</a>`);
     return righe.join('\n');
   };
