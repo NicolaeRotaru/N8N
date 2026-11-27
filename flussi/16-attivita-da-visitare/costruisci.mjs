@@ -71,7 +71,9 @@ export function costruisci({ telegram, chatId, errorWorkflow, chiedi, marketplac
         options: { response: { response: { fullResponse: true, neverError: false, responseFormat: 'text' } }, timeout: 150000 } } },
     letturaSupabase('Leggi i negozi di MyCity', 'profiles?select=id,store_name&role=eq.seller&limit=10000', pos(4), marketplace),
     { id: randomUUID(), name: 'Leggi le attività già proposte', type: 'n8n-nodes-base.dataTable', typeVersion: 1.1, position: pos(5), alwaysOutputData: true, executeOnce: true,
-      onError: 'continueRegularOutput', parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), returnAll: true } },
+      // Niente onError: se la tabella non risponde il flusso si ferma e il «99 · Avvisi errori» avvisa Nicola. Con «continua»
+      // n8n passerebbe avanti l'uscita del nodo prima, e le attività già proposte tornerebbero in fila (ricollaudo m7).
+      parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), returnAll: true } },
     { id: randomUUID(), name: 'Metti in fila', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(6), executeOnce: true, parameters: { jsCode: codice('metti-in-fila.js') } },
     { id: randomUUID(), name: 'Prepara il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(7), parameters: { jsCode: codice('prepara-lavoro.js') } },
     nodoChiediAllAD('Chiedi all’AD i dossier', chiedi, pos(8)),

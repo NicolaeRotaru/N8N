@@ -46,7 +46,7 @@ N8N_API_KEY=… node flussi/16-attivita-da-visitare/costruisci.mjs --manda --ver
 
 La tabella si chiama «Attività da visitare» (id nel programma). Le prove: `test/16-attivita-da-visitare.test.mjs`.
 
-## 16 · Nuovo cliente da MyCity
+## 26 · Nuovo cliente da MyCity (prima si chiamava 16)
 
 **A cosa serve.** Quando un'attività si iscrive su MyCity (la pagina «Vendi su MyCity»), entra da sola
 nella scheda Clienti dell'agenzia, con lo stesso lavoro del **modulo 12**: Claude cerca le fonti

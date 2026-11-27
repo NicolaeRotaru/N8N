@@ -107,10 +107,14 @@ test('ogni barriera delle catene vale da sola; il marchio uguale al proprio nome
     nodo(26, { name: 'La Piadeneria', amenity: 'fast_food' }, 4.5),
     nodo(27, { name: 'Coin', shop: 'department_store' }, 5),
     nodo(28, { name: 'Bar Coin di Mario', amenity: 'bar' }, 5.5),
+    nodo(29, { name: 'Poltronesofà', shop: 'furniture', brand: 'Poltronesofà' }, 6),
+    nodo(30, { name: 'Crudo', amenity: 'restaurant', brand: 'Crudo' }, 6.5),
+    nodo(31, { name: 'LycaMobile', shop: 'convenience' }, 7),
+    nodo(32, { name: 'OBI', shop: 'doityourself' }, 7.5),
   ];
   const [{ json: r }] = await fila({ mappa: mappa(el) });
   assert.deepEqual(r.fila.map((a) => a.nome).sort(), ['Bar Coin di Mario', 'Pelletterie Pugni']);
-  assert.equal(r.conti.catene, 6);
+  assert.equal(r.conti.catene, 10);
 });
 
 test('categorie: tabaccherie e ricevitorie fuori anche se segnate come alimentari; «shop=yes» e i minimarket dentro (collaudo m2 e m5)', async () => {
@@ -121,11 +125,15 @@ test('categorie: tabaccherie e ricevitorie fuori anche se segnate come alimentar
     nodo(34, { name: 'Cover Store', shop: 'mobile_phone_accessories' }, 3.5),
     nodo(35, { name: 'Fumetteria', shop: 'yes' }, 4),
     nodo(36, { name: 'Mini Market Piacenza', shop: 'supermarket' }, 4.5),
+    nodo(37, { name: 'Rivendita n. 12', shop: 'tobacco' }, 5),
+    nodo(38, { name: 'CANON', shop: 'printer_ink' }, 5.5),
+    nodo(39, { name: 'gas sales', shop: 'energy' }, 6),
+    nodo(40, { name: 'Società locale', shop: 'gas' }, 6.5),
+    nodo(41, { name: 'Baccotabacco', shop: 'newsagent' }, 7),
   ];
   const [{ json: r }] = await fila({ mappa: mappa(el) });
-  assert.deepEqual(r.fila.map((a) => a.nome).sort(), ['Fumetteria', 'Mini Market Piacenza']);
-  assert.equal(r.conti.categorie_escluse, 4);
-  assert.equal(r.fila.find((a) => a.nome === 'Mini Market Piacenza').segmento, 'altri negozi', 'dentro, ma senza la precedenza del fresco: sulla mappa «supermarket» copre anche stirerie e telefonia');
+  assert.deepEqual(r.fila.map((a) => a.nome), ['Fumetteria'], 'i supermercati restano fuori: sulla mappa la parola copre catene senza marchio, stirerie e telefonia');
+  assert.equal(r.conti.categorie_escluse, 10);
 });
 
 test('doppioni: stesso negozio con due nomi o con l’apostrofo scritto diverso (collaudo m1)', async () => {
@@ -142,30 +150,42 @@ test('doppioni: stesso negozio con due nomi o con l’apostrofo scritto diverso 
     pos(47, 'Groppi', 45.0600, 9.7000, 'bakery'),
     { type: 'node', id: 50, lat: 45.0560, lon: 9.6900, tags: { name: 'Panetteria', shop: 'bakery', 'addr:housenumber': '10' } },
     { type: 'node', id: 51, lat: 45.05603, lon: 9.6900, tags: { name: 'Panetteria Rossi', shop: 'bakery', 'addr:housenumber': '12' } },
+    { type: 'node', id: 54, lat: 45.0580, lon: 9.6900, tags: { name: 'Drogheria', shop: 'chemist' } },
+    { type: 'node', id: 55, lat: 45.05805, lon: 9.6900, tags: { name: 'La Pecora Nera', shop: 'chemist' } },
+    { type: 'node', id: 56, lat: 45.0590, lon: 9.6900, tags: { name: 'M', shop: 'clothes' } },
+    { type: 'node', id: 57, lat: 45.05909, lon: 9.6900, tags: { name: 'Moda M', shop: 'clothes' } },
+    { type: 'node', id: 58, lat: 45.0600, lon: 9.6800, tags: { name: 'Macelleria', shop: 'butcher' } },
+    { type: 'node', id: 59, lat: 45.06004, lon: 9.6800, tags: { name: 'Bar Sport Centro', amenity: 'bar' } },
     { type: 'node', id: 52, lat: 45.0570, lon: 9.6900, tags: { name: 'Forno Bianchi', shop: 'bakery' } },
     { type: 'node', id: 53, lat: 45.05704, lon: 9.6900, tags: { name: 'Pane di Casa', shop: 'bakery' } },
   ];
-  const [{ json: r }] = await fila({ mappa: mappa(el) });
-  assert.equal(r.conti.doppioni, 3);
+  const [{ json: r }] = await fila({ mappa: mappa(el), cfg: { QUANTE_A_SETTIMANA: 30 } });
+  assert.equal(r.conti.doppioni, 4);
   const nomi = r.fila.map((a) => a.nome);
   assert.equal(nomi.filter((n) => /Groppi|forneria/.test(n)).length, 2, 'il Groppi lontano 1 km è un altro negozio');
   assert.ok(nomi.includes('Macelleria Vicina'), 'un negozio di altro tipo accanto non è un doppione');
   assert.ok(nomi.includes('Grano e Natura') && nomi.includes("La ca' di sass"), 'due negozi dello stesso tipo a 3 m, con civici diversi, restano due');
   assert.ok(nomi.includes('Panetteria') && nomi.includes('Panetteria Rossi'), 'nome dentro l’altro ma civici diversi: due negozi');
   assert.ok(nomi.includes('Forno Bianchi') && nomi.includes('Pane di Casa'), 'stesso tipo a 4 m con due nomi veri: due negozi');
+  assert.ok(nomi.includes('La Pecora Nera') && !nomi.includes('Drogheria'), 'fra due doppioni resta il nome vero, anche se il generico viene prima sulla mappa');
+  assert.ok(nomi.includes('M') && nomi.includes('Moda M'), 'un nome di una lettera non è «dentro» un altro nome');
+  assert.ok(nomi.includes('Macelleria') && nomi.includes('Bar Sport Centro'), 'un nome generico accanto a un negozio di altro tipo non è un doppione');
+  assert.ok(nomi.includes('forneria') === false && nomi.includes('panetteria groppi') === false && nomi.includes('Groppi'), 'del forno Groppi resta il nome vero');
   assert.equal(nomi.filter((n) => /Enoteca/i.test(n)).length, 1);
 });
 
-test('gli stati scritti a mano si capiscono; quelli che non si capiscono si contano e si dicono (collaudo G1)', async () => {
+test('gli stati: valgono solo le parole giuste; le frasi e i segni non si indovinano, si contano e si mostrano (collaudo G1, ricollaudo G1-bis)', async () => {
   const righe = [
-    { osm: 'node/101', stato: 'Visitata' }, { osm: 'node/102', stato: 'sì' }, { osm: 'node/103', stato: ' si ' },
-    { osm: 'node/104', stato: 'iscritto' }, { osm: 'node/105', stato: 'no grazie' }, { osm: 'node/106', stato: 'visitata ✓' },
-    { osm: 'node/107', stato: 'Sì, iscritta' }, { osm: 'node/108', stato: '' }, { osm: 'node/109', stato: 'boh' },
-  ].map((x) => ({ ...x, id: 1, createdAt: '2026-11-27T00:45:00.000Z', updatedAt: '2026-11-27T00:45:00.000Z' }));
+    ['Visitata', 'A'], ['sì', 'B'], [' si ', 'C'], ['iscritto', 'D'], ['visitata ✓', 'E'], ['', 'F'], ['da_visitare', 'G'],
+    ['no grazie', 'H'], ['Sì, iscritta', 'I'], ['boh', 'L'], ['sì, non ancora iscritta', 'M'], ['non visitata', 'N'], ['✅', 'O'], ['ok', 'P'],
+  ].map(([stato, nome], k) => ({ osm: `node/${200 + k}`, nome: `Negozio ${nome}`, stato, id: k, createdAt: '2026-11-27T00:45:00.000Z', updatedAt: '2026-11-27T00:45:00.000Z' }));
   const [{ json: r }] = await fila({ proposte: proposte(righe) });
-  assert.deepEqual(r.conti.stati_finora, { visitata: 2, si: 2, iscritta: 2, no: 1, da_visitare: 1, non_capito: 1 });
+  assert.deepEqual(r.conti.stati_finora, { visitata: 2, si: 2, iscritta: 1, da_visitare: 2, non_capito: 7 });
+  assert.equal(r.conti.stati_non_capiti.length, 5, 'al massimo 5 nomi nel messaggio');
+  assert.deepEqual(r.conti.stati_non_capiti[0], { nome: 'Negozio H', stato: 'no grazie' });
   const msg = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: r }], 'Prepara il lavoro': [{ json: {} }] } });
-  assert.match(msg[0].json.messaggio, /9 proposte · 7 visitate · 4 hanno detto sì · 2 iscritte · 1 con uno stato che non capisco/);
+  assert.match(msg[0].json.messaggio, /14 proposte · 5 visitate · 3 hanno detto sì · 1 iscritte · 7 con uno stato che non capisco: Negozio H \(«no grazie»\), Negozio I \(«Sì, iscritta»\)/);
+  assert.match(msg[0].json.messaggio, /scrivi solo visitata, si, no o iscritta/);
 });
 
 test('tabella che non risponde: niente lista, e il messaggio lo dice (collaudo m7)', async () => {
@@ -218,6 +238,7 @@ test('il lavoro per l’AD: in prova o senza mappa non parte; in vero porta le a
   assert.match(v.dati.listino, /10%/);
   assert.match(v.compito, /non suggerire mai messaggi WhatsApp o email a freddo/);
   assert.match(v.compito, /Non dire mai «zero commissioni»/);
+  for (const [k, def] of Object.entries(v.schema.properties.schede.items.properties)) if (k !== 'osm') assert.equal(def.maxLength, 500, `${k}: il tetto dichiarato all’AD (ricollaudo R9)`);
   const [{ json: p }] = await eseguiCodice(LAVORO, { nodi: { Config: cfg({ MODALITA: 'prova' }), 'Metti in fila': [{ json: f }] } });
   assert.match(p.non_mandare, /prova/);
   const [{ json: n }] = await eseguiCodice(LAVORO, { nodi: { Config: cfg(), 'Metti in fila': [{ json: { letta: false, fila: [] } }] } });
@@ -273,6 +294,13 @@ test('dossier molto più lunghi del chiesto: nessun tag tagliato, nessun messagg
   }
 });
 
+test('un campo tagliato non spezza mai un’emoji a metà (ricollaudo)', async () => {
+  const f = await filaPronta();
+  const emoji = [{ json: { ok: true, risultato: { schede: f.fila.map((a) => ({ osm: a.osm, chi_e: `${'x'.repeat(498)}😀😀😀`, cosa_ci_guadagna: '😀'.repeat(600), come_convincerlo: 'c', cosa_proporre: 'p' })) } } }];
+  const out = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Prepara il lavoro': [{ json: {} }], 'Chiedi all’AD i dossier': emoji } });
+  for (const o of out) assert.doesNotMatch(o.json.messaggio, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/, 'nessuna metà di emoji');
+});
+
 test('i messaggi senza AD e con la mappa non letta: lo dicono; in prova non si manda', async () => {
   const f = await filaPronta();
   const senza = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Prepara il lavoro': [{ json: { non_mandare: 'x' } }], 'Chiedi all’AD i dossier': [{ json: { ok: false, errore: 'tetto delle corse raggiunto' } }] } });
@@ -318,6 +346,8 @@ test('il flusso: controlli a posto, lunedì alle 7:10, tabella giusta, nessuna c
   assert.equal(lettura.alwaysOutputData, true, 'il primo lunedì la tabella è vuota: senza questa riga il flusso si ferma');
   assert.equal(lettura.parameters.returnAll, true, 'senza returnAll n8n ne legge 50: dalla settimana 6 le proposte tornerebbero in fila');
   assert.equal(lettura.executeOnce, true);
+  assert.equal(lettura.onError, undefined, 'tabella che non risponde: il flusso si ferma e avvisa il 99; con «continua» n8n passa avanti l’uscita di prima (ricollaudo m7)');
+  assert.equal(w.nodes.find((n) => n.name === 'Chiedi alla mappa').onError, 'continueRegularOutput', 'mappa che non risponde: il messaggio «la lista non c’è» deve arrivare (ricollaudo R2)');
   const mappaNodo = w.nodes.find((n) => n.name === 'Chiedi alla mappa');
   assert.equal(mappaNodo.parameters.options.response.response.neverError, false, 'con neverError un 429 non si riprova (collaudo m8)');
   assert.equal(mappaNodo.retryOnFail, true);

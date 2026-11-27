@@ -40,14 +40,14 @@ const SEGMENTI = {
 const ESCLUSE = new Set(['vacant', 'disused', 'no', 'tobacco', 'mobile_phone_accessories', 'printer_ink', 'energy', 'gas', 'electronics', 'computer', 'mobile_phone', 'telecommunication', 'hifi', 'appliance',
   'car', 'car_parts', 'car_repair', 'motorcycle', 'fuel', 'tyres', 'truck', 'caravan', 'boat', 'second_hand', 'charity', 'pawnbroker',
   'money_lender', 'bookmaker', 'lottery', 'betting', 'gambling', 'e-cigarette', 'weapons', 'erotic', 'funeral_directors', 'storage_rental',
-  'department_store', 'mall', 'wholesale', 'trade', 'kiosk', 'ticket', 'travel_agency', 'rental', 'vending_machine', 'outpost']);
+  'supermarket', 'department_store', 'mall', 'wholesale', 'trade', 'kiosk', 'ticket', 'travel_agency', 'rental', 'vending_machine', 'outpost']);
 // Tabaccherie, ricevitorie e sigarette anche quando la mappa le segna come alimentari (collaudo m2: «Zilli Paola Tabaccheria» era nel fresco).
-const NOME_ESCLUSO = /\b(tabacc\w*|ricevitoria|lotto|totocalcio|sigarett\w*|svapo|scommess\w*|sala giochi|slot)\b/;
+const NOME_ESCLUSO = /tabacc|ricevitori|totocalcio|sigarett|svapo|scommess|\b(lotto|sala giochi|slot)\b/;
 // Catene e franchising: chi ha un marchio sulla mappa, più i nomi più comuni a Piacenza che spesso non lo hanno.
 // Il confronto si fa sul nome normalizzato (minuscole, senza accenti né apostrofi): «Tigotà» con l'accento sfuggiva al \b.
-const CATENE = /\b(conad|coop|esselunga|carrefour|lidl|eurospin|penny|pam|despar|eurospar|interspar|crai|sigma|md discount|aldi|famila|ins mercato|tigota|acqua (e )?sapone|mc ?donald|burger king|old wild west|roadhouse|autogrill|starbucks|douglas|sephora|kiko|limoni|calzedonia|intimissimi|tezenis|yamamay|zara|h m|ovs|benetton|pandora|bata|carpisa|alcott|original marines|primadonna|unieuro|euronics|mediaworld|trony|feltrinelli|mondadori|giunti|tim|vodafone|wind ?tre|iliad|fastweb|poste|bricocenter|leroy merlin|decathlon|pittarello|scarpe (e )?scarpe|ottica avanzi|salmoiraghi|grandvision|vision ottica|optissimo|marionnaud|yves rocher|l?erbolario|lush|flying tiger|thun|rinascente|upim|sorbino|piazza italia|terranova|stroili|blue spirit|cisalfa|foot locker|kfc|poke house|dominos?|spizzico|rossopomodoro|la piadineria|panino giusto|cioccolatitaliani|grom|venchi|lindt|caffe borbone|nespresso|segafredo|arcaplanet|isola dei tesori|maxi zoo|bennet|ipercoop|tuodi|dpiu|todis|ard discount|ekom|basko|sole 365|risparmio casa|tedi|pepco|kasanova|ipersoap|caddys?|pinalli|citta del sole|yogorino|la piad[ie]neria|pizzium|chef express|pinko|borbonese|luisa spagnoli|grimaldi immobiliare|sun68|sun 68|furla|pitta ?rosso|maxi ?zoo|df sport specialist|sport ?specialist)\b/;
+const CATENE = /\b(conad|coop|esselunga|carrefour|lidl|eurospin|penny|pam|despar|eurospar|interspar|crai|sigma|md discount|aldi|famila|ins mercato|tigota|acqua (e )?sapone|mc ?donald|burger king|old wild west|roadhouse|autogrill|starbucks|douglas|sephora|kiko|limoni|calzedonia|intimissimi|tezenis|yamamay|zara|h m|ovs|benetton|pandora|bata|carpisa|alcott|original marines|primadonna|unieuro|euronics|mediaworld|trony|feltrinelli|mondadori|giunti|tim|vodafone|wind ?tre|iliad|fastweb|poste|bricocenter|leroy merlin|decathlon|pittarello|scarpe (e )?scarpe|ottica avanzi|salmoiraghi|grandvision|vision ottica|optissimo|marionnaud|yves rocher|l?erbolario|lush|flying tiger|thun|rinascente|upim|sorbino|piazza italia|terranova|stroili|blue spirit|cisalfa|foot locker|kfc|poke house|dominos?|spizzico|rossopomodoro|la piadineria|panino giusto|cioccolatitaliani|grom|venchi|lindt|caffe borbone|nespresso|segafredo|arcaplanet|isola dei tesori|maxi zoo|bennet|ipercoop|tuodi|dpiu|todis|ard discount|ekom|basko|sole 365|risparmio casa|tedi|pepco|kasanova|ipersoap|caddys?|pinalli|citta del sole|yogorino|la piad[ie]neria|pizzium|chef express|pinko|borbonese|luisa spagnoli|grimaldi immobiliare|sun68|sun 68|furla|pitta ?rosso|maxi ?zoo|df sport specialist|sport ?specialist|poltronesofa|lycamobile|md discount|eurospin)\b/;
 // Nomi corti che da soli sarebbero parole comuni: valgono solo se il nome è esattamente quello.
-const CATENE_ESATTE = new Set(['coin', 'obi', 'pam', 'tim']);
+const CATENE_ESATTE = new Set(['coin', 'obi', 'pam', 'tim', 'crudo', 'md', 'sma', 'metro']);
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 // Nomi che dicono solo il mestiere («forneria», «macelleria»): accanto a un negozio dello stesso tipo sono quasi sempre lui.
@@ -73,30 +73,37 @@ const giaSuMyCity = (nome) => { const n = norm(nome); if (suMyCity.has(n)) retur
 // ── chi è già stato proposto (la tabella non si svuota mai: chi c'è non torna in fila) ──
 const proposte = new Set();
 const stati = {};
-// Lo stato lo scrive a mano chi visita: «Sì», « si », «iscritto», «visitata ✓», «no grazie» valgono come le parole giuste.
-// Quello che non si capisce si conta a parte e il messaggio lo dice (scorciatoie #11), mai dato per assente.
+// Lo stato lo scrive a mano chi visita. Valgono SOLO le parole giuste, scritte anche con maiuscole, accenti o spazi:
+// visitata (visitato, visto, vista), si (sì, yes), no, iscritta (iscritto). Una frase («sì, non ancora iscritta», «non
+// visitata») non si indovina: va fra i «non capiti», e il messaggio la mostra col nome del negozio (ricollaudo G1-bis).
+const PAROLE_STATO = { '': 'da_visitare', 'da visitare': 'da_visitare', visitata: 'visitata', visitato: 'visitata', visto: 'visitata', vista: 'visitata', si: 'si', yes: 'si', no: 'no', iscritta: 'iscritta', iscritto: 'iscritta' };
 const leggiStato = (v) => {
-  const t = String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z_ ]+/g, ' ').trim();
-  if (!t || /^da[ _]?visitare$/.test(t)) return 'da_visitare';
-  if (/iscritt/.test(t)) return 'iscritta';
-  if (/^(si|yes|ok)\b/.test(t)) return 'si';
-  if (/^no\b/.test(t)) return 'no';
-  if (/visitat|^visto/.test(t)) return 'visitata';
-  return 'non_capito';
+  const grezzo = String(v ?? '').trim();
+  const t = grezzo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' ').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t && grezzo) return 'non_capito'; // solo segni (una spunta, un pollice): qualcuno ha scritto qualcosa, non si sa cosa
+  return PAROLE_STATO[t] || 'non_capito';
 };
+const nonCapiti = [];
 let tabellaRotta = '';
 for (const it of $('Leggi le attività già proposte').all()) {
   const j = it.json || {};
   if (j.error) { tabellaRotta = String(j.error.message || j.error).slice(0, 120); continue; }
-  if (j.osm) { proposte.add(String(j.osm)); const s = leggiStato(j.stato); stati[s] = (stati[s] || 0) + 1; }
+  if (j.osm) {
+    proposte.add(String(j.osm));
+    const s = leggiStato(j.stato);
+    stati[s] = (stati[s] || 0) + 1;
+    if (s === 'non_capito' && nonCapiti.length < 5) nonCapiti.push({ nome: String(j.nome || j.osm).slice(0, 60), stato: String(j.stato).slice(0, 60) });
+  }
 }
 // Tabella che non risponde: niente lista, se no le prime 10 tornerebbero in fila e si riscriverebbero (collaudo m7).
 if (tabellaRotta) return [{ json: { letta: false, motivo: `la tabella «Attività da visitare» non ha risposto (${tabellaRotta})`, fila: [], conti: null } }];
 
-const conti = { letti: elementi.length, senza_nome: 0, senza_posizione: 0, chiuse: 0, catene: 0, categorie_escluse: 0, doppioni: 0, gia_su_mycity: 0, gia_proposte: 0, fuori_raggio: 0, in_fila: 0, per_segmento: {}, negozi_mycity_letti: suMyCity.size, proposte_finora: proposte.size, stati_finora: stati };
+const conti = { letti: elementi.length, senza_nome: 0, senza_posizione: 0, chiuse: 0, catene: 0, categorie_escluse: 0, doppioni: 0, gia_su_mycity: 0, gia_proposte: 0, fuori_raggio: 0, in_fila: 0, per_segmento: {}, negozi_mycity_letti: suMyCity.size, proposte_finora: proposte.size, stati_finora: stati, stati_non_capiti: nonCapiti };
 const visti = []; // { chiave, pos, tipo } per togliere i doppioni (stesso negozio come punto e come edificio, o con due nomi)
 const candidate = [];
-for (const e of elementi) {
+// I nomi che dicono solo il mestiere passano per ultimi: fra due doppioni resta «La Pecora Nera», non «Drogheria».
+const inOrdine = [...elementi].sort((a, b) => Number(GENERICO.test(norm(a.tags?.name || ''))) - Number(GENERICO.test(norm(b.tags?.name || ''))));
+for (const e of inOrdine) {
   const t = e.tags || {};
   const nome = String(t.name || t['name:it'] || '').trim();
   if (!nome) { conti.senza_nome++; continue; }

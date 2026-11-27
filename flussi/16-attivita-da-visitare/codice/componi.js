@@ -4,7 +4,7 @@ const cfg = $('Config').first().json;
 const f = $('Metti in fila').first().json;
 const VERO = String(cfg.MODALITA || '').trim().toLowerCase() === 'vero';
 // Ogni testo si accorcia PRIMA di proteggerlo: così un blocco non si taglia mai dentro un tag (collaudo m6).
-const corto = (v, n) => { const t = String(v ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
+const corto = (v, n) => { const t = Array.from(String(v ?? '').replace(/\s+/g, ' ').trim()); return t.length > n ? `${t.slice(0, n - 1).join('')}…` : t.join(''); }; // per caratteri interi: un'emoji non si spezza
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 let ad = null;
 try { ad = $('Chiedi all’AD i dossier').isExecuted ? ($('Chiedi all’AD i dossier').first().json || {}) : null; } catch { ad = null; }
@@ -29,7 +29,8 @@ if (!f.letta) {
   const c = f.conti;
   const st = c.stati_finora || {};
   const fuori = [c.catene && `${num(c.catene)} catene`, c.categorie_escluse && `${num(c.categorie_escluse)} in categorie dove non entriamo`, c.chiuse && `${num(c.chiuse)} chiuse`, c.doppioni && `${num(c.doppioni)} doppioni`, c.gia_su_mycity && `${num(c.gia_su_mycity)} già su MyCity`, c.gia_proposte && `${num(c.gia_proposte)} già proposte`, c.senza_nome && `${num(c.senza_nome)} senza nome`].filter(Boolean).join(', ');
-  const nonCapiti = st.non_capito ? ` · ${num(st.non_capito)} con uno stato che non capisco (scrivi visitata, si, no o iscritta)` : '';
+  const elenco = (c.stati_non_capiti || []).map((x) => `${esc(x.nome)} («${esc(x.stato)}»)`).join(', ');
+  const nonCapiti = st.non_capito ? ` · ${num(st.non_capito)} con uno stato che non capisco${elenco ? `: ${elenco}` : ''}. Nella tabella scrivi solo visitata, si, no o iscritta` : '';
   const conto = c.proposte_finora ? `\nIl conto finora: ${num(c.proposte_finora)} proposte · ${num((st.visitata || 0) + (st.si || 0) + (st.no || 0) + (st.iscritta || 0))} visitate · ${num((st.si || 0) + (st.iscritta || 0))} hanno detto sì · ${num(st.iscritta || 0)} iscritte${nonCapiti}.` : '';
   blocchi.push(`${testa}\n\nSulla mappa ci sono ${num(c.letti)} attività entro ${metri(Number(cfg.RAGGIO_M))} da ${esc(cfg.CENTRO_NOME)}. Tolte ${fuori || 'nessuna'}, ne restano ${num(c.in_fila)} in fila. Queste sono le prime ${f.fila.length}.${c.negozi_mycity_letti ? '' : '\n<i>Il database di MyCity non ha risposto: qualcuna potrebbe essere già iscritta.</i>'}${conto}` +
     (conDossier ? '' : `\n<i>Senza il dossier dell’AD: ${esc((ad && (ad.errore || (ad.prova ? 'Chiedi all’AD è in prova' : ''))) || $('Prepara il lavoro').first().json.non_mandare || 'l’AD non ha risposto')}.</i>`));
