@@ -1,0 +1,20 @@
+{
+  "id": "tropico-latino",
+  "nome": "El Tropico Latino",
+  "sito": "https://www.eltropicolatino.it/",
+  "colori": { "scuro": "#253038", "accento": "#FBCA1E", "secondo": "#3D7C2B", "chiaro": "#FFFFFF" },
+  "fonte_colori": "node marchio.mjs sul foglio di stile del sito (assets/css/styles.css), 27/11/2026: ardesia 67 usi, bianco 42, giallo 17, verde 14; magenta 9 = dettaglio, resta solo nel logo",
+  "font": {
+    "titoli": [{ "peso": 400, "file": "font/RobotoSlab-400.ttf" }, { "peso": 700, "file": "font/RobotoSlab-700.ttf" }, { "peso": 800, "file": "font/RobotoSlab-800.ttf" }],
+    "testo": [{ "peso": 400, "file": "font/Archivo-400.ttf" }, { "peso": 700, "file": "font/Archivo-700.ttf" }]
+  },
+  "logo": "logo.png",
+  "logo_url": "https://www.eltropicolatino.it/assets/img/logo-1440.png",
+  "info": "Via Mazzini 77/A · Prenota <b>0523 335932</b>",
+  "piede": "Via Mazzini 77/A, Piacenza · 0523 335932",
+  "chiusura_didascalia": "📍 Via Mazzini 77/A, Piacenza\n📞 Prenota: 0523 335932",
+  "hashtag": "#eltropicolatino #piacenza",
+  "fatti": "Aperitivo dalle 18:30 da martedì a domenica; cucina 19:00-23:00, venerdì e sabato fino alle 23:30; aperto fino all'1 (ven-sab fino alle 2); lunedì chiuso. Dal 1992, due sale, oltre 100 posti. Telefono solo fisso. Menu: eltropicolatino.it/menu.html. Niente prezzi nelle grafiche; non dare nomi ai piatti delle foto se il cliente non li ha confermati.",
+  "orari_feed": ["12:15", "18:30", "19:15"],
+  "orari_storie": ["13:00", "18:00", "20:30", "21:30"]
+}

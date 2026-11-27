@@ -11,7 +11,9 @@ dell'AD sui numeri di MyCity, ogni mattina su Telegram). Come si rigenerano e si
 ## flussi/ad-studio/
 Tre flussi spenti con cui l'AD (piano Max, nessuna API di IA) lavora i contenuti dei clienti: **AD · Leggi materiale**
 (anteprime da Drive), **AD · Carica su Drive** e **AD · Proponi nel Calendario** (riga `da_approvare` + anteprima su
-Telegram con Approva / Rifiuta). Primo uso: i 13 contenuti di dicembre di El Tropico Latino. Dettagli: `flussi/ad-studio/LEGGIMI.md`.
+Telegram con Approva / Rifiuta). Primo uso: i 13 contenuti di dicembre di El Tropico Latino. Dal 27/11/2026 c'è anche
+**AD · Tasti su Telegram**, acceso: riceve il tocco su Approva / Rifiuta / «Approva tutti» dentro Telegram, senza aprire
+il browser. Dettagli: `flussi/ad-studio/LEGGIMI.md`.
 
 ## officina/
 Piccolo servizio HTTP che gira accanto a n8n sullo stesso server Sliplane.

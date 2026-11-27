@@ -70,8 +70,8 @@ test('un bar senza foto né sito: quattro messaggi, il Business consigliato, i n
   assert.match(m[0], /Consigliato: ⭐ <b>Business<\/b>/);
   assert.match(m[0], /Prodotti in catalogo: 3, senza foto: 2/);
   assert.match(m[1], /^<b>Bozza Base<\/b> · 300 € al mese, primo mese 150 €/);
-  assert.match(m[2], /^⭐ <b>Bozza Business<\/b> · 500 € al mese, primo mese 250 €/);
-  assert.match(m[3], /^<b>Bozza Premium<\/b> · 999 € al mese, primo mese 499,50 €/);
+  assert.match(m[2], /^⭐ <b>Bozza Business<\/b> · 600 € al mese, primo mese 300 €/);
+  assert.match(m[3], /^<b>Bozza Premium<\/b> · 900 € al mese, primo mese 450 €/);
   assert.match(dentro(m[1]), /i prodotti principali fra i 2 senza foto/, 'il Base fotografa i prodotti principali, come dice il listino');
   assert.match(dentro(m[2]), /i tuoi 2 prodotti senza foto/);
   assert.doesNotMatch(dentro(m[1]), /Si parte con un video/, 'il video al mese non è nel Base');
@@ -80,7 +80,7 @@ test('un bar senza foto né sito: quattro messaggi, il Business consigliato, i n
   assert.match(dentro(m[2]), /12 post al mese/);
   assert.match(dentro(m[3]), /20 post al mese/);
   assert.match(dentro(m[1]), /Oggi non hai un sito tutto tuo/);
-  assert.match(dentro(m[2]), /circa 17 € al giorno: l’incasso di 6 colazioni/, 'il pareggio come sul sito: 500 € / 30 giorni / colazione da 3 €');
+  assert.match(dentro(m[2]), /circa 20 € al giorno: l’incasso di 7 colazioni/, 'il pareggio: 600 € / 30 giorni = 20 € al giorno, colazione da 3 € → 7');
   assert.match(dentro(m[1]), /disdici quando vuoi, con 30 giorni di preavviso/);
   for (const x of m) { tagGiusti(x); assert.ok(x.length <= 3900, 'sta in un messaggio di Telegram'); assert.doesNotMatch(x, PRIVATI); }
 });
