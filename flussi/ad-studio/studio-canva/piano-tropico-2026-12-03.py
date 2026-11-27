@@ -6,6 +6,7 @@
 # Fatti: orari, indirizzo, telefono fisso (cliente.json); menu del sito letto il 26/11 (burrito, fajitas e loro sei nomi,
 # nachos, dieci piatti alla griglia, caraffe da un litro, churros e brownie fra i dolci, Oreo cake); «margarita frozen alla
 # fragola» detto da Nicola il 27/11 alle 21:48. Niente prezzi nelle grafiche, niente nomi a piatti incerti.
+# Nicola, 27/11 verso le 22:35: nelle grafiche e nei testi solo «margarita frozen», senza «alla fragola» (appesantisce la frase).
 # Le foto «…v» sono la stessa foto messa in verticale per storie e reel, col suo fondo grigio allungato sopra e sotto.
 import json
 INDIR = "📍 Via Mazzini 77/A, Piacenza\n📞 Prenota: 0523 335932"
@@ -18,7 +19,7 @@ SF = dict(modello="storia-foto", y=1210)   # storia con la foto verticale: la sc
 # ---------- giovedì 3/12 ----------
 storia("2026-12-03", "13:00", **SF, foto="T63v", titolo="Stasera<br>fajitas?", sotto="Per due, da dividere al tavolo", info=False)
 feed("reel", "2026-12-03", "19:15",
-     didasc("Il menu del Tropico in quindici secondi. 🌮\nBurrito, fajitas per due, nachos, la griglia, i churros e il margarita frozen alla fragola.\nIl menu intero è sul nostro sito.\nCucina aperta dalle 19:00 alle 23:00, venerdì e sabato fino alle 23:30. Lunedì chiuso.", "#cucinamessicana #cenapiacenza"),
+     didasc("Il menu del Tropico in quindici secondi. 🌮\nBurrito, fajitas per due, nachos, la griglia, i churros e il margarita frozen.\nIl menu intero è sul nostro sito.\nCucina aperta dalle 19:00 alle 23:00, venerdì e sabato fino alle 23:30. Lunedì chiuso.", "#cucinamessicana #cenapiacenza"),
      "Da cosa cominci? 👇", copertina_t=1.0,
      scene=[dict(foto="T27v", d=2.2, lab="Il menu del Tropico", y=1330, z0=1.0, z1=1.10),
             dict(foto="T32v", d=1.7, lab="Burrito", y=1330, z0=1.12, z1=1.0),
@@ -28,7 +29,7 @@ feed("reel", "2026-12-03", "19:15",
             dict(foto="D19v", d=1.7, lab="Churros", y=1330, z0=1.12, z1=1.0),
             dict(foto="T89v", d=1.9, lab="Margarita frozen", y=1330, z0=1.0, z1=1.12),
             dict(colore="nero", d=3.2, outro=["Prenota il tuo tavolo", "0523 335932", "Via Mazzini 77/A · Piacenza"])])
-storia("2026-12-03", "20:30", **SF, foto="T89v", titolo="Frozen alla fragola<br>o mojito?", sotto="Al bancone, dalle 18:30", info=False)
+storia("2026-12-03", "20:30", **SF, foto="T89v", titolo="Margarita frozen<br>o mojito?", sotto="Al bancone, dalle 18:30", info=False)
 
 # ---------- venerdì 4/12 (alle 18:30 c'è già il post del piatto misto, approvato) ----------
 storia("2026-12-04", "13:00", modello="storia-testo", colore="giallo", titolo="Il weekend<br>si prenota oggi", sotto="Chiama lo 0523 335932", foto="T41", rot=-4)
@@ -69,12 +70,12 @@ storia("2026-12-08", "20:00", **SF, foto="T27v", titolo="Il nostro nome,<br>nel 
 # ---------- mercoledì 9/12 (alle 18:30 c'è già la storia della cucina, approvata) ----------
 storia("2026-12-09", "13:00", **SF, foto="T85v", titolo="Mercoledì<br>al bancone", sotto="Aperitivo dalle 18:30", info=False)
 feed("reel", "2026-12-09", "19:15",
-     didasc("Mercoledì sera, al bancone. 🍹\nIl mojito, la sangria e il margarita frozen alla fragola. Nel menu li trovi anche in caraffa da un litro, da dividere al tavolo.\nAperitivo dalle 18:30, da martedì a domenica.", "#aperitivopiacenza #mojito #sangria"),
+     didasc("Mercoledì sera, al bancone. 🍹\nIl mojito, la sangria e il margarita frozen. Nel menu li trovi anche in caraffa da un litro, da dividere al tavolo.\nAperitivo dalle 18:30, da martedì a domenica.", "#aperitivopiacenza #mojito #sangria"),
      "Mojito, sangria o frozen? 👇", copertina_t=1.0,
      scene=[dict(foto="T85v", d=2.2, lab="Mercoledì, al bancone", y=1330, z0=1.0, z1=1.10),
             dict(foto="T85v", d=1.8, lab="il mojito", y=1330, z0=1.22, z1=1.10),
             dict(foto="T87v", d=1.8, lab="la sangria", y=1330, z0=1.0, z1=1.12),
-            dict(foto="T89v", d=2.0, lab="il frozen alla fragola", y=1330, z0=1.12, z1=1.0),
+            dict(foto="T89v", d=2.0, lab="il margarita frozen", y=1330, z0=1.12, z1=1.0),
             dict(colore="giallo", d=2.2, lab="anche in caraffa<br>da un litro", y=820),
             dict(colore="nero", d=3.2, outro=["Aperitivo dalle 18:30", "0523 335932", "Da martedì a domenica"])])
 storia("2026-12-09", "20:30", **SF, foto="D24v", titolo="Spazio<br>per il brownie?", sotto="Chiedi i dolci di stasera", info=False)
