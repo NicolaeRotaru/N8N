@@ -238,6 +238,27 @@ test('D3, D4 e l\'ora passata: righe doppie, tasti vecchi e contenuti scaduti no
   assert.equal(rifiutoTardi.righe[0].stato, 'bozza', 'rifiutare si può sempre');
 });
 
+// Dal collaudo della N8N#34 (27/11/2026): l'impronta guardava solo file e ora. Se l'AD cambiava solo la didascalia, il
+// tasto Approva rimasto sotto l'anteprima vecchia approvava la versione nuova. Nicola, 27/11 sera: impronta nuova subito.
+test('il tasto vecchio non approva una didascalia cambiata: l\'impronta guarda tutto quello che esce', async () => {
+  const v = await versioneDi(FUTURA);
+  for (const [k, nuovo] of [['didascalia', 'Testo accorciato'], ['primo_commento', 'Prenota allo 0523 000000'], ['copertina', 'https://drive.google.com/file/d/c2/view'], ['tipo', 'carosello'], ['piattaforme', 'ig']]) {
+    assert.notEqual(await versioneDi({ ...FUTURA, [k]: nuovo }), v, k);
+  }
+  const t = { query_id: 'q1', chat_id: '123', message_id: '77', azione: 'approva', id: FUTURA.id, versione: v };
+  const cambiata = (await decidi(t, [{ ...FUTURA, didascalia: 'Testo accorciato' }]))[0].json;
+  assert.deepEqual(cambiata.righe, [], 'la didascalia nuova non l\'hai vista: il tasto vecchio non la approva');
+  assert.match(cambiata.testo, /versione vecchia/);
+  // Andata e ritorno dal foglio: la riga come la scrive «Scrivi la riga» e la rilegge il flusso dei tasti ha l'impronta
+  // del tasto, anche se il foglio rende gli spazi in un altro modo e la proposta non diceva i social.
+  const p = (await controlla({ riga: { ...FUTURA, didascalia: 'Riga uno\nriga due', piattaforme: '' }, anteprima: { file_id: 'f1' } }))[0].json;
+  const scritta = Object.fromEntries(Object.keys(nodo(proponi, 'Scrivi la riga nel Calendario').parameters.columns.value).map((k) => [k, p.riga[k] ?? '']));
+  assert.equal(scritta.piattaforme, 'ig+fb');
+  const ok = (await decidi({ ...t, versione: p.versione }, [{ ...scritta, didascalia: 'Riga uno\r\nriga due ', stato: 'da_approvare' }]))[0].json;
+  assert.equal(ok.righe[0]?.stato, 'approvato', 'la stessa versione, riletta dal foglio, si approva');
+  assert.equal((await decidi(t, [{ ...FUTURA, piattaforme: 'ig+fb' }]))[0].json.righe[0]?.stato, 'approvato', 'social non scritti e «ig+fb» sono la stessa cosa');
+});
+
 test('«Approva tutti» approva solo il suo gruppo, solo il da approvare, e salta doppie e scadute', async () => {
   const righe = [
     FUTURA,

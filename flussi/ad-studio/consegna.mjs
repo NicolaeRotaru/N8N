@@ -116,11 +116,15 @@ const QUANDO = [
   "  return g + ' ' + (+m[3]) + '/' + (+m[2]) + ' alle ' + m[4] + ':' + m[5];",
   "};",
 ];
-// L'impronta della versione mostrata: file e ora. Va nel tasto, così il tasto di un'anteprima vecchia non approva
-// la versione riproposta dopo (collaudo del 27/11, D4). Sei caratteri [0-9a-z], FNV-1a a 32 bit.
+// L'impronta della versione mostrata: tutto quello che Nicola vede o che esce (file, ora, testi, copertina, tipo, social).
+// Va nel tasto, così il tasto di un'anteprima vecchia non approva la versione riproposta dopo (collaudo del 27/11, D4).
+// Prima guardava solo file e ora: cambiando la sola didascalia, il tasto vecchio approvava quella nuova (collaudo della
+// N8N#34; Nicola, 27/11 sera: «impronta nuova subito»). Gli spazi contano come uno solo, perché il foglio può renderli
+// in un altro modo, e i social non scritti valgono «ig+fb», come li scrive la proposta. Sei caratteri, FNV-1a a 32 bit.
 const FIRMA = [
   "const firma = (r) => {",
-  "  const s = String(r.media || '').trim() + '|' + String(r.data_ora || '').trim();",
+  "  const v = (k) => String(r[k] === null || r[k] === undefined ? '' : r[k]).replace(/\\s+/g, ' ').trim();",
+  "  const s = [v('media'), v('data_ora'), v('didascalia'), v('primo_commento'), v('copertina'), v('tipo'), v('piattaforme') || 'ig+fb'].join('|');",
   "  let h = 2166136261;",
   "  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }",
   "  return h.toString(36).padStart(7, '0').slice(-6);",
