@@ -8,6 +8,9 @@
 //                                              Approva / Rifiuta. Non aspetta: il tocco lo riceve «tasti».
 //                                              Con {riepilogo:{lotto}} manda invece l'elenco del gruppo col tasto
 //                                              «Approva tutti».
+//                                              Prima di scrivere rilegge la riga con quell'id: se è già uscita
+//                                              (pubblicato, in_pubblicazione, o un link già pieno) si ferma con un
+//                                              errore; se era approvata torna da approvare. Le note di prima restano.
 //   tasti    «AD · Tasti su Telegram»        — ACCESO: riceve i tocchi sui tasti (Telegram Trigger, solo callback_query),
 //                                              conta solo quelli della chat di Nicola, rilegge la riga e la passa ad
 //                                              approvato o bozza solo se è ancora da_approvare. Poi la domanda diventa
@@ -143,9 +146,12 @@ const foglioDi = (foglio) => ({ documento: { __rl: true, value: foglio, mode: 'i
 const aggiornaRiga = (foglio, id, name, pos, valori, operazione = 'update') => ({ id, name, type: 'n8n-nodes-base.googleSheets', typeVersion: 4.7, position: pos, credentials: { googleSheetsOAuth2Api: SHEETS },
   parameters: { authentication: 'oAuth2', resource: 'sheet', operation: operazione, documentId: foglioDi(foglio).documento, sheetName: foglioDi(foglio).scheda,
     columns: { mappingMode: 'defineBelow', value: valori, matchingColumns: ['id'], schema }, options: {} } });
-const leggiCalendario = (foglio, id, name, pos) => ({ id, name, type: 'n8n-nodes-base.googleSheets', typeVersion: 4.7, position: pos, credentials: { googleSheetsOAuth2Api: SHEETS },
+// Con «perId» legge solo le righe con quell'id (tutte, non solo la prima: options vuoto in 4.7). alwaysOutputData: se
+// la riga non c'è, n8n passa avanti un elemento vuoto invece di fermare il flusso in silenzio.
+const leggiCalendario = (foglio, id, name, pos, perId) => ({ id, name, type: 'n8n-nodes-base.googleSheets', typeVersion: 4.7, position: pos, credentials: { googleSheetsOAuth2Api: SHEETS },
   alwaysOutputData: true, retryOnFail: true, maxTries: 3, waitBetweenTries: 2000,
-  parameters: { authentication: 'oAuth2', resource: 'sheet', operation: 'read', documentId: foglioDi(foglio).documento, sheetName: foglioDi(foglio).scheda, options: {} } });
+  parameters: { authentication: 'oAuth2', resource: 'sheet', operation: 'read', documentId: foglioDi(foglio).documento, sheetName: foglioDi(foglio).scheda,
+    ...(perId ? { filtersUI: { values: [{ lookupColumn: 'id', lookupValue: perId }] }, combineFilters: 'AND' } : {}), options: {} } });
 const tasti = (righe) => ({ rows: righe.map((bottoni) => ({ row: { buttons: bottoni.map(([testo, dato]) => ({ text: testo, additionalFields: { callback_data: dato } })) } })) });
 // Un messaggio Telegram che non parte non deve lasciare a metà la proposta: si riprova due volte.
 const RIPROVA = { retryOnFail: true, maxTries: 3, waitBetweenTries: 3000 };
@@ -156,6 +162,8 @@ function flussoProponi(foglio, chat) {
   // «brief» non si scrive: sulle righe-idea del piano del mese resta quello che c'era.
   const campi = ['id', 'cliente', 'tipo', 'piattaforme', 'data_ora', 'didascalia', 'primo_commento', 'media', 'copertina', 'stato', 'errore', 'note'];
   const P = "$('Controlla la proposta').first().json";
+  // Dopo la rilettura: la stessa proposta, con le note unite a quelle di prima e la domanda per Nicola.
+  const G = "$('Controlla la riga nel foglio').first().json";
   const nodi = [
     webhook('p1', 'ad-proponi-calendario', 'b7f3c1de-4d57-4a8e-9c1e-ad1e66e00003'),
     codice('p2', 'Controlla la proposta', [220, 0], [
@@ -190,22 +198,54 @@ function flussoProponi(foglio, chat) {
       "if (!a.file_id) throw new Error('Manca anteprima.file_id');",
       "return [{ json: { modo: 'proposta', riga: r, versione, lotto, note_col_gruppo: segno ? (r.note ? r.note + ' ' : '') + segno : '', anteprima: { file_id: String(a.file_id), video: a.tipo === 'video' }, didascalia_telegram: testo(b.didascalia_telegram).slice(0, 1000), messaggio: testo(b.messaggio).slice(0, 3900) || ('Approvi la riga ' + r.id + '?') } }];"]),
     se('p20', 'È il riepilogo?', [440, 0], "={{ $json.modo === 'riepilogo' }}"),
-    aggiornaRiga(foglio, 'p3', 'Scrivi la riga nel Calendario', [660, 100], Object.fromEntries(campi.map((k) => [k, `={{ $json.riga.${k} ?? '' }}`])), 'appendOrUpdate'),
-    { id: 'p4', name: 'Scarica l\'anteprima', type: 'n8n-nodes-base.googleDrive', typeVersion: 3, position: [880, 100], credentials: { googleDriveOAuth2Api: DRIVE },
+    // «Scrivi la riga» fa appendOrUpdate per id: da solo riscriverebbe anche una riga già uscita, la rimetterebbe da
+    // approvare e un tocco su Approva la farebbe ripubblicare dal flusso 01 (collaudo del 27/11/2026). Prima si rilegge.
+    leggiCalendario(foglio, 'p27', 'Rileggi la riga', [660, 100], `={{ ${P}.riga.id }}`),
+    codice('p28', 'Controlla la riga nel foglio', [880, 100], [
+      "const p = $('Controlla la proposta').first().json;",
+      "const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();",
+      "const id = p.riga.id;",
+      "// Le righe con questo id. Se non ce n'è nessuna arriva un elemento vuoto: non conta.",
+      "const gia = $input.all().map((i) => i.json || {}).filter((r) => testo(r.id) === id);",
+      "const stati = gia.map((r) => testo(r.stato).toLowerCase());",
+      "if (stati.includes('pubblicato')) throw new Error('riga già pubblicata: usa un id nuovo. «' + id + '» è già uscita e non l\\'ho toccata.');",
+      "if (stati.includes('in_pubblicazione')) throw new Error('riga in pubblicazione: il flusso 01 la sta pubblicando adesso, usa un id nuovo. «' + id + '» non l\\'ho toccata.');",
+      "// Il flusso 01 salva il link appena un social è uscito: con un link pieno la riga è già uscita almeno a metà.",
+      "const uscita = gia.find((r) => testo(r.link_ig) || testo(r.link_fb));",
+      "if (uscita) throw new Error('riga già uscita su ' + (testo(uscita.link_ig) ? 'Instagram' : 'Facebook') + ': usa un id nuovo. «' + id + '» non l\\'ho toccata; per finire l\\'altro social si rimette approvato dal foglio.');",
+      "let note = testo(p.riga.note);",
+      "let messaggio = p.messaggio;",
+      "const prima = gia[0];",
+      "if (prima) {",
+      "  // Non si cancella niente: restano le note di prima, senza i vecchi segni di gruppo (il segno lo rimette «Segna il",
+      "  // gruppo» solo dopo che la nuova anteprima è arrivata), e si aggiunge quando e da che stato è stata riproposta.",
+      "  const vecchie = testo(prima.note).split(/\\s*\\[lotto [a-z0-9-]+\\]/).join('').trim();",
+      "  const era = testo(prima.stato) || 'vuoto';",
+      "  const ora = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).slice(0, 16);",
+      "  // Anche la colonna «errore» si riscrive vuota: il suo testo passa nelle note.",
+      "  const errore = testo(prima.errore) ? 'errore di prima: ' + testo(prima.errore).slice(0, 300) : '';",
+      "  note = [vecchie, errore, vecchie.includes(note) ? '' : note, 'riproposta dall\\'AD ' + ora + ' (era ' + era + ')'].filter(Boolean).join(' | ');",
+      "  // Nicola, 27/11/2026: una riga già approvata e riproposta torna da approvare. Lo deve sapere dalla domanda stessa.",
+      "  if (era === 'approvato') messaggio += '\\n\\nEra già approvato: la versione di prima non esce più. Esce questa solo se la approvi.';",
+      "}",
+      "const segno = p.lotto ? '[lotto ' + p.lotto + ']' : '';",
+      "return [{ json: { ...p, riga: { ...p.riga, note }, note_col_gruppo: segno ? (note ? note + ' ' : '') + segno : '', messaggio } }];"]),
+    aggiornaRiga(foglio, 'p3', 'Scrivi la riga nel Calendario', [1100, 100], Object.fromEntries(campi.map((k) => [k, `={{ $json.riga.${k} ?? '' }}`])), 'appendOrUpdate'),
+    { id: 'p4', name: 'Scarica l\'anteprima', type: 'n8n-nodes-base.googleDrive', typeVersion: 3, position: [1320, 100], credentials: { googleDriveOAuth2Api: DRIVE },
       parameters: { authentication: 'oAuth2', resource: 'file', operation: 'download', fileId: { __rl: true, value: `={{ ${P}.anteprima.file_id }}`, mode: 'id' }, options: { binaryPropertyName: 'data' } } },
-    se('p5', 'È un video?', [1100, 100], `={{ ${P}.anteprima.video }}`),
-    { id: 'p6', name: 'Manda il video', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [1320, 0], credentials: { telegramApi: TELEGRAM }, ...RIPROVA,
+    se('p5', 'È un video?', [1540, 100], `={{ ${P}.anteprima.video }}`),
+    { id: 'p6', name: 'Manda il video', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [1760, 0], credentials: { telegramApi: TELEGRAM }, ...RIPROVA,
       parameters: { resource: 'message', operation: 'sendVideo', chatId: chat, binaryData: true, binaryPropertyName: 'data', additionalFields: { caption: `={{ ${P}.didascalia_telegram }}` } } },
-    { id: 'p7', name: 'Manda la foto', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [1320, 200], credentials: { telegramApi: TELEGRAM }, ...RIPROVA,
+    { id: 'p7', name: 'Manda la foto', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [1760, 200], credentials: { telegramApi: TELEGRAM }, ...RIPROVA,
       parameters: { resource: 'message', operation: 'sendPhoto', chatId: chat, binaryData: true, binaryPropertyName: 'data', additionalFields: { caption: `={{ ${P}.didascalia_telegram }}` } } },
     // Prima era sendAndWait: n8n ci mette tasti-link verso /webhook-waiting, e ogni tocco apriva il browser.
     // Ora i tasti portano callback_data e il tocco lo riceve il flusso «AD · Tasti su Telegram». Qui non si aspetta.
-    { id: 'p8', name: 'Chiedi Approva o Rifiuta', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [1540, 100], credentials: { telegramApi: TELEGRAM }, ...RIPROVA,
-      parameters: { resource: 'message', operation: 'sendMessage', chatId: chat, text: `={{ ${P}.messaggio }}`, replyMarkup: 'inlineKeyboard',
+    { id: 'p8', name: 'Chiedi Approva o Rifiuta', type: 'n8n-nodes-base.telegram', typeVersion: 1.2, position: [1980, 100], credentials: { telegramApi: TELEGRAM }, ...RIPROVA,
+      parameters: { resource: 'message', operation: 'sendMessage', chatId: chat, text: `={{ ${G}.messaggio }}`, replyMarkup: 'inlineKeyboard',
         inlineKeyboard: tasti([[['Approva', `={{ 'ok:' + ${P}.riga.id + ':' + ${P}.versione }}`], ['Rifiuta', `={{ 'no:' + ${P}.riga.id + ':' + ${P}.versione }}`]]]),
         additionalFields: { appendAttribution: false, reply_to_message_id: '={{ $json.result.message_id }}' } } },
-    se('p25', 'Ha un gruppo?', [1760, 100], `={{ !!${P}.lotto }}`),
-    { ...aggiornaRiga(foglio, 'p26', 'Segna il gruppo', [1980, 0], { id: `={{ ${P}.riga.id }}`, note: `={{ ${P}.note_col_gruppo }}` }), retryOnFail: true, maxTries: 3, waitBetweenTries: 2000 },
+    se('p25', 'Ha un gruppo?', [2200, 100], `={{ !!${P}.lotto }}`),
+    { ...aggiornaRiga(foglio, 'p26', 'Segna il gruppo', [2420, 0], { id: `={{ ${P}.riga.id }}`, note: `={{ ${G}.note_col_gruppo }}` }), retryOnFail: true, maxTries: 3, waitBetweenTries: 2000 },
     leggiCalendario(foglio, 'p21', 'Leggi il gruppo', [660, -150]),
     codice('p22', 'Prepara il riepilogo', [880, -150], [
       ...QUANDO,
@@ -230,7 +270,8 @@ function flussoProponi(foglio, chat) {
   return { name: 'AD · Proponi nel Calendario', nodes: nodi, settings: impostazioni,
     connections: collega([['Richiesta', 'Controlla la proposta'], ['Controlla la proposta', 'È il riepilogo?'],
       ['È il riepilogo?', 'Leggi il gruppo', 0], ['Leggi il gruppo', 'Prepara il riepilogo'], ['Prepara il riepilogo', 'C\'è da approvare?'], ['C\'è da approvare?', 'Manda il riepilogo', 0],
-      ['È il riepilogo?', 'Scrivi la riga nel Calendario', 1], ['Scrivi la riga nel Calendario', 'Scarica l\'anteprima'],
+      ['È il riepilogo?', 'Rileggi la riga', 1], ['Rileggi la riga', 'Controlla la riga nel foglio'], ['Controlla la riga nel foglio', 'Scrivi la riga nel Calendario'],
+      ['Scrivi la riga nel Calendario', 'Scarica l\'anteprima'],
       ['Scarica l\'anteprima', 'È un video?'], ['È un video?', 'Manda il video', 0], ['È un video?', 'Manda la foto', 1], ['Manda il video', 'Chiedi Approva o Rifiuta'], ['Manda la foto', 'Chiedi Approva o Rifiuta'],
       ['Chiedi Approva o Rifiuta', 'Ha un gruppo?'], ['Ha un gruppo?', 'Segna il gruppo', 0]]) };
 }
