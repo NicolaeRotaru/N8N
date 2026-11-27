@@ -20,7 +20,10 @@ feed("post", "2026-11-27", "12:15",
      "Con chi vieni all'aperitivo? Taggalo 👇",
      modello="post-testo", colore="giallo", titolo="Aperitivo<br>dalle 18:30", fs=124, sotto="Da martedì a domenica,<br>al bancone.", foto="0278")
 storia("2026-11-27", "13:00", modello="storia-testo", colore="giallo", titolo="Stasera<br>si esce?", sotto="Prenota il tavolo: 0523 335932", foto="0286", fx=55, rot=-4)
-storia("2026-11-27", "18:00", modello="storia-foto", foto="0307", fy=55, titolo="Sangria in caraffa", sotto="Da un litro, da dividere al tavolo")
+# Correzione di Nicola, 27/11/2026 21:48: la foto 0307 è un margarita frozen alla fragola, NON una sangria.
+# La storia è uscita alle 18:00 col titolo «Sangria in caraffa»: qui resta scritta giusta.
+# Nicola, 27/11 verso le 22:35: nelle grafiche si scrive solo «margarita frozen», senza «alla fragola» (appesantisce la frase).
+storia("2026-11-27", "18:00", modello="storia-foto", foto="0307", fy=55, titolo="Margarita frozen in caraffa", sotto="Da un litro, da dividere al tavolo")
 feed("carosello", "2026-11-27", "18:30",
      didasc("I nostri cinque burrito, uno per ogni fame. 🌯\nIl Burrito con carne e formaggio. Quello De pollo, De verduras (vegetariano), Del mar coi frutti di mare, e De chile, l'unico piccante dei cinque.\nSfoglia e dicci il tuo.", "#burrito #cucinamessicana"),
      "Il tuo burrito? Scrivilo qui sotto 👇",
@@ -55,7 +58,7 @@ feed("carosello", "2026-11-28", "18:30",
      "Aperitivo, margarita, cucina o griglia? 👇",
      slide=[dict(modello="post-foto", foto="0286", fx=55, titolo="La serata al Tropico,<br><em>in 4 tempi</em>", sotto="Sfoglia →", cont="1/6"),
             dict(modello="post-foto", foto="0278", titolo="1 · L'aperitivo", sotto="Al bancone, dalle 18:30", cont="2/6"),
-            dict(modello="post-foto", foto="0307", fy=62, titolo="2 · Margarita o sangria", sotto="Anche in caraffa da un litro", cont="3/6"),
+            dict(modello="post-foto", foto="0307", fy=62, titolo="2 · Un margarita frozen", sotto="Anche in caraffa da un litro", cont="3/6"),
             dict(modello="post-foto", foto="0430", fy=45, titolo="3 · Si accende la cucina", sotto="Dalle 19:00", cont="4/6"),
             dict(modello="post-foto", foto="0431", titolo="4 · A la grilla", sotto="Dieci piatti, dalla Barbacoa alla Parrilla per 2 o più", cont="5/6"),
             dict(modello="post-testo", colore="nero", titolo="E tu, da quale tempo cominci?", fs=104, sotto="Prenota il tavolo:<br>0523 335932", foto="0267", cont="6/6", piede=False)])
@@ -63,9 +66,9 @@ feed("reel", "2026-11-28", "19:15",
      didasc("Siete in tanti? Ordinate la caraffa. 🍹\nSangria, margarita, frozen, mojito e gli altri pestati: nel menu li trovi anche in caraffa da un litro, da dividere al tavolo.\nPer la tavolata del weekend conviene prenotare.", "#aperitivopiacenza #sangria #margarita"),
      "Con chi la dividi la caraffa? Taggali 👇", copertina_t=1.4,
      scene=[dict(foto="0307", fy=55, d=2.4, lab="Siete in tanti?", y=1000, z0=1.0, z1=1.12),
-            dict(foto="0307", fy=40, d=2.0, lab="La sangria", y=1000, z0=1.3, z1=1.15),
-            dict(foto="0330", fy=45, d=2.0, lab="il margarita", y=1000, z0=1.0, z1=1.12),
-            dict(colore="verde", d=2.0, lab="il mojito,<br>il frozen…", y=820),
+            dict(foto="0307", fy=40, d=2.0, lab="il margarita frozen", y=1000, z0=1.3, z1=1.15),
+            dict(foto="0330", fy=45, d=2.0, lab="o quello classico", y=1000, z0=1.0, z1=1.12),
+            dict(colore="verde", d=2.0, lab="la sangria,<br>il mojito…", y=820),
             dict(colore="giallo", d=2.3, lab="anche in caraffa<br>da un litro", y=820),
             dict(colore="nero", d=3.2, outro=["La tavolata la prenoti qui", "0523 335932", "Via Mazzini 77/A · Piacenza"])])
 storia("2026-11-28", "20:00", modello="storia-lista", titolo="Quanto sei piccante?",

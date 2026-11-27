@@ -75,6 +75,7 @@ Niente per partire. Una domanda te la fa solo la sessione, e solo se manca un fa
 - Si leggono gli orari già occupati nel Calendario, con l'ingresso `foglio` dello stesso flusso. Un id già usato si cambia col campo `id_riga`.
 
 ### Passo 4 · Montaggio e controllo (15 minuti)
+- `python3 controlla-nomi.py piano.json cliente.json`, prima di montare. Si ferma se una grafica scrive il nome di un piatto o di un drink sopra una foto che il cliente o Nicola non hanno confermato in `foto_confermate`. Nato il 27/11/2026: la storia del Tropico delle 18:00 ha scritto «Sangria in caraffa» sopra un margarita frozen alla fragola, ed è uscita su quattro pagine. Se si ferma, o si toglie il nome dalla grafica o si chiede a Nicola cosa c'è nella foto.
 - `node rendi.mjs`: con Playwright e ffmpeg, circa 8 minuti per 31 pezzi.
 - `python3 consegna.py comprimi`: i video sopra i 4 MB si rifanno più leggeri.
 - **Un solo provino di tutto**, guardato da chi l'ha fatto. Si cercano scritte coperte dalle foto, colori fuori marchio e testo sopra un colore che non si legge.
