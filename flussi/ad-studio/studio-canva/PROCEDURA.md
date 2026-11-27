@@ -35,6 +35,14 @@ Niente per partire. Una domanda te la fa solo la sessione, e solo se manca un fa
 - La sessione deve stare sull'ambiente cloud **«SDG»**: ha la chiave di n8n. Si sposta con `switch_environment`, solo la rete. Nicola approva nel riquadro.
 - Il server n8n deve rispondere: `curl https://n8n-shdy.sliplane.app/api/v1/workflows?limit=1 -H 'X-N8N-API-KEY: x'` deve dare 200.
 - Si avvisa la sessione che pubblica i contenuti del cliente, se ce n'è una viva, con gli orari che si vogliono occupare.
+- **Senza «SDG» si legge lo stesso, ma non si consegna** (provato il 27/11 sera, spostamento rifiutato). Con lo strumento MCP di n8n:
+  `execute_workflow` (manual, ingresso webhook) su «AD · Leggi materiale» e su «AD · Calendario e Meta (a mano)», poi
+  `get_workflow_execution` con `includeData` e `nodeNames: ["In base64"]`. Un risultato grosso non entra nella chat: finisce
+  da solo in un file, e `python3 -I estrai.py <cartella> <file…>` ne tira fuori le foto. Al massimo 60 voci per corsa.
+  Caricare su Drive invece no: «Carica su Drive» vuole i file dentro il nodo, e da MCP passerebbero tutti dalla chat.
+  Quindi senza «SDG» si arriva fino al provino, e caricamento e proposte aspettano.
+- **Foto da studio su fondo grigio** (il Tropico del 2015): per storie e reel `python3 verticale.py <codici>` le mette in
+  verticale con tutto il piatto e il suo fondo allungato. Prima si guarda se in un angolo si vede il set; se sì, `--taglia`.
 
 ### Passo 1 · Il file del cliente (10 minuti)
 1. Si scarica il foglio di stile del sito, col flusso «AD · Leggi materiale (anteprime)» e l'ingresso `url`. L'indirizzo si trova nella pagina principale, nel `<link rel="stylesheet">`.
