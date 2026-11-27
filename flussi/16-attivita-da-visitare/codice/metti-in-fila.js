@@ -16,10 +16,16 @@ try {
   const grezzo = r.data !== undefined ? r.data : r.body;
   const corpo = typeof grezzo === 'string' ? grezzo : (grezzo ? JSON.stringify(grezzo) : '');
   if (r.statusCode && r.statusCode !== 200) motivo = `la mappa ha risposto ${r.statusCode}`;
-  else if (r.error) motivo = `la mappa non ha risposto (${String(r.error.message || r.error).slice(0, 120)})`;
+  else if (r.error) {
+    const testo = typeof r.error === 'string' ? r.error : [r.error.message, r.error.description, r.error.httpCode, r.error.code].filter(Boolean).join(' ');
+    if (/\b429\b|too many|spacing your requests|rate.?limit/i.test(testo)) motivo = 'la mappa ha detto «troppe richieste» anche dopo 3 tentativi';
+    else if (/\b50[234]\b|timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED/i.test(testo)) motivo = 'la mappa non ha risposto in tempo, anche dopo 3 tentativi';
+    else motivo = `la mappa non ha risposto (${Array.from(testo).slice(0, 120).join('')})`;
+  }
   else {
     const j = typeof corpo === 'string' ? JSON.parse(corpo) : corpo;
-    if (Array.isArray(j.elements)) elementi = j.elements;
+    if (Array.isArray(j.elements) && j.elements.length) elementi = j.elements;
+    else if (Array.isArray(j.elements)) motivo = 'la mappa ha risposto senza nessuna attività nel raggio: è quasi certamente un suo guasto, non una città vuota';
     else motivo = 'la mappa ha risposto senza elenco';
     if (j.remark && /error|timeout|runtime/i.test(j.remark)) { elementi = null; motivo = `la mappa si è fermata: ${String(j.remark).slice(0, 120)}`; }
   }
@@ -47,7 +53,7 @@ const NOME_ESCLUSO = /tabacc|ricevitori|totocalcio|sigarett|svapo|scommess|\b(lo
 // Il confronto si fa sul nome normalizzato (minuscole, senza accenti né apostrofi): «Tigotà» con l'accento sfuggiva al \b.
 const CATENE = /\b(conad|coop|esselunga|carrefour|lidl|eurospin|penny|pam|despar|eurospar|interspar|crai|sigma|md discount|aldi|famila|ins mercato|tigota|acqua (e )?sapone|mc ?donald|burger king|old wild west|roadhouse|autogrill|starbucks|douglas|sephora|kiko|limoni|calzedonia|intimissimi|tezenis|yamamay|zara|h m|ovs|benetton|pandora|bata|carpisa|alcott|original marines|primadonna|unieuro|euronics|mediaworld|trony|feltrinelli|mondadori|giunti|tim|vodafone|wind ?tre|iliad|fastweb|poste|bricocenter|leroy merlin|decathlon|pittarello|scarpe (e )?scarpe|ottica avanzi|salmoiraghi|grandvision|vision ottica|optissimo|marionnaud|yves rocher|l?erbolario|lush|flying tiger|thun|rinascente|upim|sorbino|piazza italia|terranova|stroili|blue spirit|cisalfa|foot locker|kfc|poke house|dominos?|spizzico|rossopomodoro|la piadineria|panino giusto|cioccolatitaliani|grom|venchi|lindt|caffe borbone|nespresso|segafredo|arcaplanet|isola dei tesori|maxi zoo|bennet|ipercoop|tuodi|dpiu|todis|ard discount|ekom|basko|sole 365|risparmio casa|tedi|pepco|kasanova|ipersoap|caddys?|pinalli|citta del sole|yogorino|la piad[ie]neria|pizzium|chef express|pinko|borbonese|luisa spagnoli|grimaldi immobiliare|sun68|sun 68|furla|pitta ?rosso|maxi ?zoo|df sport specialist|sport ?specialist|poltronesofa|lycamobile|md discount|eurospin)\b/;
 // Nomi corti che da soli sarebbero parole comuni: valgono solo se il nome è esattamente quello.
-const CATENE_ESATTE = new Set(['coin', 'obi', 'pam', 'tim', 'crudo', 'md', 'sma', 'metro']);
+const CATENE_ESATTE = new Set(['coin', 'obi', 'pam', 'tim', 'crudo', 'md', 'sma']);
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 // Nomi che dicono solo il mestiere («forneria», «macelleria»): accanto a un negozio dello stesso tipo sono quasi sempre lui.
@@ -85,15 +91,23 @@ const leggiStato = (v) => {
 };
 const nonCapiti = [];
 let tabellaRotta = '';
+const taglia60 = (v) => Array.from(String(v ?? '')).slice(0, 60).join(''); // per caratteri interi: un'emoji non si spezza
+const ultimaRiga = new Map(); // osm → riga: una riga doppia (due avvii, una copia a mano) conta una volta sola
+const nomiProposti = new Set(); // se la mappa ridisegna il punto, l'identificativo cambia ma il nome resta
 for (const it of $('Leggi le attività già proposte').all()) {
   const j = it.json || {};
   if (j.error) { tabellaRotta = String(j.error.message || j.error).slice(0, 120); continue; }
   if (j.osm) {
     proposte.add(String(j.osm));
-    const s = leggiStato(j.stato);
-    stati[s] = (stati[s] || 0) + 1;
-    if (s === 'non_capito' && nonCapiti.length < 5) nonCapiti.push({ nome: String(j.nome || j.osm).slice(0, 60), stato: String(j.stato).slice(0, 60) });
+    ultimaRiga.set(String(j.osm), j);
+    const n = chiaveNome(j.nome);
+    if (n.length >= 5 && !GENERICO.test(norm(j.nome))) nomiProposti.add(n);
   }
+}
+for (const j of ultimaRiga.values()) {
+  const s = leggiStato(j.stato);
+  stati[s] = (stati[s] || 0) + 1;
+  if (s === 'non_capito' && nonCapiti.length < 5) nonCapiti.push({ nome: taglia60(j.nome || j.osm), stato: taglia60(j.stato) });
 }
 // Tabella che non risponde: niente lista, se no le prime 10 tornerebbero in fila e si riscriverebbero (collaudo m7).
 if (tabellaRotta) return [{ json: { letta: false, motivo: `la tabella «Attività da visitare» non ha risposto (${tabellaRotta})`, fila: [], conti: null } }];
@@ -134,7 +148,7 @@ for (const e of inOrdine) {
   if (doppio) { conti.doppioni++; continue; }
   const osm = `${e.type}/${e.id}`;
   if (giaSuMyCity(nome)) { conti.gia_su_mycity++; continue; }
-  if (proposte.has(osm)) { conti.gia_proposte++; continue; }
+  if (proposte.has(osm) || nomiProposti.has(chiave)) { conti.gia_proposte++; continue; }
   const sito = String(t.website || t['contact:website'] || t.url || '').trim();
   const social = [t['contact:facebook'], t.facebook, t['contact:instagram'], t.instagram].filter(Boolean).map(String);
   const telefono = String(t.phone || t['contact:phone'] || t['contact:mobile'] || t.mobile || '').split(';')[0].trim();

@@ -197,6 +197,73 @@ test('tabella che non risponde: niente lista, e il messaggio lo dice (collaudo m
   assert.deepEqual(await eseguiCodice(RIGHE, { nodi: { Config: cfg(), 'Metti in fila': [{ json: r }], 'Componi i messaggi': [{ json: { settimana: '2026-11-30' } }] } }), []);
 });
 
+test('terzo collaudo: la boutique «Metrò» non è il Metro all’ingrosso; elenco vuoto = mappa guasta (n.1 e n.5)', async () => {
+  const [{ json: r }] = await fila({ mappa: mappa([nodo(61, { name: 'Metrò', shop: 'clothes', 'addr:street': 'Via Cavour', 'addr:housenumber': '35' }, 3), nodo(62, { name: 'Metro', shop: 'wholesale' }, 4)]) });
+  assert.deepEqual(r.fila.map((a) => a.nome), ['Metrò']);
+  const [{ json: v }] = await fila({ mappa: mappa([]) });
+  assert.equal(v.letta, false);
+  assert.match(v.motivo, /senza nessuna attività/);
+  const msg = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: v }], 'Prepara il lavoro': [{ json: {} }] } });
+  assert.doesNotMatch(msg[0].json.messaggio, /\b0 attività/);
+});
+
+test('terzo collaudo: il 429 vero arriva come errore, e si dice in italiano (n.2)', async () => {
+  for (const errore of [
+    'Try spacing your requests out using the batching settings under "Options"',
+    { message: 'The service is receiving too many requests from you', description: 'Try spacing your requests out', httpCode: '429' },
+  ]) {
+    const [{ json: r }] = await fila({ mappa: [{ json: { error: errore } }] });
+    assert.equal(r.letta, false);
+    assert.equal(r.motivo, 'la mappa ha detto «troppe richieste» anche dopo 3 tentativi');
+  }
+  const [{ json: t }] = await fila({ mappa: [{ json: { error: { message: 'timeout of 150000ms exceeded', code: 'ETIMEDOUT' } } }] });
+  assert.match(t.motivo, /non ha risposto in tempo/);
+});
+
+test('terzo collaudo: righe doppie contano una volta; un nome già proposto non torna col punto ridisegnato; le emoji non si spezzano (n.3, n.6, n.7)', async () => {
+  const base = [{ osm: 'node/301', nome: 'Polleria Bonatti', stato: 'no' }, { osm: 'node/302', nome: 'Forno Due', stato: 'visitata' }, { osm: 'node/304', nome: 'Macelleria', stato: 'no' }];
+  const righe = [...base, ...base, { osm: 'node/303', nome: `${'x'.repeat(59)}😀😀`, stato: `${'y'.repeat(59)}😀😀` }];
+  const el = [nodo(1234, { name: 'Polleria Bonatti', shop: 'butcher' }, 3), nodo(1235, { name: 'Macelleria', shop: 'butcher' }, 9)];
+  const [{ json: r }] = await fila({ mappa: mappa(el), proposte: proposte(righe) });
+  assert.deepEqual(r.conti.stati_finora, { no: 2, visitata: 1, non_capito: 1 });
+  assert.equal(r.conti.proposte_finora, 4);
+  assert.ok(r.fila.some((a) => a.nome === 'Macelleria'), 'un nome generico già proposto non blocca un’altra macelleria');
+  assert.ok(!r.fila.some((a) => a.nome === 'Polleria Bonatti'), 'già proposta col nome, anche se la mappa le ha cambiato identificativo');
+  assert.equal(r.conti.gia_proposte, 1);
+  const nc = r.conti.stati_non_capiti[0];
+  for (const v of [nc.nome, nc.stato]) assert.doesNotMatch(v, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+  const msg = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: r }], 'Prepara il lavoro': [{ json: {} }] } });
+  assert.match(msg[0].json.messaggio, /4 proposte · 3 visitate · 0 hanno detto sì · 0 iscritte · 1 con uno stato/, 'il «no» conta fra le visitate');
+});
+
+test('terzo collaudo: dossier solo per alcune, identificativo senza «node/», avvisi e fonte dell’AD (n.4)', async () => {
+  const f = await filaPronta();
+  const parziale = [{ json: { ok: true, avvisi: ['Due indirizzi della mappa sono vecchi'], risultato: { schede: f.fila.slice(0, 2).map((a, k) => ({ osm: k === 0 ? a.osm.split('/')[1] : a.osm, chi_e: `Scheda ${k}`, cosa_ci_guadagna: 'g', come_convincerlo: 'c', cosa_proporre: 'p', fonte: 'https://esempio.it/a?b=1&c=2' })) } } }];
+  const out = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Prepara il lavoro': [{ json: {} }], 'Chiedi all’AD i dossier': parziale } });
+  const tutto = out.map((o) => o.json.messaggio).join('\n');
+  assert.match(tutto, new RegExp(`dossier per 2 attività su ${f.fila.length}`));
+  assert.match(tutto, /Chi è: Scheda 0/, 'riconosciuta anche senza «node/»');
+  assert.match(tutto, /Avvisi dell’AD: Due indirizzi della mappa sono vecchi/);
+  assert.match(tutto, /<a href="https:\/\/esempio\.it\/a\?b=1&amp;c=2">Fonte del dossier<\/a>/);
+  const righe = await eseguiCodice(RIGHE, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Componi i messaggi': [{ json: { settimana: '2026-11-30' } }], 'Chiedi all’AD i dossier': parziale } });
+  assert.match(righe[0].json.dossier, /Chi è: Scheda 0/);
+  assert.match(righe[0].json.dossier, /Fonte: https:\/\/esempio\.it/);
+});
+
+test('terzo collaudo: ogni testo che arriva da fuori è protetto nell’HTML di Telegram (n.10)', async () => {
+  const brutto = 'A<b>&"x';
+  const f = { letta: true, fila: [{ osm: 'node/1', nome: brutto, tipo: brutto, indirizzo: brutto, telefono: brutto, perche: brutto, offerta: brutto, distanza_m: 10, mappa: 'https://www.google.com/maps/search/?api=1&query=A"<b>' }],
+    conti: { letti: 1, in_fila: 1, per_segmento: {}, negozi_mycity_letti: 1, proposte_finora: 1, stati_finora: { non_capito: 1 }, stati_non_capiti: [{ nome: brutto, stato: brutto }] } };
+  const ad = [{ json: { ok: true, avvisi: [brutto], risultato: { schede: [{ osm: 'node/1', chi_e: brutto, cosa_vende: brutto, cosa_ci_guadagna: brutto, come_convincerlo: brutto, cosa_proporre: brutto, attenzione: brutto }] } } }];
+  const pulito = (m) => m.replace(/<\/?(b|i)>|<a href="[^"<>]*">|<\/a>/g, '');
+  const out = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Prepara il lavoro': [{ json: {} }], 'Chiedi all’AD i dossier': ad } });
+  for (const o of out) { assert.doesNotMatch(pulito(o.json.messaggio), /[<>"]/); assert.doesNotMatch(o.json.messaggio, /&(?!amp;|lt;|gt;|quot;)/); }
+  const senza = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Prepara il lavoro': [{ json: {} }], 'Chiedi all’AD i dossier': [{ json: { ok: false, errore: brutto } }] } });
+  for (const o of senza) assert.doesNotMatch(pulito(o.json.messaggio), /[<>"]/);
+  const nonLetta = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: { letta: false, motivo: brutto, fila: [], conti: null } }], 'Prepara il lavoro': [{ json: {} }] } });
+  assert.doesNotMatch(pulito(nonLetta[0].json.messaggio), /[<>"]/);
+});
+
 test('quante a settimana: il tetto del Config, mai oltre 30', async () => {
   const [{ json: r }] = await fila({ cfg: { QUANTE_A_SETTIMANA: 2 } });
   assert.equal(r.fila.length, 2);
