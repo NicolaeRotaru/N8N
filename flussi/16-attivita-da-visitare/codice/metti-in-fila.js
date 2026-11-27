@@ -93,7 +93,11 @@ const nonCapiti = [];
 let tabellaRotta = '';
 const taglia60 = (v) => Array.from(String(v ?? '')).slice(0, 60).join(''); // per caratteri interi: un'emoji non si spezza
 const ultimaRiga = new Map(); // osm → riga: una riga doppia (due avvii, una copia a mano) conta una volta sola
-const nomiProposti = new Set(); // se la mappa ridisegna il punto, l'identificativo cambia ma il nome resta
+// Se la mappa ridisegna il punto, l'identificativo cambia ma nome e indirizzo restano. Il nome da solo non basta:
+// «L'Arte della Pizza» o «Lavasecco» esistono in più vie, e sono negozi diversi (terzo collaudo, verifica della PR).
+const nomiProposti = new Map(); // chiave del nome → [{ via, civico }]
+const viaCivico = (indirizzo) => { const m = String(indirizzo || '').trim().match(/^(.*?)(?:\s+(\d+\s*[a-z]?(?:\s*\/\s*\d+\s*[a-z]?)?))?$/i); return { via: norm(m ? m[1] : ''), civico: norm(m && m[2] ? m[2] : '').replace(/ /g, '') }; };
+const giaPropostaDalNome = (chiave, via, civico) => (nomiProposti.get(chiave) || []).some((p) => via && p.via && via === p.via && (!civico || !p.civico || civico === p.civico));
 for (const it of $('Leggi le attività già proposte').all()) {
   const j = it.json || {};
   if (j.error) { tabellaRotta = String(j.error.message || j.error).slice(0, 120); continue; }
@@ -101,7 +105,7 @@ for (const it of $('Leggi le attività già proposte').all()) {
     proposte.add(String(j.osm));
     ultimaRiga.set(String(j.osm), j);
     const n = chiaveNome(j.nome);
-    if (n.length >= 5 && !GENERICO.test(norm(j.nome))) nomiProposti.add(n);
+    if (n.length >= 5 && !GENERICO.test(norm(j.nome))) nomiProposti.set(n, [...(nomiProposti.get(n) || []), viaCivico(j.indirizzo)]);
   }
 }
 for (const j of ultimaRiga.values()) {
@@ -120,7 +124,7 @@ const inOrdine = [...elementi].sort((a, b) => Number(GENERICO.test(norm(a.tags?.
 for (const e of inOrdine) {
   const t = e.tags || {};
   const nome = String(t.name || t['name:it'] || '').trim();
-  if (!nome) { conti.senza_nome++; continue; }
+  if (!nome || /^(unknown|sconosciuto|senza nome|n\/?a|test|\?+)$/i.test(nome)) { conti.senza_nome++; continue; }
   const pos = e.type === 'node' ? { lat: e.lat, lon: e.lon } : (e.center || null);
   if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lon)) { conti.senza_posizione++; continue; }
   if (/^closed$/i.test(String(t.opening_hours || '').trim()) || t['disused:shop'] || t.disused === 'yes' || t.abandoned === 'yes') { conti.chiuse++; continue; }
@@ -139,8 +143,8 @@ for (const e of inOrdine) {
   const generico = GENERICO.test(norm(nome));
   const doppio = visti.some((v) => {
     const d = distanza(v.pos, pos);
+    if (civico && v.civico && civico !== v.civico) return false; // due civici diversi sono due negozi (Via Calzolai 34 e 36, le Metrò di Via Cavour 35 e 40)
     if (v.chiave === chiave) return d < 80;
-    if (civico && v.civico && civico !== v.civico) return false; // due civici diversi sono due negozi (Via Calzolai 34 e 36)
     if (d < 30 && v.chiave.length >= 5 && chiave.length >= 5 && (v.chiave.includes(chiave) || chiave.includes(v.chiave))) return true;
     return d < 15 && v.tipo === tipoGrezzo && (generico || v.generico);
   });
@@ -148,7 +152,7 @@ for (const e of inOrdine) {
   if (doppio) { conti.doppioni++; continue; }
   const osm = `${e.type}/${e.id}`;
   if (giaSuMyCity(nome)) { conti.gia_su_mycity++; continue; }
-  if (proposte.has(osm) || nomiProposti.has(chiave)) { conti.gia_proposte++; continue; }
+  if (proposte.has(osm) || giaPropostaDalNome(chiave, norm(t['addr:street'] || ''), civico.replace(/ /g, ''))) { conti.gia_proposte++; continue; }
   const sito = String(t.website || t['contact:website'] || t.url || '').trim();
   const social = [t['contact:facebook'], t.facebook, t['contact:instagram'], t.instagram].filter(Boolean).map(String);
   const telefono = String(t.phone || t['contact:phone'] || t['contact:mobile'] || t.mobile || '').split(';')[0].trim();

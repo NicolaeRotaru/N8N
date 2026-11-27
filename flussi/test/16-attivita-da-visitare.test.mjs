@@ -198,8 +198,16 @@ test('tabella che non risponde: niente lista, e il messaggio lo dice (collaudo m
 });
 
 test('terzo collaudo: la boutique «Metrò» non è il Metro all’ingrosso; elenco vuoto = mappa guasta (n.1 e n.5)', async () => {
-  const [{ json: r }] = await fila({ mappa: mappa([nodo(61, { name: 'Metrò', shop: 'clothes', 'addr:street': 'Via Cavour', 'addr:housenumber': '35' }, 3), nodo(62, { name: 'Metro', shop: 'wholesale' }, 4)]) });
-  assert.deepEqual(r.fila.map((a) => a.nome), ['Metrò']);
+  const el = [
+    { type: 'node', id: 61, lat: 45.0540, lon: 9.6930, tags: { name: 'Metrò', shop: 'clothes', clothes: 'men', 'addr:street': 'Via Camillo Cavour', 'addr:housenumber': '35' } },
+    { type: 'node', id: 63, lat: 45.0541, lon: 9.6931, tags: { name: 'Metrò', shop: 'clothes', clothes: 'women', 'addr:street': 'Via Camillo Cavour', 'addr:housenumber': '40' } },
+    nodo(62, { name: 'Metro', shop: 'wholesale' }, 4),
+    nodo(64, { name: 'Unknown', shop: 'clothes' }, 5),
+  ];
+  const [{ json: r }] = await fila({ mappa: mappa(el) });
+  assert.deepEqual(r.fila.map((a) => a.indirizzo).sort(), ['Via Camillo Cavour 35', 'Via Camillo Cavour 40'], 'due negozi con lo stesso nome e civici diversi restano due');
+  assert.equal(r.conti.catene, 0);
+  assert.equal(r.conti.senza_nome, 1, '«Unknown» non è un nome');
   const [{ json: v }] = await fila({ mappa: mappa([]) });
   assert.equal(v.letta, false);
   assert.match(v.motivo, /senza nessuna attività/);
@@ -221,19 +229,30 @@ test('terzo collaudo: il 429 vero arriva come errore, e si dice in italiano (n.2
 });
 
 test('terzo collaudo: righe doppie contano una volta; un nome già proposto non torna col punto ridisegnato; le emoji non si spezzano (n.3, n.6, n.7)', async () => {
-  const base = [{ osm: 'node/301', nome: 'Polleria Bonatti', stato: 'no' }, { osm: 'node/302', nome: 'Forno Due', stato: 'visitata' }, { osm: 'node/304', nome: 'Macelleria', stato: 'no' }];
+  const base = [{ osm: 'node/301', nome: 'Polleria Bonatti', indirizzo: 'Via Calzolai 40', stato: 'no' }, { osm: 'node/302', nome: 'Forno Due', stato: 'visitata' }, { osm: 'node/304', nome: 'Macelleria', stato: 'no' },
+    { osm: 'node/305', nome: "L'Arte della Pizza", indirizzo: 'Via Camillo Cavour 58', stato: 'da_visitare' }, { osm: 'node/306', nome: 'Lavasecco', indirizzo: 'Via Pietro Giordani 15', stato: 'da_visitare' },
+    { osm: 'node/307', nome: 'Macelleria', indirizzo: 'Via Roma', stato: 'no' }];
   const righe = [...base, ...base, { osm: 'node/303', nome: `${'x'.repeat(59)}😀😀`, stato: `${'y'.repeat(59)}😀😀` }];
-  const el = [nodo(1234, { name: 'Polleria Bonatti', shop: 'butcher' }, 3), nodo(1235, { name: 'Macelleria', shop: 'butcher' }, 9)];
+  const el = [nodo(1234, { name: 'Polleria Bonatti', shop: 'butcher', 'addr:street': 'Via Calzolai', 'addr:housenumber': '40' }, 3), nodo(1235, { name: 'Macelleria', shop: 'butcher' }, 9),
+    nodo(1236, { name: "L'Arte della Pizza", amenity: 'restaurant', 'addr:street': 'Corso Vittorio Emanuele Secondo', 'addr:housenumber': '137' }, 12),
+    nodo(1237, { name: 'Lavasecco', shop: 'dry_cleaning', 'addr:street': 'Via Campagna', 'addr:housenumber': '54' }, 15),
+    nodo(1238, { name: 'Polleria Bonatti', shop: 'butcher' }, 30),
+    nodo(1239, { name: "L'Arte della Pizza", amenity: 'restaurant', 'addr:street': 'Via Camillo Cavour', 'addr:housenumber': '60' }, 18),
+    nodo(1240, { name: 'Macelleria', shop: 'butcher', 'addr:street': 'Via Roma', 'addr:housenumber': '50' }, 21)];
   const [{ json: r }] = await fila({ mappa: mappa(el), proposte: proposte(righe) });
-  assert.deepEqual(r.conti.stati_finora, { no: 2, visitata: 1, non_capito: 1 });
-  assert.equal(r.conti.proposte_finora, 4);
+  assert.deepEqual(r.conti.stati_finora, { no: 3, visitata: 1, non_capito: 1, da_visitare: 2 });
+  assert.equal(r.conti.proposte_finora, 7);
+  assert.ok(r.fila.some((a) => a.osm === 'node/1239'), 'stesso nome e stessa via ma civico diverso: un altro negozio');
+  assert.ok(r.fila.some((a) => a.osm === 'node/1240'), 'un nome generico non riconosce un negozio come già proposto');
+  assert.ok(r.fila.some((a) => a.nome === "L'Arte della Pizza") && r.fila.some((a) => a.nome === 'Lavasecco'), 'stesso nome in un’altra via: è un altro negozio, non si perde');
+  assert.ok(r.fila.some((a) => a.osm === 'node/1238'), 'stesso nome senza indirizzo: non c’è la prova che sia lo stesso, resta in fila');
   assert.ok(r.fila.some((a) => a.nome === 'Macelleria'), 'un nome generico già proposto non blocca un’altra macelleria');
-  assert.ok(!r.fila.some((a) => a.nome === 'Polleria Bonatti'), 'già proposta col nome, anche se la mappa le ha cambiato identificativo');
+  assert.ok(!r.fila.some((a) => a.osm === 'node/1234'), 'già proposta: stesso nome e stesso indirizzo, anche se la mappa le ha cambiato identificativo');
   assert.equal(r.conti.gia_proposte, 1);
   const nc = r.conti.stati_non_capiti[0];
   for (const v of [nc.nome, nc.stato]) assert.doesNotMatch(v, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
   const msg = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: r }], 'Prepara il lavoro': [{ json: {} }] } });
-  assert.match(msg[0].json.messaggio, /4 proposte · 3 visitate · 0 hanno detto sì · 0 iscritte · 1 con uno stato/, 'il «no» conta fra le visitate');
+  assert.match(msg[0].json.messaggio, /7 proposte · 4 visitate · 0 hanno detto sì · 0 iscritte · 1 con uno stato/, 'il «no» conta fra le visitate');
 });
 
 test('terzo collaudo: dossier solo per alcune, identificativo senza «node/», avvisi e fonte dell’AD (n.4)', async () => {
@@ -241,7 +260,8 @@ test('terzo collaudo: dossier solo per alcune, identificativo senza «node/», a
   const parziale = [{ json: { ok: true, avvisi: ['Due indirizzi della mappa sono vecchi'], risultato: { schede: f.fila.slice(0, 2).map((a, k) => ({ osm: k === 0 ? a.osm.split('/')[1] : a.osm, chi_e: `Scheda ${k}`, cosa_ci_guadagna: 'g', come_convincerlo: 'c', cosa_proporre: 'p', fonte: 'https://esempio.it/a?b=1&c=2' })) } } }];
   const out = await eseguiCodice(COMPONI, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }], 'Prepara il lavoro': [{ json: {} }], 'Chiedi all’AD i dossier': parziale } });
   const tutto = out.map((o) => o.json.messaggio).join('\n');
-  assert.match(tutto, new RegExp(`dossier per 2 attività su ${f.fila.length}`));
+  assert.match(tutto, new RegExp(`Senza il dossier dell’AD: ${f.fila.length - 2} attività su ${f.fila.length}`));
+  assert.equal((tutto.match(/<i>Senza il dossier dell’AD\.<\/i>/g) || []).length, f.fila.length - 2, 'e lo dice sotto ogni attività senza dossier');
   assert.match(tutto, /Chi è: Scheda 0/, 'riconosciuta anche senza «node/»');
   assert.match(tutto, /Avvisi dell’AD: Due indirizzi della mappa sono vecchi/);
   assert.match(tutto, /<a href="https:\/\/esempio\.it\/a\?b=1&amp;c=2">Fonte del dossier<\/a>/);
