@@ -7,6 +7,45 @@ repository restano uguali.
 > Questo repository è **pubblico**. Qui non entrano gli ID del foglio Clienti, della cartella Drive,
 > della chat Telegram, né chiavi o segreti: i programmi li prendono da n8n quando caricano il flusso.
 
+## 16 · Attività da visitare — la macchina che trova i clienti
+
+**A cosa serve.** Trova le attività da visitare e le mette in fila, così chi va nei negozi sa ogni lunedì
+dove andare. Chiude il buco prima della scheda per l'agente (14) e del preventivo (20): la regola c'era
+(ad-mycity, registro dei fatti, `negozi.ingresso`) ma nessuno la eseguiva. Nata il 27/11/2026 su richiesta di Nicola.
+
+**Come lavora.** Ogni lunedì alle 7:10:
+1. chiede alla mappa libera (OpenStreetMap, servizio Overpass: gratis, licenza ODbL) tutte le attività entro
+   5 km da Pane Quotidiano: negozi, bar e ristoranti, farmacie, artigiani;
+2. toglie le catene (marchio sulla mappa o nome noto), le categorie dove MyCity non entra (elettronica, auto,
+   usato, scommesse, supermercati…), i chiusi, i doppioni, i negozi già su MyCity (sola lettura sul database) e
+   le attività già proposte (la tabella «Attività da visitare»);
+3. dà un punteggio: prima il fresco vicino al forno, poi regali, cura della persona, bar e ristoranti,
+   artigiani, altri negozi; punti in più a chi sulla mappa non ha sito o social e a chi ha un telefono;
+4. sulle prime 10 chiede il dossier all'AD (90 · Chiedi all'AD): chi è, cosa vende, cosa ci guadagna lui,
+   come convincerlo, cosa proporgli;
+5. manda la lista a Nicola su Telegram e scrive una riga per attività nella tabella, con stato `da_visitare`.
+
+Dopo la visita, nella tabella si scrive lo stato: `visitata`, `si`, `no` o `iscritta`. Il lunedì dopo il
+messaggio porta il conto: proposte, visitate, sì, iscritte. **Non si cancella niente.**
+
+**Mai.** Il flusso non scrive alle attività: nessun WhatsApp, email o SMS. Il primo contatto lo fa una persona,
+di persona o al telefono (art. 130 del Codice privacy; regole di WhatsApp; CONTESTO_BUSINESS §4.8). Il controllo
+`controlla()` boccia il flusso se ci compare un canale verso fuori o una cancellazione nella tabella.
+
+**Le scorciatoie evitate.** Mappa che non risponde = «non letta», mai «zero attività»; ogni elemento della mappa
+finisce in un conto (anche chi non ha nome); il tetto dei 64 KB della routine si misura in byte.
+
+**Nel Config** (si cambia ricostruendo): centro e raggio, quante a settimana (di serie 10, al massimo 30),
+l'indirizzo di Overpass e il listino che l'AD usa nel dossier (copiato dal registro dei fatti di ad-mycity:
+`sdg.abbonamenti`, `sdg.pagamento`, `pricing.commissione`).
+
+```bash
+N8N_API_KEY=… node flussi/16-attivita-da-visitare/costruisci.mjs --manda          # spento, in prova
+N8N_API_KEY=… node flussi/16-attivita-da-visitare/costruisci.mjs --manda --vero   # manda e scrive
+```
+
+La tabella si chiama «Attività da visitare» (id nel programma). Le prove: `test/16-attivita-da-visitare.test.mjs`.
+
 ## 16 · Nuovo cliente da MyCity
 
 **A cosa serve.** Quando un'attività si iscrive su MyCity (la pagina «Vendi su MyCity»), entra da sola
