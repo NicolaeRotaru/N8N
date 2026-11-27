@@ -1,4 +1,5 @@
 // node rendi.mjs [id ...]  → uscita/<id>.jpg | <id>-<n>.jpg | <id>.mp4 + <id>-copertina.jpg
+// Legge cliente.json (colori, caratteri, logo, testi del cliente) e piano.json dalla cartella di lavoro.
 import { createRequire } from "node:module";
 import { readFileSync, mkdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -13,7 +14,8 @@ const piano = JSON.parse(readFileSync(join(DIR, "piano.json"), "utf8")).filter((
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 } });
 await page.goto("file://" + join(DIR, "studio.html"));
-await page.evaluate(() => document.fonts.ready);
+const cliente = JSON.parse(readFileSync(join(DIR, "cliente.json"), "utf8"));
+await page.evaluate((m) => window.impostaCliente(m), cliente);
 async function scatta(pezzo, file) {
   const h = pezzo.formato === "storia" || pezzo.tipo === "reel" ? 1920 : 1350;
   await page.setViewportSize({ width: 1080, height: h });
