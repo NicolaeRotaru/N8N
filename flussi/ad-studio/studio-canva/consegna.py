@@ -1,0 +1,89 @@
+# Consegna dei contenuti del Tropico nel giro dell'agenzia, coi flussi esistenti dell'AD.
+#   python3 consegna.py lotti               -> divide i file in lotti sotto il limite e li elenca
+#   python3 consegna.py prepara <n>         -> scrive il lotto n nel nodo «Prepara» di «AD · Carica su Drive»
+#   python3 consegna.py leggi <esecuzione>  -> legge l'esito del caricamento e salva gli ID in drive.json
+#   python3 consegna.py svuota              -> rimette il segnaposto nel nodo
+#   python3 consegna.py righe               -> scrive proposte.json: il corpo per «AD · Proponi nel Calendario», uno per contenuto
+import sys, json, os, base64, subprocess, mimetypes
+D = os.path.dirname(os.path.abspath(__file__)); OUT = f'{D}/uscita'
+N8N = 'https://n8n-shdy.sliplane.app/api/v1'; WF = '6o75dipPqyQIojx2'
+SEGNAPOSTO = "const FILE = []; // __FILE__ (lo riempie l'AD prima della corsa e lo svuota dopo)"
+LIMITE = 9 * 1024 * 1024
+piano = json.load(open(f'{D}/piano.json'))
+ID_RIGA = {p['id']: (p['id'] + '-car' if p['id'] == 'tropico-latino-20261202-1830' else p['id']) for p in piano}
+
+def file_di(p):
+    if p['tipo'] == 'storia': return [p['id'] + '.mp4']
+    if p['tipo'] == 'post': return [p['id'] + '.jpg']
+    if p['tipo'] == 'reel': return [p['id'] + '.mp4', p['id'] + '-copertina.jpg']
+    return [f"{p['id']}-{i + 1}.jpg" for i in range(len(p['slide']))]
+
+def api(metodo, percorso, corpo=None):
+    args = ['curl', '-sS', '-m', '600', '-X', metodo, '-H', 'X-N8N-API-KEY: x', '-H', 'content-type: application/json']
+    if corpo is not None:
+        open(f'{D}/_corpo.json', 'w').write(json.dumps(corpo)); args += ['--data-binary', f'@{D}/_corpo.json']
+    r = subprocess.run(args + [N8N + percorso], capture_output=True, text=True)
+    return json.loads(r.stdout or '{}')
+
+def lotti():
+    tutti = [f for p in piano for f in file_di(p)]
+    gruppi, cur, tot = [], [], 0
+    for f in tutti:
+        s = os.path.getsize(f'{OUT}/{f}')
+        if cur and tot + s > LIMITE: gruppi.append(cur); cur, tot = [], 0
+        cur.append(f); tot += s
+    if cur: gruppi.append(cur)
+    return gruppi
+
+def scrivi(riga_file):
+    w = api('GET', f'/workflows/{WF}')
+    for n in w['nodes']:
+        if n['name'] == 'Prepara':
+            righe = n['parameters']['jsCode'].split('\n'); righe[0] = riga_file; n['parameters']['jsCode'] = '\n'.join(righe)
+    r = api('PUT', f'/workflows/{WF}', {k: w[k] for k in ('name', 'nodes', 'connections', 'settings')})
+    return r.get('id'), r.get('message', '')
+
+cmd = sys.argv[1]
+if cmd == 'lotti':
+    g = lotti()
+    for i, x in enumerate(g): print(i, len(x), round(sum(os.path.getsize(f'{OUT}/{f}') for f in x) / 1e6, 1), 'MB')
+elif cmd == 'prepara':
+    x = lotti()[int(sys.argv[2])]
+    file = [{'nome': f, 'mime': mimetypes.guess_type(f)[0], 'b64': base64.b64encode(open(f'{OUT}/{f}', 'rb').read()).decode()} for f in x]
+    print(len(x), 'file;', scrivi('const FILE = ' + json.dumps(file) + "; // __FILE__ (lo riempie l'AD prima della corsa e lo svuota dopo)"))
+elif cmd == 'svuota':
+    print(scrivi(SEGNAPOSTO))
+elif cmd == 'leggi':
+    d = api('GET', f'/executions/{sys.argv[2]}?includeData=true')
+    err = d['data']['resultData'].get('error')
+    print(d.get('status'), json.dumps(err)[:300] if err else '')
+    reg = json.load(open(f'{D}/drive.json')) if os.path.exists(f'{D}/drive.json') else {}
+    for it in d['data']['resultData']['runData'].get('Carica il file', [{}])[0].get('data', {}).get('main', [[]])[0]:
+        reg[it['json']['name']] = it['json']['id']
+    json.dump(reg, open(f'{D}/drive.json', 'w'), indent=1); print(len(reg), 'file su Drive in tutto')
+elif cmd == 'righe':
+    reg = json.load(open(f'{D}/drive.json'))
+    link = lambda f: f'https://drive.google.com/file/d/{reg[f]}/view'
+    out = []
+    for p in piano:
+        if p['data_ora'] < '2026-11-27 08:00': continue  # le storie del 26/11 sera sono scadute
+        fs = file_di(p)
+        media = ' | '.join(link(f) for f in fs if not f.endswith('-copertina.jpg'))
+        chiave = {'storia': 'storia', 'post': 'post', 'carosello': 'carosello', 'reel': 'reel'}[p['tipo']]
+        riga = {'id': ID_RIGA[p['id']], 'cliente': 'tropico-latino', 'tipo': p['tipo'], 'piattaforme': 'ig+fb', 'data_ora': p['data_ora'],
+                'didascalia': p.get('didascalia', ''), 'primo_commento': p.get('primo_commento', ''), 'media': media,
+                'copertina': link(p['id'] + '-copertina.jpg') if p['tipo'] == 'reel' else '',
+                'note': f"[AD 26/11 · {chiave} {p['data_ora'][5:]}] proposta dell'AD (piano Max), impaginazioni Canva e reel · SALTA CONTROLLO AI"}
+        anteprima = {'file_id': reg[fs[0]], 'tipo': 'video' if fs[0].endswith('.mp4') else 'foto'}
+        g = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
+        import datetime
+        dt = datetime.datetime.strptime(p['data_ora'], '%Y-%m-%d %H:%M')
+        quando = f"{g[dt.weekday()]} {dt.day}/{dt.month} alle {p['data_ora'][11:]}"
+        if p['tipo'] == 'storia':
+            tel = f"Tropico · storia animata · {quando}"
+        else:
+            tel = f"Tropico · {p['tipo']} · {quando}\n\n{p['didascalia']}"[:1000]
+        if p['tipo'] == 'carosello': tel = (f"Tropico · carosello di {len(fs)} immagini (qui la prima) · {quando}\n\n" + p['didascalia'])[:1000]
+        out.append({'riga': riga, 'anteprima': anteprima, 'didascalia_telegram': tel,
+                    'messaggio': f"Approvi questo contenuto del Tropico per {quando}? Esce su Instagram e Facebook all'ora scritta."})
+    json.dump(out, open(f'{D}/proposte.json', 'w'), ensure_ascii=False, indent=1); print(len(out), 'proposte pronte')
