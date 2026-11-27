@@ -9,8 +9,10 @@
 //                                              Con {riepilogo:{lotto}} manda invece l'elenco del gruppo col tasto
 //                                              «Approva tutti».
 //                                              Prima di scrivere rilegge la riga con quell'id: se è già uscita
-//                                              (pubblicato, in_pubblicazione, o un link già pieno) si ferma con un
-//                                              errore; se era approvata torna da approvare. Le note di prima restano.
+//                                              (pubblicato, in_pubblicazione, un link o pubblicato_il pieni, o lasciata
+//                                              a metà dal flusso 01), se è doppia, o se è approvata ed esce entro 10
+//                                              minuti, si ferma con un errore. Se era approvata torna da approvare.
+//                                              Le note di prima restano.
 //   tasti    «AD · Tasti su Telegram»        — ACCESO: riceve i tocchi sui tasti (Telegram Trigger, solo callback_query),
 //                                              conta solo quelli della chat di Nicola, rilegge la riga e la passa ad
 //                                              approvato o bozza solo se è ancora da_approvare. Poi la domanda diventa
@@ -205,28 +207,41 @@ function flussoProponi(foglio, chat) {
       "const p = $('Controlla la proposta').first().json;",
       "const testo = (v) => (v === null || v === undefined ? '' : String(v)).trim();",
       "const id = p.riga.id;",
+      "const fermati = (perche) => { throw new Error(perche + ' «' + id + '» non l\\'ho toccata.'); };",
       "// Le righe con questo id. Se non ce n'è nessuna arriva un elemento vuoto: non conta.",
       "const gia = $input.all().map((i) => i.json || {}).filter((r) => testo(r.id) === id);",
       "const stati = gia.map((r) => testo(r.stato).toLowerCase());",
-      "if (stati.includes('pubblicato')) throw new Error('riga già pubblicata: usa un id nuovo. «' + id + '» è già uscita e non l\\'ho toccata.');",
-      "if (stati.includes('in_pubblicazione')) throw new Error('riga in pubblicazione: il flusso 01 la sta pubblicando adesso, usa un id nuovo. «' + id + '» non l\\'ho toccata.');",
-      "// Il flusso 01 salva il link appena un social è uscito: con un link pieno la riga è già uscita almeno a metà.",
-      "const uscita = gia.find((r) => testo(r.link_ig) || testo(r.link_fb));",
-      "if (uscita) throw new Error('riga già uscita su ' + (testo(uscita.link_ig) ? 'Instagram' : 'Facebook') + ': usa un id nuovo. «' + id + '» non l\\'ho toccata; per finire l\\'altro social si rimette approvato dal foglio.');",
+      "if (stati.includes('pubblicato')) fermati('riga già pubblicata: usa un id nuovo.');",
+      "if (stati.includes('in_pubblicazione')) fermati('riga in pubblicazione: il flusso 01 la sta pubblicando adesso, usa un id nuovo.');",
+      "// Il flusso 01 salva il link appena un social è uscito, e pubblicato_il alla fine: se uno è pieno, la riga è già uscita.",
+      "const uscita = gia.find((r) => testo(r.link_ig) || testo(r.link_fb) || testo(r.pubblicato_il));",
+      "if (uscita) fermati('riga già uscita' + (testo(uscita.link_ig) ? ' su Instagram' : testo(uscita.link_fb) ? ' su Facebook' : '') + ': usa un id nuovo. Per finire l\\'altro social si rimette approvato dal foglio.');",
+      "// Una riga rimasta a metà il flusso 01 la mette in errore coi link vuoti: può essere uscita lo stesso.",
+      "if (gia.some((r) => /rimasta\\s*«?in_pubblicazione/i.test(testo(r.errore)))) fermati('riga forse già uscita: il flusso 01 si è fermato a metà mentre la pubblicava. Controlla su Instagram e Facebook e usa un id nuovo.');",
+      "// Le righe doppie non le approvano né i tasti né il flusso 01: si sistemano a mano prima.",
+      "if (gia.length > 1) fermati('la riga compare ' + gia.length + ' volte nel Calendario: va sistemata a mano prima di riproporla.');",
+      "const prima = gia[0];",
+      "const era = prima ? testo(prima.stato) || 'vuoto' : '';",
+      "const approvata = era.toLowerCase() === 'approvato';",
+      "// Un'approvata che esce entro 10 minuti il flusso 01 può prenderla proprio adesso, con la versione nuova non vista.",
+      "const tra10 = new Date(Date.now() + 10 * 60000).toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).slice(0, 16);",
+      "if (approvata && !(testo(prima.data_ora) > tra10)) fermati('riga approvata che esce entro 10 minuti: il flusso 01 potrebbe pubblicarla adesso. Usa un id nuovo, oppure rimettila in bozza dal foglio e riproponila.');",
       "let note = testo(p.riga.note);",
       "let messaggio = p.messaggio;",
-      "const prima = gia[0];",
       "if (prima) {",
       "  // Non si cancella niente: restano le note di prima, senza i vecchi segni di gruppo (il segno lo rimette «Segna il",
       "  // gruppo» solo dopo che la nuova anteprima è arrivata), e si aggiunge quando e da che stato è stata riproposta.",
-      "  const vecchie = testo(prima.note).split(/\\s*\\[lotto [a-z0-9-]+\\]/).join('').trim();",
-      "  const era = testo(prima.stato) || 'vuoto';",
-      "  const ora = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).slice(0, 16);",
+      "  // La scritta che fa saltare il controllo AI del flusso 01 valeva per la versione di prima: nella storia resta, ma",
+      "  // scritta in un modo che il flusso 01 non legge. Vale per la versione nuova solo se la riporta la proposta.",
+      "  const storia = (v) => testo(v).replace(/salta\\s+controllo\\s+ai/gi, 'SALTA-CONTROLLO-AI (valeva per la versione di prima)');",
+      "  const vecchie = storia(testo(prima.note).split(/\\s*\\[lotto [a-z0-9-]+\\]/).join(''));",
       "  // Anche la colonna «errore» si riscrive vuota: il suo testo passa nelle note.",
-      "  const errore = testo(prima.errore) ? 'errore di prima: ' + testo(prima.errore).slice(0, 300) : '';",
-      "  note = [vecchie, errore, vecchie.includes(note) ? '' : note, 'riproposta dall\\'AD ' + ora + ' (era ' + era + ')'].filter(Boolean).join(' | ');",
+      "  const errore = testo(prima.errore) ? 'errore di prima: ' + storia(prima.errore).slice(0, 1000) : '';",
+      "  const ora = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Rome' }).slice(0, 16);",
+      "  const ripetuta = note && (' | ' + vecchie + ' | ').includes(' | ' + note + ' | ');",
+      "  note = [vecchie, errore, ripetuta ? '' : note, 'riproposta dall\\'AD ' + ora + ' (era ' + era + ')'].filter(Boolean).join(' | ');",
       "  // Nicola, 27/11/2026: una riga già approvata e riproposta torna da approvare. Lo deve sapere dalla domanda stessa.",
-      "  if (era === 'approvato') messaggio += '\\n\\nEra già approvato: la versione di prima non esce più. Esce questa solo se la approvi.';",
+      "  if (approvata) messaggio += '\\n\\nEra già approvato: la versione di prima non esce più. Esce questa solo se la approvi.';",
       "}",
       "const segno = p.lotto ? '[lotto ' + p.lotto + ']' : '';",
       "return [{ json: { ...p, riga: { ...p.riga, note }, note_col_gruppo: segno ? (note ? note + ' ' : '') + segno : '', messaggio } }];"]),
