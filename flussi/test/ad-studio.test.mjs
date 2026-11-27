@@ -115,6 +115,12 @@ test('una riga già uscita non si riscrive: prima di scriverla si rilegge per id
   await assert.rejects(rileggi([{ ...riga, stato: 'approvato', data_ora: fra5 }]), /entro 10 minuti/, 'il flusso 01 potrebbe prenderla mentre la riscriviamo');
   await assert.rejects(rileggi([{ ...riga, stato: 'approvato', data_ora: '2026-01-01 10:00' }]), /entro 10 minuti/, 'ora già passata: il 01 può prenderla adesso');
   assert.equal(leggiRiga.onError, undefined, 'se la lettura non riesce il flusso si ferma: una riga non letta non è una riga nuova');
+  assert.equal(nodo(proponi, 'Controlla la riga nel foglio').onError, undefined, 'un controllo che non ferma il flusso non controlla niente');
+  // Dal ricollaudo: un'ora scritta in un altro formato non si confronta come testo, e «Approvato» a mano vale come approvato.
+  await assert.rejects(rileggi([{ ...riga, stato: 'approvato', data_ora: '27/11/2099 15:00:00' }]), /non so confrontare/);
+  await assert.rejects(rileggi([{ ...riga, stato: 'Approvato', data_ora: fra5 }]), /entro 10 minuti/);
+  const conSecondi = (await rileggi([{ ...riga, stato: 'approvato', data_ora: '2099-12-06 18:30:00' }]))[0].json;
+  assert.equal(conSecondi.riga.stato, 'da_approvare', 'coi secondi l\'ora si legge lo stesso');
 });
 
 test('una riga approvata e riproposta torna da approvare, con la storia nelle note e l\'avviso nella domanda', async () => {
@@ -125,6 +131,7 @@ test('una riga approvata e riproposta torna da approvare, con la storia nelle no
   assert.equal(out.riga.note.includes('[lotto'), false, 'il segno del gruppo vecchio non resta: «Approva tutti» non deve approvare un\'anteprima non vista');
   assert.equal(out.note_col_gruppo, out.riga.note + ' [lotto cli-1127-0200]');
   assert.match(out.messaggio, /Era già approvato: la versione di prima non esce più/);
+  assert.match((await rileggi([{ ...prima, stato: 'Approvato' }]))[0].json.messaggio, /Era già approvato/, 'anche scritto a mano con la maiuscola');
   // La scrittura, il segno del gruppo e la domanda usano la versione controllata, non quella grezza.
   assert.equal(nodo(proponi, 'Scrivi la riga nel Calendario').parameters.columns.value.note, '={{ $json.riga.note ?? \'\' }}');
   assert.equal(nodo(proponi, 'Segna il gruppo').parameters.columns.value.note, "={{ $('Controlla la riga nel foglio').first().json.note_col_gruppo }}");
