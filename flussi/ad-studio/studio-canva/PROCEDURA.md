@@ -80,7 +80,8 @@ Niente per partire. Una domanda te la fa solo la sessione, e solo se manca un fa
    - `leggi <esecuzione>`.
    Alla fine, `svuota`.
 3. `python3 consegna.py righe` scrive `proposte.json` e salta da solo quello che è già scaduto.
-4. Ogni proposta va a «AD · Proponi nel Calendario». Si mandano 7 alla volta, in parallelo. Ognuna deve finire in attesa su «Chiedi Approva o Rifiuta».
+4. Ogni proposta va a «AD · Proponi nel Calendario». Si mandano 7 alla volta, in parallelo. Ognuna finisce subito: su Telegram arrivano l'anteprima e, attaccata sotto, la domanda coi tasti Approva e Rifiuta. Il tocco lo riceve il flusso acceso «AD · Tasti su Telegram», senza aprire pagine.
+   Per ultima si manda `riepilogo.json`: l'elenco di quello che resta da approvare, col tasto «Approva tutti».
 5. Memoria, con una PR: una riga in bacheca per ogni decisione di Nicola, una voce nel lavoro aperto e una nel registro delle decisioni.
 
 ### Regole che non si saltano

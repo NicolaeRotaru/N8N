@@ -4,14 +4,17 @@
 #   python3 consegna.py prepara <n>         -> scrive il lotto n nel nodo «Prepara» di «AD · Carica su Drive»
 #   python3 consegna.py leggi <esecuzione>  -> legge l'esito del caricamento e salva gli ID in drive.json
 #   python3 consegna.py svuota              -> rimette il segnaposto nel nodo
-#   python3 consegna.py righe               -> scrive proposte.json: il corpo per «AD · Proponi nel Calendario», uno per contenuto
-import sys, json, os, base64, subprocess, mimetypes
+#   python3 consegna.py righe               -> scrive proposte.json: il corpo per «AD · Proponi nel Calendario», uno per contenuto,
+#                                              e riepilogo.json: il corpo dell'ultima chiamata, l'elenco col tasto «Approva tutti»
+import sys, json, os, re, base64, subprocess, mimetypes
 D = os.path.dirname(os.path.abspath(__file__)); OUT = f'{D}/uscita'
 N8N = 'https://n8n-shdy.sliplane.app/api/v1'; WF = '6o75dipPqyQIojx2'
 SEGNAPOSTO = "const FILE = []; // __FILE__ (lo riempie l'AD prima della corsa e lo svuota dopo)"
 LIMITE = 9 * 1024 * 1024
 piano = json.load(open(f'{D}/piano.json'))
-CLIENTE = json.load(open(f'{D}/cliente.json'))['id']
+_cliente = json.load(open(f'{D}/cliente.json'))
+CLIENTE = _cliente['id']
+NOME = _cliente.get('nome') or CLIENTE
 # un id già occupato nel Calendario si cambia nel piano col campo «id_riga»
 ID_RIGA = {p['id']: p.get('id_riga', p['id']) for p in piano}
 
@@ -73,9 +76,11 @@ elif cmd == 'leggi':
 elif cmd == 'righe':
     reg = json.load(open(f'{D}/drive.json'))
     link = lambda f: f'https://drive.google.com/file/d/{reg[f]}/view'
+    import datetime, zoneinfo
+    # Il gruppo di questa consegna: va nelle note di ogni riga e lo legge il tasto «Approva tutti» (massimo 40 caratteri).
+    LOTTO = re.sub('[^a-z0-9-]', '-', CLIENTE.lower())[:29].strip('-') + datetime.datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).strftime('-%m%d-%H%M')
     out = []
     for p in piano:
-        import datetime, zoneinfo
         adesso = datetime.datetime.now(zoneinfo.ZoneInfo('Europe/Rome')).strftime('%Y-%m-%d %H:%M')
         if p['data_ora'] <= adesso: continue  # già scaduto: non si propone
         fs = file_di(p)
@@ -95,6 +100,7 @@ elif cmd == 'righe':
         else:
             tel = f"{CLIENTE} · {p['tipo']} · {quando}\n\n{p['didascalia']}"[:1000]
         if p['tipo'] == 'carosello': tel = (f"{CLIENTE} · carosello di {len(fs)} immagini (qui la prima) · {quando}\n\n" + p['didascalia'])[:1000]
-        out.append({'riga': riga, 'anteprima': anteprima, 'didascalia_telegram': tel,
+        out.append({'riga': riga, 'anteprima': anteprima, 'didascalia_telegram': tel, 'lotto': LOTTO,
                     'messaggio': f"Approvi questo contenuto per {quando}? Esce su Instagram e Facebook all'ora scritta."})
-    json.dump(out, open(f'{D}/proposte.json', 'w'), ensure_ascii=False, indent=1); print(len(out), 'proposte pronte')
+    json.dump(out, open(f'{D}/proposte.json', 'w'), ensure_ascii=False, indent=1); print(len(out), 'proposte pronte, gruppo', LOTTO)
+    json.dump({'riepilogo': {'lotto': LOTTO, 'nome': NOME}}, open(f'{D}/riepilogo.json', 'w'), ensure_ascii=False, indent=1)
