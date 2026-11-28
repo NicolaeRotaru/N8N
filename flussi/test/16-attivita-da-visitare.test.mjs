@@ -448,3 +448,12 @@ test('il flusso: controlli a posto, lunedì alle 7:10, tabella giusta, nessuna c
   const altraChat = { ...w, nodes: w.nodes.map((n) => (n.name === 'Manda a Nicola' ? { ...n, parameters: { ...n.parameters, chatId: '12345' } } : n)) };
   assert.ok(controlla(altraChat).some((p) => /chat di Nicola/.test(p)));
 });
+
+// 28/11/2026 — Il dossier deve cercare in modalità «extended» e mettere in cima «chiuso definitivamente».
+// La prova vera: sulle 10 attività della prima settimana la ricerca normale non trovava niente per 6 su 7,
+// e 3 su 10 erano chiuse o spostate (I Cucinieri, Pane e Caffè, Le Mille Bontà) senza che nessuno lo vedesse.
+test('il dossier chiede le ricerche in modalità «extended» e il controllo dei negozi chiusi', () => {
+  const codice = readFileSync(new URL('../16-attivita-da-visitare/codice/prepara-lavoro.js', import.meta.url), 'utf8');
+  assert.match(codice, /SEMPRE con WebSearch in modalità «extended», mai «standard»/);
+  assert.match(codice, /«chiuso definitivamente» o «cessata attività», scrivilo qui per primo/);
+});
