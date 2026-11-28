@@ -8,11 +8,12 @@ const lavoro = {
   flusso: '16 · Attività da visitare',
   compito: 'Sei l’AD di MyCity, il marketplace delle attività di Piacenza (vetrina online, consegna locale, servizi per farsi trovare). ' +
     'Nei dati ci sono le attività che un agente andrà a visitare di persona questa settimana, prese dalla mappa libera (OpenStreetMap), con quello che la mappa dice di loro, e il listino. ' +
-    'Per ognuna cerca sul web (nome e indirizzo: Google Maps, sito, social, recensioni) e prepara il dossier per chi la visita: ' +
+    'Per ognuna cerca sul web (nome e indirizzo: elenchi come PagineGialle e Virgilio, sito, social, recensioni), SEMPRE con WebSearch in modalità «extended», mai «standard»: la standard non vede i piccoli negozi italiani (prova del 28/11: niente su 6 negozi su 7). ' +
+    'Poi prepara il dossier per chi la visita: ' +
     'chi_e (chi è, da quanto c’è, che fama ha: una o due frasi), cosa_vende (cosa vende e, se si trova, a che prezzi), ' +
     'cosa_ci_guadagna (cosa ci guadagna LUI, dal suo punto di vista, in incassi, clienti nuovi o tempo risparmiato: mai «digitalizzazione» o «tecnologia»), ' +
     'come_convincerlo (l’obiezione più probabile e come rispondere), cosa_proporre (le voci del listino che gli servono davvero, col motivo concreto: per esempio «nessun sito: chi lo cerca su Google trova solo l’indirizzo»), ' +
-    'attenzione (se la mappa è vecchia: chiuso, trasferito, è una catena, è già cliente; altrimenti stringa vuota). ' +
+    'attenzione (se la mappa è vecchia: chiuso, trasferito, con un altro nome o un altro tipo di attività, è una catena, è già cliente; se un elenco dice «chiuso definitivamente» o «cessata attività», scrivilo qui per primo; altrimenti stringa vuota). ' +
     'Regole: non inventare niente; se non trovi un dato scrivi «non trovato». Il primo contatto è sempre di persona o al telefono: non suggerire mai messaggi WhatsApp o email a freddo. ' +
     'Non dire mai «zero commissioni»: MyCity trattiene il 10% sugli ordini che passano dal sito. Italiano semplice, frasi brevi, ogni campo al massimo 300 caratteri. Rispondi con una scheda per ogni attività, con lo stesso osm.',
   dati: {
