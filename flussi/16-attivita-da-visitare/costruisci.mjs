@@ -40,6 +40,10 @@ export const CONFIG_16 = {
   CENTRO_LON: 9.6917,
   RAGGIO_M: 5000,
   QUANTE_A_SETTIMANA: 30,
+  // Dal 28/11/2026: i dossier si chiedono all'AD a giri di 10 (con 30 in una richiesta tornavano vuoti), e forni e
+  // panetterie restano fuori finché Pane Quotidiano è l'unico negozio vero (Nicola). ESCLUDI_FORNI = false li rimette.
+  DOSSIER_PER_GIRO: 10,
+  ESCLUDI_FORNI: 'true',
   OVERPASS_URL: 'https://overpass-api.de/api/interpreter',
   LISTINO: 'Vetrina su MyCity: il 10% sui prodotti venduti tramite il sito. ' +
     'Tre abbonamenti mensili ai servizi di MyCity, fatti col partner SDG (foto e video, social, sito web, scheda Google, in misura crescente): ' +
@@ -77,7 +81,14 @@ export function costruisci({ telegram, chatId, errorWorkflow, chiedi, marketplac
       parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), returnAll: true } },
     { id: randomUUID(), name: 'Metti in fila', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(6), executeOnce: true, parameters: { jsCode: codice('metti-in-fila.js') } },
     { id: randomUUID(), name: 'Prepara il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(7), parameters: { jsCode: codice('prepara-lavoro.js') } },
-    nodoChiediAllAD('Chiedi all’AD i dossier', chiedi, pos(8)),
+    // Tre giri da 10 in fila, una chiamata alla volta (mode «once»). Non «each»: il 90 aspetta la routine con un Wait, e
+    // con più chiamate insieme n8n riprende il flusso alla prima risposta e perde le altre (esecuzione 4634, 28/11/2026).
+    // executeOnce: al primo giro va solo il primo lavoro; gli altri li passano «Secondo giro» e «Terzo giro».
+    { ...nodoChiediAllAD('Chiedi all’AD i dossier', chiedi, pos(8)), executeOnce: true },
+    { id: randomUUID(), name: 'Secondo giro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(8, 1), executeOnce: true, parameters: { jsCode: codice('giro-dopo.js').replace('__GIRO__', '2') } },
+    { ...nodoChiediAllAD('Chiedi all’AD · giro 2', chiedi, pos(9, 1)), executeOnce: true },
+    { id: randomUUID(), name: 'Terzo giro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(8, 2), executeOnce: true, parameters: { jsCode: codice('giro-dopo.js').replace('__GIRO__', '3') } },
+    { ...nodoChiediAllAD('Chiedi all’AD · giro 3', chiedi, pos(9, 2)), executeOnce: true },
     { id: randomUUID(), name: 'Componi i messaggi', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(9), executeOnce: true, parameters: { jsCode: codice('componi.js') } },
     { id: randomUUID(), name: 'Da mandare?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(10, -1),
       parameters: condizione('={{ $json.manda === true }}') },
@@ -89,7 +100,7 @@ export function costruisci({ telegram, chatId, errorWorkflow, chiedi, marketplac
           schema: COLONNE.map(([id, type]) => ({ id, displayName: id, required: false, defaultMatch: false, display: true, type, canBeUsedToMatch: true })),
           attemptToConvertTypes: false, convertFieldsToString: false }, options: {} } },
   );
-  const fila = ['Config', 'Prepara la domanda', 'Chiedi alla mappa', 'Leggi i negozi di MyCity', 'Leggi le attività già proposte', 'Metti in fila', 'Prepara il lavoro', 'Chiedi all’AD i dossier', 'Componi i messaggi'];
+  const fila = ['Config', 'Prepara la domanda', 'Chiedi alla mappa', 'Leggi i negozi di MyCity', 'Leggi le attività già proposte', 'Metti in fila', 'Prepara il lavoro', 'Chiedi all’AD i dossier', 'Secondo giro', 'Chiedi all’AD · giro 2', 'Terzo giro', 'Chiedi all’AD · giro 3', 'Componi i messaggi'];
   vai('Ogni lunedì alle 7:10', 'Config');
   vai('Avvia a mano', 'Config');
   for (let k = 0; k < fila.length - 1; k++) vai(fila[k], fila[k + 1]);

@@ -18,15 +18,18 @@ dove andare. Chiude il buco prima della scheda per l'agente (14) e del preventiv
    5 km da Pane Quotidiano: negozi, bar e ristoranti, farmacie, artigiani;
 2. toglie le catene (marchio sulla mappa o nome noto), le categorie dove MyCity non entra (elettronica, auto,
    usato, scommesse, supermercati…), i chiusi, i doppioni, i negozi già su MyCity (sola lettura sul database) e
-   le attività già proposte (la tabella «Attività da visitare»);
+   le attività già proposte (la tabella «Attività da visitare»). Toglie anche forni e panetterie, contati a parte:
+   finché Pane Quotidiano è l'unico negozio vero sono suoi concorrenti (Nicola, 28/11/2026). La pasticceria resta;
 3. dà un punteggio: prima il fresco vicino al forno, poi regali, cura della persona, bar e ristoranti,
    artigiani, altri negozi; punti in più a chi sulla mappa non ha sito o social e a chi ha un telefono;
-4. sulle prime 30 chiede il dossier all'AD (90 · Chiedi all'AD): chi è, cosa vende, cosa ci guadagna lui,
-   come convincerlo, cosa proporgli;
+4. sulle prime 30 chiede il dossier all'AD (90 · Chiedi all'AD), a giri di 10 uno dopo l'altro (tre nodi in fila: il 90 aspetta la routine, e chiamate in parallelo perdono le risposte): chi è, cosa vende, cosa ci
+   guadagna lui, come convincerlo, cosa proporgli. Con 30 in una sola richiesta l'AD non cercava sul web e i
+   dossier tornavano vuoti (28/11/2026). Un giro fallito lascia senza dossier solo le sue 10, e il messaggio lo dice;
 5. manda la lista a Nicola su Telegram e scrive una riga per attività nella tabella, con stato `da_visitare`.
 
-Dopo la visita, nella tabella si scrive lo stato: `visitata`, `si`, `no` o `iscritta`. Il lunedì dopo il
-messaggio porta il conto: proposte, visitate, sì, iscritte. **Non si cancella niente.**
+Dopo la visita, nella tabella si scrive lo stato: `visitata`, `si`, `no` o `iscritta`. Un'attività che non si
+visita più (per esempio un forno) ha lo stato `esclusa`, col motivo in `esito`: non conta fra le visitate. Il lunedì
+dopo il messaggio porta il conto: proposte, visitate, sì, iscritte, escluse. **Non si cancella niente.**
 
 **Mai.** Il flusso non scrive alle attività: nessun WhatsApp, email o SMS. Il primo contatto lo fa una persona,
 di persona o al telefono (art. 130 del Codice privacy; regole di WhatsApp; CONTESTO_BUSINESS §4.8). Il controllo
@@ -36,6 +39,7 @@ di persona o al telefono (art. 130 del Codice privacy; regole di WhatsApp; CONTE
 finisce in un conto (anche chi non ha nome); il tetto dei 64 KB della routine si misura in byte.
 
 **Nel Config** (si cambia ricostruendo): centro e raggio, quante a settimana (di serie 30, il massimo: Nicola, 28/11/2026),
+quante per giro dell'AD (`DOSSIER_PER_GIRO`, di serie 10), se togliere i forni (`ESCLUDI_FORNI`, di serie `true`; `false` li rimette),
 l'indirizzo di Overpass e il listino che l'AD usa nel dossier (copiato dal registro dei fatti di ad-mycity:
 `sdg.abbonamenti`, `sdg.pagamento`, `pricing.commissione`).
 
