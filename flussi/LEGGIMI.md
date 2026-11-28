@@ -21,7 +21,7 @@ dove andare. Chiude il buco prima della scheda per l'agente (14) e del preventiv
    le attività già proposte (la tabella «Attività da visitare»);
 3. dà un punteggio: prima il fresco vicino al forno, poi regali, cura della persona, bar e ristoranti,
    artigiani, altri negozi; punti in più a chi sulla mappa non ha sito o social e a chi ha un telefono;
-4. sulle prime 10 chiede il dossier all'AD (90 · Chiedi all'AD): chi è, cosa vende, cosa ci guadagna lui,
+4. sulle prime 30 chiede il dossier all'AD (90 · Chiedi all'AD): chi è, cosa vende, cosa ci guadagna lui,
    come convincerlo, cosa proporgli;
 5. manda la lista a Nicola su Telegram e scrive una riga per attività nella tabella, con stato `da_visitare`.
 
@@ -35,7 +35,7 @@ di persona o al telefono (art. 130 del Codice privacy; regole di WhatsApp; CONTE
 **Le scorciatoie evitate.** Mappa che non risponde = «non letta», mai «zero attività»; ogni elemento della mappa
 finisce in un conto (anche chi non ha nome); il tetto dei 64 KB della routine si misura in byte.
 
-**Nel Config** (si cambia ricostruendo): centro e raggio, quante a settimana (di serie 10, al massimo 30),
+**Nel Config** (si cambia ricostruendo): centro e raggio, quante a settimana (di serie 30, il massimo: Nicola, 28/11/2026),
 l'indirizzo di Overpass e il listino che l'AD usa nel dossier (copiato dal registro dei fatti di ad-mycity:
 `sdg.abbonamenti`, `sdg.pagamento`, `pricing.commissione`).
 
