@@ -29,5 +29,13 @@ else if (!f.letta) lavoro.non_mandare = 'la mappa non è stata letta';
 else if (!(f.fila || []).length) lavoro.non_mandare = 'nessuna attività nuova da visitare';
 // Il tetto di «Chiedi all'AD» è 64 KB, in byte (scorciatoie-note #39): si misura in byte, con margine.
 const byte = (s) => (typeof Buffer !== 'undefined' ? Buffer.byteLength(s, 'utf8') : unescape(encodeURIComponent(s)).length);
-while (byte(JSON.stringify(lavoro)) > 50000 && lavoro.dati.attivita.length > 1) lavoro.dati.attivita.pop();
-return [{ json: lavoro }];
+const taglia = (l) => { while (byte(JSON.stringify(l)) > 50000 && l.dati.attivita.length > 1) l.dati.attivita.pop(); return l; };
+// Un giro ogni DOSSIER_PER_GIRO attività (di serie 10): con 30 in una sola richiesta l'AD non cercava sul web e i dossier
+// tornavano vuoti (esecuzione 4585 del 28/11/2026). Il nodo «Chiedi all'AD i dossier» fa una chiamata per giro.
+// In prova o senza attività resta un lavoro solo, come prima: lo legge «Chiedi all'AD», che non si accende.
+const PER_GIRO = Math.max(1, Math.min(30, Math.floor(Number(cfg.DOSSIER_PER_GIRO)) || 10));
+const tutte = lavoro.dati.attivita;
+if (lavoro.non_mandare || tutte.length <= PER_GIRO) return [{ json: taglia(lavoro) }];
+const giri = [];
+for (let k = 0; k < tutte.length; k += PER_GIRO) giri.push(tutte.slice(k, k + PER_GIRO));
+return giri.map((pezzo, i) => ({ json: taglia({ ...lavoro, giro: `${i + 1} di ${giri.length}`, dati: { ...lavoro.dati, attivita: pezzo } }) }));

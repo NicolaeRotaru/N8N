@@ -7,6 +7,9 @@
 const cfg = $('Config').first().json;
 const LAT = Number(cfg.CENTRO_LAT), LON = Number(cfg.CENTRO_LON), RAGGIO = Number(cfg.RAGGIO_M);
 const QUANTE = Math.max(1, Math.min(30, Number(cfg.QUANTE_A_SETTIMANA) || 10));
+// Forni e panetterie fuori finché Pane Quotidiano è l'unico negozio vero: sono suoi concorrenti (Nicola, 28/11/2026).
+// Di serie è acceso; si spegne scrivendo false (o no, 0) in ESCLUDI_FORNI nel Config.
+const ESCLUDI_FORNI = !/^(false|no|0|off)$/i.test(String(cfg.ESCLUDI_FORNI ?? true).trim());
 
 // ── la mappa ──
 let elementi = null, motivo = '';
@@ -58,6 +61,12 @@ const CATENE_ESATTE = new Set(['coin', 'obi', 'pam', 'tim', 'crudo', 'md', 'sma'
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 // Nomi che dicono solo il mestiere («forneria», «macelleria»): accanto a un negozio dello stesso tipo sono quasi sempre lui.
 const GENERICO = /^(forneria|panetteria|panificio|macelleria|salumeria|gastronomia|alimentari|pasticceria|gelateria|fruttivendolo|frutta e verdura|ortofrutta|drogheria|enoteca|fioraio|fiorista|bar|caffe|caffetteria|pizzeria|ristorante|trattoria|edicola|parrucchiere|barbiere|estetica|centro estetico|ottica|erboristeria|merceria|ferramenta|cartoleria|libreria|calzature|abbigliamento)$/;
+// Il forno si riconosce da shop=bakery (o craft=bakery) e, fra i negozi di alimentari, dal nome: «Bio Forno», «La Boutique
+// del Pane». «Forni» da solo è un cognome («Alimentari Forni»): non conta. La pasticceria resta, e restano bar e ristoranti
+// col forno a legna: il nome si guarda solo sui negozi di alimentari.
+const NOME_FORNO = /\b(forno|forneria|fornaio|fornai|panetteri[ae]|panifici[oa]?|panificazione)\b|\b(del|di|il) pane\b|^pane\b/;
+const ALIMENTARI_GENERICI = new Set(['food', 'convenience', 'grocery', 'deli', 'organic', 'health_food', 'farm', 'yes']);
+const eForno = (t, nome) => t.shop !== 'pastry' && (t.shop === 'bakery' || (!t.shop && t.craft === 'bakery') || (ALIMENTARI_GENERICI.has(t.shop) && NOME_FORNO.test(norm(nome))));
 const chiaveNome = (s) => norm(s).replace(/ /g, '');
 const distanza = (a, b) => { // metri, formula dell'emisenoverso
   const R = 6371000, rad = (x) => (x * Math.PI) / 180;
@@ -82,7 +91,8 @@ const stati = {};
 // Lo stato lo scrive a mano chi visita. Valgono SOLO le parole giuste, scritte anche con maiuscole, accenti o spazi:
 // visitata (visitato, visto, vista), si (sì, yes), no, iscritta (iscritto). Una frase («sì, non ancora iscritta», «non
 // visitata») non si indovina: va fra i «non capiti», e il messaggio la mostra col nome del negozio (ricollaudo G1-bis).
-const PAROLE_STATO = { '': 'da_visitare', 'da visitare': 'da_visitare', visitata: 'visitata', visitato: 'visitata', visto: 'visitata', vista: 'visitata', si: 'si', yes: 'si', no: 'no', iscritta: 'iscritta', iscritto: 'iscritta' };
+// «esclusa» la scrive il flusso (o chi la toglie a mano) per un'attività che non si visita più: non conta fra le visitate.
+const PAROLE_STATO = { esclusa: 'esclusa', escluso: 'esclusa', '': 'da_visitare', 'da visitare': 'da_visitare', visitata: 'visitata', visitato: 'visitata', visto: 'visitata', vista: 'visitata', si: 'si', yes: 'si', no: 'no', iscritta: 'iscritta', iscritto: 'iscritta' };
 const leggiStato = (v) => {
   const grezzo = String(v ?? '').trim();
   const t = grezzo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' ').replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -116,7 +126,7 @@ for (const j of ultimaRiga.values()) {
 // Tabella che non risponde: niente lista, se no le prime 10 tornerebbero in fila e si riscriverebbero (collaudo m7).
 if (tabellaRotta) return [{ json: { letta: false, motivo: `la tabella «Attività da visitare» non ha risposto (${tabellaRotta})`, fila: [], conti: null } }];
 
-const conti = { letti: elementi.length, senza_nome: 0, senza_posizione: 0, chiuse: 0, catene: 0, categorie_escluse: 0, doppioni: 0, gia_su_mycity: 0, gia_proposte: 0, fuori_raggio: 0, in_fila: 0, per_segmento: {}, negozi_mycity_letti: suMyCity.size, proposte_finora: proposte.size, stati_finora: stati, stati_non_capiti: nonCapiti };
+const conti = { letti: elementi.length, senza_nome: 0, senza_posizione: 0, chiuse: 0, catene: 0, categorie_escluse: 0, doppioni: 0, gia_su_mycity: 0, gia_proposte: 0, forni: 0, fuori_raggio: 0, in_fila: 0, per_segmento: {}, negozi_mycity_letti: suMyCity.size, proposte_finora: proposte.size, stati_finora: stati, stati_non_capiti: nonCapiti };
 const visti = []; // { chiave, pos, tipo } per togliere i doppioni (stesso negozio come punto e come edificio, o con due nomi)
 const candidate = [];
 // I nomi che dicono solo il mestiere passano per ultimi: fra due doppioni resta «La Pecora Nera», non «Drogheria».
@@ -153,6 +163,7 @@ for (const e of inOrdine) {
   const osm = `${e.type}/${e.id}`;
   if (giaSuMyCity(nome)) { conti.gia_su_mycity++; continue; }
   if (proposte.has(osm) || giaPropostaDalNome(chiave, norm(t['addr:street'] || ''), civico.replace(/ /g, ''))) { conti.gia_proposte++; continue; }
+  if (ESCLUDI_FORNI && eForno(t, nome)) { conti.forni++; continue; }
   const sito = String(t.website || t['contact:website'] || t.url || '').trim();
   const social = [t['contact:facebook'], t.facebook, t['contact:instagram'], t.instagram].filter(Boolean).map(String);
   const telefono = String(t.phone || t['contact:phone'] || t['contact:mobile'] || t.mobile || '').split(';')[0].trim();
