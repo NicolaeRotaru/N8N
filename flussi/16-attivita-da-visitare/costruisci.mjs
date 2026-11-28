@@ -40,6 +40,10 @@ export const CONFIG_16 = {
   CENTRO_LON: 9.6917,
   RAGGIO_M: 5000,
   QUANTE_A_SETTIMANA: 30,
+  // Dal 28/11/2026: i dossier si chiedono all'AD a giri di 10 (con 30 in una richiesta tornavano vuoti), e forni e
+  // panetterie restano fuori finché Pane Quotidiano è l'unico negozio vero (Nicola). ESCLUDI_FORNI = false li rimette.
+  DOSSIER_PER_GIRO: 10,
+  ESCLUDI_FORNI: 'true',
   OVERPASS_URL: 'https://overpass-api.de/api/interpreter',
   LISTINO: 'Vetrina su MyCity: il 10% sui prodotti venduti tramite il sito. ' +
     'Tre abbonamenti mensili ai servizi di MyCity, fatti col partner SDG (foto e video, social, sito web, scheda Google, in misura crescente): ' +
@@ -77,7 +81,8 @@ export function costruisci({ telegram, chatId, errorWorkflow, chiedi, marketplac
       parameters: { resource: 'row', operation: 'get', dataTableId: tabella(), returnAll: true } },
     { id: randomUUID(), name: 'Metti in fila', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(6), executeOnce: true, parameters: { jsCode: codice('metti-in-fila.js') } },
     { id: randomUUID(), name: 'Prepara il lavoro', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(7), parameters: { jsCode: codice('prepara-lavoro.js') } },
-    nodoChiediAllAD('Chiedi all’AD i dossier', chiedi, pos(8)),
+    // Una chiamata per ogni giro di 10 attività (mode «each»): ogni giro ha la sua risposta, e un giro fallito non butta gli altri.
+    { ...nodoChiediAllAD('Chiedi all’AD i dossier', chiedi, pos(8)), parameters: { ...nodoChiediAllAD('', chiedi, pos(8)).parameters, mode: 'each' } },
     { id: randomUUID(), name: 'Componi i messaggi', type: 'n8n-nodes-base.code', typeVersion: 2, position: pos(9), executeOnce: true, parameters: { jsCode: codice('componi.js') } },
     { id: randomUUID(), name: 'Da mandare?', type: 'n8n-nodes-base.if', typeVersion: 2.3, position: pos(10, -1),
       parameters: condizione('={{ $json.manda === true }}') },
