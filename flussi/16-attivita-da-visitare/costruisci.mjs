@@ -5,11 +5,12 @@
 // Il buco che chiude: c'era la scheda del cliente (14, l'agente incolla il link di Google Maps) e c'era il
 // preventivo (20), ma nessuno trovava le attività da visitare e le metteva in fila. La regola era già scritta e
 // mai eseguita (ad-mycity registro-fatti: negozi.ingresso — «la squadra mappa tutti i negozi di fresco entro
-// 5 km e li mette in fila per chi conviene di più; dossier completo sui primi 10»).
+// 5 km e li mette in fila per chi conviene di più», col dossier completo sui primi della fila). I dossier erano 10
+// a settimana; dal 28/11/2026 sono 30, i più prioritari (Nicola: «30 dossier a settimana di quelli prioritari»).
 //
 // Ogni lunedì alle 7:10: chiede alla mappa libera (OpenStreetMap, servizio Overpass: gratis, licenza ODbL) le
 // attività entro 5 km da Pane Quotidiano; toglie catene, categorie dove MyCity non entra, doppioni, negozi già
-// su MyCity (sola lettura) e attività già proposte; le mette in fila; sulle prime 10 chiede all'AD il dossier
+// su MyCity (sola lettura) e attività già proposte; le mette in fila; sulle prime 30 chiede all'AD il dossier
 // (90 · Chiedi all'AD, piano Max, nessuna API a pagamento); manda la lista a Nicola su Telegram e la scrive
 // nella tabella «Attività da visitare», dove chi visita segna lo stato.
 //
@@ -38,7 +39,7 @@ export const CONFIG_16 = {
   CENTRO_LAT: 45.0529,
   CENTRO_LON: 9.6917,
   RAGGIO_M: 5000,
-  QUANTE_A_SETTIMANA: 10,
+  QUANTE_A_SETTIMANA: 30,
   OVERPASS_URL: 'https://overpass-api.de/api/interpreter',
   LISTINO: 'Vetrina su MyCity: il 10% sui prodotti venduti tramite il sito. ' +
     'Tre abbonamenti mensili ai servizi di MyCity, fatti col partner SDG (foto e video, social, sito web, scheda Google, in misura crescente): ' +
@@ -99,7 +100,7 @@ export function costruisci({ telegram, chatId, errorWorkflow, chiedi, marketplac
     parameters: { width: 900, height: 420, content: [
       '## 16 · Attività da visitare',
       '',
-      "**Cosa fa.** Ogni lunedì alle 7:10 prende dalla mappa libera (OpenStreetMap) le attività entro 5 km da Pane Quotidiano, toglie catene, categorie dove MyCity non entra, doppioni, negozi già su MyCity e attività già proposte, e le mette in fila: prima il fresco vicino al forno, poi regali, cura della persona, bar e ristoranti, artigiani. Sulle prime 10 l'AD scrive il dossier (90 · Chiedi all'AD).",
+      "**Cosa fa.** Ogni lunedì alle 7:10 prende dalla mappa libera (OpenStreetMap) le attività entro 5 km da Pane Quotidiano, toglie catene, categorie dove MyCity non entra, doppioni, negozi già su MyCity e attività già proposte, e le mette in fila: prima il fresco vicino al forno, poi regali, cura della persona, bar e ristoranti, artigiani. Sulle prime 30 l'AD scrive il dossier (90 · Chiedi all'AD).",
       '',
       "**Cosa manda.** La lista a Nicola su Telegram e una riga per attività nella tabella «Attività da visitare». Solo con MODALITA = vero.",
       '',
