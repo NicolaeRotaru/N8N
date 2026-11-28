@@ -9,7 +9,7 @@ const LAT = Number(cfg.CENTRO_LAT), LON = Number(cfg.CENTRO_LON), RAGGIO = Numbe
 const QUANTE = Math.max(1, Math.min(30, Number(cfg.QUANTE_A_SETTIMANA) || 10));
 // Forni e panetterie fuori finché Pane Quotidiano è l'unico negozio vero: sono suoi concorrenti (Nicola, 28/11/2026).
 // Di serie è acceso; si spegne scrivendo false (o no, 0) in ESCLUDI_FORNI nel Config.
-const ESCLUDI_FORNI = !/^(false|no|0|off)$/i.test(String(cfg.ESCLUDI_FORNI ?? true).trim());
+const ESCLUDI_FORNI = !/^(false|falso|no|0|off|spento)$/i.test(String(cfg.ESCLUDI_FORNI ?? true).trim());
 
 // ── la mappa ──
 let elementi = null, motivo = '';
@@ -62,11 +62,12 @@ const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
 // Nomi che dicono solo il mestiere («forneria», «macelleria»): accanto a un negozio dello stesso tipo sono quasi sempre lui.
 const GENERICO = /^(forneria|panetteria|panificio|macelleria|salumeria|gastronomia|alimentari|pasticceria|gelateria|fruttivendolo|frutta e verdura|ortofrutta|drogheria|enoteca|fioraio|fiorista|bar|caffe|caffetteria|pizzeria|ristorante|trattoria|edicola|parrucchiere|barbiere|estetica|centro estetico|ottica|erboristeria|merceria|ferramenta|cartoleria|libreria|calzature|abbigliamento)$/;
 // Il forno si riconosce da shop=bakery (o craft=bakery) e, fra i negozi di alimentari, dal nome: «Bio Forno», «La Boutique
-// del Pane». «Forni» da solo è un cognome («Alimentari Forni»): non conta. La pasticceria resta, e restano bar e ristoranti
-// col forno a legna: il nome si guarda solo sui negozi di alimentari.
-const NOME_FORNO = /\b(forno|forneria|fornaio|fornai|panetteri[ae]|panifici[oa]?|panificazione)\b|\b(del|di|il) pane\b|^pane\b/;
+// del Pane». «Forni» da solo è un cognome («Alimentari Forni»): non conta. La pasticceria resta, anche quando la mappa la
+// segna come forno; restano bar e ristoranti col forno a legna o che fanno il pane: il nome si guarda solo sui negozi di
+// alimentari. «Pane» in testa al nome non basta («Pane & Vino», «Pane e Salame» sono gastronomie: collaudo del 28/11).
+const NOME_FORNO = /\b(forno|forneria|fornaio|fornai|panetteri[ae]|panifici[oa]?|panificazione)\b|\b(del|di|il) pane\b/;
 const ALIMENTARI_GENERICI = new Set(['food', 'convenience', 'grocery', 'deli', 'organic', 'health_food', 'farm', 'yes']);
-const eForno = (t, nome) => t.shop !== 'pastry' && (t.shop === 'bakery' || (!t.shop && t.craft === 'bakery') || (ALIMENTARI_GENERICI.has(t.shop) && NOME_FORNO.test(norm(nome))));
+const eForno = (t, nome) => t.shop !== 'pastry' && !/pasticc/.test(norm(nome)) && (t.shop === 'bakery' || (!t.shop && !t.amenity && t.craft === 'bakery') || (ALIMENTARI_GENERICI.has(t.shop) && NOME_FORNO.test(norm(nome))));
 const chiaveNome = (s) => norm(s).replace(/ /g, '');
 const distanza = (a, b) => { // metri, formula dell'emisenoverso
   const R = 6371000, rad = (x) => (x * Math.PI) / 180;

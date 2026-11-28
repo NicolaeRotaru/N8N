@@ -17,9 +17,15 @@ const risposte = NODI_AD.slice(0, nLavori).flatMap(leggiNodo);
 const buone = risposte.filter((r) => r.ok === true);
 const ad = risposte.length ? (buone[0] || risposte[0]) : null; // per il motivo, se nessun giro è andato
 const schede = {};
+// L'AD a volte scrive solo il numero («15» invece di «node/15»). Vale solo se nella fila un solo elemento ha quel numero:
+// un punto e un edificio della mappa possono avere lo stesso numero (collaudo del 28/11, n.6).
+const soloNumero = {};
+const contaNumeri = {};
+for (const a of f.fila || []) { const n = String(a.osm).split('/').pop(); contaNumeri[n] = (contaNumeri[n] || 0) + 1; }
+const numeroUnico = (a) => { const n = String(a.osm).split('/').pop(); return contaNumeri[n] === 1 ? soloNumero[n] : undefined; };
 // L'AD a volte scrive l'identificativo senza «node/»: si riconosce lo stesso dal numero (terzo collaudo n.4).
-for (const r of buone) if (r.risultato && Array.isArray(r.risultato.schede)) for (const s of r.risultato.schede) if (s && s.osm) { schede[String(s.osm)] = s; schede[String(s.osm).split('/').pop()] = s; }
-const schedaDi = (a) => schede[a.osm] || schede[String(a.osm).split('/').pop()];
+for (const r of buone) if (r.risultato && Array.isArray(r.risultato.schede)) for (const s of r.risultato.schede) if (s && s.osm) { schede[String(s.osm)] = s; if (!String(s.osm).includes('/')) soloNumero[String(s.osm)] = s; }
+const schedaDi = (a) => schede[a.osm] || numeroUnico(a);
 const conDossierN = (f.fila || []).filter((a) => schedaDi(a)).length;
 const conDossier = conDossierN > 0;
 const avvisiAD = [...new Set(buone.flatMap((r) => [].concat(r.avvisi || [])).map((x) => String(typeof x === 'string' ? x : (x && (x.testo || x.messaggio)) || '').trim()).filter(Boolean))];
@@ -42,15 +48,15 @@ if (!f.letta) {
 } else {
   const c = f.conti;
   const st = c.stati_finora || {};
-  const fuori = [c.catene && `${num(c.catene)} catene`, c.categorie_escluse && `${num(c.categorie_escluse)} in categorie dove non entriamo`, c.chiuse && `${num(c.chiuse)} chiuse`, c.doppioni && `${num(c.doppioni)} doppioni`, c.gia_su_mycity && `${num(c.gia_su_mycity)} già su MyCity`, c.gia_proposte && `${num(c.gia_proposte)} già proposte`, c.forni && `${num(c.forni)} forni, concorrenti di Pane Quotidiano`, c.senza_nome && `${num(c.senza_nome)} senza nome`].filter(Boolean).join(', ');
+  const fuori = [c.catene && `${num(c.catene)} catene`, c.categorie_escluse && `${num(c.categorie_escluse)} in categorie dove non entriamo`, c.chiuse && `${num(c.chiuse)} chiuse`, c.doppioni && `${num(c.doppioni)} doppioni`, c.gia_su_mycity && `${num(c.gia_su_mycity)} già su MyCity`, c.gia_proposte && `${num(c.gia_proposte)} già proposte`, c.forni && `${num(c.forni)} ${c.forni === 1 ? 'forno' : 'forni'}, concorrenti di Pane Quotidiano`, c.senza_nome && `${num(c.senza_nome)} senza nome`].filter(Boolean).join(', ');
   const elenco = (c.stati_non_capiti || []).map((x) => `${esc(x.nome)} («${esc(x.stato)}»)`).join(', ');
-  const escluse = st.esclusa ? ` · ${num(st.esclusa)} escluse, non si visitano` : '';
+  const escluse = st.esclusa ? ` · ${num(st.esclusa)} ${st.esclusa === 1 ? 'esclusa' : 'escluse'}, non si visitano` : '';
   const nonCapiti = st.non_capito ? ` · ${num(st.non_capito)} con uno stato che non capisco${elenco ? `: ${elenco}` : ''}. Nella tabella scrivi solo visitata, si, no o iscritta` : '';
-  const conto = c.proposte_finora ? `\nIl conto finora: ${num(c.proposte_finora)} proposte · ${num((st.visitata || 0) + (st.si || 0) + (st.no || 0) + (st.iscritta || 0))} visitate · ${num((st.si || 0) + (st.iscritta || 0))} hanno detto sì · ${num(st.iscritta || 0)} iscritte${escluse}${nonCapiti}.` : '';
+  const conto = c.proposte_finora ? `\nIl conto finora: ${num(c.proposte_finora - (st.esclusa || 0))} proposte · ${num((st.visitata || 0) + (st.si || 0) + (st.no || 0) + (st.iscritta || 0))} visitate · ${num((st.si || 0) + (st.iscritta || 0))} hanno detto sì · ${num(st.iscritta || 0)} iscritte${escluse}${nonCapiti}.` : '';
   blocchi.push(`${testa}\n\nSulla mappa ci sono ${num(c.letti)} attività entro ${metri(Number(cfg.RAGGIO_M))} da ${esc(cfg.CENTRO_NOME)}. Tolte ${fuori || 'nessuna'}, ne restano ${num(c.in_fila)} in fila. Queste sono le prime ${f.fila.length}.${c.negozi_mycity_letti ? '' : '\n<i>Il database di MyCity non ha risposto: qualcuna potrebbe essere già iscritta.</i>'}${conto}` +
     (conDossier && conDossierN < f.fila.length ? `\n<i>Senza il dossier dell’AD: ${f.fila.length - conDossierN} attività su ${f.fila.length}. L’AD ha scritto il dossier per le altre ${conDossierN}.${giriFalliti ? ` ${giriFalliti === 1 ? 'Un giro' : `${giriFalliti} giri`} su ${risposte.length} non ${giriFalliti === 1 ? 'è andato' : 'sono andati'}${erroriGiri.length ? `: ${esc(corto(erroriGiri.join(' · '), 200))}` : ''}.` : ''}</i>` : '') +
     (avvisiAD.length ? `\n<i>Avvisi dell’AD: ${esc(corto(avvisiAD.join(' · '), 600))}</i>` : '') +
-    (conDossier ? '' : `\n<i>Senza il dossier dell’AD: ${esc(corto(erroriGiri.join(' · '), 300) || (ad && ad.prova ? 'Chiedi all’AD è in prova' : '') || $('Prepara il lavoro').first().json.non_mandare || 'l’AD non ha risposto')}.</i>`));
+    (conDossier ? '' : `\n<i>Senza il dossier dell’AD: ${esc(corto(erroriGiri.join(' · '), 300) || (ad && ad.prova ? 'Chiedi all’AD è in prova' : '') || (buone.length ? 'l’AD ha risposto senza schede' : '') || $('Prepara il lavoro').first().json.non_mandare || 'l’AD non ha risposto')}.</i>`));
   const bloccoDi = (a, i, conDossierPieno) => {
     const s = schedaDi(a);
     const righe = [`<b>${i + 1}. ${esc(corto(a.nome, 120))}</b> · ${esc(corto(a.tipo, 60))} · ${metri(a.distanza_m)}`,
