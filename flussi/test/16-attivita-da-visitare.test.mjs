@@ -474,6 +474,42 @@ test('i dossier a giri di 10: un lavoro per giro, ognuno sotto i 50.000 byte; in
   assert.equal((await eseguiCodice(LAVORO, { nodi: { Config: cfg(), 'Metti in fila': [{ json: { letta: true, fila: piccola.fila.slice(0, 7) } }] } })).length, 1);
 });
 
+const GIRO2 = leggi('giro-dopo.js').replace('__GIRO__', '2');
+const GIRO3 = leggi('giro-dopo.js').replace('__GIRO__', '3');
+
+test('secondo e terzo giro: passano il lavoro giusto; un giro che non serve va con «non_mandare» e non conta come fallito', async () => {
+  const lavori = [1, 2].map((k) => ({ json: { flusso: '16 · Attività da visitare', compito: 'c', giro: `${k} di 2`, dati: { attivita: [{ osm: `node/${k}` }] } } }));
+  const [{ json: g2 }] = await eseguiCodice(GIRO2, { nodi: { 'Prepara il lavoro': lavori } });
+  assert.equal(g2.giro, '2 di 2');
+  const [{ json: g3 }] = await eseguiCodice(GIRO3, { nodi: { 'Prepara il lavoro': lavori } });
+  assert.match(g3.non_mandare, /giro 3 non necessario/);
+  const f = await filaPronta();
+  const due = { ...f, fila: Array.from({ length: 15 }, (_, i) => ({ ...f.fila[0], osm: `node/${i}`, nome: `Bottega ${i}` })) };
+  const scheda = (a) => ({ osm: a.osm, chi_e: `Chi ${a.nome}`, cosa_ci_guadagna: 'g', come_convincerlo: 'c', cosa_proporre: 'p' });
+  const nodi = { Config: cfg(), 'Metti in fila': [{ json: due }], 'Prepara il lavoro': lavori,
+    'Chiedi all’AD i dossier': [{ json: { ok: true, risultato: { schede: due.fila.slice(0, 10).map(scheda) } } }],
+    'Chiedi all’AD · giro 2': [{ json: { ok: true, risultato: { schede: due.fila.slice(10).map(scheda) } } }],
+    'Chiedi all’AD · giro 3': [{ json: { ok: false, errore: 'giro 3 non necessario: le attività stanno nei giri prima' } }] };
+  const out = await eseguiCodice(COMPONI, { nodi });
+  const tutto = out.map((o) => o.json.messaggio).join('\n');
+  assert.match(tutto, /Chi è: Chi Bottega 14\b/, 'le schede del secondo giro, da un altro nodo');
+  assert.doesNotMatch(tutto, /Senza il dossier|non è andato|non necessario/, 'il terzo giro che non serve non è un errore');
+  const righe = await eseguiCodice(RIGHE, { nodi: { ...nodi, 'Componi i messaggi': [{ json: { settimana: '2026-11-30' } }] } });
+  assert.ok(righe.every((r) => /Chi è: Chi Bottega/.test(r.json.dossier)));
+  assert.match(righe[14].json.dossier, /Chi Bottega 14$/m);
+});
+
+test('lo schema del dossier ha la fonte, e il compito la chiede (28/11: senza campo l’AD non cercava sul web)', async () => {
+  const f = await filaPronta();
+  const [{ json: l }] = await eseguiCodice(LAVORO, { nodi: { Config: cfg(), 'Metti in fila': [{ json: f }] } });
+  assert.equal(l.schema.properties.schede.items.properties.fonte.type, 'string');
+  assert.match(l.compito, /fonte \(/);
+  assert.match(l.compito, /extended/);
+  const tante = { letta: true, fila: Array.from({ length: 30 }, (_, i) => ({ osm: `node/${i}`, nome: `N${i}`, perche: 'p' })) };
+  const piccoli = await eseguiCodice(LAVORO, { nodi: { Config: cfg({ DOSSIER_PER_GIRO: 5 }), 'Metti in fila': [{ json: tante }] } });
+  assert.equal(piccoli.length, 3, 'mai più di 3 giri: i nodi «Chiedi all’AD» sono tre');
+});
+
 test('tre giri dell’AD, uno fallito: le schede si uniscono, gli avvisi senza doppioni, il conto «senza dossier» lo dice', async () => {
   const f = await filaPronta();
   const tante = { ...f, fila: Array.from({ length: 30 }, (_, i) => ({ ...f.fila[0], osm: `node/${i}`, nome: `Bottega ${i}` })) };
@@ -501,13 +537,21 @@ test('tre giri dell’AD, uno fallito: le schede si uniscono, gli avvisi senza d
   assert.match(tuttiFalliti[0].json.messaggio, /Senza il dossier dell’AD: tetto\.<\/i>/);
 });
 
-test('il flusso: «Chiedi all’AD i dossier» fa una chiamata per giro; il Config ha DOSSIER_PER_GIRO e ESCLUDI_FORNI', () => {
+test('il flusso: tre giri dell’AD in fila, uno alla volta (mai «each»); il Config ha DOSSIER_PER_GIRO e ESCLUDI_FORNI', () => {
   const w = costruisci({ telegram: { id: 't', name: 'Telegram' }, chatId: '1', errorWorkflow: 'e', chiedi: 'c', marketplace: 'm' });
-  const n = w.nodes.find((x) => x.name === 'Chiedi all’AD i dossier');
-  assert.equal(n.parameters.mode, 'each');
-  assert.equal(n.parameters.workflowId.value, 'c');
-  assert.equal(n.onError, 'continueRegularOutput', 'un giro fallito non ferma gli altri');
-  assert.equal(n.parameters.options.waitForSubWorkflow, true);
+  assert.deepEqual(controlla(w), []);
+  for (const nome of ['Chiedi all’AD i dossier', 'Chiedi all’AD · giro 2', 'Chiedi all’AD · giro 3']) {
+    const n = w.nodes.find((x) => x.name === nome);
+    assert.equal(n.parameters.mode, 'once', `${nome}: con «each» le chiamate partono insieme e n8n perde le risposte dopo la prima (esecuzione 4634)`);
+    assert.equal(n.executeOnce, true, `${nome}: un lavoro per chiamata`);
+    assert.equal(n.parameters.workflowId.value, 'c');
+    assert.equal(n.onError, 'continueRegularOutput', 'un giro fallito non ferma gli altri');
+    assert.equal(n.parameters.options.waitForSubWorkflow, true);
+  }
+  const dopo = (da) => w.connections[da].main[0].map((c) => c.node);
+  assert.deepEqual(['Prepara il lavoro', 'Chiedi all’AD i dossier', 'Secondo giro', 'Chiedi all’AD · giro 2', 'Terzo giro', 'Chiedi all’AD · giro 3'].map((x) => dopo(x)[0]),
+    ['Chiedi all’AD i dossier', 'Secondo giro', 'Chiedi all’AD · giro 2', 'Terzo giro', 'Chiedi all’AD · giro 3', 'Componi i messaggi']);
+  assert.match(w.nodes.find((x) => x.name === 'Terzo giro').parameters.jsCode, /const N = 3;/);
   const voci = w.nodes.find((x) => x.name === 'Config').parameters.assignments.assignments;
   assert.equal(voci.find((a) => a.name === 'DOSSIER_PER_GIRO').value, 10);
   assert.equal(voci.find((a) => a.name === 'ESCLUDI_FORNI').value, 'true');

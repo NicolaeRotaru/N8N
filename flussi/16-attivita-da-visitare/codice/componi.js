@@ -7,8 +7,13 @@ const VERO = String(cfg.MODALITA || '').trim().toLowerCase() === 'vero';
 const corto = (v, n) => { const t = Array.from(String(v ?? '').replace(/\s+/g, ' ').trim()); return t.length > n ? `${t.slice(0, n - 1).join('')}…` : t.join(''); }; // per caratteri interi: un'emoji non si spezza
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // L'AD lavora a giri di 10 attività (DOSSIER_PER_GIRO): una risposta per giro. Si leggono tutte; un giro fallito non butta gli altri.
-let risposte = [];
-try { risposte = $('Chiedi all’AD i dossier').isExecuted ? $('Chiedi all’AD i dossier').all().map((x) => x.json || {}) : []; } catch { risposte = []; }
+// I giri dell'AD sono tre nodi in fila. Si legge la risposta di un giro solo se quel giro aveva un lavoro vero:
+// un giro in più (meno di 21 attività) torna con «non_mandare» e non è un giro fallito.
+const NODI_AD = ['Chiedi all’AD i dossier', 'Chiedi all’AD · giro 2', 'Chiedi all’AD · giro 3'];
+let nLavori = 1;
+try { nLavori = Math.max(1, $('Prepara il lavoro').all().length); } catch { nLavori = 1; }
+const leggiNodo = (n) => { try { return $(n).isExecuted ? $(n).all().map((x) => x.json || {}) : []; } catch { return []; } };
+const risposte = NODI_AD.slice(0, nLavori).flatMap(leggiNodo);
 const buone = risposte.filter((r) => r.ok === true);
 const ad = risposte.length ? (buone[0] || risposte[0]) : null; // per il motivo, se nessun giro è andato
 const schede = {};

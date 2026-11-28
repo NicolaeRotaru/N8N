@@ -22,7 +22,7 @@ dove andare. Chiude il buco prima della scheda per l'agente (14) e del preventiv
    finché Pane Quotidiano è l'unico negozio vero sono suoi concorrenti (Nicola, 28/11/2026). La pasticceria resta;
 3. dà un punteggio: prima il fresco vicino al forno, poi regali, cura della persona, bar e ristoranti,
    artigiani, altri negozi; punti in più a chi sulla mappa non ha sito o social e a chi ha un telefono;
-4. sulle prime 30 chiede il dossier all'AD (90 · Chiedi all'AD), a giri di 10: chi è, cosa vende, cosa ci
+4. sulle prime 30 chiede il dossier all'AD (90 · Chiedi all'AD), a giri di 10 uno dopo l'altro (tre nodi in fila: il 90 aspetta la routine, e chiamate in parallelo perdono le risposte): chi è, cosa vende, cosa ci
    guadagna lui, come convincerlo, cosa proporgli. Con 30 in una sola richiesta l'AD non cercava sul web e i
    dossier tornavano vuoti (28/11/2026). Un giro fallito lascia senza dossier solo le sue 10, e il messaggio lo dice;
 5. manda la lista a Nicola su Telegram e scrive una riga per attività nella tabella, con stato `da_visitare`.

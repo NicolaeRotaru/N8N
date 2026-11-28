@@ -7,8 +7,13 @@ const m = $('Componi i messaggi').first().json;
 const VERO = String(cfg.MODALITA || '').trim().toLowerCase() === 'vero';
 if (!VERO || !f.letta || !(f.fila || []).length) return [];
 // Una risposta dell'AD per ogni giro di 10: si leggono tutte (un giro fallito lascia vuoto solo il suo dossier).
-let risposte = [];
-try { risposte = $('Chiedi all’AD i dossier').isExecuted ? $('Chiedi all’AD i dossier').all().map((x) => x.json || {}) : []; } catch { risposte = []; }
+// I giri dell'AD sono tre nodi in fila. Si legge la risposta di un giro solo se quel giro aveva un lavoro vero:
+// un giro in più (meno di 21 attività) torna con «non_mandare» e non è un giro fallito.
+const NODI_AD = ['Chiedi all’AD i dossier', 'Chiedi all’AD · giro 2', 'Chiedi all’AD · giro 3'];
+let nLavori = 1;
+try { nLavori = Math.max(1, $('Prepara il lavoro').all().length); } catch { nLavori = 1; }
+const leggiNodo = (n) => { try { return $(n).isExecuted ? $(n).all().map((x) => x.json || {}) : []; } catch { return []; } };
+const risposte = NODI_AD.slice(0, nLavori).flatMap(leggiNodo);
 const schede = {};
 for (const ad of risposte) if (ad.ok === true && ad.risultato && Array.isArray(ad.risultato.schede)) for (const s of ad.risultato.schede) if (s && s.osm) { schede[String(s.osm)] = s; schede[String(s.osm).split('/').pop()] = s; }
 const ora = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());

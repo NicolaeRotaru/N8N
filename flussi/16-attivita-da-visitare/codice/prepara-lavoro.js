@@ -13,7 +13,8 @@ const lavoro = {
     'chi_e (chi è, da quanto c’è, che fama ha: una o due frasi), cosa_vende (cosa vende e, se si trova, a che prezzi), ' +
     'cosa_ci_guadagna (cosa ci guadagna LUI, dal suo punto di vista, in incassi, clienti nuovi o tempo risparmiato: mai «digitalizzazione» o «tecnologia»), ' +
     'come_convincerlo (l’obiezione più probabile e come rispondere), cosa_proporre (le voci del listino che gli servono davvero, col motivo concreto: per esempio «nessun sito: chi lo cerca su Google trova solo l’indirizzo»), ' +
-    'attenzione (se la mappa è vecchia: chiuso, trasferito, con un altro nome o un altro tipo di attività, è una catena, è già cliente; se un elenco dice «chiuso definitivamente» o «cessata attività», scrivilo qui per primo; altrimenti stringa vuota). ' +
+    'attenzione (se la mappa è vecchia: chiuso, trasferito, con un altro nome o un altro tipo di attività, è una catena, è già cliente; se un elenco dice «chiuso definitivamente» o «cessata attività», scrivilo qui per primo; altrimenti stringa vuota), ' +
+    'fonte (l’indirizzo https della pagina più utile che hai letto per quell’attività; stringa vuota se non ne hai trovata nessuna). ' +
     'Regole: non inventare niente; se non trovi un dato scrivi «non trovato». Il primo contatto è sempre di persona o al telefono: non suggerire mai messaggi WhatsApp o email a freddo. ' +
     'Non dire mai «zero commissioni»: MyCity trattiene il 10% sugli ordini che passano dal sito. Italiano semplice, frasi brevi, ogni campo al massimo 300 caratteri. Rispondi con una scheda per ogni attività, con lo stesso osm.',
   dati: {
@@ -22,7 +23,7 @@ const lavoro = {
     attivita: (f.fila || []).map((a) => ({ osm: a.osm, nome: a.nome, tipo: a.tipo, indirizzo: a.indirizzo, telefono: a.telefono, sito: a.sito, social: a.social, distanza_m: a.distanza_m, dalla_mappa: a.perche })),
   },
   schema: { type: 'object', properties: { schede: { type: 'array', items: { type: 'object',
-    properties: { osm: { type: 'string' }, chi_e: { type: 'string', maxLength: 500 }, cosa_vende: { type: 'string', maxLength: 500 }, cosa_ci_guadagna: { type: 'string', maxLength: 500 }, come_convincerlo: { type: 'string', maxLength: 500 }, cosa_proporre: { type: 'string', maxLength: 500 }, attenzione: { type: 'string', maxLength: 500 } },
+    properties: { osm: { type: 'string' }, chi_e: { type: 'string', maxLength: 500 }, cosa_vende: { type: 'string', maxLength: 500 }, cosa_ci_guadagna: { type: 'string', maxLength: 500 }, come_convincerlo: { type: 'string', maxLength: 500 }, cosa_proporre: { type: 'string', maxLength: 500 }, attenzione: { type: 'string', maxLength: 500 }, fonte: { type: 'string', maxLength: 500 } },
     required: ['osm', 'chi_e', 'cosa_ci_guadagna', 'come_convincerlo', 'cosa_proporre'] } } }, required: ['schede'] },
 };
 if (!VERO) lavoro.non_mandare = 'modalità prova del flusso 16';
@@ -31,10 +32,12 @@ else if (!(f.fila || []).length) lavoro.non_mandare = 'nessuna attività nuova d
 // Il tetto di «Chiedi all'AD» è 64 KB, in byte (scorciatoie-note #39): si misura in byte, con margine.
 const byte = (s) => (typeof Buffer !== 'undefined' ? Buffer.byteLength(s, 'utf8') : unescape(encodeURIComponent(s)).length);
 const taglia = (l) => { while (byte(JSON.stringify(l)) > 50000 && l.dati.attivita.length > 1) l.dati.attivita.pop(); return l; };
-// Un giro ogni DOSSIER_PER_GIRO attività (di serie 10): con 30 in una sola richiesta l'AD non cercava sul web e i dossier
-// tornavano vuoti (esecuzione 4585 del 28/11/2026). Il nodo «Chiedi all'AD i dossier» fa una chiamata per giro.
+// Un giro ogni DOSSIER_PER_GIRO attività (di serie 10), al massimo 3 giri: il flusso ha tre nodi «Chiedi all'AD» in fila.
+// In fila e non in parallelo: il 90 aspetta la routine con un nodo Wait, e con più chiamate insieme n8n riprende il
+// flusso alla prima risposta e perde le altre (esecuzione 4634 del 28/11/2026).
 // In prova o senza attività resta un lavoro solo, come prima: lo legge «Chiedi all'AD», che non si accende.
-const PER_GIRO = Math.max(1, Math.min(30, Math.floor(Number(cfg.DOSSIER_PER_GIRO)) || 10));
+const tutteN = (lavoro.dati.attivita || []).length;
+const PER_GIRO = Math.max(Math.max(1, Math.min(30, Math.floor(Number(cfg.DOSSIER_PER_GIRO)) || 10)), Math.ceil(tutteN / 3));
 const tutte = lavoro.dati.attivita;
 if (lavoro.non_mandare || tutte.length <= PER_GIRO) return [{ json: taglia(lavoro) }];
 const giri = [];
