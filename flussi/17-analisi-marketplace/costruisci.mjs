@@ -68,7 +68,8 @@ export function costruisci({ telegram, anthropic, chatId, marketplace, salute, c
     { id: randomUUID(), name: 'Config', type: 'n8n-nodes-base.set', typeVersion: 3.4, position: pos(1),
       parameters: { mode: 'manual', includeOtherFields: false, options: {}, assignments: { assignments: [
         ['SUPABASE_URL', 'https://clmpyfvpvfjgeviworth.supabase.co'],
-        ['SITO_URL', 'https://mycity-phi.vercel.app'],
+        // Il dominio vero (28/11/2026): l'indirizzo di Vercel rimanda qui, ed è chiuso a chi non è della squadra.
+        ['SITO_URL', 'https://www.mycity-marketplace.com'],
         ['TELEGRAM_CHAT_ID', chatId || 'DA_IMPOSTARE'],
         // Il gruppo Telegram «Marketplace» (25/11/2026). Vuoto = il briefing va nella chat privata.
         ['CHAT_MARKETPLACE', chatMarketplace || ''],
